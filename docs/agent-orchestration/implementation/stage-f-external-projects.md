@@ -4,7 +4,8 @@
 §1 (в том числе О1–О5 и В6 по ревью ревизии 3, О6–О8 по ревью ревизии 4); открытых вопросов нет, В6 закрыт (§13). Решено: состав и порядок
 F0 → F1 → F2 → F3 → F4 → Проба (§11), форматы `board-tasks/v1` и `board-review/v1` (проверка схем — полный JSON Schema,
 О1), профиль проекта (§7), совместимость (§9). Сделано: F0 пройден на 1.5.16–1.5.20 (результат — §9), F1 — импорт,
-форматы, строка роли, F2 — внешние задачи и модель на задачу, F3 — T-13a, T-6, T-7, T-13b, T-13c и smoke (§14); результаты в §14.
+форматы, строка роли, F2 — внешние задачи и модель на задачу, F3 — T-13a, T-6, T-7, T-13b, T-13c и smoke,
+F4 часть 1 — T-8 (§14); результаты в §14.
 
 Этап F учит доску вести задачу внешнего проекта до merge request: задачи приходят файлом `tasks.json` (формат
 `board-tasks/v1`, публичная схема в docs Loom, §5), автопилот берёт их по одной и доводит каждую до MR: ветка по шаблону
@@ -1855,7 +1856,92 @@ false`, `SHELL` — оболочка с журналом строк) и `window.
 
 ### F4 — push, MR, ревью, MCP
 
-Не начат. Переопределения MCP у Codex в F4 нет (В6, вариант «в»): его проверка на настоящем Codex — §12 «После F».
+Часть 1 — T-8 (ниже). Часть 2 — T-9 (выгрузка ревью), T-14 (`runMcp`), импорт полного примера `tasks.json` (поле `scope`)
+и smoke `scripts/smoke-board-f4-ui.mjs` (f4.s1–f4.s9) — следующий заход, в части 1 не сделаны. Переопределения MCP у Codex в
+F4 нет (В6, вариант «в»): его проверка на настоящем Codex — §12 «После F».
+
+**Часть 1 — T-8 (push + MR в автопилоте).**
+
+- **Профиль.** `OrchestrationProjectProfile.runPush?: {enabled, remote, remoteUrl, options[], protected[], confirmedAt}`
+  (тип `OrchestrationRunPush`, src/shared/orchestration.ts); `finish.push` не менялся. `validateProfile` (profile.ts) —
+  `validRunPush`: нет или `null` — ключа нет; `remote` по `gitNameOk`, `enabled` булево, `protected[]` до 32 имён `gitNameOk`
+  (иначе `invalid_profile`); не worktree — `work_mode_not_worktree`; без `finish.commit` — `push_needs_commit`; `options[]` до 16,
+  каждая `ключ` или `ключ=значение` (ключ `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`, значение ≤300 без управляющих знаков и
+  переводов строк), подстановки только `{commitTitle}`, `{issue}`, `{ref}`, `{base}` — иначе `push_option_invalid`; ключ,
+  содержащий `merge_when_pipeline_succeeds`, `auto_merge` или `ci.skip` (без учёта регистра), — `push_option_forbidden`; `{base}`
+  без `runBase` — `push_needs_base`. Помощники `pushOptionFields`, `fillOption`, `PUSH_FIELDS`.
+- **Сохранение (manager.ts `saveProfile`).** `runPush.remoteUrl` — `pushUrlOf`: `git remote get-url --all` и
+  `git remote get-url --push --all` в окружении login shell проекта (`loginGitEnv`, insteadOf и pushurl раскрыты); оба
+  прочитаны и дают ровно один адрес — иначе `remote_url_unreadable`; значение из окна перезаписывается. `confirmPush: true`
+  обязателен, когда `enabled` становится `true` или при включённом push меняются `remote`, прочитанный адрес или `options`
+  (иначе `push_not_confirmed`); тогда `confirmedAt` = время сохранения, иначе — сохранённое (из окна не берётся). `confirmPush`
+  не сохраняется; `addGrant` перезаписывает профиль через `validateProfile` — `confirmedAt` на месте.
+- **Только автопилот.** Вход `deps.start` автопилота отмечает `requestId` во внутреннем множестве `autopilotStarts` на время
+  `startOn`; кнопка, очередь и IPC его не ставят, `parseGoal` такого ключа не знает. `runPushFor` (manager.ts, в `createRunFor`
+  после `branchFor`): задача доски в worktree при `runPush.enabled` — нет поля, нужного options, → отказ `push_option_field`
+  (и для старта человеком); старт автопилота с `mode` и коммитом получает push: `{remote, branch: готовое имя (goal.branch, без
+  шаблона и runBase — canvastty/<run8>), remoteUrl, options: подставленные, protected: замороженный список}`; `resolveGoal`
+  кладёт его вместо `finish.push`, `finish_not_configured` для него не возникает. Старт из диалога — `finish.push` как раньше.
+- **Защищённые ветки.** `protectedBranches` — `main`, `master`, `runBase.branch` и `runPush.protected[]`; при выборе имени
+  (`branchFor`) — для каждого кандидата без учёта регистра, как в F3 (`protected_branch`). Список замораживается в
+  `goal.finish.push.protected`. Шаг push `runFinish` (orchestrationService.ts) первым делом сверяет ветку с замороженным
+  списком без учёта регистра: совпало — пауза `needs_user_action`, текст ленты начинается с `push_protected:`, push не
+  выполняется, записи `finish.intent` нет.
+- **Цель и строка push.** `checkFinish` сохраняет `options` (до 16 строк ≤1000 без управляющих знаков) и `protected` (до 40 имён),
+  только в журнале v2 и worktree (иначе `invalid_goal`); `GoalFinish.push` в cycle.ts получил оба поля. `PushParams.options` —
+  только непустые; `pushLine` — `git push -o '<opt>' … '<remote>' '<commit>:refs/heads/<ветка>'`, каждая option через `shq`; без
+  options строка прежняя. Сверка адреса push (`remoteUrlLine`/`remoteUrlsMatch`), `ls-remote` после push и только `ls-remote`
+  после неизвестного исхода (`establish`) — прежние. `parseGoal` берёт `finish.push` только булевым (`invalid_argument`, тест).
+- **Занятость имён на remote** (`remoteBranchesTaken` в `startOn`): у старта автопилота при `runPush.enabled` — на
+  `runPush.remote`, адрес сверяется `remoteUrlsMatch` (fetch и push), иначе прежнее — `runBase.remote` и `fetchUrlsMatch`.
+- **`push_option_field`.** taskBoard.ts: `PushField`, `PlaceOpts.pushFields`, `BoardOpts.pushFields` (ключ места → поля),
+  `BoardView.pushFields: Record<ключ места, PushField[]>`, `missingPushField`, `TaskReason` `push_option_field`, `TaskStatus.field`.
+  `boardStatuses` — причина у невнешней задачи в очереди без иной причины; `nextTask` и `next` в `autopilotParallelStep` задачу
+  пропускают по ней самой (и с зависимостями). `placeOptsOf` (boardAutopilot.ts) — поля только при `runPush.enabled`; `optsOf` и
+  `boardView` (manager.ts) — в вид доски; `boardOptsOf` — в окно. Карточка: `boardReason_push_option_field` с `{field}`.
+- **Отпечаток.** `fingerprint` содержит `runPush` (без ключа — строка как до F4, тест): смена `enabled`, `options` и прочего при
+  включённом автопилоте — `settings_changed`.
+- **Окно.** Настройки проекта (дополнительно): «Автопилот пушит» (по умолчанию выключено), remote, options и защищённые ветки по
+  строке; при включении или смене remote/options — флажок подтверждения с remote, адресом и options дословно
+  (`projRunPushConfirm`), без него — `push_not_confirmed` до вызова main. Тексты §10 F4 для `runPush` (RU/EN) и лишние
+  `projRunPushHint`, `projRunPushOptions`, `projRunPushProtected`; `outcomeText` подставляет `{field}` для `push_option_field`.
+- **Тесты:** новый `tests/orchestration-board-f4.test.mjs` (13): `pushLine` (options через `shq`, кавычки и `$`, без options — строка
+  прежняя), `fillOption`, `pushOptionFields`; `validateProfile` (все отказы профиля T-8, `finish.push` прежний); `push_option_field`
+  в `boardStatuses`/`nextTask`/`next` (с зависимостью) и на карточке; `placeOptsOf`, `boardOptsOf`, `fingerprint`; контроллер
+  (смена `runPush.enabled` — `settings_changed`, цель автопилота без push); `saveProfile` на bare-remote (insteadOf, `pushurl` на
+  другой адрес и неизвестный remote — `remote_url_unreadable`, `push_not_confirmed` при включении и смене options/remote, те же
+  значения и `addGrant` сохраняют `confirmedAt`, разные `runPush.remote` и `runBase.remote` со своими адресами); IPC —
+  `finish.push` объектом и `branch` → `invalid_argument`; импорт — `options`/`protected` в задаче → `invalid_task`; автопилот на
+  bare-remote с `receive.advertisePushOptions` и `pre-receive`, пишущим options: задача без `commitTitle` пропущена
+  (`push_option_field`, старт человеком — отказ), ветка `ISSUE-1-T1` на remote = коммит запуска, options дошли подставленными
+  (`{base}` = `stable`, заголовок с кавычками и `$` одной строкой), в цели — options и `protected` `main, master, stable, release`,
+  одна строка `git push -o …`, `--no-verify` нет; защищённое имя из `protected[]` (другой регистр) — `protected_branch`, цель с
+  веткой в замороженном списке (журнал переписан, как в F0) — пауза `needs_user_action`/`push_protected`, второго push нет;
+  неизвестный исход (`ls-remote` упал после push) — `finish_unconfirmed`, после «Продолжить» только `ls-remote`, push один,
+  options дошли один раз; старт из диалога в профиле с `runPush` — `finish.push` профиля без options, без push — `null`; тексты.
+- **Проверки:** `npm test` — 2118 тестов, 2117 прошли, 1 пропущен, 0 упало (`node --test --test-concurrency=1` шестнадцатью
+  частями по 15 файлов: целиком прогон длиннее 10 минут лимита команды; флейков не было); `npm run typecheck` чист;
+  `npm run lint:ci` — 267 предупреждений, как на main; `npm run build` прошёл. Прошлые smoke после сборки зелёные:
+  `smoke-board-f3-ui` 41/41 (66 подставных процессов CLI, 8 fetch), `smoke-board-f2-ui` 29/29.
+- **Отступления и решения (на утверждение владельцу):**
+  - `push_needs_commit` — при любом заданном `runPush`, и выключенном (буквально «`runPush` требует `finish.commit`»).
+  - `push_option_field` отказывает и старт человеком, хотя `runPush` к нему не применяется (так в T-8; С3.12 о старте из диалога
+    этого не отменяет).
+  - Адрес `runPush.remote` при проверке занятости имён в `startOn` не совпал — код `base_remote_mismatch` (своего кода у push в
+    §5.5 нет; текст общий: «адрес remote не тот, что разрешён»).
+  - Без шаблона и без `runBase` push идёт в `canvastty/<run8>`; `goal.branch` в этом случае не пишется (имя в
+    `goal.finish.push.branch`), защищённость этого имени сверяется только перед push.
+  - Деталь `push_protected` — префикс текста паузы в ленте (`push_protected: …`), как у прочих `needs_user_action` шага push;
+    формат журнала не менялся.
+  - В option запрещены все управляющие знаки и U+2028/U+2029 (в T-8 — «одной строкой, без `\0`»).
+  - `protected` в цели — до 40 имён (32 профиля + встроенные).
+- **Откат (§9).** Новых записей журнала и причин паузы нет; `options` и `protected` в цели старые сборки читают (F0) и
+  отбрасывают — пушат без options и без сверки защищённых (потеря из «Результат F0»); `saveProfile` старой сборкой выбрасывает
+  `runPush`, после возврата автопилот не пушит (`push: false`), пока push не включат и не подтвердят заново.
+- **Готово для T-9/T-14:** `goal.finish.push` с `remote`, `branch`, `options` и `protected` и результат шага push в журнале — источник
+  `push` выгрузки (§8); `runPushFor` в `createRunFor` — место для `goal.export` (рядом с `branchFor`); `placeOptsOf`/`optsOf`/
+  `fingerprint` — место для `reviewExport` и `runMcp`; блок настроек `data-orch-settings-run-push` — образец переключателей
+  T-9/T-14. Не сделано: `writeReviewExport`, `OrchestrationRunView.export`, `scope` в импорте, `runMcp`, smoke f4.
 
 ### Результат Пробы
 

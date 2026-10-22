@@ -535,7 +535,7 @@ function checkGoal(input: GoalInput, registryOf: (commands: string[] | null) => 
   const stage13 = input.mode !== undefined || input.prepare !== undefined || input.finish !== undefined || input.access !== undefined;
   if (stage13 && !commands) bad("a goal with a mode, preparation, actions after success or rights needs its check commands");
   const prepare = input.prepare === undefined ? undefined : checkPrepare(input.prepare, bad);
-  const finish = input.finish === undefined ? undefined : checkFinish(input.finish, bad);
+  const finish = input.finish === undefined ? undefined : checkFinish(input.finish, bad, v2 && input.workMode === "worktree");
   if (finish && (finish.commit || finish.push || finish.qa) && input.workMode === "copy") bad("actions after success need the project folder or a worktree");
   if (input.access !== undefined && (!isClaudeAccess(input.access?.claude) || !isCodexAccess(input.access?.codex))) bad("access: unknown mode");
   const models = input.models === undefined ? undefined : checkModels(input.models, v2, bad);
@@ -667,17 +667,25 @@ function checkPrepare(p: GoalInput["prepare"], bad: (m: string) => never): { ste
     })
   };
 }
-function checkFinish(f: GoalFinish, bad: (m: string) => never): GoalFinish {
+// pushExtras (F4, T-8): a journal v2 worktree goal — the push may carry main's filled options and frozen protected branches
+function checkFinish(f: GoalFinish, bad: (m: string) => never, pushExtras = false): GoalFinish {
   if (!f || typeof f !== "object") bad("finish must be an object");
   const name = (v: unknown) => typeof v === "string" && /^(?!-)[A-Za-z0-9._/-]{1,200}$/.test(v) && !v.includes("..");
   if (f.commit !== null && (!f.commit || typeof f.commit.message !== "string" || f.commit.message.trim() === "" || f.commit.message.length > 4000)) bad("finish.commit: {message}");
   if (f.push !== null && (!f.push || !name(f.push.remote) || !name(f.push.branch))) bad("finish.push: {remote, branch}");
   if (f.push && !f.commit) bad("a push needs the commit");
+  const options = f.push?.options, guarded = f.push?.protected;
+  if (options !== undefined && (!pushExtras || !Array.isArray(options) || options.length > 16
+    || options.some((o) => typeof o !== "string" || o === "" || o.length > 1000 || /[\u0000-\u001f\u007f\u2028\u2029]/.test(o)))) bad("finish.push.options: up to 16 one-line options, journal v2 and a worktree only");
+  if (guarded !== undefined && (!pushExtras || !Array.isArray(guarded) || guarded.length > 40 || guarded.some((b) => !name(b)))) bad("finish.push.protected: up to 40 branch names, journal v2 and a worktree only");
   if (f.qa !== null && (!f.qa || !LINE(f.qa.environment) || !LINE(f.qa.command) || !LINE(f.qa.verify)
     || (f.qa.reportsVersion !== undefined && typeof f.qa.reportsVersion !== "boolean"))) bad("finish.qa: {environment, command, verify, reportsVersion?}");
   return {
     commit: f.commit ? { message: f.commit.message } : null,
-    push: f.push ? { remote: f.push.remote, branch: f.push.branch, remoteUrl: typeof f.push.remoteUrl === "string" ? f.push.remoteUrl : null } : null,
+    push: f.push ? {
+      remote: f.push.remote, branch: f.push.branch, remoteUrl: typeof f.push.remoteUrl === "string" ? f.push.remoteUrl : null,
+      ...(options !== undefined ? { options: [...options] } : {}), ...(guarded !== undefined ? { protected: [...guarded] } : {})
+    } : null,
     qa: f.qa ? { environment: f.qa.environment.trim(), command: f.qa.command.trim(), verify: f.qa.verify.trim(), reportsVersion: f.qa.reportsVersion === true } : null
   };
 }
@@ -1966,8 +1974,12 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
       nothing = paths.length === 0;
       line = nothing ? "true" : commitLine(params, "<result file>"); // as shown; the line run names its own file
     } else if (step === "push") {
+      // F4 (T-8): never into a protected branch — the list frozen at the start, without case (APFS: main and Main are one
+      // file of refs); a pause the person resolves, as for a remote's other address
+      const guarded = f.push!.protected?.find((b) => b.toLowerCase() === f.push!.branch.toLowerCase());
+      if (guarded !== undefined) return needsUser(`push_protected: the branch ${f.push!.branch} is protected; the push was not made`);
       if (!commitNow) return needsUser("there is no confirmed commit of the checked state to push");
-      params = { remote: f.push!.remote, branch: f.push!.branch, commit: commitNow, tree: snapshot.tree };
+      params = { remote: f.push!.remote, branch: f.push!.branch, commit: commitNow, tree: snapshot.tree, ...(f.push!.options?.length ? { options: f.push!.options } : {}) };
       // The remote's address is part of what the person allowed: a changed one (a push URL or a rewrite included) is
       // asked again.
       const allowed = f.push!.remoteUrl;

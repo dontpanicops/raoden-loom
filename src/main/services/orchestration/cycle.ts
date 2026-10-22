@@ -56,7 +56,9 @@ export interface Goal {
 }
 export interface GoalFinish {
   commit: { message: string } | null;
-  push: { remote: string; branch: string; remoteUrl: string | null } | null;
+  // options, protected (F4, T-8, journal v2): set by main for the autopilot's push from the profile's runPush — the
+  // filled push options and the protected branches frozen at the start; absent: a plain push, as before
+  push: { remote: string; branch: string; remoteUrl: string | null; options?: string[]; protected?: string[] } | null;
   qa: { environment: string; command: string; verify: string; reportsVersion?: boolean } | null; // absent: false
 }
 

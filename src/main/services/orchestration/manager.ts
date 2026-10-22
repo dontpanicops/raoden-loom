@@ -30,11 +30,11 @@ import { accessMapping } from "./access.ts";
 import { claudeInit, clisItem, codexSchema, createCapabilityCache, probeClaude as probeClaudeCaps, probeCodex as probeCodexCaps, startProblems, startWarnings } from "./capabilities.ts";
 import type { Capabilities } from "./capabilities.ts";
 import type { AgentAccess } from "./access.ts";
-import { commitMessage, fetchUrlsMatch } from "./finish.ts";
+import { commitMessage, fetchUrlsMatch, remoteUrlsMatch } from "./finish.ts";
 import { runShell, shq } from "./shellRun.ts";
 import { laravelTestDb, neededSteps, worktreeSteps } from "./prepare.ts";
 import { codexModels, probeClaude, probeCodex } from "./probe.ts";
-import { createProfileStore, currentBranch, fillBranch, gitNameOk, gitRemotes, PROBE_FIELDS, suggestProfile, templateNeedsIssue, validateProfile } from "./profile.ts";
+import { createProfileStore, currentBranch, fillBranch, fillOption, gitNameOk, gitRemotes, PROBE_FIELDS, pushOptionFields, suggestProfile, templateNeedsIssue, validateProfile } from "./profile.ts";
 import { parseCliVersion } from "./providers.ts";
 import type { AgentAdapter } from "./agents.ts";
 import { checkPreparedDeps, createRegistry } from "./checks.ts";
@@ -58,7 +58,7 @@ import { fileRefusal, importReport, readImportFile, readTasksFile, sha256 } from
 import { createInbox, inboxNameOk } from "./boardInbox.ts";
 import type { SplitTask, TaskInput } from "./boardStore.ts";
 import { boardStatuses, heldDeps, isCopy, mergeOfTask, namedPaths, parallelOf, runPhase, WAIT_PAUSES, type BoardHead } from "../../../shared/taskBoard.ts";
-import { AUTOPILOT_BUDGET, baseOf, placeKey, type AutopilotBudget, type Board, type BoardOpts, type BoardPlace, type BoardTask, type BoardView, type ImportReport, type RunTaskFacts } from "../../../shared/taskBoard.ts";
+import { AUTOPILOT_BUDGET, baseOf, missingPushField, placeKey, type PushField, type AutopilotBudget, type Board, type BoardOpts, type BoardPlace, type BoardTask, type BoardView, type ImportReport, type RunTaskFacts } from "../../../shared/taskBoard.ts";
 import type { OrchestrationRunView, OrchestrationTurnPurpose, OrchestrationWorkMode } from "../../../shared/orchestration.ts";
 import { viewCause } from "../../../shared/orchestrationPause.ts";
 import { runOwners, workspaceOf } from "../../../shared/workspaceOwnership.ts";
@@ -212,17 +212,19 @@ export function createRunManager(deps: RunManagerDeps) {
   const profiles = createProfileStore(deps.root); // reads nothing until asked
   // F3 (T-13a): the options of the places of these tasks from their projects' saved profiles — every reading of the
   // statuses in main takes them, as the window and the autopilot do (principle 8)
-  async function optsOf(tasks: readonly Pick<BoardTask, "workspaceId" | "project">[]): Promise<BoardOpts & { remoteBase: Set<string>; issueRequired: Set<string> }> {
+  async function optsOf(tasks: readonly Pick<BoardTask, "workspaceId" | "project">[]): Promise<BoardOpts & { remoteBase: Set<string>; issueRequired: Set<string>; pushFields: Map<string, readonly PushField[]> }> {
     const remoteBase = new Set<string>();
     const issueRequired = new Set<string>();
+    const pushFields = new Map<string, readonly PushField[]>();
     const kept = new Map<string, OrchestrationProjectProfile | null>();
     for (const t of tasks) {
       if (!kept.has(t.project)) kept.set(t.project, await profiles.get(t.project).catch(() => null));
       const o = placeOptsOf(kept.get(t.project) ?? {});
       if (o.remoteBase) remoteBase.add(placeKey(t));
       if (o.issueRequired) issueRequired.add(placeKey(t));
+      if (o.pushFields) pushFields.set(placeKey(t), o.pushFields);
     }
-    return { remoteBase, issueRequired };
+    return { remoteBase, issueRequired, pushFields };
   }
   const direnvOf = async (project: string) => ({ direnv: (await profiles.get(project))?.env.direnv ?? true });
   // F3 (T-6, T-13a/b): git's environment for the remote base's address and branches — the user's login shell's, the same
@@ -621,8 +623,10 @@ export function createRunManager(deps: RunManagerDeps) {
       const t = await boardTaskOf(req.goal, inQueue);
       // F3 (T-6): the worktree's branch of a board task's run — chosen here, outside the request's identity
       const branch = await branchFor(source, runId, req.goal, workMode, t);
+      // F4 (T-8): the autopilot's push of this run, from the profile's runPush (its starts only: the dialog's keeps finish.push)
+      const push = await runPushFor(source, runId, req.goal, workMode, t, branch);
       const { branch: _given, ...named } = await withBoardRef(req.goal, inQueue) as OrchestrationGoalInput & { branch?: unknown };
-      const { prepareAuto, ...goal } = await resolveGoal(source, runId, { ...named, ...(branch ? { branch } : {}) }, rt, t);
+      const { prepareAuto, ...goal } = await resolveGoal(source, runId, { ...named, ...(branch ? { branch } : {}) }, rt, t, push);
       own(await svc.createRun({ source, goal, runId, requestKey: key, prepareAuto }));
       if (rt) runRuntimes.set(runId, rt);
       return { runId, created: true };
@@ -675,8 +679,26 @@ export function createRunManager(deps: RunManagerDeps) {
     return refuse("branch_taken", `the branch name ${name} is taken (every variant up to -9)`);
   }
   const branchCandidates = (name: string): string[] => [name, ...[2, 3, 4, 5, 6, 7, 8, 9].map((k) => `${name}-${k}`)];
-  // F3: the built-in protected names only (F4, T-8: the profile's runPush.protected[] too)
-  const protectedBranches = (p: OrchestrationProjectProfile): string[] => ["main", "master", ...(p.runBase ? [p.runBase.branch] : [])];
+  // F3: the built-in protected names; F4 (T-8): and the profile's runPush.protected[] — an empty or forgotten list never
+  // lets a push into the branch an MR goes to
+  const protectedBranches = (p: OrchestrationProjectProfile): string[] =>
+    [...new Set(["main", "master", ...(p.runBase ? [p.runBase.branch] : []), ...(p.runPush?.protected ?? [])])];
+  // F4 (T-8): the starts the autopilot makes (deps.start) — runPush applies to them alone; never from the window
+  const autopilotStarts = new Set<string>();
+  // F4 (T-8): a board task's worktree run in a profile whose autopilot pushes — a task its options cannot fill is refused
+  // (push_option_field: the autopilot skips it, a person's start is refused). The autopilot's start gets the push: the
+  // run's branch, the options filled ({ref} of a task without one: its key), the protected list frozen
+  async function runPushFor(source: string, runId: string, g: OrchestrationGoalInput, workMode: string | undefined, t: BoardTask | undefined, branch: string | null): Promise<NonNullable<GoalInput["finish"]>["push"] | null> {
+    if (!g.task || !t || workMode !== "worktree") return null;
+    const profile = await profiles.get(source);
+    const rp = profile?.runPush;
+    if (!profile || !rp?.enabled) return null;
+    const field = missingPushField(t, pushOptionFields(rp.options));
+    if (field) refuse("push_option_field", `${t.key} has no ${field} for the push options: ${field}`);
+    if (!autopilotStarts.has(runId) || !g.mode || !g.finish?.commit) return null;
+    const values = { commitTitle: t.commitTitle ?? "", issue: t.issue ?? "", ref: t.ref ?? t.key, base: profile.runBase?.branch ?? "" };
+    return { remote: rp.remote, branch: branch ?? `canvastty/${runId.slice(0, 8)}`, remoteUrl: rp.remoteUrl, options: rp.options.map((o) => fillOption(o, values)), protected: protectedBranches(profile) };
+  }
   const branchNameValid = async (source: string, name: string): Promise<boolean> =>
     gitNameOk(name) && await run(deps.gitPath(), ["check-ref-format", "--branch", name], { cwd: source, timeout: 10_000 }).then(() => true, () => false);
   // F3 (T-6, С2.2): before the canvas lock — the names of a board task's template branch already on the remote base's
@@ -686,15 +708,20 @@ export function createRunManager(deps: RunManagerDeps) {
     if (!input.goal?.task || await exists(input.requestId)) return null;
     const profile = await profiles.get(project);
     const mode = input.goal.workMode ?? (input.goal.mode ? profile?.workMode : undefined);
-    if (!profile?.branchTemplate || !profile.runBase || mode !== "worktree") return null;
+    // F4 (T-8): the autopilot's push goes to runPush.remote — the names are asked there
+    const pushTo = profile?.runPush?.enabled && autopilotStarts.has(input.requestId) ? profile.runPush : null;
+    if (!profile?.branchTemplate || !(profile.runBase || pushTo) || mode !== "worktree") return null;
     const t = (await board.read()).board.tasks.find((x) => x.id === input.goal.task!.id);
     if (!t || (templateNeedsIssue(profile.branchTemplate) && !t.issue)) return null; // the creation refuses it
     const name = fillBranch(profile.branchTemplate, { issue: t.issue ?? "", ref: t.ref ?? t.key, run8: input.requestId.slice(0, 8) });
-    const { remote, remoteUrl } = profile.runBase;
+    const { remote, remoteUrl } = pushTo ?? profile.runBase!;
     const env = await loginGitEnv(project);
     const urls = await run(deps.gitPath(), ["remote", "get-url", "--all", remote], { cwd: project, env, timeout: 10_000 }).then((r) => r.stdout, () => null);
     if (urls === null) refuse("remote_url_unreadable", `the address could not be read of the remote: ${remote}`);
-    if (!remoteUrl || !fetchUrlsMatch(urls, remoteUrl)) refuse("base_remote_mismatch", `the address is not the allowed one (save the project settings again) of the remote: ${remote}`);
+    // runPush.remote: its fetch and push addresses (remoteUrlsMatch), as the push step checks them; the base's: fetch only
+    const pushUrls = pushTo ? await run(deps.gitPath(), ["remote", "get-url", "--push", "--all", remote], { cwd: project, env, timeout: 10_000 }).then((r) => r.stdout, () => null) : null;
+    if (pushTo && pushUrls === null) refuse("remote_url_unreadable", `the address could not be read of the remote: ${remote}`);
+    if (!remoteUrl || !(pushTo ? remoteUrlsMatch(urls, pushUrls, remoteUrl) : fetchUrlsMatch(urls, remoteUrl))) refuse("base_remote_mismatch", `the address is not the allowed one (save the project settings again) of the remote: ${remote}`);
     const refs = branchCandidates(name).map((c) => `refs/heads/${c}`);
     const out = await run(deps.gitPath(), ["ls-remote", remote, ...refs], { cwd: project, env: await sshEnv(project, env), timeout: deps.remoteCheckMs ?? 20_000, maxBuffer: 1 << 20 })
       .then((r) => r.stdout, (e: unknown) => refuse("remote_check_failed", `git ls-remote failed or did not answer (${String((e as Error)?.message ?? e).slice(0, 200)}) on the remote: ${remote}`));
@@ -708,7 +735,9 @@ export function createRunManager(deps: RunManagerDeps) {
   }
 
   // t (F3, T-7): the board task of the goal — its commitTitle is the commit's title
-  async function resolveGoal(source: string, runId: string, g: OrchestrationGoalInput & { branch?: string }, rt: NativeRuntime | null, t?: BoardTask): Promise<GoalInput & { prepareAuto?: boolean }> {
+  // push (F4, T-8): the autopilot's push from the profile's runPush (runPushFor) — in place of finish.push
+  async function resolveGoal(source: string, runId: string, g: OrchestrationGoalInput & { branch?: string }, rt: NativeRuntime | null, t?: BoardTask,
+    push: NonNullable<GoalInput["finish"]>["push"] | null = null): Promise<GoalInput & { prepareAuto?: boolean }> {
     const { mode, finish, models: over, accessOverride: _override, ...given } = g;
     const chosen = roleModels(await profiles.get(source), over);
     const models = Object.fromEntries(Object.entries(chosen).filter(([, m]) => m !== null)) as Partial<Record<keyof OrchestrationRoleModels, string>>;
@@ -731,7 +760,7 @@ export function createRunManager(deps: RunManagerDeps) {
     if (finish?.qa && !profile.finish.qa) refuse("finish_not_configured", "QA: no environment, command and verification in the project settings");
     // QA deploys a confirmed commit of the checked state and its verification gets that commit
     if (finish?.qa && !finish.commit) refuse("invalid_goal", "QA needs the commit action");
-    const any = finish && (finish.commit || finish.push || finish.qa);
+    const any = finish && (finish.commit || finish.push || finish.qa || push);
     const workMode = rest.workMode ?? profile.workMode;
     // The rights the installed CLIs offer now, by the same rule as the readiness (startProblems): a mode the CLI does not
     // offer is refused, never passed on a guess and never narrowed on the quiet.
@@ -753,8 +782,8 @@ export function createRunManager(deps: RunManagerDeps) {
       access,
       ...(any ? {
         finish: {
-          commit: finish!.commit || finish!.push ? { message: commitMessage(g.text, runId, t?.commitTitle) } : null,
-          push: finish!.push ? profile.finish.push : null,
+          commit: finish!.commit || finish!.push || push ? { message: commitMessage(g.text, runId, t?.commitTitle) } : null,
+          push: push ?? (finish!.push ? profile.finish.push : null),
           qa: finish!.qa ? profile.finish.qa : null
         }
       } : {})
@@ -767,6 +796,16 @@ export function createRunManager(deps: RunManagerDeps) {
     const out = await run(deps.gitPath(), ["remote", "get-url", "--all", remote], { cwd: project, env: await loginGitEnv(project, direnv), timeout: 10_000 }).then((r) => r.stdout, () => null);
     const urls = [...new Set((out ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean))];
     if (urls.length !== 1) refuse("remote_url_unreadable", `the address could not be read (${urls.length ? "several addresses" : "none"}) of the remote: ${remote}`);
+    return urls[0]!;
+  }
+  // F4 (T-8, С3.13): the one address of a remote for the autopilot's push — every fetch and push address (`git remote
+  // get-url --all`, `--push --all`, insteadOf and pushurl expanded) the same one; else remote_url_unreadable
+  async function pushUrlOf(project: string, remote: string, direnv: boolean): Promise<string> {
+    const env = await loginGitEnv(project, direnv);
+    const read = (push: boolean) => run(deps.gitPath(), ["remote", "get-url", ...(push ? ["--push"] : []), "--all", remote], { cwd: project, env, timeout: 10_000 }).then((r) => r.stdout, () => null);
+    const [f, ps] = [await read(false), await read(true)];
+    const urls = [...new Set(`${f ?? ""}\n${ps ?? ""}`.split(/\r?\n/).map((l) => l.trim()).filter(Boolean))];
+    if (f === null || ps === null || urls.length !== 1) refuse("remote_url_unreadable", `the address could not be read (${urls.length > 1 ? "several addresses" : "none"}) of the remote: ${remote}`);
     return urls[0]!;
   }
   // F3 (T-13b, §7.2, О3): the autopilot's base at the profile's runBase — the remote's fetch addresses, every one the
@@ -1044,7 +1083,8 @@ export function createRunManager(deps: RunManagerDeps) {
     const opts = await optsOf(r.board.tasks);
     return { board: r.board, readOnly: r.readOnly, facts: facts.filter((f) => f.taskId || f.taskKey || f.decompositionOf), autopilot: await autopilot.state(),
       ...(heads.length ? { heads } : {}), ...(queued.length ? { queued } : {}), ...(inbox.rows().length ? { inbox: inbox.rows() } : {}),
-      ...(opts.remoteBase.size ? { remoteBase: [...opts.remoteBase] } : {}), ...(opts.issueRequired.size ? { issueRequired: [...opts.issueRequired] } : {}) };
+      ...(opts.remoteBase.size ? { remoteBase: [...opts.remoteBase] } : {}), ...(opts.issueRequired.size ? { issueRequired: [...opts.issueRequired] } : {}),
+      ...(opts.pushFields.size ? { pushFields: Object.fromEntries([...opts.pushFields].map(([k, v]) => [k, [...v]])) } : {}) };
   }
   // C1 (§4.5): «Объединить» — a task «Done» in a separate copy into its place's head (started if it has none); its result
   // branch is made first, if it has none (the same as decision 8)
@@ -1908,9 +1948,19 @@ export function createRunManager(deps: RunManagerDeps) {
       }
       // F3 (T-13a): the remote base's fetch address as git reads it (insteadOf expanded) — one, the same the start checks
       const runBase = p.runBase ? { ...p.runBase, remoteUrl: await fetchUrlOf(project, p.runBase.remote, p.env.direnv) } : undefined;
+      // F4 (T-8): the autopilot's push — its address read as the push step checks it (fetch and push, insteadOf expanded);
+      // turned on, or its remote, address or options changed, only confirmed (confirmPush); confirmedAt is main's
+      let runPush = p.runPush;
+      if (runPush) {
+        const remoteUrl = await pushUrlOf(project, runPush.remote, p.env.direnv);
+        const was = saved?.runPush;
+        const asks = runPush.enabled && (!was?.enabled || was.remote !== runPush.remote || was.remoteUrl !== remoteUrl || JSON.stringify(was.options) !== JSON.stringify(runPush.options));
+        if (asks && (input as { confirmPush?: unknown }).confirmPush !== true) refuse("push_not_confirmed", `the autopilot's push to ${runPush.remote} (${remoteUrl}) needs your confirmation`);
+        runPush = { ...runPush, remoteUrl, confirmedAt: asks ? new Date().toISOString() : was?.confirmedAt ?? null };
+      }
       runtimes.delete(`folder:${project}`);
       runtimes.delete(`worktree:${project}`);
-      return profiles.save(project, { ...p, grants: before.filter((g) => keep.has(g.id)), finish: { ...p.finish, push }, ...(runBase ? { runBase } : {}) });
+      return profiles.save(project, { ...p, grants: before.filter((g) => keep.has(g.id)), finish: { ...p.finish, push }, ...(runBase ? { runBase } : {}), ...(runPush ? { runPush } : {}) });
     }),
     // The models Codex offers for the settings and the goal (model/list, config/read; no model turn). refresh: «Обновить».
     codexModels: (linkId: string, refresh = false) => result(async (): Promise<OrchestrationCodexModels> => {
@@ -1992,7 +2042,11 @@ export function createRunManager(deps: RunManagerDeps) {
     journal: async (runId) => (await journal(runId)).map((r) => ({ ts: r.ts, type: r.type, data: r.data })),
     readiness: (input) => api.readiness(input),
     // the autopilot keeps its own places (autopilotParallelStep): never the start queue
-    start: (input) => result(() => startOn(input, false)),
+    // F4 (T-8): marked as the autopilot's for runPush (the button and the queue never are)
+    start: (input) => result(async () => {
+      autopilotStarts.add(input.requestId);
+      try { return await startOn(input, false); } finally { autopilotStarts.delete(input.requestId); }
+    }),
     take: async (runId) => {
       const info = await api.take(runId);
       return info.ok ? api.takeResult(runId, { action: "branch", name: info.value.suggested }) : info;

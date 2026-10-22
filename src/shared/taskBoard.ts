@@ -90,19 +90,28 @@ export interface BoardView {
   // template needs the task's issue ({issue}); every screen passes them to boardStatuses (boardOptsOf)
   remoteBase?: string[];
   issueRequired?: string[];
+  // F4 (T-8): the places whose autopilot pushes with options that need a task's field ({issue}, {commitTitle}) — those fields
+  pushFields?: Record<string, PushField[]>;
 }
 
-// F3 (T-13a): the options of one place, from its profile — the last parameter of autopilotParallelStep (F4 adds pushFields)
-export interface PlaceOpts { remoteBase?: boolean; issueRequired?: boolean }
-// the same for every place at once: sets of place keys
-export interface BoardOpts { remoteBase?: ReadonlySet<string>; issueRequired?: ReadonlySet<string> }
+// F3 (T-13a): the options of one place, from its profile — the last parameter of autopilotParallelStep. F4 (T-8):
+// pushFields — the task's fields the autopilot's push options need
+export type PushField = "issue" | "commitTitle";
+export interface PlaceOpts { remoteBase?: boolean; issueRequired?: boolean; pushFields?: readonly PushField[] }
+// the same for every place at once: sets of place keys (pushFields: place key → fields)
+export interface BoardOpts { remoteBase?: ReadonlySet<string>; issueRequired?: ReadonlySet<string>; pushFields?: ReadonlyMap<string, readonly PushField[]> }
 export const placeKey = (p: { workspaceId: string; project: string }): string => `${p.workspaceId}\0${p.project}`;
 export const placeOpts = (at: { workspaceId: string; project: string }, o: PlaceOpts): BoardOpts => ({
-  ...(o.remoteBase ? { remoteBase: new Set([placeKey(at)]) } : {}), ...(o.issueRequired ? { issueRequired: new Set([placeKey(at)]) } : {})
+  ...(o.remoteBase ? { remoteBase: new Set([placeKey(at)]) } : {}), ...(o.issueRequired ? { issueRequired: new Set([placeKey(at)]) } : {}),
+  ...(o.pushFields?.length ? { pushFields: new Map([[placeKey(at), o.pushFields]]) } : {})
 });
-export const boardOptsOf = (v: Pick<BoardView, "remoteBase" | "issueRequired">): BoardOpts => ({
-  ...(v.remoteBase?.length ? { remoteBase: new Set(v.remoteBase) } : {}), ...(v.issueRequired?.length ? { issueRequired: new Set(v.issueRequired) } : {})
+export const boardOptsOf = (v: Pick<BoardView, "remoteBase" | "issueRequired" | "pushFields">): BoardOpts => ({
+  ...(v.remoteBase?.length ? { remoteBase: new Set(v.remoteBase) } : {}), ...(v.issueRequired?.length ? { issueRequired: new Set(v.issueRequired) } : {}),
+  ...(v.pushFields && Object.keys(v.pushFields).length ? { pushFields: new Map(Object.entries(v.pushFields)) } : {})
 });
+// F4 (T-8): the first field the push options need that the task lacks
+export const missingPushField = (t: Pick<BoardTask, "issue" | "commitTitle">, fields: readonly PushField[] | undefined): PushField | null =>
+  fields?.find((f) => !t[f]) ?? null;
 
 // F1 (§5.4, §5.6): a file of <userData>/orchestration/inbox/ — checked (waits for «Import» / «Reject»), or set aside to
 // done/ at once (invalid_file, refused: shown with its code, no decision). tasks: the file's rows as written there, for
@@ -279,7 +288,9 @@ export type TaskReason =
   | "waits_external" | "external_has_runs"
   // F3 (T-13a, T-6): with a remote base, a direct dependency on an ordinary task (its MR is not merged yet); the branch
   // template needs the task's issue and it has none
-  | "waits_mr" | "branch_template_field";
+  | "waits_mr" | "branch_template_field"
+  // F4 (T-8): the autopilot's push options need a field the task lacks (TaskStatus.field)
+  | "push_option_field";
 
 export interface TaskStatus {
   column: TaskColumn;
@@ -304,6 +315,7 @@ export interface TaskStatus {
   depsNote: null | "changed" | "not_ready";
   // E2 (§2.1): the decomposition run the status shows, and its detail (a pause reason, whole, rejected / failed / stopped, a §5.1 code)
   split?: { runId: string; detail: string | null } | null;
+  field?: PushField; // F4 (T-8): the field of push_option_field
 }
 
 const REVIEW_PURPOSES: readonly OrchestrationTurnPurpose[] = ["review", "final_review"];
@@ -380,6 +392,9 @@ export function boardStatuses(board: Pick<Board, "tasks">, facts: readonly RunTa
     else if (depsWait && s.column === "queue" && s.reason !== "run_newer") s = { ...s, reason: depsWait.reason, waitsFor: depsWait.waitsFor, cycle: depsWait.cycle };
     // T-6: a task the branch template cannot name (no issue) — said where nothing else holds it
     if (!s.done && s.column === "queue" && s.reason === null && !task.external && !task.issue && opts.issueRequired?.has(placeKey(task))) s = { ...s, reason: "branch_template_field" };
+    // T-8: a task the push options cannot fill
+    const field = task.external ? null : missingPushField(task, opts.pushFields?.get(placeKey(task)));
+    if (!s.done && s.column === "queue" && s.reason === null && field) s = { ...s, reason: "push_option_field", field };
     if (task.decompose && s.attempts === 0) s = parentStatus(task, s, splitsOf.get(id) ?? [], board.tasks);
     out.set(id, s);
     return s;
@@ -570,7 +585,7 @@ export function nextTask(board: Pick<Board, "tasks">, statuses: ReadonlyMap<stri
     const s = statuses.get(t.id);
     // a dependency «Done» on a shaky base (its own dependency changed, or it was started anyway) is the person's call
     // F2 (T-3): an external task is never started — the person marks it
-    return t.workspaceId === at.workspaceId && t.project === at.project && !t.archivedAt && !t.external && !(opts.issueRequired && !t.issue) && s?.column === "queue" && s.reason === null && s.attempts === 0
+    return t.workspaceId === at.workspaceId && t.project === at.project && !t.archivedAt && !t.external && !(opts.issueRequired && !t.issue) && !missingPushField(t, opts.pushFields) && s?.column === "queue" && s.reason === null && s.attempts === 0
       && !heldDeps(t, board.tasks).some((d) => statuses.get(d)?.depsNote) && !notYetSplit(t, s) && !parentArchived(t, board.tasks);
   }).sort((a, b) => a.order - b.order)[0] ?? null;
 }
@@ -935,6 +950,7 @@ export function autopilotParallelStep(board: Pick<Board, "tasks">, facts: readon
     // F3 (T-6): the branch template cannot name it — with dependencies too, by the task itself (a held task's status may
     // carry another reason); T-13a: with a remote base the statuses say all
     if (opts.issueRequired && !t.issue) return false;
+    if (missingPushField(t, opts.pushFields)) return false; // F4 (T-8): the push options cannot fill it — the same way
     if (!held.length || opts.remoteBase) return s.reason === null;
     return held.every((d) => !board.tasks.some((x) => x.id === d) || (statuses.get(d)?.done && (inHead(d) || resultIn(d))));
   }).sort((a, b) => a.order - b.order)[0] ?? null;

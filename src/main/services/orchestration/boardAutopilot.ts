@@ -9,7 +9,7 @@ import {
   type AutopilotBudget, type AutopilotLimit, type BoardHead, type AutopilotState, type AutopilotStop, type AutopilotStopCode, type AutopilotWaiting, type Board,
   type LimitedRun, type PlaceOpts, type RunTaskFacts
 } from "../../../shared/taskBoard.ts";
-import { templateNeedsIssue } from "./profile.ts";
+import { pushOptionFields, templateNeedsIssue } from "./profile.ts";
 
 type R<T> = OrchestrationResult<T>;
 type Records = { ts: string; type: string; data: Record<string, unknown> }[];
@@ -71,16 +71,18 @@ interface Live {
 }
 
 // §5.1: the settings a start takes, and the project's saved permissions — any change turns the autopilot off.
-// F3 (§7.3): the branch template and the remote base too (absent: not in the string — a profile without them prints as before)
+// F3 (§7.3): the branch template and the remote base too; F4 (T-8): the autopilot's push (absent: not in the string — a
+// profile without them prints as before)
 export const fingerprint = (p: OrchestrationProjectProfile): string => JSON.stringify({
   access: p.access, workMode: p.workMode, models: p.models ?? null, finish: p.finish, checks: p.checks, prepare: p.prepare, env: p.env,
   grants: p.grants.map((g) => `${g.provider}:${g.kind}:${g.fingerprint}`).sort(),
-  branchTemplate: p.branchTemplate, runBase: p.runBase
+  branchTemplate: p.branchTemplate, runBase: p.runBase, runPush: p.runPush
 });
-// F3 (T-13a): the place's options from its profile (F4 adds pushFields)
-export const placeOptsOf = (p: Pick<OrchestrationProjectProfile, "runBase" | "branchTemplate">): PlaceOpts => ({
-  ...(p.runBase ? { remoteBase: true } : {}), ...(templateNeedsIssue(p.branchTemplate) ? { issueRequired: true } : {})
-});
+// F3 (T-13a): the place's options from its profile; F4 (T-8): the task's fields its push options need, while it pushes
+export const placeOptsOf = (p: Pick<OrchestrationProjectProfile, "runBase" | "branchTemplate" | "runPush">): PlaceOpts => {
+  const pushFields = p.runPush?.enabled ? pushOptionFields(p.runPush.options) : [];
+  return { ...(p.runBase ? { remoteBase: true } : {}), ...(templateNeedsIssue(p.branchTemplate) ? { issueRequired: true } : {}), ...(pushFields.length ? { pushFields } : {}) };
+};
 
 // C4: the turns of a run that completed (a run that got past its limit completed one since)
 const completedTurns = (records: Records): number => records.filter((r) => r.type === "turn.finished" && r.data.outcome === "completed").length;

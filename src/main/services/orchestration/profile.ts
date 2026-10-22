@@ -7,7 +7,7 @@ import { execFile } from "node:child_process";
 import { mkdir, open, readFile, rename } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
-import type { OrchestrationGrant, OrchestrationProjectProfile, OrchestrationRoleModels } from "../../../shared/orchestration.ts";
+import type { OrchestrationGrant, OrchestrationProjectProfile, OrchestrationRoleModels, OrchestrationRunPush } from "../../../shared/orchestration.ts";
 import { DEFAULT_ACCESS, isClaudeAccess, isCodexAccess } from "./access.ts";
 import { canonical } from "./journal.ts";
 import { suggestPrepare } from "./prepare.ts";
@@ -79,11 +79,51 @@ export function validateProfile(input: unknown): OrchestrationProjectProfile {
   const grants = p!.grants!.map(validGrant);
   const branchTemplate = validTemplate(p!.branchTemplate, p!.workMode!);
   const runBase = validRunBase(p!.runBase, p!.workMode!);
+  const runPush = validRunPush(p!.runPush, p!.workMode!, f!.commit, !!runBase);
   return {
     v: 1, workMode: p!.workMode!, checks, prepare: { steps, auto: prep!.auto }, env: { direnv: p!.env!.direnv },
     access: { claude: access.claude, codex: access.codex }, ...(models ? { models } : {}), finish: { commit: f!.commit, push, qa }, grants,
     savedAt: typeof p!.savedAt === "string" ? p!.savedAt : null,
-    ...(branchTemplate ? { branchTemplate } : {}), ...(runBase ? { runBase } : {})
+    ...(branchTemplate ? { branchTemplate } : {}), ...(runBase ? { runBase } : {}), ...(runPush ? { runPush } : {})
+  };
+}
+
+// F4 (T-8): the push options of the profile — `key` or `key=value` (one line, up to 300), only these substitutions in
+// the value. A key that merges the MR or skips CI is never sent (a neutral rule, not a project's list)
+export const PUSH_FIELDS: readonly string[] = ["commitTitle", "issue", "ref", "base"];
+const PUSH_OPTION = /^([A-Za-z0-9][A-Za-z0-9._-]{0,63})(?:=(.*))?$/s;
+const FORBIDDEN_OPTION = ["merge_when_pipeline_succeeds", "auto_merge", "ci.skip"];
+// the task's fields an option needs ({ref} of a task without one is its key: never missing)
+export const pushOptionFields = (options: readonly string[]): ("issue" | "commitTitle")[] =>
+  (["issue", "commitTitle"] as const).filter((f) => options.some((o) => templateFields(o).includes(f)));
+export const fillOption = (option: string, v: { commitTitle: string; issue: string; ref: string; base: string }): string =>
+  option.replace(/\{(commitTitle|issue|ref|base)\}/g, (_, f: keyof typeof v) => v[f]);
+
+// F4 (T-8): absent or null — none. Worktree only, after the commit; remoteUrl is main's (saveProfile reads it), and so
+// is confirmedAt (saveProfile keeps or sets it)
+function validRunPush(r: unknown, workMode: OrchestrationProjectProfile["workMode"], commit: boolean, hasBase: boolean): OrchestrationRunPush | null {
+  if (r === undefined || r === null) return null;
+  const no = (code: string, m: string): never => { throw new ProfileError(code, m); };
+  const o = r as Record<string, unknown>;
+  if (typeof o !== "object" || Array.isArray(o) || typeof o.enabled !== "boolean" || typeof o.remote !== "string" || !gitNameOk(o.remote)) bad("runPush: {enabled, remote, options, protected}");
+  if (workMode !== "worktree") no("work_mode_not_worktree", "runPush: the worktree mode only");
+  if (!commit) no("push_needs_commit", "runPush needs the commit action");
+  const options = o.options ?? [];
+  if (!Array.isArray(options) || options.length > 16) no("push_option_invalid", "runPush.options: up to 16");
+  for (const x of options as unknown[]) {
+    const m = typeof x === "string" ? PUSH_OPTION.exec(x) : null;
+    const value = m?.[2] ?? "";
+    if (!m || value.length > 300 || /[\u0000-\u001f\u007f\u2028\u2029]/.test(value)) no("push_option_invalid", `runPush.options: key or key=value, one line: ${String(x).slice(0, 80)}`);
+    const unknown = templateFields(value).find((f) => !PUSH_FIELDS.includes(f));
+    if (unknown !== undefined) no("push_option_invalid", `runPush.options: unknown substitution {${unknown}}: ${m![1]}`);
+    if (FORBIDDEN_OPTION.some((k) => m![1]!.toLowerCase().includes(k))) no("push_option_forbidden", `runPush.options: not allowed: ${m![1]}`);
+    if (templateFields(value).includes("base") && !hasBase) no("push_needs_base", `runPush.options: {base} needs runBase: ${m![1]}`);
+  }
+  const prot = o.protected ?? [];
+  if (!Array.isArray(prot) || prot.length > 32 || prot.some((b) => typeof b !== "string" || !gitNameOk(b))) bad("runPush.protected: up to 32 branch names");
+  return {
+    enabled: o.enabled as boolean, remote: o.remote as string, remoteUrl: typeof o.remoteUrl === "string" ? o.remoteUrl.slice(0, 500) : null,
+    options: [...options as string[]], protected: [...prot as string[]], confirmedAt: typeof o.confirmedAt === "string" ? o.confirmedAt.slice(0, 40) : null
   };
 }
 

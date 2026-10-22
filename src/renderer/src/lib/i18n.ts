@@ -2304,7 +2304,21 @@ const ru = {
   orchError_remote_base_dialog: "В этом проекте задачи доски запускает автопилот",
   orchError_base_fetch_failed: "Не удалось получить ветку remote: проверьте сеть и доступ",
   orchError_work_mode_not_worktree: "Эти настройки — только для режима worktree: смените режим",
-  orchError_ref_conflict: "Ветка с этим именем появилась, пока запуск создавался: запуск не создан, повторите"
+  orchError_ref_conflict: "Ветка с этим именем появилась, пока запуск создавался: запуск не создан, повторите",
+  // F4 (stage-f-external-projects.md §10, T-8): the autopilot's push with the profile's options
+  boardReason_push_option_field: "У задачи нет поля {field}, которое нужно options push: допишите его или уберите подстановку",
+  projRunPush: "Автопилот пушит",
+  projRunPushHint: "Только старты автопилота в режиме worktree, после коммита: ветка запуска уходит в remote с options ниже. Встроенно защищены main, master и ветка базы.",
+  projRunPushOptions: "Options push (по одной в строке: ключ или ключ=значение; подстановки {commitTitle}, {issue}, {ref}, {base})",
+  projRunPushProtected: "Защищённые ветки (по одной в строке)",
+  projRunPushConfirm: "Автопилот будет пушить в {remote} ({url}) с options: {options}",
+  orchError_push_protected: "Push в защищённую ветку {name} не выполнен: смените имя или список и продолжите",
+  orchError_push_option_forbidden: "Option {name} запрещена: она сливает MR или пропускает CI; уберите её",
+  orchError_push_option_field: "В option поле {field}, которого нет у задачи: допишите поле или уберите подстановку",
+  orchError_push_option_invalid: "Option {name} записана неверно: ключ или значение вне правил либо неизвестная подстановка",
+  orchError_push_needs_base: "Подстановка {base} требует базу от remote (`runBase`): задайте её или уберите {base}",
+  orchError_push_needs_commit: "Автопилот пушит только после коммита: включите коммит в профиле",
+  orchError_push_not_confirmed: "Включение push не подтверждено: подтвердите в окне"
 } as const;
 
 const en: Record<keyof typeof ru, string> = {
@@ -4606,7 +4620,20 @@ const en: Record<keyof typeof ru, string> = {
   orchError_remote_base_dialog: "In this project the board's tasks are started by the autopilot",
   orchError_base_fetch_failed: "The remote branch could not be fetched: check the network and access",
   orchError_work_mode_not_worktree: "These settings are for the worktree mode only: change the mode",
-  orchError_ref_conflict: "A branch of this name appeared while the run was being created: the run was not created, try again"
+  orchError_ref_conflict: "A branch of this name appeared while the run was being created: the run was not created, try again",
+  boardReason_push_option_field: "The task has no {field} that the push options need: add it or remove the substitution",
+  projRunPush: "The autopilot pushes",
+  projRunPushHint: "The autopilot's starts only, in the worktree mode, after the commit: the run's branch goes to the remote with the options below. main, master and the base's branch are protected always.",
+  projRunPushOptions: "Push options (one per line: key or key=value; substitutions {commitTitle}, {issue}, {ref}, {base})",
+  projRunPushProtected: "Protected branches (one per line)",
+  projRunPushConfirm: "The autopilot will push to {remote} ({url}) with options: {options}",
+  orchError_push_protected: "The push to the protected branch {name} was not made: change the name or the list and resume",
+  orchError_push_option_forbidden: "The option {name} is not allowed: it merges the MR or skips CI; remove it",
+  orchError_push_option_field: "The option uses {field}, which the task does not have: add the field or remove the substitution",
+  orchError_push_option_invalid: "The option {name} is not valid: the key or the value breaks the rules, or the substitution is unknown",
+  orchError_push_needs_base: "The {base} substitution needs a remote base (`runBase`): set it or remove {base}",
+  orchError_push_needs_commit: "The autopilot pushes only after a commit: turn the commit on in the profile",
+  orchError_push_not_confirmed: "The push was not confirmed: confirm it in the dialog"
 };
 
 export type TranslationKey = keyof typeof ru;
