@@ -5,7 +5,7 @@
 F0 → F1 → F2 → F3 → F4 → Проба (§11), форматы `board-tasks/v1` и `board-review/v1` (проверка схем — полный JSON Schema,
 О1), профиль проекта (§7), совместимость (§9). Сделано: F0 пройден на 1.5.16–1.5.20 (результат — §9), F1 — импорт,
 форматы, строка роли, F2 — внешние задачи и модель на задачу, F3 — T-13a, T-6, T-7, T-13b, T-13c и smoke,
-F4 часть 1 — T-8 (§14); результаты в §14.
+F4 — T-8 (часть 1), T-9, T-14, приём всех полей `tasks.json` и smoke f4 (часть 2); результаты в §14.
 
 Этап F учит доску вести задачу внешнего проекта до merge request: задачи приходят файлом `tasks.json` (формат
 `board-tasks/v1`, публичная схема в docs Loom, §5), автопилот берёт их по одной и доводит каждую до MR: ветка по шаблону
@@ -1218,6 +1218,7 @@ store их сохраняет; если нет — F1 не начинается 
 | `projRunBase` | База запуска — ветка remote | Run base — a remote branch |
 | `projRunPush` | Автопилот пушит | The autopilot pushes |
 | `projRunPushConfirm` | Автопилот будет пушить в {remote} ({url}) с options: {options} | The autopilot will push to {remote} ({url}) with options: {options} |
+| `projRunPushUrlUnread` | адрес remote не прочитан | the remote's address could not be read |
 | `projReviewExport` | Выгружать ревью | Export the review |
 | `projRunMcp` | Запускать без MCP | Run without MCP |
 | `orchExportPaths` | Выгрузка ревью | Review export |
@@ -1231,7 +1232,7 @@ store их сохраняет; если нет — F1 не начинается 
 | `orchError_remote_check_failed` | Не удалось проверить имена веток на remote {name}: проверьте сеть и доступ | The branch names could not be checked on the remote {name}: check the network and access |
 | `orchError_protected_branch` | Имя ветки защищено: {name}; смените шаблон | The branch name is protected: {name}; change the template |
 | `orchError_remote_url_unreadable` | Адрес remote {name} не прочитан: проверьте remote | The address of the remote {name} could not be read: check the remote |
-| `orchError_push_protected` | Push в защищённую ветку {name} не выполнен: смените имя или список и продолжите | The push to the protected branch {name} was not made: change the name or the list and resume |
+| `orchError_push_protected` | Push в защищённую ветку {name} не выполнен: «Продолжить» не поможет, ветка и список заморожены в цели. Остановите запуск и измените шаблон ветки или список защищённых в настройках; следующий запуск возьмёт новые | The push to the protected branch {name} was not made: Resume will not help, the branch and the list are frozen in the goal. Stop the run and change the branch template or the protected list in the settings; the next run takes the new ones |
 | `orchError_push_option_forbidden` | Option {name} запрещена: она сливает MR или пропускает CI; уберите её | The option {name} is not allowed: it merges the MR or skips CI; remove it |
 | `orchError_push_option_field` | В option поле {field}, которого нет у задачи: допишите поле или уберите подстановку | The option uses {field}, which the task does not have: add the field or remove the substitution |
 | `orchError_push_option_invalid` | Option {name} записана неверно: ключ или значение вне правил либо неизвестная подстановка | The option {name} is not valid: the key or the value breaks the rules, or the substitution is unknown |
@@ -1250,7 +1251,7 @@ store их сохраняет; если нет — F1 не начинается 
 | `orchError_invalid_argument` | Цель содержит поле, которое задаёт только приложение | The goal has a field that only the application sets |
 | `orchError_finish_failed` | Хук коммита отказал: {output}; исправьте и продолжите | The commit hook refused: {output}; fix it and resume |
 | `orchError_mcp_present` | У {cli} включены MCP-серверы: {names}; выключите их в своём конфиге {cli} и нажмите «Продолжить» | {cli} has MCP servers on: {names}; turn them off in your own {cli} config and press «Continue» |
-| `orchError_mcp_unchecked` | Не удалось проверить MCP-серверы Codex за 30 с (нет ответа или ответ не разобран): ход не выполнен, повторите | The MCP servers of Codex could not be checked in 30 s (no answer, or the answer could not be read): the turn was not made, try again |
+| `orchError_mcp_unchecked` | Не удалось проверить MCP-серверы {cli} (нет ответа или ответ не разобран): ход не выполнен, повторите | The MCP servers of {cli} could not be checked (no answer, or the answer could not be read): the turn was not made, try again |
 | `orchError_mcp_warning` | У Codex включены MCP-серверы: {names}; выключите их в своём конфиге Codex до запуска | Codex has MCP servers on: {names}; turn them off in your own Codex config before the run |
 | `orchError_mcp_warning_unchecked` | MCP-серверы Codex не проверены (нет ответа за 30 с или ответ не разобран): запуск остановится, если они включены | The MCP servers of Codex were not checked (no answer in 30 s, or the answer could not be read): the run stops if they are on |
 | `boardImportCode_workspace_not_found` | Пространство {name} не найдено среди открытых | The workspace {name} is not among the open ones |
@@ -1857,7 +1858,7 @@ false`, `SHELL` — оболочка с журналом строк) и `window.
 ### F4 — push, MR, ревью, MCP
 
 Часть 1 — T-8 (ниже). Часть 2 — T-9 (выгрузка ревью), T-14 (`runMcp`), импорт полного примера `tasks.json` (поле `scope`)
-и smoke `scripts/smoke-board-f4-ui.mjs` (f4.s1–f4.s9) — следующий заход, в части 1 не сделаны. Переопределения MCP у Codex в
+и smoke `scripts/smoke-board-f4-ui.mjs` (f4.s1–f4.s9) — после части 1, ниже. Переопределения MCP у Codex в
 F4 нет (В6, вариант «в»): его проверка на настоящем Codex — §12 «После F».
 
 **Часть 1 — T-8 (push + MR в автопилоте).**
@@ -1942,6 +1943,129 @@ F4 нет (В6, вариант «в»): его проверка на насто�
   `push` выгрузки (§8); `runPushFor` в `createRunFor` — место для `goal.export` (рядом с `branchFor`); `placeOptsOf`/`optsOf`/
   `fingerprint` — место для `reviewExport` и `runMcp`; блок настроек `data-orch-settings-run-push` — образец переключателей
   T-9/T-14. Не сделано: `writeReviewExport`, `OrchestrationRunView.export`, `scope` в импорте, `runMcp`, smoke f4.
+
+**Часть 2 — T-9 (выгрузка ревью), T-14 (`runMcp`), приём всех полей `tasks.json`, smoke f4.**
+
+- **Импорт: все поля `board-tasks/v1`.** `scope` принимается (boardImport.ts: `FIELDS` с `scope`, `LATER` пуст; проверка
+  `isScope` из boardStore.ts — 1..64 строк по 1..300 знаков, не пустые после `trim`, без `\0`, иначе `invalid_task`); store
+  хранит `scope` (`BoardTask.scope`, `ImportFields.scope`, мягкая проверка в `soft` — плохое значение отбрасывается, доска
+  цела); файл без поля снимает его. Отказ `field_not_supported` больше ни одному полю формата не нужен (код и строка
+  отчёта остаются для полей будущих версий). Полный пример документа формата импортируется целиком (тест и f4.s8).
+- **Профиль.** `reviewExport?: true`, `runMcp?: false` (`OrchestrationProjectProfile`); `validateProfile`: `reviewExport` —
+  `true`/нет/`false` (`false` — нет ключа), иначе `invalid_profile`; не worktree — `work_mode_not_worktree`, без `runBase` —
+  `review_export_needs_base`, без `finish.commit` — `review_export_needs_commit`. `runMcp` — `false`/нет/`true` (`true` — нет
+  ключа), в любом режиме. Оба — в `fingerprint` (boardAutopilot.ts; без ключей строка прежняя, тест). Окно: блок
+  `data-orch-settings-f4` в настройках проекта — «Выгрузка ревью» и «Без MCP» с пояснениями §10.
+- **Цель.** main ставит `goal.export: true` в `resolveGoal` (manager.ts) задаче доски в worktree при `reviewExport` и
+  коммите в цели; `goal.noMcp: true` — каждому запуску проекта с `runMcp: false`. Ключей нет в `parseGoal` (из окна —
+  `invalid_argument`, тест через IPC), ключи прямого вызова отбрасываются; `checkGoal` (orchestrationService.ts) берёт
+  `export` только `true`, в журнале v2, worktree и у задачи доски, `noMcp` — только `true`.
+- **Выгрузка (T-9).** Новый reviewExport.ts: `cliVersions` (О7), `buildReview` (поля §8 из их источников), `reviewMarkdown`,
+  `exportPaths`, `createReviewExporter({root, source, afterTmp?})` — `write(runId)` single-flight по `runId`: каталог
+  запуска только настоящий (`lstat`, символьная ссылка не читается), готовый `export/` не переписывается, файлы — во
+  временном `export.tmp-<uuid>` (`O_CREAT|O_EXCL|O_NOFOLLOW`, 0600, `fsync`), затем `rename` в `export/`; `catchUp()` при
+  старте приложения убирает недописанные `export.tmp-*` и дописывает выгрузки. Источник — `reviewSource` (manager.ts):
+  завершённый запуск с `goal.export`, задачей и базой, последней записью commit с коммитом; `tree` — `git rev-parse
+  <commit>^{tree}`, `checkedTree` — дерево записи commit; `push` — только при `goal.finish.push` и записи push с тем же
+  коммитом (в том числе выясненной `ls-remote`), `remote` из параметров шага, `at` — время его `finish.result`; роли —
+  провайдер последнего `turn.intent` роли; условия и находки — из `snapshot` (как в панели: `decidedGoal`, `closedByPerson`,
+  пониженные); задача — с доски как есть (архивная тоже), удалённая — `title`/`issue` `null`, `key`/`ref` из цели;
+  версии — `<cli> --version` 5 с у CLI ролей (рантайм запуска, иначе проекта). Вызов: `own()` подписывается на
+  изменения запуска и пишет выгрузку, когда он стал `completed`; `reviewExports()` — при старте приложения
+  (src/main/index.ts). Вид: `OrchestrationRunView.export` (`exportView`): нет `goal.export` — поля нет; завершён с
+  коммитом — пути; иначе `null`. Панель запуска («Обзор», после шагов завершения): пути `review.json` и `review.md` с
+  «Скопировать путь», у завершённого без коммита — «Выгрузки нет: нечего было коммитить». Путь задаёт только main.
+- **Без MCP (T-14).** Claude: `--strict-mcp-config` без `--mcp-config` (providers.ts); драйвер читает `mcp_servers` из
+  `system/init` — непустой список — `mcp_present`, нет массива — `mcp_unchecked`, ход прерывается. Codex: переопределения
+  нет (В6); после ответа `thread/start`/`thread/resume` драйвер (sessions.ts) спрашивает `mcpServerStatus/list` с
+  `threadId`, все страницы (`codexMcpList` из probe.ts), 30 с (`MCP_CHECK_MS`); любое названное имя (без `runtimeStatus`) —
+  `mcp_present`, неполный список (нет ответа, ошибка, нет `data`, повтор курсора, сбой страницы) — `mcp_unchecked`, ход не
+  стартует, stdin закрывается; полный пустой список — ход идёт. Исход: `ProviderTurnResult.mcpBlock` → запись ленты
+  `error` с `detail {mcp, cli, names}` и текстом `mcp_present: …`/`mcp_unchecked: …`, пауза `needs_user_action` (новых причин
+  нет, `PAUSED_REASONS_V2` прежний); `pauseCause` даёт причину `mcp`, панель — текст §10 с CLI и именами. Готовность:
+  при `runMcp: false` — `codexMcpNames` (probe.ts, без потока) → пункт `mcp_warning` (имена или «не проверено»).
+  Конфиги пользователя не меняются; `~/.codex/config.toml` в smoke сверен хешем.
+- **Тесты:** новый `tests/orchestration-board-f4-review.test.mjs` (20): `cliVersions` (все строки О7, 128 знаков, `null`);
+  `validateProfile` (отказы T-9, `runMcp`); `fingerprint`; `buildReview` по схеме (находки человека и пониженные, `push`
+  `null`, удалённая задача, нет ролей) и `review.md`; экспортёр (падение после временного каталога — ничего, single-flight,
+  повтор ничего не пишет, символьная ссылка, `catchUp` убирает остаток); импорт `scope` (отказы, повтор `unchanged`, файл
+  без поля снимает, плохой `scope` в `board.json` отброшен); полный пример документа формата; менеджер на bare-remote:
+  автопилот с push и `reviewExport` — падение между «завершён» и файлами (через `afterExportTmp`), дописывание при старте,
+  поля из источников, `git status` worktree и проекта до и после, пути в виде, повтор не пишет; неизвестный исход push,
+  выясненный `ls-remote`, — `push` `confirmed`, ветка `canvastty/<run8>` при `runBase` без шаблона; две выгрузки двух
+  запусков одной задачи, «нечего коммитить» — выгрузки нет, CLI не ответил за 5 с — версии `null`, архивная и удалённая
+  задача; цель без `export`, остановленный запуск, отказы профиля через `saveProfile`; IPC — `export`/`noMcp` →
+  `invalid_argument`; `buildNativeTurn` (`--strict-mcp-config`); драйвер Codex (`config` без ключей MCP, все страницы с
+  `threadId`, имена с `runtimeStatus: "disabled"`, пустой список; отказы: нет ответа, ошибка, нет списка, повтор курсора,
+  сбой второй страницы); драйвер Claude; `pauseCause` и тексты; запуски на подставных CLI (пауза `mcp_present` Codex и
+  Claude, `mcp_unchecked`, готовность с именами и «не проверено» за 30 с); i18n. `board-formats-schema.test.mjs`: оба
+  запуска F1 теперь идут и через `writeReviewExport` — её `review.json` равен выгрузке помощника.
+  Подставные CLI: `MOCK_CODEX_MCP` (список, `hang`, `no_data`, `page2`, `repeat`; запросы в `codex-mcp.jsonl`, `config`
+  потока в `codex-thread-config.jsonl`), `MOCK_CLAUDE_MCP` при `--strict-mcp-config` (`--mcp-config` по-прежнему отказ).
+- **Smoke** `scripts/smoke-board-f4-ui.mjs` (52 проверки): настоящее окно 1280×800, bare-remote с
+  `receive.advertisePushOptions` и `pre-receive`, пишущим options; обёртки подставных CLI читают имена MCP из файлов;
+  login shell пишет строки и по флагу роняет `ls-remote`. Шаги:
+  - f4.s1 — в настройках «Автопилот пушит», «Выгрузка ревью», «Без MCP» выключены; подтверждение показывает remote, адрес и
+    options дословно; «Сохранить» без подтверждения — текст `push_not_confirmed`, профиль не изменён; main: без
+    `confirmPush` — отказ, с ним — `confirmedAt`, те же значения — сохранён, смена options — снова подтверждение;
+  - f4.s2 — `push_option_forbidden` (`merge_when_pipeline_succeeds`, `ci.skip`), `push_option_invalid`, `push_needs_base`,
+    `push_needs_commit`, `work_mode_not_worktree` (copy, project); профиль после отказов прежний;
+  - f4.s3 — ветка `ISSUE-1-P1` на remote = коммит запуска, options дошли подставленными (`merge_request.create`, `target`,
+    заголовок с кавычками и `$`), в цели — замороженный `protected`, один `git push`, `--no-verify` нет; задача без
+    `commitTitle` — `push_option_field` на карточке, пропущена, автопилот кончил `others_wait`;
+  - f4.s4 — `Release-P9` при `protected: ["release-p9"]` и ветка `main` (шаблон `{ref}`) — `start_failed`/`protected_branch`,
+    запусков нет; remote отказал push — пауза `finish_unconfirmed`; цель с веткой в замороженном списке (журнал
+    переписан при закрытом приложении) — после «Продолжить» `needs_user_action`/`push_protected`, push не сделан;
+  - f4.s5 — `ls-remote` упал после push — `finish_unconfirmed`; «Продолжить» — только `ls-remote`, push один, options один
+    раз, запуск завершён;
+  - f4.s6 — отказы `review_export_needs_base`/`review_export_needs_commit`; два завершённых запуска — две выгрузки,
+    `review.json` по схеме, поля из источников (коммит, дерево, ветка, база, `scope`, push `confirmed`, версии CLI),
+    вне дерева проекта, `review.md` рядом; панель — пути и «Скопировать путь» («Скопировано»); «нечего коммитить» —
+    выгрузки нет, панель говорит «Выгрузки нет: нечего было коммитить»; остановленный — нет; после перезапуска
+    (выгрузки удалены, оставлен `export.tmp-*`, `--version` не отвечает, одна задача удалена из `board.json`) выгрузки
+    дописаны, остатка нет, версии `null`, у удалённой `title`/`issue` `null`; `git status` worktree и проекта тот же;
+  - f4.s7 — готовность в диалоге цели: `mcp_warning` с именами; запуск: Codex назвал серверы — `needs_user_action`/
+    `mcp_present` с именами, панель говорит «У Codex включены MCP-серверы: alpha, beta»; ответ без списка —
+    `mcp_unchecked`; пустой список — ход идёт, Claude назвал сервер — `mcp_present` Claude; без серверов — завершён;
+    Claude только с `--strict-mcp-config`; запросы Codex в потоке; `config` потоков без ключей MCP, `config.toml` не
+    тронут; Codex молчит — «не проверено» после 30 с;
+  - f4.s8 — полный пример документа формата (`project` — второй fixture-проект, `workspace` → `workspaceId`)
+    импортирован целиком, у `T2` — `scope`, `models`, `issue`, `commitTitle`;
+  - f4.s9 — профиль без `runBase`, `reviewExport`, `runMcp`, с `finish.push` в `qa` и `runPush`: автопилот пушит с options
+    профиля, Claude без `--strict-mcp-config`, выгрузки и ключей `export`/`noMcp` нет; старт той же задачи из диалога —
+    `finish.push` профиля без options.
+- **Ревью диффа** отдельным агентом — два круга. Первый: блокирующих нет, исправлены:
+  - выгрузка: `catchUp` не идёт по символьным ссылкам и именам не-UUID и не трогает идущую запись; предфильтр по цели
+    до чтения всего журнала; входы выгрузки отвечают `unsupported_platform` вне macOS arm64; нечитаемые тексты условий
+    откладывают выгрузку; сбой записи повторяется до 3 раз;
+  - push: подтверждение показывает адрес, который читает main (`facts.remotes[].pushUrl` — `pushUrlOf`), нечитаемый
+    подтвердить нельзя; выключенный `runPush` адрес не читает; старт без `confirmedAt`/`remoteUrl` — `push_not_confirmed`;
+    option длиннее 300 знаков после подстановки, строка длиннее 1000 или управляющие знаки — `push_option_invalid`;
+  - MCP: без `threadId` у Codex и без `system/init` у Claude — `mcp_unchecked`; таймеры проверки чистятся;
+  - тексты: `orchError_push_protected`, `orchError_mcp_unchecked` с `{cli}`, «Raoden Loom» в подсказке.
+  Второй: одна блокирующая — выгрузка v2 не писалась, если вид условий или находок `null`, хотя это бывает законно;
+  исправлено — откладывает только сбой `loadConditions`. Законный `null` → `[]` тестом через `reviewSource` не покрыт:
+  журнал v2 подставных CLI его не даёт (план без условий — `invalid_report`, ревью лидом даёт находки `{items: []}`).
+- **Проверки:** `npm test` — 2148 тестов, 2147 прошли, 1 пропущен; `npm run typecheck` чист; `npm run lint:ci` — 267
+  предупреждений, как в main, новых нет; smoke `smoke-board-f3-ui` — 41/41, `smoke-board-f4-ui` — 52/52 после всех правок.
+- **Отступления и решения (на утверждение владельцу):**
+  - Имена ключей цели — `export` (как в §8) и `noMcp` (в спецификации не назван); `noMcp` ставится каждому запуску проекта
+    с `runMcp: false` в любом режиме, не только автопилоту.
+  - Пути в виде появляются, как только запуск завершён с коммитом; файл пишется сразу после.
+  - Claude: `system/init` без `mcp_servers` — `mcp_unchecked` (закрыто на отказ, как у Codex).
+  - Codex после отказа проверки закрывает stdin; исход хода — `protocol_error`, пауза — `needs_user_action` по `mcpBlock`.
+  - Деталь паузы — префикс текста ленты `mcp_present:`/`mcp_unchecked:` и `detail.mcp` записи `error`; формат журнала не
+    менялся.
+  - Версии CLI при дописывании на старте — из рантайма проекта (запуска уже нет).
+  - `scope` при импорте: строки не пустые после `trim` и без `\0` (сверх §5.1).
+  - В smoke `workspace` примера заменён на `workspaceId` открытого пространства; «два запуска одной задачи — две
+    выгрузки» в окне не воспроизводится (повторный старт задачи доски в месте с `runBase` отказан `remote_base_dialog`) —
+    в smoke две выгрузки двух задач, сам случай — в тесте менеджера.
+  - «Скопировать путь» в smoke пишет в системный буфер обмена (так работает кнопка).
+- **Откат (§9).** Новых записей журнала и причин паузы нет. `export`/`noMcp` в цели старые сборки отбрасывают (F0): запуск,
+  открытый старой сборкой, идёт без проверки MCP (потеря) и выгрузку не пишет; новая сборка при старте дописывает её
+  для завершённых. `reviewExport`/`runMcp` старая сборка при сохранении профиля выбрасывает. `scope` старые сборки
+  F1–F3 отказывают `field_not_supported`, в `board.json` поле отбрасывают мягко.
 
 ### Результат Пробы
 

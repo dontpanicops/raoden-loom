@@ -999,6 +999,31 @@ function RunSummary({ orch, runId, view, records, locale, changedFiles, gaps, in
   );
 }
 
+// F4 (T-9, §10): the review export of a completed board task's run — its paths with «Copy the path», or why there is
+// none (the run completed with nothing to commit); nothing when the run was not asked for one
+function ReviewExport({ locale, view }: { locale: LocaleId; view: OrchestrationRunView }): React.JSX.Element | null {
+  const [copied, copy] = useCopy();
+  const [which, setWhich] = useState<string | null>(null);
+  if (view.export === undefined || (view.export === null && view.status !== "completed")) return null;
+  return (
+    <div data-orch-export={view.export ? "paths" : "none"}>
+      <h4>{t(locale, "orchExportPaths")}</h4>
+      {view.export ? (
+        <ul>
+          {[view.export.json, view.export.md].map((path) => (
+            <li key={path} data-orch-export-path={path}>
+              <code>{path}</code>{" "}
+              <button type="button" data-orch-export-copy={path} onClick={() => { setWhich(path); void copy(path); }}>
+                {which === path ? t(locale, copyKey(copied, "orchExportCopy", "docCopied")) : t(locale, "orchExportCopy")}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="orch-hint">{t(locale, "orchExportNone")}</p>}
+    </div>
+  );
+}
+
 // biome-ignore-start lint/suspicious/noArrayIndexKey: a document's lines are built once, in order, never reordered
 function RunDocView({ doc, kind, locale, onNote }: { doc: RunDoc; kind: "plan" | "result"; locale: LocaleId; onNote?: (markdown: string) => void }): React.JSX.Element {
   const [copied, copy] = useCopy();
@@ -1788,6 +1813,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
                       </ul>
                     </>
                   )}
+                  <ReviewExport locale={locale} view={view} />
                 </section>
                 <section className="orch-panel__section" data-orch-participants>
                   <h4>{t(locale, "orchParticipants")}</h4>

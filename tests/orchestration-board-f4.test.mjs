@@ -305,7 +305,7 @@ test("saveProfile: runPush's address read by get-url --all and --push --all (ins
   const rp = (over = {}) => PROFILE({ runPush: RUN_PUSH({ options: ["merge_request.create"], remoteUrl: "anything", confirmedAt: "1999-01-01T00:00:00.000Z", ...over }) });
   const off = await m.saveProfile(linkId, rp({ enabled: false }));
   assert.ok(off.ok, JSON.stringify(off));
-  assert.deepEqual([off.value.runPush.remoteUrl, off.value.runPush.confirmedAt], [bare, null], "the address is git's; confirmedAt is main's");
+  assert.deepEqual([off.value.runPush.remoteUrl, off.value.runPush.confirmedAt], [null, null], "turned off: nothing read, nothing the caller sent is kept");
   const asked = await m.saveProfile(linkId, rp());
   assert.equal(asked.code, "push_not_confirmed");
   const on = await m.saveProfile(linkId, { ...rp(), confirmPush: true });
@@ -492,8 +492,65 @@ test("import: a task's push options are not a field of the format — invalid_ta
 });
 
 test("i18n (F4, T-8): the texts of runPush in both languages", () => {
-  const keys = ["boardReason_push_option_field", "projRunPush", "projRunPushConfirm", "projRunPushOptions", "projRunPushProtected", "orchError_push_protected", "orchError_push_option_forbidden",
+  const keys = ["boardReason_push_option_field", "projRunPush", "projRunPushConfirm", "projRunPushUrlUnread", "projRunPushOptions", "projRunPushProtected", "orchError_push_protected", "orchError_push_option_forbidden",
     "orchError_push_option_field", "orchError_push_option_invalid", "orchError_push_needs_base", "orchError_push_needs_commit", "orchError_push_not_confirmed"];
   for (const locale of ["ru", "en"]) for (const k of keys) assert.ok(words(locale, k), `${locale}: ${k}`);
   assert.equal(words("ru", "projRunPushConfirm"), "Автопилот будет пушить в {remote} ({url}) с options: {options}");
+});
+
+// ---------------- review fixes: the push's confirmation, its address and its options ----------------
+
+test("the settings' facts give each remote the address main saves (insteadOf expanded; several addresses — null), not the raw url", OPTS, async () => {
+  const { dir, bare } = project();
+  const m = manager(scripts());
+  const linkId = await linkOn(m, dir);
+  g(dir, "config", `url.${path.dirname(bare)}/.insteadOf`, "fixture:");
+  g(dir, "remote", "set-url", "upstream", `fixture:${path.basename(bare)}`);
+  g(dir, "remote", "add", "split", bare);
+  g(dir, "remote", "set-url", "--push", "split", path.join(TMP, "elsewhere.git"));
+  const remotes = (await m.profile(linkId)).value.facts.remotes;
+  const by = Object.fromEntries(remotes.map((r) => [r.name, r]));
+  assert.deepEqual([by.upstream.url, by.upstream.pushUrl], [`fixture:${path.basename(bare)}`, bare]);
+  assert.deepEqual([by.split.url, by.split.pushUrl], [bare, null]);
+  await m.shutdown();
+});
+
+test("saveProfile with runPush turned off reads no address: a remote that is gone does not block it, the saved address and confirmation stay", OPTS, async () => {
+  const { dir } = project();
+  const m = manager(scripts());
+  const linkId = await linkOn(m, dir);
+  const pushTo = path.join(TMP, `push-${++n}.git`);
+  g(TMP, "init", "-q", "--bare", pushTo);
+  g(dir, "remote", "add", "review", pushTo);
+  const on = await m.saveProfile(linkId, { ...PROFILE({ runPush: RUN_PUSH({ remote: "review" }) }), confirmPush: true });
+  assert.ok(on.ok, JSON.stringify(on));
+  g(dir, "remote", "remove", "review");
+  const off = await m.saveProfile(linkId, PROFILE({ runPush: RUN_PUSH({ remote: "review", enabled: false }) }));
+  assert.ok(off.ok, JSON.stringify(off));
+  assert.deepEqual([off.value.runPush.enabled, off.value.runPush.remoteUrl, off.value.runPush.confirmedAt], [false, pushTo, on.value.runPush.confirmedAt]);
+  await m.shutdown();
+});
+
+test("the autopilot's start refuses a push the profile never confirmed (the file written by hand: no confirmedAt) — push_not_confirmed; and an option that grows past the limits once filled — push_option_invalid", OPTS, async () => {
+  const { dir } = project();
+  const long = "x".repeat(72);
+  const t1 = task({ project: dir, ref: "T1", issue: "ISSUE-1", commitTitle: long, text: "write x", criteria: ["x.txt says done"] });
+  const root = path.join(TMP, `root-${++n}`);
+  boardFile(root, [t1]);
+  const m = manager(scripts(turns("x.txt")), { root });
+  const linkId = await linkOn(m, dir);
+  assert.ok((await m.saveProfile(linkId, { ...PUSH_PROFILE({ runPush: RUN_PUSH({ options: ["x.t={commitTitle}{commitTitle}{commitTitle}{commitTitle}{commitTitle}"] }) }), confirmPush: true })).ok);
+  g(dir, "fetch", "-q", "upstream");
+  assert.equal((await m.boardBudget(linkId, { ...AUTOPILOT_BUDGET, parallel: 1 })).ok, true);
+  const start = async () => {
+    assert.ok((await m.boardAutopilot(linkId, true, "ru")).ok);
+    const end = await apOff(m, linkId, 120_000);
+    return [end.stop.code, end.stop.detail];
+  };
+  assert.deepEqual(await start(), ["start_failed", "push_option_invalid"], "5 x 72 characters is past the value's 300");
+  const store = createProfileStore(root);
+  const was = await store.get(dir);
+  assert.ok(await store.save(dir, { ...was, runPush: { ...was.runPush, options: ["merge_request.create"], confirmedAt: null } }));
+  assert.deepEqual(await start(), ["start_failed", "push_not_confirmed"]);
+  await m.shutdown();
 });

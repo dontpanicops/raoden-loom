@@ -76,7 +76,9 @@ interface Live {
 export const fingerprint = (p: OrchestrationProjectProfile): string => JSON.stringify({
   access: p.access, workMode: p.workMode, models: p.models ?? null, finish: p.finish, checks: p.checks, prepare: p.prepare, env: p.env,
   grants: p.grants.map((g) => `${g.provider}:${g.kind}:${g.fingerprint}`).sort(),
-  branchTemplate: p.branchTemplate, runBase: p.runBase, runPush: p.runPush
+  branchTemplate: p.branchTemplate, runBase: p.runBase, runPush: p.runPush,
+  // F4 (T-9, T-14): the review export and the runs without MCP
+  reviewExport: p.reviewExport, runMcp: p.runMcp
 });
 // F3 (T-13a): the place's options from its profile; F4 (T-8): the task's fields its push options need, while it pushes
 export const placeOptsOf = (p: Pick<OrchestrationProjectProfile, "runBase" | "branchTemplate" | "runPush">): PlaceOpts => {

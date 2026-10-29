@@ -238,7 +238,10 @@ async function host() {
     process.exitCode = 2;
     return;
   }
-  for (const f of ["--safe-mode", "--restricted", "--bare", "--tools", "--strict-mcp-config", "--setting-sources", "--permission-mode", "--dangerously-skip-permissions"]) {
+  // F4 (T-14): a run without MCP passes --strict-mcp-config (never --mcp-config); its init then names the servers of
+  // MOCK_CLAUDE_MCP (comma-separated; none by default) — what a managed configuration could still load
+  const strictMcp = flags["--strict-mcp-config"] !== undefined;
+  for (const f of ["--safe-mode", "--restricted", "--bare", "--tools", "--setting-sources", "--permission-mode", "--dangerously-skip-permissions", "--mcp-config"]) {
     // stage 13: a rights mode the person chose is passed, and allowed only when the test says so (MOCK_ALLOW_ACCESS)
     if ((f === "--permission-mode" || f === "--dangerously-skip-permissions") && process.env.MOCK_ALLOW_ACCESS) continue;
     // the default «Рабочая папка» (access.ts "workspace"): acceptEdits with Claude's sandbox in --settings
@@ -268,7 +271,7 @@ async function host() {
   void watchInterrupt();
   await emit({ type: "system", subtype: "init", session_id: sessionId, cwd: process.cwd(), model: flags["--model"] ?? "mock-claude",
     tools: ["Task", "Bash", "Glob", "Grep", "Read", "Edit", "Write", "WebFetch", "AskUserQuestion", "StructuredOutput"],
-    mcp_servers: [{ name: "mock-mcp", status: "connected" }], skills: ["mock-skill"], plugins: [{ name: "mock-plugin", path: "/x" }],
+    mcp_servers: strictMcp ? (process.env.MOCK_CLAUDE_MCP ?? "").split(",").filter(Boolean).map((name) => ({ name, status: "connected" })) : [{ name: "mock-mcp", status: "connected" }], skills: ["mock-skill"], plugins: [{ name: "mock-plugin", path: "/x" }],
     slash_commands: ["compact", "mock-skill"],
     // MOCK_REPORT_MODE: the CLI runs another mode than asked (as Claude does when auto mode is not available)
     permissionMode: process.env.MOCK_REPORT_MODE ?? flags["--permission-mode"] ?? (flags["--dangerously-skip-permissions"] ? "bypassPermissions" : projectDefaultMode()) });

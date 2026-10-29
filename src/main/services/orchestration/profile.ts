@@ -80,11 +80,20 @@ export function validateProfile(input: unknown): OrchestrationProjectProfile {
   const branchTemplate = validTemplate(p!.branchTemplate, p!.workMode!);
   const runBase = validRunBase(p!.runBase, p!.workMode!);
   const runPush = validRunPush(p!.runPush, p!.workMode!, f!.commit, !!runBase);
+  // F4 (T-9): the review export — a worktree board task's run from a remote base, with its commit; absent or false: none
+  const raw = p as Record<string, unknown>;
+  const reviewExport = raw.reviewExport === undefined || raw.reviewExport === false ? false : raw.reviewExport === true ? true : bad("reviewExport: true or absent");
+  if (reviewExport && p!.workMode !== "worktree") throw new ProfileError("work_mode_not_worktree", "reviewExport: the worktree mode only");
+  if (reviewExport && !runBase) throw new ProfileError("review_export_needs_base", "reviewExport needs runBase");
+  if (reviewExport && !f!.commit) throw new ProfileError("review_export_needs_commit", "reviewExport needs the commit action");
+  // F4 (T-14): runMcp false — the roles without MCP; absent or true: as in the CLI, as before
+  const runMcp = raw.runMcp === undefined || raw.runMcp === true ? true : raw.runMcp === false ? false : bad("runMcp: false or absent");
   return {
     v: 1, workMode: p!.workMode!, checks, prepare: { steps, auto: prep!.auto }, env: { direnv: p!.env!.direnv },
     access: { claude: access.claude, codex: access.codex }, ...(models ? { models } : {}), finish: { commit: f!.commit, push, qa }, grants,
     savedAt: typeof p!.savedAt === "string" ? p!.savedAt : null,
-    ...(branchTemplate ? { branchTemplate } : {}), ...(runBase ? { runBase } : {}), ...(runPush ? { runPush } : {})
+    ...(branchTemplate ? { branchTemplate } : {}), ...(runBase ? { runBase } : {}), ...(runPush ? { runPush } : {}),
+    ...(reviewExport ? { reviewExport: true as const } : {}), ...(runMcp ? {} : { runMcp: false as const })
   };
 }
 

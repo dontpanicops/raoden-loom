@@ -6,8 +6,10 @@
 // Claude: `claude -p --input-format stream-json --output-format stream-json --permission-prompt-tool stdio`, the host
 // control protocol of the Agent SDK (control_request can_use_tool / control_response, interrupt).
 import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import type { OrchestrationForm } from "../../../shared/orchestration.ts";
 import { parseFormSchema } from "./forms.ts";
+import { codexMcpList, codexMcpServers, type McpCall } from "./probe.ts";
 import type { EventFrame, SessionDriver, SessionIO } from "./types.ts";
 
 export type PermissionKind = "command" | "file_change" | "permissions" | "tool" | "question" | "elicitation" | "plan";
@@ -40,6 +42,13 @@ export interface PermissionReply { decision: PermissionOption; answers?: Record<
 // signal: aborted when the CLI withdraws the request (or the turn ends); the reply is then not sent.
 // noted (B3, §5.3 п. 5): a prompt the host answered itself (1.5.13's sandbox rule), told only so the feed shows it.
 export type AskPerson = ((ask: PermissionAsk, signal: AbortSignal) => Promise<PermissionReply>) & { noted?: (ask: PermissionAsk) => void };
+
+// F4 (T-14, §7.5, О8): a turn of a run without MCP that did not go ahead — a server named (mcp_present) or the list not
+// read whole in time (mcp_unchecked). The driver fills it; the turn's result carries it to the service (a pause
+// needs_user_action, never a new reason of the journal)
+export interface McpBlock { code: "mcp_present" | "mcp_unchecked"; cli: "claude" | "codex"; names: string[]; detail: string | null }
+export interface McpGuard { block: McpBlock | null }
+export const MCP_CHECK_MS = 30_000;
 
 const str = (v: unknown): string => (typeof v === "string" ? v : v === undefined || v === null ? "" : JSON.stringify(v));
 const rec = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {});
@@ -86,6 +95,11 @@ export interface CodexSessionInput {
   // (codex-cli 0.155.1, evidence/codex-trust-probe). The person's own project folder is never passed here.
   trustCwd?: boolean;
   model?: string; // this thread's model (thread/start, thread/resume); absent: the user's config.toml decides
+  // F4 (T-14, В6, О8): no MCP — nothing is overridden (no MCP config is sent, config.toml untouched): before the turn the
+  // thread's servers are listed (mcpServerStatus/list with its threadId, every page, mcpMs for all of it); the turn goes
+  // ahead only on a whole list naming none. runtimeStatus is not read: a named server counts
+  noMcp?: McpGuard;
+  mcpMs?: number;
 }
 
 // An MCP form of either CLI, as the person is asked it.
@@ -102,7 +116,8 @@ function formAsk(server: string, message: string, mode: unknown, url: unknown, s
 export function codexAppServerDriver(input: CodexSessionInput): SessionDriver {
   let io: SessionIO | null = null;
   let nextId = 1;
-  const calls = new Map<number, (result: Record<string, unknown>) => void>();
+  // fail: a request whose refusal is an answer (the MCP list); without it a refusal ends the turn as a protocol error
+  const calls = new Map<number, { done: (result: Record<string, unknown>) => void; fail?: (message: string) => void }>();
   let threadId: string | null = input.threadId;
   let turnId: string | null = null;
   let lastText: string | null = null;
@@ -113,10 +128,35 @@ export function codexAppServerDriver(input: CodexSessionInput): SessionDriver {
 
   const call = (method: string, params: unknown, then: (result: Record<string, unknown>) => void): void => {
     const id = nextId++;
-    calls.set(id, then);
+    calls.set(id, { done: then });
     io?.send({ id, method, params });
   };
-  const end = () => { if (!ended) { ended = true; people.cancelAll(); io?.end(); } };
+  // F4 (T-14): a request answered as a promise within ms (the list's own timing rules: codexMcpList)
+  const timers = new Set<ReturnType<typeof setTimeout>>(); // the requests' timers, cleared when the session ends
+  const ask: McpCall = (method, params, ms = MCP_CHECK_MS) => new Promise((resolve) => {
+    const id = nextId++;
+    const timer = setTimeout(() => { timers.delete(timer); calls.delete(id); resolve({ ok: false, error: "no answer in time", why: "wait_expired" }); }, Math.max(0, ms));
+    timers.add(timer);
+    calls.set(id, {
+      done: (result) => { clearTimeout(timer); timers.delete(timer); resolve({ ok: true, value: result }); },
+      fail: (message) => { clearTimeout(timer); timers.delete(timer); resolve({ ok: false, error: message || "refused", why: "refused" }); }
+    });
+    io?.send({ id, method, params });
+  });
+  // the thread's MCP servers before its turn: a whole list naming none — the turn; otherwise the session ends here
+  async function mcpChecked(): Promise<void> {
+    const guard = input.noMcp!;
+    guard.block = { code: "mcp_unchecked", cli: "codex", names: [], detail: "the check did not finish" }; // until it does
+    if (!threadId) return end(); // no thread to ask about: closed, no request
+    const list = await codexMcpList(ask, { threadId }, performance.now() + (input.mcpMs ?? MCP_CHECK_MS));
+    if (ended) return;
+    const names = [...new Set(codexMcpServers(list.servers).map((x) => x.name || "<unnamed>"))].slice(0, 32);
+    guard.block = list.incomplete !== null ? { code: "mcp_unchecked", cli: "codex", names: [], detail: `${list.incomplete}: ${list.error ?? ""}`.slice(0, 300) }
+      : names.length ? { code: "mcp_present", cli: "codex", names, detail: null } : null;
+    if (guard.block) end();
+    else startTurn();
+  }
+  const end = () => { if (!ended) { ended = true; for (const t of timers) clearTimeout(t); timers.clear(); people.cancelAll(); io?.end(); } };
 
   function startTurn(): void {
     call("turn/start", {
@@ -194,7 +234,11 @@ export function codexAppServerDriver(input: CodexSessionInput): SessionDriver {
         // No approvalPolicy or sandbox: the user's own config.toml and profile decide, as in the terminal. With a chosen
         // rights mode, exactly its sandbox and approval policy for this thread. The only config is the trust of the run's
         // own folder, for this thread (trustCwd). A chosen model goes to this thread only (`model`), never to config.toml.
-        const then = (r: Record<string, unknown>) => { threadId = str(rec(r.thread).id) || threadId; startTurn(); };
+        const then = (r: Record<string, unknown>) => {
+          threadId = str(rec(r.thread).id) || threadId;
+          if (input.noMcp) void mcpChecked().catch(() => end());
+          else startTurn();
+        };
         const params = { cwd: input.cwd, ...(input.access ?? {}), ...(input.model ? { model: input.model } : {}), ...(input.trustCwd ? { config: { projects: { [input.cwd]: { trust_level: "trusted" } } } } : {}) };
         if (threadId) call("thread/resume", { threadId, ...params }, then);
         else call("thread/start", params, then);
@@ -203,10 +247,11 @@ export function codexAppServerDriver(input: CodexSessionInput): SessionDriver {
     frame(f: EventFrame) {
       const v = f.value;
       if (f.type === "rpc.response") {
-        const then = calls.get(Number(v.id));
+        const waiting = calls.get(Number(v.id));
         calls.delete(Number(v.id));
+        if (v.error !== undefined && waiting?.fail) return waiting.fail(str(rec(v.error).message).slice(0, 200));
         if (v.error !== undefined) throw new Error(`codex app-server refused request ${str(v.id)}: ${str(rec(v.error).message).slice(0, 200)}`);
-        then?.(rec(v.result));
+        waiting?.done(rec(v.result));
         return;
       }
       if ("id" in v && typeof v.method === "string") return serverRequest(v.id, v.method, rec(v.params));
@@ -244,12 +289,15 @@ function grantedOf(requested: unknown): Record<string, unknown> {
 // ---------------- Claude host protocol ----------------
 
 // sandboxed: the «Рабочая папка» mode (access.ts): every Bash command runs in Claude's sandbox unless it asks to leave it
-export interface ClaudeSessionInput { task: string; ask: AskPerson; sandboxed?: boolean }
+// noMcp (F4, T-14): the session runs with --strict-mcp-config; its system/init must name no MCP server, else the turn ends
+// there (mcp_present; an init without a list of servers: mcp_unchecked)
+export interface ClaudeSessionInput { task: string; ask: AskPerson; sandboxed?: boolean; noMcp?: McpGuard }
 
 export function claudeHostDriver(input: ClaudeSessionInput): SessionDriver {
   let io: SessionIO | null = null;
   let structured: unknown;
   let ended = false;
+  let initSeen = false;
   const people = asker(input.ask, () => io);
   const end = () => { if (!ended) { ended = true; people.cancelAll(); io?.end(); } };
   const respond = (requestId: string, response: unknown) =>
@@ -321,6 +369,18 @@ export function claudeHostDriver(input: ClaudeSessionInput): SessionDriver {
     },
     frame(f) {
       const v = f.value;
+      if (input.noMcp && f.type === "result" && !initSeen) { // the turn ended and the list of servers was never seen
+        input.noMcp.block = { code: "mcp_unchecked", cli: "claude", names: [], detail: "no system/init before the result" };
+        throw new Error(`${input.noMcp.block.code}: the session ended without system/init`);
+      }
+      if (input.noMcp && f.type === "system" && v.subtype === "init") {
+        initSeen = true;
+        const servers = v.mcp_servers;
+        const names = Array.isArray(servers) ? [...new Set(servers.map((x) => str(rec(x).name) || str(x) || "<unnamed>"))].slice(0, 32) : [];
+        input.noMcp.block = !Array.isArray(servers) ? { code: "mcp_unchecked", cli: "claude", names: [], detail: "system/init has no mcp_servers" }
+          : names.length ? { code: "mcp_present", cli: "claude", names, detail: null } : null;
+        if (input.noMcp.block) throw new Error(`${input.noMcp.block.code}: the session was ended before its turn`); // stops the CLI's group
+      }
       if (f.type === "control_request") {
         const requestId = str(v.request_id);
         const r = rec(v.request);

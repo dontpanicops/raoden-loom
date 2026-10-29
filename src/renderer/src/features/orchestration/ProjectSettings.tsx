@@ -101,8 +101,9 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
   const [confirmPush, setConfirmPush] = useState(false);
   const lines = (text: string) => text.split("\n").map((x) => x.trim()).filter(Boolean);
   const savedPush = info.saved ? info.profile.runPush : undefined;
-  const pushAsks = !!p.runPush?.enabled && (!savedPush?.enabled || savedPush.remote !== p.runPush.remote || savedPush.options.join("\n") !== lines(pushOptions).join("\n"));
-  const pushUrl = p.runPush ? info.facts.remotes.find((r) => r.name === p.runPush!.remote)?.url ?? p.runPush.remoteUrl ?? "" : "";
+  // the address main reads and saves (insteadOf, pushurl), not the raw remote.<name>.url; null: not read
+  const pushUrl = p.runPush ? info.facts.remotes.find((r) => r.name === p.runPush!.remote)?.pushUrl ?? null : null;
+  const pushAsks = !!p.runPush?.enabled && (!savedPush?.enabled || savedPush.remote !== p.runPush.remote || savedPush.remoteUrl !== pushUrl || savedPush.options.join("\n") !== lines(pushOptions).join("\n"));
   // The rights modes the installed CLIs offer: asked when the settings open (the CLIs start with --help, no model).
   const [caps, setCaps] = useState<OrchestrationProfileInfo["capabilities"] | null>(null);
   useEffect(() => {
@@ -124,6 +125,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
     if (p.finish.push && !p.finish.push.branch.trim()) return t(locale, "orchSettingsErrBranch");
     if ((parts > 0 || p.finish.push) && !p.finish.commit) return t(locale, "orchSettingsErrNeedsCommit");
     if (toTerminal && !confirmTerminal) return t(locale, "orchError_terminal_not_confirmed");
+    if (pushAsks && pushUrl === null) return t(locale, "projRunPushUrlUnread");
     if (pushAsks && !confirmPush) return t(locale, "orchError_push_not_confirmed");
     return null;
   };
@@ -301,10 +303,25 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
           )}
           {pushAsks && (
             <label className="orch-check" data-orch-push-confirm>
-              <input type="checkbox" checked={confirmPush} onChange={(e) => setConfirmPush(e.target.checked)} />
-              <span>{t(locale, "projRunPushConfirm").replace("{remote}", () => p.runPush!.remote).replace("{url}", () => pushUrl).replace("{options}", () => lines(pushOptions).join(" ") || "—")}</span>
+              <input type="checkbox" checked={confirmPush} disabled={pushUrl === null} onChange={(e) => setConfirmPush(e.target.checked)} />
+              <span>{t(locale, "projRunPushConfirm").replace("{remote}", () => p.runPush!.remote).replace("{url}", () => pushUrl ?? t(locale, "projRunPushUrlUnread")).replace("{options}", () => lines(pushOptions).join(" ") || "—")}</span>
             </label>
           )}
+        </fieldset>
+        {/* F4 (§10, T-9, T-14): the review export of a board task's run, and the runs without MCP */}
+        <fieldset className="orch-field" data-orch-settings-f4>
+          <label className="orch-check">
+            <input type="checkbox" checked={p.reviewExport === true} data-orch-settings-review-export
+              onChange={(e) => set({ reviewExport: e.target.checked ? true : undefined })} />
+            <span>{t(locale, "projReviewExport")}</span>
+          </label>
+          <small className="orch-hint">{t(locale, "projReviewExportHint")}</small>
+          <label className="orch-check">
+            <input type="checkbox" checked={p.runMcp === false} data-orch-settings-run-mcp
+              onChange={(e) => set({ runMcp: e.target.checked ? false : undefined })} />
+            <span>{t(locale, "projRunMcp")}</span>
+          </label>
+          <small className="orch-hint">{t(locale, "projRunMcpHint")}</small>
         </fieldset>
         <fieldset className="orch-field" data-orch-settings-grants>
           <legend>{t(locale, "orchSettingsGrants")}</legend>

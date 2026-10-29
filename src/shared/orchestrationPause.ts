@@ -19,6 +19,8 @@ export type PauseCause =
   | { kind: "model_unsupported"; reason: string; provider: string; model: string }
   | { kind: "prepare"; reason: string; command: string | null } // the environment preparation failed (its last record)
   | { kind: "ending"; reason: string; step: string }
+  // F4 (T-14): a run without MCP whose CLI named MCP servers (mcp_present) or whose list was not read whole (mcp_unchecked)
+  | { kind: "mcp"; reason: string; code: "mcp_present" | "mcp_unchecked"; cli: string; names: string }
   | { kind: "reason"; reason: string };
 const USAGE_LIMIT = /\bhit your usage limit\b/i;
 const MODEL_UNSUPPORTED = /The '([^']{1,100})' model is not supported when using Codex\b/i;
@@ -28,6 +30,9 @@ export function pauseCause(reason: string, turnId: string | null, entries: reado
   const turn = turnId ? entries.filter((e) => e.turnId === turnId) : [];
   const finished = [...turn].reverse().find((e) => e.kind === "turn_finished");
   if (!finished || finished.text === "completed") return { kind: "reason", reason };
+  // F4 (T-14): the service's own note of the turn that did not go ahead — its pause is needs_user_action
+  const mcp = reason === "needs_user_action" ? turn.find((e) => e.kind === "error" && (e.detail?.mcp === "mcp_present" || e.detail?.mcp === "mcp_unchecked")) : undefined;
+  if (mcp) return { kind: "mcp", reason, code: mcp.detail!.mcp as "mcp_present" | "mcp_unchecked", cli: String(mcp.detail?.cli ?? ""), names: String(mcp.detail?.names ?? "") };
   // the service's outcome -> pause reason mapping (pauseForOutcome): the pause must be this outcome's
   const mapped = finished.text === "invalid_report" ? "invalid_report"
     : finished.text === "protocol_error" || finished.text === "contract_violation" ? "protocol_error" : "environment_error";

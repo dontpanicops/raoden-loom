@@ -41,6 +41,8 @@ export interface BoardTask {
   // commit's title (one line ≤72, in place of the text's first line)
   issue?: string;
   commitTitle?: string;
+  // F4 (T-9): the task's scope (patterns of the project; Loom never reads them) — it goes to the review export
+  scope?: string[];
 }
 export interface BoardTaskOrigin { kind: "import"; source: string | null; file: string; sha256: string }
 export interface BoardExternalDone { at: string; by: "person"; note: string | null }

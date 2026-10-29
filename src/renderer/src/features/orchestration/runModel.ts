@@ -482,6 +482,7 @@ export function causeText(locale: LocaleId, cause: PauseCause): string {
   }
   if (cause.kind === "prepare") return t(locale, "orchReason_prepare_failed").replace("{command}", cause.command ?? "?");
   if (cause.kind === "model_unsupported") return t(locale, "orchReason_model_unsupported").replace("{provider}", providerName(cause.provider)).replace("{model}", cause.model);
+  if (cause.kind === "mcp") return t(locale, `orchError_${cause.code}`).replaceAll("{cli}", providerName(cause.cli)).replace("{names}", cause.names);
   const ending = cause.kind === "ending" ? t(locale, `orchEnding_${cause.step}` as TranslationKey) : undefined;
   return ending ?? t(locale, `orchReason_${cause.reason}` as TranslationKey) ?? cause.reason;
 }

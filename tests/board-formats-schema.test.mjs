@@ -2,7 +2,8 @@
 // The examples of docs/agent-orchestration/board-formats.md pass docs/board-tasks-v1.schema.json and
 // docs/board-review-v1.schema.json (full JSON Schema 2020-12 by Ajv, the owner's options), the negative cases do not, and
 // every [П] field of board-review/v1 is built from a journal v2 that the current code wrote on fake CLIs (a helper builds
-// the export here: the production export is F4's, which will run the same test through writeReviewExport). No model call.
+// the export here from the sources §8 names; F4: the same runs go through writeReviewExport, whose review.json must be the
+// helper's). No model call.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -16,6 +17,7 @@ import { findGit } from "../src/main/services/orchestration/git.ts";
 import { createRunManager, testNativeRuntime } from "../src/main/services/orchestration/manager.ts";
 import { createProfileStore, suggestProfile } from "../src/main/services/orchestration/profile.ts";
 import { readRun, readText } from "../src/main/services/orchestration/store.ts";
+import { buildRecord, canonical, sha256Hex } from "../src/main/services/orchestration/journal.ts";
 import { readWorkspacePlace } from "../src/main/services/orchestration/workspace.ts";
 import { closedByPerson } from "../src/shared/orchestration.ts";
 
@@ -306,6 +308,29 @@ async function buildReview(m, runId) {
   };
 }
 
+// F4 (T-9): the production export of the same run — its goal given export (main sets it only at a remote base with
+// reviewExport; here the journal is rewritten, every record rebuilt on the chain, as scripts/f-rollback-fixtures.mjs
+// does), then writeReviewExport; review.json is read back
+async function productionReview(m, runId) {
+  const rd = path.join(m.root, "runs", runId), j = path.join(rd, "journal.jsonl");
+  const recs = fs.readFileSync(j, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  const goal = JSON.parse(fs.readFileSync(path.join(rd, "texts", recs[0].data.goal.sha256), "utf8"));
+  const buf = Buffer.from(canonical({ ...goal, export: true }), "utf8");
+  const ref = { sha256: sha256Hex(buf), bytes: buf.length };
+  fs.writeFileSync(path.join(rd, "texts", ref.sha256), buf);
+  let prev = null, out = "";
+  for (const r of recs) {
+    const { v, seq, ts, runId: id, type, prevHash: _p, data, hash: _h, ...head } = r;
+    const { record, line } = buildRecord(prev, id, ts, type, seq === 0 ? { ...data, goal: ref } : data, v, seq === 0 ? head : null);
+    prev = { seq: record.seq, hash: record.hash };
+    out += line.toString("utf8");
+  }
+  fs.writeFileSync(j, out);
+  const w = await m.writeReviewExport(runId);
+  assert.deepEqual([w.ok, w.value], [true, true], JSON.stringify(w));
+  return JSON.parse(fs.readFileSync(path.join(rd, "export", "review.json"), "utf8"));
+}
+
 // The dependency run of the fixture: board tasks take a base only from a branch of what they depend on (manager.ts,
 // «invalid_base»), so the exported run is the second one of a chain, started from the branch the first was taken into.
 const DEP = [plan([cond("change", "d.txt exists", ["R1"])]), exec({ "d.txt": "1\n" }), review([], [{ ...mark("C1"), paths: ["d.txt"] }]), final()];
@@ -356,6 +381,7 @@ test("[П] fields on a journal v2 of a pushed run: the export built from the jou
   assert.equal(v.status, "completed", JSON.stringify([v.reason, (await records(m, runId)).slice(-6).map((r) => [r.type, r.data.status ?? r.data.reason ?? ""])]));
   const r = await buildReview(m, runId);
   assert.ok(validReview(r), `${errors(validReview)}\n${JSON.stringify(r, null, 1)}`);
+  assert.deepEqual(await productionReview(m, runId), r, "writeReviewExport (F4) writes what the sources give");
   // [Ф]/[П] fields against their sources
   const st = (await readRun(m.root, runId)).state;
   assert.equal(r.run, runId);
@@ -363,7 +389,7 @@ test("[П] fields on a journal v2 of a pushed run: the export built from the jou
   assert.equal(r.task.title, "Second task", "task.title: the board task at export time");
   assert.equal(r.task.ref, task.ref, "task.ref: goal.task.ref of the journal, the board task's ref put in by main");
   assert.equal((await readText(m.root, runId, st.goal).then((b) => JSON.parse(b.toString("utf8")))).task.ref, "T2");
-  // not confirmable on the current code: the board task has no issue/scope yet (F3/F4)
+  // the task was imported without issue and scope: both null (with them: orchestration-board-f4-review.test.mjs)
   assert.deepEqual([r.task.issue, r.scope], [null, null]);
   assert.equal(g(src, "rev-parse", `${r.commit}^{tree}`), r.tree, "tree: git rev-parse <commit>^{tree}");
   assert.equal(r.checkedTree, r.tree, "checkedTree is the tree of the commit result (nothing left out here)");
@@ -407,6 +433,7 @@ test("[П] fields on a journal v2 of a run without push: the person's decisions,
   assert.equal(v.status, "completed", JSON.stringify((await records(m, runId)).slice(-8).map((r) => [r.type, r.data.status ?? r.data.reason ?? ""])));
   const r = await buildReview(m, runId);
   assert.ok(validReview(r), `${errors(validReview)}\n${JSON.stringify(r, null, 1)}`);
+  assert.deepEqual(await productionReview(m, runId), r, "writeReviewExport (F4) writes what the sources give");
   assert.equal(r.push, null, "push: not asked for");
   assert.equal(r.task.ref, "T2", "task.ref: goal.task.ref of the journal");
   assert.deepEqual(r.findings.map((f) => [f.id, f.severity, f.status, f.closedBy, f.downgraded]),

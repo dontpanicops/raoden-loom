@@ -58,6 +58,8 @@ import { grantFingerprint } from "./profile.ts";
 import { runShell } from "./shellRun.ts";
 import type { ShellRunResult } from "./shellRun.ts";
 import type { Workspace } from "./workspace.ts";
+import { exportPaths } from "./reviewExport.ts";
+import type { McpBlock } from "./sessions.ts";
 
 export interface GoalInput {
   text: string;
@@ -85,6 +87,12 @@ export interface GoalInput {
   base?: { branch: string; commit: string; key: string };
   // F3 (T-6), journal v2 and a worktree only: the worktree's branch, chosen by main (never from the window: parseGoal)
   branch?: string;
+  // F4 (T-9), journal v2, a worktree and a board task only: the review export is written when the run completes — set by
+  // main from the profile's reviewExport (never from the window: parseGoal)
+  export?: true;
+  // F4 (T-14): the run's roles without MCP — Claude with --strict-mcp-config and its init checked, Codex's servers listed
+  // before each turn; set by main from the profile's runMcp: false (never from the window: parseGoal)
+  noMcp?: true;
   // C3, journal v2 rules in a resolution run's journal: the merge run it resolves for (stage-c3-conflicts.md §3)
   resolution?: { mergeRunId: string; taskId: string; key: string; base: string };
   // E1, journal v2 rules in a decomposition run's journal: the parent task it splits (stage-e-decomposition.md §3.1)
@@ -178,6 +186,7 @@ export interface RunView {
   refused?: { checkId: string; command: string } | null;
   // A4: what the person decides on this pause, about the state shown (journal-v2-format.md §2.9)
   decisions?: OrchestrationDecisions | null;
+  export?: { json: string; md: string } | null; // F4 (T-9): the review export's paths (exportView)
 }
 
 // Facts from the journal (and the goal), never from an agent's own report.
@@ -221,7 +230,7 @@ export interface RunHandle {
 
 // The view of a run from its journal state; also for a run nobody has open (halted false, nothing active).
 export function runView(st: RunState, halted = false, active: RunView["active"] = null,
-  extra: Pick<RunView, "permission" | "pendingPermissions" | "workMode" | "workDir" | "progress" | "proposal" | "confirm" | "refused" | "decisions"> = {}): RunView {
+  extra: Pick<RunView, "permission" | "pendingPermissions" | "workMode" | "workDir" | "progress" | "proposal" | "confirm" | "refused" | "decisions" | "export"> = {}): RunView {
   const accepted = Object.keys(st.orch.accepted).length;
   const total = st.orch.plan ? st.orch.plan.firstStage - 1 + st.orch.plan.stageCount : 0;
   return {
@@ -229,6 +238,16 @@ export function runView(st: RunState, halted = false, active: RunView["active"] 
     stage: st.orch.plan && accepted < total ? accepted + 1 : null,
     turns: Object.keys(st.turns).length, halted, active, ...extra
   };
+}
+
+// F4 (T-9): where the review export of a run asked for one is (§5.6): its paths once the run completed with a commit; null
+// when it completed with nothing to commit or did not complete; absent when the goal asked for none
+export function exportView(root: string, st: RunState, goal: Pick<Goal, "export">): { export?: { json: string; md: string } | null } {
+  if (!goal.export) return {};
+  const c = st.orch.finish.filter((f) => f.step === "commit").at(-1);
+  if (st.status !== "completed" || c?.status !== "done" || !c.commit) return { export: null };
+  const { json, md } = exportPaths(root, st.runId);
+  return { export: { json, md } };
 }
 
 export class OrchestrationError extends Error {
@@ -545,6 +564,8 @@ function checkGoal(input: GoalInput, registryOf: (commands: string[] | null) => 
   // F3 (T-6): the name as checkFinish takes a branch; main chose it (git's check-ref-format included)
   if (input.branch !== undefined && (typeof input.branch !== "string" || !/^(?!-)[A-Za-z0-9._/-]{1,200}$/.test(input.branch) || input.branch.includes("..")
     || !v2 || input.workMode !== "worktree")) bad("branch: a branch name, journal v2 and a worktree only");
+  if (input.export !== undefined && (input.export !== true || !v2 || input.workMode !== "worktree" || !task)) bad("export: true, journal v2, a worktree and a board task only");
+  if (input.noMcp !== undefined && input.noMcp !== true) bad("noMcp: true or absent");
   const resolution = input.resolution === undefined ? undefined : checkResolution(input, v2, bad);
   const decomposition = input.decomposition === undefined ? undefined : checkDecomposition(input, v2, bad);
   if (resolution && decomposition) bad("resolution and decomposition exclude each other");
@@ -569,7 +590,8 @@ function checkGoal(input: GoalInput, registryOf: (commands: string[] | null) => 
     ...(input.mode ? { mode: input.mode } : {}), ...(prepare ? { prepare } : {}), ...(finish ? { finish } : {}),
     ...(input.access ? { access: { claude: input.access.claude, codex: input.access.codex } } : {}),
     ...(models ? { models } : {}), ...(input.language ? { language: input.language } : {}), ...(task ? { task } : {}),
-    ...(base ? { base } : {}), ...(input.branch !== undefined ? { branch: input.branch } : {}), ...(resolution ? { resolution } : {}), ...(decomposition ? { decomposition } : {})
+    ...(base ? { base } : {}), ...(input.branch !== undefined ? { branch: input.branch } : {}), ...(resolution ? { resolution } : {}), ...(decomposition ? { decomposition } : {}),
+    ...(input.export ? { export: true as const } : {}), ...(input.noMcp ? { noMcp: true as const } : {})
   };
 }
 
@@ -938,7 +960,7 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
     const first = permissions.values().next().value;
     const st = state();
     return {
-      permission: first?.view ?? null, pendingPermissions: permissions.size, workMode: ws.mode, workDir: ws.repo,
+      permission: first?.view ?? null, pendingPermissions: permissions.size, workMode: ws.mode, workDir: ws.repo, ...exportView(deps.root, st, goal),
       progress: { ...progressOf(st, goal, ws.branch), ...(st.version === 2 ? { conditions: shownConditions, findings: shownFindings } : {}) },
       ...(st.pausedReason === "awaiting_checks_decision" ? { proposal: proposalText } : {}),
       ...(st.pausedReason === "check_needs_permissions" ? { refused: refusedCheck(st) } : {}),
@@ -1300,7 +1322,7 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
       // the role's own limit, cut to what is left of the run: the deadline is not extended by a long turn
       timeoutMs: Math.max(1, Math.min(role === "executor" ? limits.executorTurnMs : limits.leadTurnMs, deadline() - clock())),
       ask: askPerson(role), ...(goal.access ? { access: goal.access } : {}), ...(ws.mode !== "project" ? { ownFolder: true } : {}),
-      ...(goal.models?.[role] ? { model: goal.models[role] } : {})
+      ...(goal.models?.[role] ? { model: goal.models[role] } : {}), ...(goal.noMcp ? { noMcp: true as const } : {})
     };
     const roleTimeoutMs = role === "executor" ? limits.executorTurnMs : limits.leadTurnMs;
     const prepared = deps.agents.prepare(request);
@@ -1370,6 +1392,17 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
     }
     if (halted || state().status !== "running" && state().status !== "pausing") return; // a late result: a fact, no continuation
     if (abort !== null) return; // stopped by the deadline or its timeout: the result is a fact, nothing follows from it
+    // F4 (T-14, О8): a run without MCP whose CLI names MCP servers, or whose list was not read whole — the turn did not
+    // go ahead; the person turns the servers off in their own CLI config and resumes (no new reason of the journal)
+    const block = (result as { mcpBlock?: McpBlock }).mcpBlock;
+    if (block) {
+      const cli = block.cli === "codex" ? "Codex" : "Claude";
+      observe(() => watched?.blocked(block.code === "mcp_present"
+        ? `${block.code}: ${cli} has MCP servers on: ${block.names.join(", ")}; turn them off in your own ${cli} config and press «Continue»`
+        : `${block.code}: the MCP servers of ${cli} could not be checked in 30 s (${block.detail ?? "no answer"}); the turn was not made`, { mcp: block.code, cli: block.cli, names: block.names.join(", ") }));
+      await setStatus("paused", "needs_user_action");
+      return;
+    }
 
     if (role === "reviewer") {
       // 5h §3.1: a review of a tree that changed during it is dropped before anything else is concluded from it

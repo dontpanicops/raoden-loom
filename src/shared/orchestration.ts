@@ -59,6 +59,12 @@ export interface OrchestrationProjectProfile {
   // start); protected — branches never pushed to, over the built-in main, master and runBase.branch; confirmedAt — when
   // the person confirmed it in the settings (confirmPush). Worktree only, needs finish.commit
   runPush?: OrchestrationRunPush;
+  // F4 (T-9, §8): the review export (board-review/v1) of a completed board task's run, outside the project's tree.
+  // Needs runBase and finish.commit; worktree only. Absent: none
+  reviewExport?: true;
+  // F4 (T-14, §7.5): false — the roles run without MCP: Claude with --strict-mcp-config (its init must name no server),
+  // Codex's servers listed before each turn (none may be named). Absent: as in the CLI
+  runMcp?: false;
 }
 export interface OrchestrationRunPush { enabled: boolean; remote: string; remoteUrl: string | null; options: string[]; protected: string[]; confirmedAt: string | null }
 export interface OrchestrationAccessOption { mode: string; mapping: string }
@@ -74,7 +80,8 @@ export interface OrchestrationProfileInfo {
   // journal v2 (development flag until A4): the check commands of a goal may be left empty, the lead proposes them
   optionalChecks?: boolean;
   capabilities: { claude: OrchestrationAccessOption[]; codex: OrchestrationAccessOption[] };
-  facts: { stack: string; laravel: boolean; remotes: { name: string; url: string }[]; branch: string | null; needed: string[] };
+  // remotes[].pushUrl: the address main reads and saves for the autopilot's push (null: not read) — shown verbatim to confirm
+  facts: { stack: string; laravel: boolean; remotes: { name: string; url: string; pushUrl: string | null }[]; branch: string | null; needed: string[] };
 }
 // What each CLI reports it loaded, asked without a model turn (stage 13). confirmed: said by the CLI itself.
 // An MCP server as the CLI reports it: found in its configuration; connection: the CLI's runtime state (null: not
@@ -292,6 +299,9 @@ export interface OrchestrationRunView {
   // journal v2: a plan proposal waits for the person's decision (whatever the pause); clarify and raise_limit are
   // refused until it is decided
   proposalWaits?: boolean;
+  // F4 (T-9, §5.6): the review export of a completed board task's run — its absolute paths (outside the project's tree);
+  // null: no export (the run did not complete, or it had nothing to commit); absent: the run was not asked for one
+  export?: { json: string; md: string } | null;
   // A run whose journal a newer version of the application wrote (acceptance-review-spec.md §2.2): shown read-only
   // (status paused, reason newer_version), never opened or changed here. chain: the hash chain of what was read.
   // compatible: its journal declares minReaderVersion this build reads, so the view is its whole state (status and

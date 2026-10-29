@@ -33,7 +33,8 @@ import type { AgentAccess } from "./access.ts";
 import { commitMessage, fetchUrlsMatch, remoteUrlsMatch } from "./finish.ts";
 import { runShell, shq } from "./shellRun.ts";
 import { laravelTestDb, neededSteps, worktreeSteps } from "./prepare.ts";
-import { codexModels, probeClaude, probeCodex } from "./probe.ts";
+import { codexMcpNames, codexModels, probeClaude, probeCodex } from "./probe.ts";
+import { MCP_CHECK_MS } from "./sessions.ts";
 import { createProfileStore, currentBranch, fillBranch, fillOption, gitNameOk, gitRemotes, PROBE_FIELDS, pushOptionFields, suggestProfile, templateNeedsIssue, validateProfile } from "./profile.ts";
 import { parseCliVersion } from "./providers.ts";
 import type { AgentAdapter } from "./agents.ts";
@@ -43,9 +44,10 @@ import { DEFAULT_LIMITS } from "./cycle.ts";
 import type { Goal } from "./cycle.ts";
 import { MAX_JOURNAL_BYTES, MAX_LINE_BYTES, MAX_TEXT_BYTES, TERMINAL_STATUSES, canonical, isDecompositionJournal, isResolutionJournal, isSha256, isTextRef, isUuid, needsRecovery, newerGoal, newerVersion, parseJournal, unfinishedWork } from "./journal.ts";
 import type { JournalRecord, RunState, TextRef } from "./journal.ts";
-import { conditionsView, createOrchestrationService, decidedGoal, findingsView, loadConditions, possiblyStale, progressOf, runView, shownCheckKeys } from "./orchestrationService.ts";
+import { conditionsView, createOrchestrationService, decidedGoal, exportView, findingsView, loadConditions, possiblyStale, progressOf, runView, shownCheckKeys } from "./orchestrationService.ts";
 import type { CommandOutcome, GoalInput, RunCommand, RunHandle } from "./orchestrationService.ts";
 import { readRun, readText } from "./store.ts";
+import { createReviewExporter, type ReviewInput } from "./reviewExport.ts";
 import type { RunReadResult } from "./store.ts";
 import type { SupervisorLaunch } from "./types.ts";
 import { BOARD_REF, applyToProject, branchCommit, branchNameOk, diffTreeNames, diffTreePath, openWorkspace, readTaken, readTreeFile, readWorkspacePlace, snapshotCopyTree, takeToBranch, writeTaken } from "./workspace.ts";
@@ -126,6 +128,7 @@ export interface RunManagerDeps {
   claudeProbeMs?: { first: number; retry: number };
   remoteCheckMs?: number; // F3 (T-6): the wait of `git ls-remote` for the branch names on the remote (20 s; tests only)
   baseFetchMs?: number; // F3 (T-13b, О3): the wait of the remote base's `git fetch` (120 s; tests only)
+  afterExportTmp?(runId: string): Promise<void> | void; // F4 (T-9): tests only — a crash of the export after its temporary folder
   appVersion?(): string; // written down when a newer version's link is let go
   // The machine's platform (process.platform by default). Where orchestrationAvailable() is false nothing new is
   // linked, started or continued; existing runs are read, stopped and unlinked. Engine tests on Linux pass "darwin".
@@ -210,6 +213,9 @@ export function createRunManager(deps: RunManagerDeps) {
   });
   const activityLog = createActivityLog(deps.root); // reads nothing until asked
   const profiles = createProfileStore(deps.root); // reads nothing until asked
+  // F4 (T-9, §8): the review export of a completed board task's run, outside the project's tree — once per run
+  const exporter = createReviewExporter({ root: deps.root, source: (runId) => reviewSource(runId), ...(deps.afterExportTmp ? { afterTmp: deps.afterExportTmp } : {}) });
+  const writeReviewExport = (runId: string): Promise<boolean> => exporter.write(runId);
   // F3 (T-13a): the options of the places of these tasks from their projects' saved profiles — every reading of the
   // statuses in main takes them, as the window and the autopilot do (principle 8)
   async function optsOf(tasks: readonly Pick<BoardTask, "workspaceId" | "project">[]): Promise<BoardOpts & { remoteBase: Set<string>; issueRequired: Set<string>; pushFields: Map<string, readonly PushField[]> }> {
@@ -365,6 +371,17 @@ export function createRunManager(deps: RunManagerDeps) {
   function own(h: RunHandle): RunHandle {
     handles.set(h.runId, h);
     watch(h);
+    // F4 (T-9): a run that completed gets its review export, if its goal asks for one (writeReviewExport decides)
+    let asked = false;
+    let tries = 0;
+    const done = () => {
+      if (asked || h.view().status !== "completed") return;
+      asked = true;
+      // a failed write is asked again at the next change, up to 3 times (the application's start also catches up)
+      void writeReviewExport(h.runId).catch(() => { if (++tries < 3) asked = false; });
+    };
+    h.onChange(done);
+    done();
     return h;
   }
   function watch(h: RunHandle): () => void {
@@ -489,7 +506,7 @@ export function createRunManager(deps: RunManagerDeps) {
       ? conditionsView(st, goal, texts, await shownCheckKeys(st, readJson).catch(() => null), st.status === "completed" ? null : possiblyStale(st, texts)) : null;
     const findings = texts === undefined ? undefined : findingsView(st, texts);
     const view = runView(st, false, null, {
-      ...(place ? { workMode: place.mode, workDir: place.repo } : {}),
+      ...(place ? { workMode: place.mode, workDir: place.repo } : {}), ...(goal ? exportView(deps.root, st, goal) : {}),
       ...(goal ? { progress: { ...progressOf(st, goal, place?.branch ?? null), ...(conditions !== undefined ? { conditions, findings } : {}) } } : {})
     });
     // Not held by this process, yet left running, pausing or with work in flight: the process that ran it ended without
@@ -544,6 +561,53 @@ export function createRunManager(deps: RunManagerDeps) {
   function continuable(read: RunReadResult) {
     if (newerIntegrity(read.integrity.status)) refuse("run_newer_version", "the run was created by a newer version of the application");
     return read.state ?? refuse("journal_corrupt", "the run's journal has no valid start");
+  }
+
+  // F4 (T-9, §8): what the review export of a run is made of — each field from the source §8 names; null: no export is
+  // due (not completed, its goal asks for none, nothing was committed). Reads only: the journal, the board, git's tree
+  async function reviewSource(runId: string): Promise<ReviewInput | null> {
+    if (!isUuid(runId)) return null;
+    if ((await createdGoal(runId))?.export !== true) return null; // cheap: the first record's goal, before the whole journal
+    const read = await readRun(deps.root, runId).catch(() => null);
+    const st = read && !newerIntegrity(read.integrity.status) ? read.state : null;
+    if (st?.status !== "completed") return null;
+    const text = async <T>(ref: TextRef): Promise<T> => JSON.parse((await readText(deps.root, runId, ref)).toString("utf8")) as T;
+    const goal = await text<Goal>(st.goal);
+    if (goal.export !== true || !goal.task || !goal.base) return null;
+    const commit = st.orch.finish.filter((f) => f.step === "commit").at(-1);
+    if (commit?.status !== "done" || !commit.commit) return null; // «nothing to commit»: no export
+    const place = await readWorkspacePlace(deps.root, runId);
+    const tree = (await run(deps.gitPath(), ["rev-parse", "--verify", `${commit.commit}^{tree}`], { cwd: place.source, timeout: 10_000 })).stdout.trim();
+    const records = await journal(runId);
+    const pushed = st.orch.finish.filter((f) => f.step === "push").at(-1);
+    const push = goal.finish?.push && pushed?.status === "done" && pushed.commit === commit.commit
+      ? { remote: (await text<{ remote: string }>(pushed.params)).remote, at: records.find((r) => r.type === "finish.result" && r.data.intentId === pushed.intentId)!.ts }
+      : null;
+    const roles = Object.fromEntries((["lead", "executor", "reviewer"] as const).map((role) => {
+      const p = records.filter((r) => r.type === "turn.intent" && r.data.role === role).at(-1)?.data.provider;
+      return [role, p === "claude" || p === "codex" ? p : null];
+    })) as ReviewInput["roles"];
+    // a journal v2 whose condition texts could not be read is not exported empty: the next start asks again. Read texts
+    // with null views (a plan without conditions, a review by the lead) are exported with [] (snapshot cannot tell them apart)
+    if (st.version === 2 && !(await loadConditions(st, text).then(() => true, () => false))) return null;
+    const progress = (await snapshot(runId)).view.progress;
+    const boardTask = (await board.read()).board.tasks.find((t) => t.id === goal.task!.id) ?? null;
+    // О7: `<cli> --version` now, 5 s — the CLIs of the run's runtime (held), else of the project's
+    const rt = runRuntimes.get(runId) ?? await nativeOf(place.source);
+    const version = async (cli: "claude" | "codex"): Promise<string | null> => {
+      const exe = rt?.executables?.[cli];
+      if (!exe || !Object.values(roles).includes(cli)) return null;
+      const env = (cli === "codex" ? rt!.codexEnv : rt!.claudeEnv) ?? rt!.env;
+      return run(exe, ["--version"], { timeout: 5_000, env: { PATH: env.PATH ?? "", HOME: env.HOME ?? process.env.HOME ?? "" } })
+        .then((r) => r.stdout.split("\n")[0]?.trim() || null, () => null);
+    };
+    return {
+      runId, task: { key: goal.task.key, ref: goal.task.ref ?? null }, boardTask,
+      commit: commit.commit, tree, checkedTree: commit.tree ?? tree, base: { branch: goal.base.branch, commit: goal.base.commit },
+      branch: goal.branch ?? place.branch ?? "", push, roles, models: goal.models ?? {},
+      versions: { claude: await version("claude"), codex: await version("codex") },
+      conditions: progress?.conditions?.conditions ?? [], findings: progress?.findings?.items ?? []
+    };
   }
 
   async function journal(runId: string): Promise<JournalRecord[]> {
@@ -696,8 +760,14 @@ export function createRunManager(deps: RunManagerDeps) {
     const field = missingPushField(t, pushOptionFields(rp.options));
     if (field) refuse("push_option_field", `${t.key} has no ${field} for the push options: ${field}`);
     if (!autopilotStarts.has(runId) || !g.mode || !g.finish?.commit) return null;
+    // a profile written without the confirmation (by hand) pushes nothing
+    if (typeof rp.confirmedAt !== "string" || typeof rp.remoteUrl !== "string") refuse("push_not_confirmed", "the autopilot's push is not confirmed in the project settings");
     const values = { commitTitle: t.commitTitle ?? "", issue: t.issue ?? "", ref: t.ref ?? t.key, base: profile.runBase?.branch ?? "" };
-    return { remote: rp.remote, branch: branch ?? `canvastty/${runId.slice(0, 8)}`, remoteUrl: rp.remoteUrl, options: rp.options.map((o) => fillOption(o, values)), protected: protectedBranches(profile) };
+    const options = rp.options.map((o) => fillOption(o, values));
+    // the filled option keeps the profile's limits (value up to 300) and checkFinish's (one line, up to 1000)
+    const bad = options.find((o) => o.length > 1000 || (o.split("=").slice(1).join("=")).length > 300 || /[\u0000-\u001f\u007f\u2028\u2029]/.test(o));
+    if (bad !== undefined) refuse("push_option_invalid", `the push option is not valid once filled: ${bad.slice(0, 60).replace(/[\u0000-\u001f\u007f\u2028\u2029]/g, " ")}`);
+    return { remote: rp.remote, branch: branch ?? `canvastty/${runId.slice(0, 8)}`, remoteUrl: rp.remoteUrl, options, protected: protectedBranches(profile) };
   }
   const branchNameValid = async (source: string, name: string): Promise<boolean> =>
     gitNameOk(name) && await run(deps.gitPath(), ["check-ref-format", "--branch", name], { cwd: source, timeout: 10_000 }).then(() => true, () => false);
@@ -738,8 +808,10 @@ export function createRunManager(deps: RunManagerDeps) {
   // push (F4, T-8): the autopilot's push from the profile's runPush (runPushFor) — in place of finish.push
   async function resolveGoal(source: string, runId: string, g: OrchestrationGoalInput & { branch?: string }, rt: NativeRuntime | null, t?: BoardTask,
     push: NonNullable<GoalInput["finish"]>["push"] | null = null): Promise<GoalInput & { prepareAuto?: boolean }> {
-    const { mode, finish, models: over, accessOverride: _override, ...given } = g;
-    const chosen = roleModels(await profiles.get(source), over);
+    // export and noMcp (F4, T-9, T-14) are main's alone: whatever a caller passed is dropped, the profile decides
+    const { mode, finish, models: over, accessOverride: _override, export: _export, noMcp: _noMcp, ...given } = g as typeof g & { export?: unknown; noMcp?: unknown };
+    const saved = await profiles.get(source);
+    const chosen = roleModels(saved, over);
     const models = Object.fromEntries(Object.entries(chosen).filter(([, m]) => m !== null)) as Partial<Record<keyof OrchestrationRoleModels, string>>;
     // a role's model is recorded only in a journal v2 goal: never dropped on the quiet in a v1 one
     if (Object.keys(models).length && !deps.journalV2) refuse("invalid_goal", "a role's model needs journal v2");
@@ -748,7 +820,8 @@ export function createRunManager(deps: RunManagerDeps) {
       const item = modelItem(await codexModelsAt(rt.executables.codex, source, rt.codexEnv ?? rt.env), chosen, codexRoles());
       if (item.level === "blocker") refuse("model_unavailable", `Codex: model ${String(item.facts?.model)} is not available to your account. Choose another model in the project settings`);
     }
-    const rest: Omit<GoalInput, "mode" | "finish"> = { ...given, ...(Object.keys(models).length ? { models } : {}) };
+    // F4 (T-14): the profile's runMcp: false — every run of the project without MCP
+    const rest: Omit<GoalInput, "mode" | "finish"> = { ...given, ...(Object.keys(models).length ? { models } : {}), ...(saved?.runMcp === false ? { noMcp: true as const } : {}) };
     if (!mode) {
       if (finish) refuse("invalid_goal", "actions after success need a run mode");
       await refuseUnsafeTestDb(source, rest.workMode, rt);
@@ -780,6 +853,9 @@ export function createRunManager(deps: RunManagerDeps) {
       ...(steps.length ? { prepare: { steps } } : {}),
       prepareAuto: profile.prepare.auto,
       access,
+      // F4 (T-9): a board task's worktree run with a commit, in a profile that exports the review (it needs runBase and
+      // the commit: validateProfile)
+      ...(profile.reviewExport && g.task && workMode === "worktree" && (finish?.commit || finish?.push || push) ? { export: true as const } : {}),
       ...(any ? {
         finish: {
           commit: finish!.commit || finish!.push || push ? { message: commitMessage(g.text, runId, t?.commitTitle) } : null,
@@ -924,9 +1000,9 @@ export function createRunManager(deps: RunManagerDeps) {
   // has state the journal does not (the active turn, a permission request), so it is read each time.
   const goalMeta = new Map<string, { taskId: string | null; taskKey: string | null; createdAt: number; goalWorkMode: OrchestrationWorkMode | null; board: string | null; decompositionOf?: string }>();
   const factsCache = new Map<string, { stamp: string; facts: RunTaskFacts }>();
-  async function metaOf(runId: string) {
-    const known = goalMeta.get(runId);
-    if (known) return known;
+  type CreatedGoal = { task?: { id?: unknown; key?: unknown }; createdAt?: unknown; workMode?: unknown; base?: { branch?: unknown }; decomposition?: { taskId?: unknown }; export?: unknown };
+  // the goal of the journal's first record (run.created) alone — the rest of the journal is not read
+  async function createdGoal(runId: string): Promise<CreatedGoal | null> {
     const fh = await open(join(deps.root, "runs", runId, "journal.jsonl"), "r").catch(() => null);
     let first: { type?: unknown; data?: { goal?: unknown } } | null = null;
     if (fh) {
@@ -938,7 +1014,12 @@ export function createRunManager(deps: RunManagerDeps) {
       } catch { first = null; } finally { await fh.close().catch(() => {}); }
     }
     const ref = first?.type === "run.created" && isTextRef(first.data?.goal) ? first.data.goal : null;
-    const g = ref ? await readText(deps.root, runId, ref).then((b) => JSON.parse(b.toString("utf8")) as { task?: { id?: unknown; key?: unknown }; createdAt?: unknown; workMode?: unknown; base?: { branch?: unknown }; decomposition?: { taskId?: unknown } }, () => null) : null;
+    return ref ? readText(deps.root, runId, ref).then((b) => JSON.parse(b.toString("utf8")) as CreatedGoal, () => null) : null;
+  }
+  async function metaOf(runId: string) {
+    const known = goalMeta.get(runId);
+    if (known) return known;
+    const g = await createdGoal(runId);
     const meta = {
       taskId: typeof g?.task?.id === "string" && isUuid(g.task.id) ? g.task.id : null,
       taskKey: typeof g?.task?.key === "string" && /^T-\d{1,6}$/.test(g.task.key) ? g.task.key : null,
@@ -1638,6 +1719,10 @@ export function createRunManager(deps: RunManagerDeps) {
     }),
     // T-2: inbox/ — its folders and its poll (the application's start; tests call it), the person's decision on a file
     inboxStart: () => result(async () => { newInputOk(); notOpen(); await inbox.start(); return null; }),
+    // F4 (T-9): once at the application's start — every completed run whose goal asks for the review export and has none
+    // yet gets it (a crash between «completed» and the files); returns the runs written now
+    reviewExports: () => result(async () => { newInputOk(); notOpen(); return exporter.catchUp(); }),
+    writeReviewExport: (runId: string) => result(() => { newInputOk(); return writeReviewExport(runIdOk(runId)); }), // tests and diagnostics
     inboxScan: () => inbox.scan(), // tests: one poll now
     boardInboxImport: (file: string, sha: string) => result(() => { newInputOk(); notOpen(); return inbox.import(inboxName(file), sha); }),
     boardInboxReject: (file: string) => result(() => { newInputOk(); notOpen(); return inbox.reject(inboxName(file)); }),
@@ -1873,6 +1958,15 @@ export function createRunManager(deps: RunManagerDeps) {
         const item = modelItem(await codexModelsAt(measured.executables.codex, lead.project, measured.codexEnv ?? measured.env), roleModels(profile, input.models), codexRoles());
         r.items.splice(Math.max(0, r.items.length - 1), 0, item);
         r.ready = r.ready && item.level !== "blocker";
+        // F4 (T-14, О8): a project whose runs go without MCP — Codex's servers by the turn's rule, a warning only (the turn
+        // itself stops on them)
+        if (profile.runMcp === false) {
+          const mcp = await codexMcpNames({ executable: measured.executables.codex, cwd: lead.project, env: { ...(measured.codexEnv ?? measured.env) }, timeoutMs: MCP_CHECK_MS });
+          if ("unchecked" in mcp || mcp.names.length) {
+            r.items.splice(Math.max(0, r.items.length - 1), 0, { id: "mcp_warning", level: "warning", detail: "unchecked" in mcp ? `not checked: ${mcp.unchecked}`.slice(0, 300) : `Codex MCP servers: ${mcp.names.join(", ")}`,
+              facts: "unchecked" in mcp ? { unchecked: true } : { names: mcp.names.join(", ") } });
+          }
+        }
       }
       // before the start, without a model call: the sign-in, Claude's model (no list without a turn), the check sandbox
       if (measured.ok) {
@@ -1917,7 +2011,7 @@ export function createRunManager(deps: RunManagerDeps) {
         },
         facts: {
           stack: s.stack, laravel: s.laravel,
-          remotes: gitPath ? await gitRemotes(gitPath, project) : [], branch: gitPath ? await currentBranch(gitPath, project) : null,
+          remotes: gitPath ? await Promise.all((await gitRemotes(gitPath, project)).map(async (r) => ({ ...r, pushUrl: await pushUrlOf(project, r.name, profile.env.direnv).catch(() => null) }))) : [], branch: gitPath ? await currentBranch(gitPath, project) : null,
           needed: (await neededSteps(project, profile.prepare.steps)).map((n) => n.step.command)
         }
       };
@@ -1951,7 +2045,10 @@ export function createRunManager(deps: RunManagerDeps) {
       // F4 (T-8): the autopilot's push — its address read as the push step checks it (fetch and push, insteadOf expanded);
       // turned on, or its remote, address or options changed, only confirmed (confirmPush); confirmedAt is main's
       let runPush = p.runPush;
-      if (runPush) {
+      if (runPush && !runPush.enabled) {
+        // turned off: nothing is read — the address and the confirmation stay as they were
+        runPush = { ...runPush, remoteUrl: saved?.runPush?.remoteUrl ?? null, confirmedAt: saved?.runPush?.confirmedAt ?? null };
+      } else if (runPush) {
         const remoteUrl = await pushUrlOf(project, runPush.remote, p.env.direnv);
         const was = saved?.runPush;
         const asks = runPush.enabled && (!was?.enabled || was.remote !== runPush.remote || was.remoteUrl !== remoteUrl || JSON.stringify(was.options) !== JSON.stringify(runPush.options));
