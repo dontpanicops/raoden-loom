@@ -134,6 +134,8 @@ export function readinessLine(locale: LocaleId, item: OrchestrationReadinessItem
     case "command": return f.later === true ? `${tr(locale, "orchReady_command_later")} ${String(f.command ?? "")}`
       : `${base} ${String(f.command ?? "")}${item.level === "warning" ? ` — ${String(f.program ?? "")}` : ""}`;
     case "tests": return item.level === "ok" ? `${base} ${String(f.testFiles ?? "?")}` : base;
+    // F4 (T-14): Codex's MCP servers of a run without MCP — named, or not checked
+    case "mcp_warning": return f.unchecked === true ? t(locale, "orchError_mcp_warning_unchecked") : t(locale, "orchError_mcp_warning").replace("{names}", String(f.names ?? ""));
     case "model": {
       if (item.level === "blocker") return base.replace("{model}", String(f.model ?? ""));
       const m = (v: unknown) => (v === "cli" || v === undefined ? t(locale, "orchModelCli") : String(v));

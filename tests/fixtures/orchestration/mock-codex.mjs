@@ -139,6 +139,20 @@ async function appServer(args) {
     // (MOCK_CODEX_UNTRUSTED=1: not); without a thread no runtime state, auth "unsupported"; in a thread they connect
     const own = projectMcp(p.cwd ?? process.cwd());
     const trusted = process.env.MOCK_CODEX_UNTRUSTED !== "1";
+    // F4 (T-14): MOCK_CODEX_MCP — the servers of mcpServerStatus/list, every request logged with its params
+    // (codex-mcp.jsonl): "" none; "a,b" those (each with runtimeStatus "disabled": the rule must not read it); "hang" no
+    // answer; "no_data" an answer without a list; "page2" a first page with a cursor and a refused second one;
+    // "repeat" a cursor that repeats
+    if (m.method === "mcpServerStatus/list" && process.env.MOCK_CODEX_MCP !== undefined) {
+      if (process.env.MOCK_STATE) fs.appendFileSync(`${process.env.MOCK_STATE}/codex-mcp.jsonl`, JSON.stringify(p) + "\n");
+      const v = process.env.MOCK_CODEX_MCP;
+      if (v === "hang") continue;
+      if (v === "no_data") { await reply(m.id, {}); continue; }
+      if (v === "page2") { if (p.cursor) await emit({ id: m.id, error: { code: -32603, message: "page 2 failed" } }); else await reply(m.id, { data: [], nextCursor: "c1" }); continue; }
+      if (v === "repeat") { await reply(m.id, { data: [], nextCursor: "c1" }); continue; }
+      await reply(m.id, { data: v.split(",").filter(Boolean).map((name) => ({ name, runtimeStatus: "disabled", authStatus: "unsupported" })), nextCursor: null });
+      continue;
+    }
     if (m.method === "mcpServerStatus/list" && Object.keys(own).length) {
       const data = [{ name: "mock-mcp", runtimeStatus: "ready", authStatus: "notLoggedIn" }];
       if (trusted) for (const [name, spec] of Object.entries(own)) {
@@ -180,6 +194,7 @@ async function appServer(args) {
     }
     if (m.method === "thread/start" || m.method === "thread/resume") {
       if (process.env.MOCK_STATE) fs.appendFileSync(`${process.env.MOCK_STATE}/codex-thread.jsonl`, JSON.stringify({ method: m.method, model: p.model ?? null }) + "\n");
+      if (process.env.MOCK_STATE) fs.appendFileSync(`${process.env.MOCK_STATE}/codex-thread-config.jsonl`, JSON.stringify({ method: m.method, config: p.config ?? null }) + "\n");
       threadId = m.method === "thread/resume" ? p.threadId : randomUUID();
       threadCwd = p.cwd ?? threadCwd;
       prev = m.method === "thread/resume" ? loadState(threadId) : null;

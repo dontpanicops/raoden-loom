@@ -768,14 +768,14 @@ async function imp(st, tasks) {
   return (await st.importTasks(r.job, async () => new Set(), () => true)).rows;
 }
 
-test("import (F3): issue and commitTitle accepted and kept; bad ones → invalid_task; a file without them takes them off; the same again — unchanged; scope still field_not_supported", async () => {
+test("import (F3): issue and commitTitle accepted and kept; bad ones → invalid_task; a file without them takes them off; the same again — unchanged (scope: F4)", async () => {
   const file = path.join(TMP, `board-${++n}.json`);
   const st = createBoardStore(file);
   const json = () => JSON.parse(fs.readFileSync(file, "utf8")).tasks;
   const byRef = (ref) => json().find((t) => t.ref === ref);
   let rows = await imp(st, [row("T1", { issue: "ISSUE-1", commitTitle: "feat: первая задача" }), row("T2", { issue: "-x" }), row("T3", { commitTitle: "a\nb" }),
-    row("T4", { commitTitle: "x".repeat(73) }), row("T5", { commitTitle: " " }), row("T6", { scope: ["docs/**"] })]);
-  assert.deepEqual(rows.refused.map((x) => [x.ref, x.code]), [["T2", "invalid_task"], ["T3", "invalid_task"], ["T4", "invalid_task"], ["T5", "invalid_task"], ["T6", "field_not_supported"]]);
+    row("T4", { commitTitle: "x".repeat(73) }), row("T5", { commitTitle: " " })]);
+  assert.deepEqual(rows.refused.map((x) => [x.ref, x.code]), [["T2", "invalid_task"], ["T3", "invalid_task"], ["T4", "invalid_task"], ["T5", "invalid_task"]]);
   assert.deepEqual([byRef("T1").issue, byRef("T1").commitTitle], ["ISSUE-1", "feat: первая задача"]);
   rows = await imp(st, [row("T1", { issue: "ISSUE-1", commitTitle: "feat: первая задача" })]);
   assert.deepEqual(rows.unchanged, ["T1"]);

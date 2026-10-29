@@ -58,6 +58,8 @@ import { grantFingerprint } from "./profile.ts";
 import { runShell } from "./shellRun.ts";
 import type { ShellRunResult } from "./shellRun.ts";
 import type { Workspace } from "./workspace.ts";
+import { exportPaths } from "./reviewExport.ts";
+import type { McpBlock } from "./sessions.ts";
 
 export interface GoalInput {
   text: string;
@@ -85,6 +87,12 @@ export interface GoalInput {
   base?: { branch: string; commit: string; key: string };
   // F3 (T-6), journal v2 and a worktree only: the worktree's branch, chosen by main (never from the window: parseGoal)
   branch?: string;
+  // F4 (T-9), journal v2, a worktree and a board task only: the review export is written when the run completes — set by
+  // main from the profile's reviewExport (never from the window: parseGoal)
+  export?: true;
+  // F4 (T-14): the run's roles without MCP — Claude with --strict-mcp-config and its init checked, Codex's servers listed
+  // before each turn; set by main from the profile's runMcp: false (never from the window: parseGoal)
+  noMcp?: true;
   // C3, journal v2 rules in a resolution run's journal: the merge run it resolves for (stage-c3-conflicts.md §3)
   resolution?: { mergeRunId: string; taskId: string; key: string; base: string };
   // E1, journal v2 rules in a decomposition run's journal: the parent task it splits (stage-e-decomposition.md §3.1)
@@ -178,6 +186,7 @@ export interface RunView {
   refused?: { checkId: string; command: string } | null;
   // A4: what the person decides on this pause, about the state shown (journal-v2-format.md §2.9)
   decisions?: OrchestrationDecisions | null;
+  export?: { json: string; md: string } | null; // F4 (T-9): the review export's paths (exportView)
 }
 
 // Facts from the journal (and the goal), never from an agent's own report.
@@ -221,7 +230,7 @@ export interface RunHandle {
 
 // The view of a run from its journal state; also for a run nobody has open (halted false, nothing active).
 export function runView(st: RunState, halted = false, active: RunView["active"] = null,
-  extra: Pick<RunView, "permission" | "pendingPermissions" | "workMode" | "workDir" | "progress" | "proposal" | "confirm" | "refused" | "decisions"> = {}): RunView {
+  extra: Pick<RunView, "permission" | "pendingPermissions" | "workMode" | "workDir" | "progress" | "proposal" | "confirm" | "refused" | "decisions" | "export"> = {}): RunView {
   const accepted = Object.keys(st.orch.accepted).length;
   const total = st.orch.plan ? st.orch.plan.firstStage - 1 + st.orch.plan.stageCount : 0;
   return {
@@ -229,6 +238,16 @@ export function runView(st: RunState, halted = false, active: RunView["active"] 
     stage: st.orch.plan && accepted < total ? accepted + 1 : null,
     turns: Object.keys(st.turns).length, halted, active, ...extra
   };
+}
+
+// F4 (T-9): where the review export of a run asked for one is (§5.6): its paths once the run completed with a commit; null
+// when it completed with nothing to commit or did not complete; absent when the goal asked for none
+export function exportView(root: string, st: RunState, goal: Pick<Goal, "export">): { export?: { json: string; md: string } | null } {
+  if (!goal.export) return {};
+  const c = st.orch.finish.filter((f) => f.step === "commit").at(-1);
+  if (st.status !== "completed" || c?.status !== "done" || !c.commit) return { export: null };
+  const { json, md } = exportPaths(root, st.runId);
+  return { export: { json, md } };
 }
 
 export class OrchestrationError extends Error {
@@ -535,7 +554,7 @@ function checkGoal(input: GoalInput, registryOf: (commands: string[] | null) => 
   const stage13 = input.mode !== undefined || input.prepare !== undefined || input.finish !== undefined || input.access !== undefined;
   if (stage13 && !commands) bad("a goal with a mode, preparation, actions after success or rights needs its check commands");
   const prepare = input.prepare === undefined ? undefined : checkPrepare(input.prepare, bad);
-  const finish = input.finish === undefined ? undefined : checkFinish(input.finish, bad);
+  const finish = input.finish === undefined ? undefined : checkFinish(input.finish, bad, v2 && input.workMode === "worktree");
   if (finish && (finish.commit || finish.push || finish.qa) && input.workMode === "copy") bad("actions after success need the project folder or a worktree");
   if (input.access !== undefined && (!isClaudeAccess(input.access?.claude) || !isCodexAccess(input.access?.codex))) bad("access: unknown mode");
   const models = input.models === undefined ? undefined : checkModels(input.models, v2, bad);
@@ -545,6 +564,8 @@ function checkGoal(input: GoalInput, registryOf: (commands: string[] | null) => 
   // F3 (T-6): the name as checkFinish takes a branch; main chose it (git's check-ref-format included)
   if (input.branch !== undefined && (typeof input.branch !== "string" || !/^(?!-)[A-Za-z0-9._/-]{1,200}$/.test(input.branch) || input.branch.includes("..")
     || !v2 || input.workMode !== "worktree")) bad("branch: a branch name, journal v2 and a worktree only");
+  if (input.export !== undefined && (input.export !== true || !v2 || input.workMode !== "worktree" || !task)) bad("export: true, journal v2, a worktree and a board task only");
+  if (input.noMcp !== undefined && input.noMcp !== true) bad("noMcp: true or absent");
   const resolution = input.resolution === undefined ? undefined : checkResolution(input, v2, bad);
   const decomposition = input.decomposition === undefined ? undefined : checkDecomposition(input, v2, bad);
   if (resolution && decomposition) bad("resolution and decomposition exclude each other");
@@ -569,7 +590,8 @@ function checkGoal(input: GoalInput, registryOf: (commands: string[] | null) => 
     ...(input.mode ? { mode: input.mode } : {}), ...(prepare ? { prepare } : {}), ...(finish ? { finish } : {}),
     ...(input.access ? { access: { claude: input.access.claude, codex: input.access.codex } } : {}),
     ...(models ? { models } : {}), ...(input.language ? { language: input.language } : {}), ...(task ? { task } : {}),
-    ...(base ? { base } : {}), ...(input.branch !== undefined ? { branch: input.branch } : {}), ...(resolution ? { resolution } : {}), ...(decomposition ? { decomposition } : {})
+    ...(base ? { base } : {}), ...(input.branch !== undefined ? { branch: input.branch } : {}), ...(resolution ? { resolution } : {}), ...(decomposition ? { decomposition } : {}),
+    ...(input.export ? { export: true as const } : {}), ...(input.noMcp ? { noMcp: true as const } : {})
   };
 }
 
@@ -667,17 +689,25 @@ function checkPrepare(p: GoalInput["prepare"], bad: (m: string) => never): { ste
     })
   };
 }
-function checkFinish(f: GoalFinish, bad: (m: string) => never): GoalFinish {
+// pushExtras (F4, T-8): a journal v2 worktree goal — the push may carry main's filled options and frozen protected branches
+function checkFinish(f: GoalFinish, bad: (m: string) => never, pushExtras = false): GoalFinish {
   if (!f || typeof f !== "object") bad("finish must be an object");
   const name = (v: unknown) => typeof v === "string" && /^(?!-)[A-Za-z0-9._/-]{1,200}$/.test(v) && !v.includes("..");
   if (f.commit !== null && (!f.commit || typeof f.commit.message !== "string" || f.commit.message.trim() === "" || f.commit.message.length > 4000)) bad("finish.commit: {message}");
   if (f.push !== null && (!f.push || !name(f.push.remote) || !name(f.push.branch))) bad("finish.push: {remote, branch}");
   if (f.push && !f.commit) bad("a push needs the commit");
+  const options = f.push?.options, guarded = f.push?.protected;
+  if (options !== undefined && (!pushExtras || !Array.isArray(options) || options.length > 16
+    || options.some((o) => typeof o !== "string" || o === "" || o.length > 1000 || /[\u0000-\u001f\u007f\u2028\u2029]/.test(o)))) bad("finish.push.options: up to 16 one-line options, journal v2 and a worktree only");
+  if (guarded !== undefined && (!pushExtras || !Array.isArray(guarded) || guarded.length > 40 || guarded.some((b) => !name(b)))) bad("finish.push.protected: up to 40 branch names, journal v2 and a worktree only");
   if (f.qa !== null && (!f.qa || !LINE(f.qa.environment) || !LINE(f.qa.command) || !LINE(f.qa.verify)
     || (f.qa.reportsVersion !== undefined && typeof f.qa.reportsVersion !== "boolean"))) bad("finish.qa: {environment, command, verify, reportsVersion?}");
   return {
     commit: f.commit ? { message: f.commit.message } : null,
-    push: f.push ? { remote: f.push.remote, branch: f.push.branch, remoteUrl: typeof f.push.remoteUrl === "string" ? f.push.remoteUrl : null } : null,
+    push: f.push ? {
+      remote: f.push.remote, branch: f.push.branch, remoteUrl: typeof f.push.remoteUrl === "string" ? f.push.remoteUrl : null,
+      ...(options !== undefined ? { options: [...options] } : {}), ...(guarded !== undefined ? { protected: [...guarded] } : {})
+    } : null,
     qa: f.qa ? { environment: f.qa.environment.trim(), command: f.qa.command.trim(), verify: f.qa.verify.trim(), reportsVersion: f.qa.reportsVersion === true } : null
   };
 }
@@ -930,7 +960,7 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
     const first = permissions.values().next().value;
     const st = state();
     return {
-      permission: first?.view ?? null, pendingPermissions: permissions.size, workMode: ws.mode, workDir: ws.repo,
+      permission: first?.view ?? null, pendingPermissions: permissions.size, workMode: ws.mode, workDir: ws.repo, ...exportView(deps.root, st, goal),
       progress: { ...progressOf(st, goal, ws.branch), ...(st.version === 2 ? { conditions: shownConditions, findings: shownFindings } : {}) },
       ...(st.pausedReason === "awaiting_checks_decision" ? { proposal: proposalText } : {}),
       ...(st.pausedReason === "check_needs_permissions" ? { refused: refusedCheck(st) } : {}),
@@ -1292,7 +1322,7 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
       // the role's own limit, cut to what is left of the run: the deadline is not extended by a long turn
       timeoutMs: Math.max(1, Math.min(role === "executor" ? limits.executorTurnMs : limits.leadTurnMs, deadline() - clock())),
       ask: askPerson(role), ...(goal.access ? { access: goal.access } : {}), ...(ws.mode !== "project" ? { ownFolder: true } : {}),
-      ...(goal.models?.[role] ? { model: goal.models[role] } : {})
+      ...(goal.models?.[role] ? { model: goal.models[role] } : {}), ...(goal.noMcp ? { noMcp: true as const } : {})
     };
     const roleTimeoutMs = role === "executor" ? limits.executorTurnMs : limits.leadTurnMs;
     const prepared = deps.agents.prepare(request);
@@ -1362,6 +1392,17 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
     }
     if (halted || state().status !== "running" && state().status !== "pausing") return; // a late result: a fact, no continuation
     if (abort !== null) return; // stopped by the deadline or its timeout: the result is a fact, nothing follows from it
+    // F4 (T-14, О8): a run without MCP whose CLI names MCP servers, or whose list was not read whole — the turn did not
+    // go ahead; the person turns the servers off in their own CLI config and resumes (no new reason of the journal)
+    const block = (result as { mcpBlock?: McpBlock }).mcpBlock;
+    if (block) {
+      const cli = block.cli === "codex" ? "Codex" : "Claude";
+      observe(() => watched?.blocked(block.code === "mcp_present"
+        ? `${block.code}: ${cli} has MCP servers on: ${block.names.join(", ")}; turn them off in your own ${cli} config and press «Continue»`
+        : `${block.code}: the MCP servers of ${cli} could not be checked in 30 s (${block.detail ?? "no answer"}); the turn was not made`, { mcp: block.code, cli: block.cli, names: block.names.join(", ") }));
+      await setStatus("paused", "needs_user_action");
+      return;
+    }
 
     if (role === "reviewer") {
       // 5h §3.1: a review of a tree that changed during it is dropped before anything else is concluded from it
@@ -1966,8 +2007,12 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
       nothing = paths.length === 0;
       line = nothing ? "true" : commitLine(params, "<result file>"); // as shown; the line run names its own file
     } else if (step === "push") {
+      // F4 (T-8): never into a protected branch — the list frozen at the start, without case (APFS: main and Main are one
+      // file of refs); a pause the person resolves, as for a remote's other address
+      const guarded = f.push!.protected?.find((b) => b.toLowerCase() === f.push!.branch.toLowerCase());
+      if (guarded !== undefined) return needsUser(`push_protected: the branch ${f.push!.branch} is protected; the push was not made`);
       if (!commitNow) return needsUser("there is no confirmed commit of the checked state to push");
-      params = { remote: f.push!.remote, branch: f.push!.branch, commit: commitNow, tree: snapshot.tree };
+      params = { remote: f.push!.remote, branch: f.push!.branch, commit: commitNow, tree: snapshot.tree, ...(f.push!.options?.length ? { options: f.push!.options } : {}) };
       // The remote's address is part of what the person allowed: a changed one (a push URL or a rewrite included) is
       // asked again.
       const allowed = f.push!.remoteUrl;

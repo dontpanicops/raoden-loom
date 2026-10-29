@@ -2304,7 +2304,36 @@ const ru = {
   orchError_remote_base_dialog: "В этом проекте задачи доски запускает автопилот",
   orchError_base_fetch_failed: "Не удалось получить ветку remote: проверьте сеть и доступ",
   orchError_work_mode_not_worktree: "Эти настройки — только для режима worktree: смените режим",
-  orchError_ref_conflict: "Ветка с этим именем появилась, пока запуск создавался: запуск не создан, повторите"
+  orchError_ref_conflict: "Ветка с этим именем появилась, пока запуск создавался: запуск не создан, повторите",
+  // F4 (stage-f-external-projects.md §10, T-8): the autopilot's push with the profile's options
+  boardReason_push_option_field: "У задачи нет поля {field}, которое нужно options push: допишите его или уберите подстановку",
+  projRunPush: "Автопилот пушит",
+  projRunPushHint: "Только старты автопилота в режиме worktree, после коммита: ветка запуска уходит в remote с options ниже. Встроенно защищены main, master и ветка базы.",
+  projRunPushOptions: "Options push (по одной в строке: ключ или ключ=значение; подстановки {commitTitle}, {issue}, {ref}, {base})",
+  projRunPushProtected: "Защищённые ветки (по одной в строке)",
+  projRunPushUrlUnread: "адрес remote не прочитан",
+  projRunPushConfirm: "Автопилот будет пушить в {remote} ({url}) с options: {options}",
+  orchError_push_protected: "Push в защищённую ветку {name} не выполнен: «Продолжить» не поможет, ветка и список заморожены в цели. Остановите запуск и измените шаблон ветки или список защищённых в настройках; следующий запуск возьмёт новые",
+  orchError_push_option_forbidden: "Option {name} запрещена: она сливает MR или пропускает CI; уберите её",
+  orchError_push_option_field: "В option поле {field}, которого нет у задачи: допишите поле или уберите подстановку",
+  orchError_push_option_invalid: "Option {name} записана неверно: ключ или значение вне правил либо неизвестная подстановка",
+  orchError_push_needs_base: "Подстановка {base} требует базу от remote (`runBase`): задайте её или уберите {base}",
+  orchError_push_needs_commit: "Автопилот пушит только после коммита: включите коммит в профиле",
+  orchError_push_not_confirmed: "Включение push не подтверждено: подтвердите в окне",
+  // F4 (stage-f-external-projects.md §10, T-9, T-14): the review export and the runs without MCP
+  projReviewExport: "Выгружать ревью",
+  projReviewExportHint: "После завершения запуска задачи доски — review.json (board-review/v1) и review.md вне дерева проекта. Нужны база от remote и коммит.",
+  projRunMcp: "Запускать без MCP",
+  projRunMcpHint: "Claude — с --strict-mcp-config, Codex перед каждым ходом проверяет, что MCP-серверы выключены. Конфиги CLI Raoden Loom не меняет: включённые серверы выключите сами.",
+  orchExportPaths: "Выгрузка ревью",
+  orchExportCopy: "Скопировать путь",
+  orchExportNone: "Выгрузки нет: нечего было коммитить",
+  orchError_review_export_needs_base: "Выгрузка ревью требует базу от remote (`runBase`): задайте её",
+  orchError_review_export_needs_commit: "Выгрузка ревью требует коммита: включите коммит в профиле",
+  orchError_mcp_present: "У {cli} включены MCP-серверы: {names}; выключите их в своём конфиге {cli} и нажмите «Продолжить»",
+  orchError_mcp_unchecked: "Не удалось проверить MCP-серверы {cli} (нет ответа или ответ не разобран): ход не выполнен, повторите",
+  orchError_mcp_warning: "У Codex включены MCP-серверы: {names}; выключите их в своём конфиге Codex до запуска",
+  orchError_mcp_warning_unchecked: "MCP-серверы Codex не проверены (нет ответа за 30 с или ответ не разобран): запуск остановится, если они включены"
 } as const;
 
 const en: Record<keyof typeof ru, string> = {
@@ -4606,7 +4635,34 @@ const en: Record<keyof typeof ru, string> = {
   orchError_remote_base_dialog: "In this project the board's tasks are started by the autopilot",
   orchError_base_fetch_failed: "The remote branch could not be fetched: check the network and access",
   orchError_work_mode_not_worktree: "These settings are for the worktree mode only: change the mode",
-  orchError_ref_conflict: "A branch of this name appeared while the run was being created: the run was not created, try again"
+  orchError_ref_conflict: "A branch of this name appeared while the run was being created: the run was not created, try again",
+  boardReason_push_option_field: "The task has no {field} that the push options need: add it or remove the substitution",
+  projRunPush: "The autopilot pushes",
+  projRunPushHint: "The autopilot's starts only, in the worktree mode, after the commit: the run's branch goes to the remote with the options below. main, master and the base's branch are protected always.",
+  projRunPushOptions: "Push options (one per line: key or key=value; substitutions {commitTitle}, {issue}, {ref}, {base})",
+  projRunPushProtected: "Protected branches (one per line)",
+  projRunPushUrlUnread: "the remote's address could not be read",
+  projRunPushConfirm: "The autopilot will push to {remote} ({url}) with options: {options}",
+  orchError_push_protected: "The push to the protected branch {name} was not made: Resume will not help, the branch and the list are frozen in the goal. Stop the run and change the branch template or the protected list in the settings; the next run takes the new ones",
+  orchError_push_option_forbidden: "The option {name} is not allowed: it merges the MR or skips CI; remove it",
+  orchError_push_option_field: "The option uses {field}, which the task does not have: add the field or remove the substitution",
+  orchError_push_option_invalid: "The option {name} is not valid: the key or the value breaks the rules, or the substitution is unknown",
+  orchError_push_needs_base: "The {base} substitution needs a remote base (`runBase`): set it or remove {base}",
+  orchError_push_needs_commit: "The autopilot pushes only after a commit: turn the commit on in the profile",
+  orchError_push_not_confirmed: "The push was not confirmed: confirm it in the dialog",
+  projReviewExport: "Export the review",
+  projReviewExportHint: "When a board task's run completes — review.json (board-review/v1) and review.md outside the project's tree. Needs a remote base and the commit.",
+  projRunMcp: "Run without MCP",
+  projRunMcpHint: "Claude runs with --strict-mcp-config, Codex is checked before each turn to have its MCP servers off. Raoden Loom does not change the CLIs' configs: turn the servers off yourself.",
+  orchExportPaths: "Review export",
+  orchExportCopy: "Copy the path",
+  orchExportNone: "No export: there was nothing to commit",
+  orchError_review_export_needs_base: "The review export needs a remote base (`runBase`): set it",
+  orchError_review_export_needs_commit: "The review export needs a commit: turn the commit on in the profile",
+  orchError_mcp_present: "{cli} has MCP servers on: {names}; turn them off in your own {cli} config and press «Continue»",
+  orchError_mcp_unchecked: "The MCP servers of {cli} could not be checked (no answer, or the answer could not be read): the turn was not made, try again",
+  orchError_mcp_warning: "Codex has MCP servers on: {names}; turn them off in your own Codex config before the run",
+  orchError_mcp_warning_unchecked: "The MCP servers of Codex were not checked (no answer in 30 s, or the answer could not be read): the run stops if they are on"
 };
 
 export type TranslationKey = keyof typeof ru;

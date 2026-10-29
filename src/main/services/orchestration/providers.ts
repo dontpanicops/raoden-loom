@@ -15,7 +15,7 @@ import { isAbsolute, join } from "node:path";
 import type { AvailableProviderCli } from "../providerCliRegistry.ts";
 import { providerChildProcessLaunch } from "../providerCliRegistry.ts";
 import { compileSchema } from "./schema.ts";
-import { claudeHostDriver, codexAppServerDriver, type AskPerson } from "./sessions.ts";
+import { claudeHostDriver, codexAppServerDriver, type AskPerson, type McpBlock, type McpGuard } from "./sessions.ts";
 import { DEFAULT_TURN_LIMITS, checkTurnSpec, startTurn } from "./turn.ts";
 import type {
   AnswerSchema,
@@ -117,7 +117,7 @@ export type ProviderRefusal =
   | "invalid_input";
 
 export type ProviderTurnBuild =
-  | { ok: true; spec: TurnSpec; sessionId: string | null; schemaFile: string | null }
+  | { ok: true; spec: TurnSpec; sessionId: string | null; schemaFile: string | null; mcp?: McpGuard } // mcp: F4 (T-14), the run without MCP
   | { ok: false; reason: ProviderRefusal; detail: string };
 
 export interface ProviderContractCheck {
@@ -135,6 +135,7 @@ export interface ProviderTurnResult {
   report: TurnReport;
   contract: ProviderContractCheck;
   transport: TurnResult; // low-level turn; its outcome alone is not a verified provider outcome
+  mcpBlock?: McpBlock; // F4 (T-14): a run without MCP whose turn did not go ahead (the service pauses needs_user_action)
 }
 
 export type ProviderTurnStart =
@@ -430,6 +431,10 @@ export interface NativeTurnInput {
   // The model for this thread (Codex thread/start|resume `model`) or this run (claude --model); absent: the CLI's own
   // configuration decides. Nothing is written to config.toml or Claude's settings.
   model?: string;
+  // F4 (T-14, §7.5): the run without MCP — Claude: --strict-mcp-config (no --mcp-config), its system/init must name no
+  // server; Codex: no override (В6), its thread's servers listed before the turn (sessions.ts). mcpMs: the list's time
+  noMcp?: boolean;
+  mcpMs?: number;
 }
 
 export function buildNativeTurn(input: NativeTurnInput): ProviderTurnBuild {
@@ -452,6 +457,7 @@ export function buildNativeTurn(input: NativeTurnInput): ProviderTurnBuild {
   let args: string[];
   let sessionId: string | null;
   let driver;
+  const mcp: McpGuard | undefined = input.noMcp ? { block: null } : undefined;
   if (provider === "codex") {
     if (input.session.kind === "new" && input.session.id !== undefined) return refuse("invalid_input", "codex assigns the thread id itself");
     if (input.session.kind === "resume" && !CODEX_THREAD.test(input.session.id)) return refuse("invalid_input", "codex thread id is not allowed");
@@ -460,7 +466,7 @@ export function buildNativeTurn(input: NativeTurnInput): ProviderTurnBuild {
     driver = codexAppServerDriver({
       cwd: input.cwd, task: input.task, schema, threadId: sessionId, clientVersion: input.clientVersion, ask: input.ask,
       access: codexAccessParams(input.access?.codex ?? "terminal"), ...(input.ownFolder ? { trustCwd: true } : {}),
-      ...(input.model ? { model: input.model } : {})
+      ...(input.model ? { model: input.model } : {}), ...(mcp ? { noMcp: mcp, ...(input.mcpMs ? { mcpMs: input.mcpMs } : {}) } : {})
     });
   } else {
     sessionId = input.session.id ?? randomUUID();
@@ -468,6 +474,7 @@ export function buildNativeTurn(input: NativeTurnInput): ProviderTurnBuild {
     args = [
       "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
       "--permission-prompt-tool", "stdio", ...claudeAccessArgs(input.access?.claude ?? "terminal"), ...(input.model ? ["--model", input.model] : []),
+      ...(mcp ? ["--strict-mcp-config"] : []), // F4 (T-14): as the old restricted modes — no --mcp-config: no server at all
       "--json-schema", JSON.stringify(schema),
       input.session.kind === "new" ? "--session-id" : "--resume", sessionId
     ];
@@ -477,11 +484,11 @@ export function buildNativeTurn(input: NativeTurnInput): ProviderTurnBuild {
   const env = { ...launch.environment, ...input.env };
   // the sandbox exclusions are read where this very process will read its settings (its HOME, its CLAUDE_CONFIG_DIR)
   if (provider === "claude") {
-    driver = claudeHostDriver({ task: input.task, ask: input.ask,
+    driver = claudeHostDriver({ task: input.task, ask: input.ask, ...(mcp ? { noMcp: mcp } : {}),
       sandboxed: input.access?.claude === "workspace" && !claudeSandboxExclusions(env.HOME || homedir(), input.cwd, env.CLAUDE_CONFIG_DIR) });
   }
   return {
-    ok: true, sessionId, schemaFile: null,
+    ok: true, sessionId, schemaFile: null, ...(mcp ? { mcp } : {}),
     spec: {
       provider, argv: [launch.command, ...launch.args], cwd: input.cwd, env,
       task: "", schema, ...(accept ? { accept } : {}), expectSessionId: sessionId, limits: input.limits ?? DEFAULT_TURN_LIMITS, session: driver,
@@ -541,7 +548,9 @@ export function startNativeTurn(input: NativeTurnInput, launch: SupervisorLaunch
       expected: { sessionId: expected }, actual: { sessionId: transport.sessionId ? bound(transport.sessionId) : null }
     };
     const outcome = transport.outcome !== "completed" ? transport.outcome : errors.length ? "contract_violation" : "completed";
-    return { outcome, nextTurnAllowed: outcome === "completed", sessionId: transport.sessionId, report: transport.report, contract, transport };
+    // F4 (T-14): a block counts only where the turn did not complete (a check that ended the session)
+    const mcpBlock = outcome !== "completed" ? built.mcp?.block ?? undefined : undefined;
+    return { outcome, nextTurnAllowed: outcome === "completed", sessionId: transport.sessionId, report: transport.report, contract, transport, ...(mcpBlock ? { mcpBlock } : {}) };
   });
   return { ok: true, sessionId: built.sessionId, stop: turn.stop, result };
 }

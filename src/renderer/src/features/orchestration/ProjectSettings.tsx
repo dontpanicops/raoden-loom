@@ -94,6 +94,16 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
   // "As in my terminal" newly chosen for a CLI: saved only with its warning confirmed (main checks it again)
   const [confirmTerminal, setConfirmTerminal] = useState(false);
   const toTerminal = (["claude", "codex"] as const).some((k) => p.access[k] === "terminal" && !(info.saved && info.profile.access[k] === "terminal"));
+  // F4 (T-8): the autopilot's push — turned on, or its remote or options changed: saved only confirmed (main checks it
+  // again, the address included); the options and the protected branches one per line
+  const [pushOptions, setPushOptions] = useState((info.profile.runPush?.options ?? []).join("\n"));
+  const [pushProtected, setPushProtected] = useState((info.profile.runPush?.protected ?? []).join("\n"));
+  const [confirmPush, setConfirmPush] = useState(false);
+  const lines = (text: string) => text.split("\n").map((x) => x.trim()).filter(Boolean);
+  const savedPush = info.saved ? info.profile.runPush : undefined;
+  // the address main reads and saves (insteadOf, pushurl), not the raw remote.<name>.url; null: not read
+  const pushUrl = p.runPush ? info.facts.remotes.find((r) => r.name === p.runPush!.remote)?.pushUrl ?? null : null;
+  const pushAsks = !!p.runPush?.enabled && (!savedPush?.enabled || savedPush.remote !== p.runPush.remote || savedPush.remoteUrl !== pushUrl || savedPush.options.join("\n") !== lines(pushOptions).join("\n"));
   // The rights modes the installed CLIs offer: asked when the settings open (the CLIs start with --help, no model).
   const [caps, setCaps] = useState<OrchestrationProfileInfo["capabilities"] | null>(null);
   useEffect(() => {
@@ -115,6 +125,8 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
     if (p.finish.push && !p.finish.push.branch.trim()) return t(locale, "orchSettingsErrBranch");
     if ((parts > 0 || p.finish.push) && !p.finish.commit) return t(locale, "orchSettingsErrNeedsCommit");
     if (toTerminal && !confirmTerminal) return t(locale, "orchError_terminal_not_confirmed");
+    if (pushAsks && pushUrl === null) return t(locale, "projRunPushUrlUnread");
+    if (pushAsks && !confirmPush) return t(locale, "orchError_push_not_confirmed");
     return null;
   };
   const save = async (): Promise<void> => {
@@ -124,11 +136,12 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
       ...p,
       checks: checks.split("\n").map((c) => c.trim()).filter(Boolean),
       prepare: { ...p.prepare, steps: parseSteps(steps) },
-      finish: { ...p.finish, qa: qaOn ? { environment: qa.environment.trim(), command: qa.command.trim(), verify: qa.verify.trim(), reportsVersion: !!qa.reportsVersion } : null }
+      finish: { ...p.finish, qa: qaOn ? { environment: qa.environment.trim(), command: qa.command.trim(), verify: qa.verify.trim(), reportsVersion: !!qa.reportsVersion } : null },
+      ...(p.runPush ? { runPush: { ...p.runPush, options: lines(pushOptions), protected: lines(pushProtected) } } : {})
     };
     setBusy(true);
     setError(null);
-    const { outcome, value } = await outcomeOf(() => api().saveProfile(linkId, { ...profile, ...(toTerminal ? { confirmTerminal } : {}) }));
+    const { outcome, value } = await outcomeOf(() => api().saveProfile(linkId, { ...profile, ...(toTerminal ? { confirmTerminal } : {}), ...(pushAsks ? { confirmPush } : {}) }));
     setBusy(false);
     if (outcome.kind === "accepted" && value) onSaved(value);
     else setError(outcomeText(locale, outcome) ?? t(locale, "orchError_generic"));
@@ -264,6 +277,51 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
             </span>
             {p.runBase?.remoteUrl && <small className="orch-hint" data-orch-settings-run-base-url>{t(locale, "projRunBaseUrl")}: <code>{p.runBase.remoteUrl}</code></small>}
           </label>
+        </fieldset>
+        {/* F4 (§10): «The autopilot pushes» — off by default; the confirmation shows the remote, its address and the options as they are */}
+        <fieldset className="orch-field" data-orch-settings-run-push>
+          <label className="orch-check">
+            <input type="checkbox" checked={!!p.runPush?.enabled} data-orch-settings-run-push-enabled
+              onChange={(e) => set({ runPush: { remote: info.facts.remotes[0]?.name ?? "origin", remoteUrl: null, options: [], protected: [], confirmedAt: null, ...p.runPush, enabled: e.target.checked } })} />
+            <span>{t(locale, "projRunPush")}</span>
+          </label>
+          <small className="orch-hint">{t(locale, "projRunPushHint")}</small>
+          {p.runPush && (
+            <>
+              <select value={p.runPush.remote} data-orch-settings-run-push-remote onChange={(e) => set({ runPush: { ...p.runPush!, remote: e.target.value } })}>
+                {[...new Set([p.runPush.remote, ...info.facts.remotes.map((r) => r.name)])].map((name) => <option key={name} value={name}>{name}</option>)}
+              </select>
+              <label className="orch-field">
+                <span>{t(locale, "projRunPushOptions")}</span>
+                <textarea rows={3} value={pushOptions} spellCheck={false} data-orch-settings-run-push-options onChange={(e) => setPushOptions(e.target.value)} />
+              </label>
+              <label className="orch-field">
+                <span>{t(locale, "projRunPushProtected")}</span>
+                <textarea rows={2} value={pushProtected} spellCheck={false} data-orch-settings-run-push-protected onChange={(e) => setPushProtected(e.target.value)} />
+              </label>
+            </>
+          )}
+          {pushAsks && (
+            <label className="orch-check" data-orch-push-confirm>
+              <input type="checkbox" checked={confirmPush} disabled={pushUrl === null} onChange={(e) => setConfirmPush(e.target.checked)} />
+              <span>{t(locale, "projRunPushConfirm").replace("{remote}", () => p.runPush!.remote).replace("{url}", () => pushUrl ?? t(locale, "projRunPushUrlUnread")).replace("{options}", () => lines(pushOptions).join(" ") || "—")}</span>
+            </label>
+          )}
+        </fieldset>
+        {/* F4 (§10, T-9, T-14): the review export of a board task's run, and the runs without MCP */}
+        <fieldset className="orch-field" data-orch-settings-f4>
+          <label className="orch-check">
+            <input type="checkbox" checked={p.reviewExport === true} data-orch-settings-review-export
+              onChange={(e) => set({ reviewExport: e.target.checked ? true : undefined })} />
+            <span>{t(locale, "projReviewExport")}</span>
+          </label>
+          <small className="orch-hint">{t(locale, "projReviewExportHint")}</small>
+          <label className="orch-check">
+            <input type="checkbox" checked={p.runMcp === false} data-orch-settings-run-mcp
+              onChange={(e) => set({ runMcp: e.target.checked ? false : undefined })} />
+            <span>{t(locale, "projRunMcp")}</span>
+          </label>
+          <small className="orch-hint">{t(locale, "projRunMcpHint")}</small>
         </fieldset>
         <fieldset className="orch-field" data-orch-settings-grants>
           <legend>{t(locale, "orchSettingsGrants")}</legend>

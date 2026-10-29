@@ -454,6 +454,8 @@ async function initializeServices(): Promise<void> {
   });
   // F1 (§5.4): inbox/ and its poll while the application is open (macOS arm64 only: elsewhere neither is made)
   void orchestration.inboxStart();
+  // F4 (T-9): the review exports a crash left unwritten — once, at the start
+  void orchestration.reviewExports();
   servicesReady = true;
 }
 

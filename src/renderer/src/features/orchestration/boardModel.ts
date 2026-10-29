@@ -25,7 +25,8 @@ export function taskLine(locale: LocaleId, status: TaskStatus, run: RunInput | n
     const d = status.split?.detail ?? "";
     return tr(locale, `boardReason_${status.reason}`, { detail: splitWhy(locale, d), reason: pauseWord(locale, d) });
   }
-  if (status.reason) return tr(locale, `boardReason_${status.reason}`, { keys, n: status.attempts, field: "issue" }); // F3: issue is the only field a template can miss
+  // F3: issue is the only field a template can miss; F4 (T-8): the push options name theirs
+  if (status.reason) return tr(locale, `boardReason_${status.reason}`, { keys, n: status.attempts, field: status.field ?? "issue" });
   if (status.column === "queue" && status.split?.detail === "whole") return notSplit(locale);
   if (run && (status.column === "work" || status.column === "review")) return runStatus(locale, { ...run, stageTitles: null, now: Date.now() }).doing;
   return t(locale, "boardNotStarted");

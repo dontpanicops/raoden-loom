@@ -9,7 +9,8 @@ import { shq } from "./shellRun.ts";
 
 // paths: exactly what is committed (null in older journals: everything); tree: the checked tree the commit must hold
 export interface CommitParams { message: string; paths: string[] | null; runId: string; tree?: string }
-export interface PushParams { remote: string; branch: string; commit: string; tree?: string }
+// options (F4, T-8): the profile's push options, filled at the start — each its own `-o`; absent or empty: a plain push
+export interface PushParams { remote: string; branch: string; commit: string; tree?: string; options?: string[] }
 // reportsVersion: the verification follows the version contract (absent in older journals: it does not)
 export interface QaParams { environment: string; command: string; verify: string; commit: string | null; branch: string | null; tree?: string; reportsVersion?: boolean }
 export type FinishParams = { step: "commit"; commit: CommitParams } | { step: "push"; push: PushParams } | { step: "qa"; qa: QaParams };
@@ -35,7 +36,7 @@ export function commitLine(p: CommitParams, out: string): string {
   // --only: exactly these paths, whatever else the person has staged
   return `git add -A -- ${paths} && git commit -q --only -m ${shq(p.message)} -- ${paths} && git rev-parse HEAD ${into(out)}`;
 }
-export const pushLine = (p: PushParams) => `git push ${shq(p.remote)} ${shq(`${p.commit}:refs/heads/${p.branch}`)}`;
+export const pushLine = (p: PushParams) => `git push ${(p.options ?? []).map((o) => `-o ${shq(o)} `).join("")}${shq(p.remote)} ${shq(`${p.commit}:refs/heads/${p.branch}`)}`;
 export const remoteHeadLine = (p: { remote: string; branch: string }, out: string) => `git ls-remote ${shq(p.remote)} ${shq(`refs/heads/${p.branch}`)} ${into(out)}`;
 // Every address the remote fetches from and pushes to (pushurl and insteadOf/pushInsteadOf expanded), each list in its
 // own file: both must be there, and every address in them must be the one the person allowed.

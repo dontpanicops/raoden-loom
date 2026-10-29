@@ -44,6 +44,8 @@ export interface Goal {
   // F3 (T-6), journal v2 worktree only, set by main: the worktree's branch (the profile's template, or canvastty/<run8> at
   // a remote base); absent: canvastty/<run8>. Not used by the cycle
   branch?: string;
+  export?: true; // F4 (T-9), journal v2 worktree board task only, set by main: the review export when completed. Not used by the cycle
+  noMcp?: true; // F4 (T-14), set by main: the roles run without MCP (the service's turns). Not used by the cycle
   // C3 (stage-c3-conflicts.md §3): a resolution run of a merge into the board's result — its copy starts from `base` (the
   // conflict as a commit), its plan is the application's. Not `task`: the run is never a task's run (metaOf, boardStatuses)
   resolution?: { mergeRunId: string; taskId: string; key: string; base: string };
@@ -56,7 +58,9 @@ export interface Goal {
 }
 export interface GoalFinish {
   commit: { message: string } | null;
-  push: { remote: string; branch: string; remoteUrl: string | null } | null;
+  // options, protected (F4, T-8, journal v2): set by main for the autopilot's push from the profile's runPush — the
+  // filled push options and the protected branches frozen at the start; absent: a plain push, as before
+  push: { remote: string; branch: string; remoteUrl: string | null; options?: string[]; protected?: string[] } | null;
   qa: { environment: string; command: string; verify: string; reportsVersion?: boolean } | null; // absent: false
 }
 

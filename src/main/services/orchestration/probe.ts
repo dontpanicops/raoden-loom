@@ -245,6 +245,30 @@ export async function probeCodex(input: ProbeInput, ready?: string): Promise<Pro
   }
 }
 
+// F4 (T-14, О8): the readiness of a run without MCP — Codex's MCP servers by the rule of the turn (sessions.ts): every page
+// of mcpServerStatus/list within the probe's time (30 s), a named server counts (runtimeStatus is not read); no whole list
+// is «not checked». No thread, no turn; nothing is written
+export async function codexMcpNames(input: ProbeInput): Promise<{ names: string[] } | { unchecked: string }> {
+  const c = conversation(input, ["app-server"]);
+  let next = 1;
+  const call: Call = async (method, params, ms, page = null) => {
+    const id = next++;
+    const r = await c.request(method, page, () => c.send({ id, method, params }), (x) => x.id === id && !("method" in x), (x) => x.error !== undefined, ms);
+    if ("end" in r) return failed(r);
+    return r.m.error !== undefined ? { ok: false, error: cliText(rec(r.m.error).message) || "refused", why: "refused" } : { ok: true, value: rec(r.m.result) };
+  };
+  try {
+    const init = await call("initialize", { clientInfo: { name: "canvastty", title: "Raoden Loom", version: "mcp" }, capabilities: null });
+    if (!init.ok) return { unchecked: `initialize: ${init.error}` };
+    c.send({ method: "initialized" });
+    const list = await codexMcpList(call, {}, c.until);
+    if (list.incomplete !== null) return { unchecked: `${list.incomplete}: ${list.error ?? ""}` };
+    return { names: [...new Set(codexMcpServers(list.servers).map((x) => x.name || "<unnamed>"))].slice(0, 32) };
+  } finally {
+    await c.end();
+  }
+}
+
 // Does Codex connect the project's MCP server `server`? Only in a folder whose project layer Codex loads (a trusted
 // one): there an ephemeral thread without a turn starts its MCP servers, and the thread's list says how each is. In an
 // untrusted folder no thread is started — Codex would write the folder's trust into the person's config by itself.
@@ -284,6 +308,7 @@ export async function codexMcpList(call: Call, params: Record<string, unknown>, 
   return stop("page_limit", `more than ${MCP_PAGES} pages`);
 }
 type Call = (method: string, params: unknown, ms?: number, page?: number | null) => Promise<{ ok: true; value: Record<string, unknown> } | Failed>;
+export type McpCall = Call; // F4 (T-14): the session driver's own requests take the same list
 async function codexReadiness(call: Call, cwd: string, server: string, until: number): Promise<OrchestrationMcpReadiness> {
   const out: OrchestrationMcpReadiness = { server, projectLayer: "absent", disabledReason: null, inProjectLayer: false, inConfig: false, threadStarted: false, status: null, error: null };
   // the probe's one deadline: no request is sent after it, no answer after it is used, no readiness without time

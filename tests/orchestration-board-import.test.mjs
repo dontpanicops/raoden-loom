@@ -118,15 +118,8 @@ test("ifAbsent with an existing ref and another text → unchanged, the task as 
 });
 
 // F2 takes external and models (orchestration-board-external.test.mjs), F3 issue and commitTitle
-// (orchestration-board-f3.test.mjs); the field of F4 is refused until its step
-for (const [field, value] of [["scope", ["docs/**"]]]) {
-  test(`the F4 field ${field} before its step → field_not_supported for its row only`, async () => {
-    const st = store();
-    const rows = await imp(st, [row("T1", { [field]: value }), row("T2")]);
-    assert.deepEqual(codes(rows), [["T1", "field_not_supported"]]);
-    assert.deepEqual(rows.created.map((x) => x.ref), ["T2"]);
-  });
-}
+// (orchestration-board-f3.test.mjs), F4 scope (orchestration-board-f4-review.test.mjs): no field of board-tasks/v1 is
+// refused field_not_supported any more
 
 test("an unknown field of a task → invalid_task for that row; unknown at the top → invalid_file", async () => {
   const st = store();

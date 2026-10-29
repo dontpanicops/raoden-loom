@@ -545,6 +545,10 @@ export function createRunActivity(log: ActivityLog, runId: string) {
         limit(text: string, detail: Draft["detail"]) {
           put(role, provider, turnId, "error", text, detail);
         },
+        // F4 (T-14): the turn of a run without MCP did not go ahead (detail.mcp: mcp_present or mcp_unchecked)
+        blocked(text: string, detail: Draft["detail"]) {
+          put(role, provider, turnId, "error", text, detail);
+        },
         finished(outcome: string, detail: Draft["detail"] = {}) {
           put(role, provider, turnId, "turn_finished", outcome, detail);
         }

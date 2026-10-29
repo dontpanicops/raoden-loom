@@ -52,7 +52,9 @@ export function outcomeText(locale: LocaleId, outcome: Outcome): string | null {
       const problem = outcome.kind === "refused" && (outcome.code === "access_unsupported" || outcome.code === "model_unsupported") ? parseStartProblem(outcome.message ?? "") : null;
       if (problem) return accessProblemText(locale, problem);
       // F3: a refusal that names a value (a branch, a remote, a substitution) — main's message ends with it after «: »
-      const text = t(locale, `orchError_${outcome.code}` as TranslationKey)?.replaceAll("{name}", (outcome.kind === "refused" ? outcome.message : undefined)?.split(": ").at(-1) ?? "").replaceAll("{field}", "issue");
+      const named = (outcome.kind === "refused" ? outcome.message : undefined)?.split(": ").at(-1) ?? "";
+      // F4 (T-8): push_option_field names its field (issue or commitTitle) last; the template's is issue
+      const text = t(locale, `orchError_${outcome.code}` as TranslationKey)?.replaceAll("{name}", named).replaceAll("{field}", outcome.code === "push_option_field" ? named : "issue");
       // a settings or finish refusal names the field in main's own words (technical, not translated)
       const why = outcome.kind === "refused" && outcome.message && ["invalid_profile", "finish_not_configured"].includes(outcome.code) ? `: ${outcome.message}` : "";
       return text ? `${text}${why}` : `${t(locale, "orchError_generic")} (${outcome.code})`;
