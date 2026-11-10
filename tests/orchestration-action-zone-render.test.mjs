@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire, Module } from "node:module";
 import { test } from "node:test";
+import { actionZone } from "../src/renderer/src/features/orchestration/runModel.ts";
 import { legacyView } from "../src/renderer/src/features/orchestration/panelTabs.ts";
 import { SETS37, fixture, view } from "./fixtures/orchestration/zone-sets.mjs";
 
@@ -66,6 +67,26 @@ test("every pause draws one main button; the filled danger one only where Stop i
   }
 });
 
+test("the form pauses have one main button (the model's, which the form draws); Stop once with data-orch-stop; no dead release button", async () => {
+  const panel = await panelOf();
+  for (const set of ["awaiting_person_decision", "coverage_lost", "awaiting_finish_confirmation", "check_needs_permissions", "awaiting_answer"]) {
+    const f = fixture(set);
+    const z = actionZone("ru", f.view, f.entries, f.onMac);
+    // the forms are not in these fixtures' views, so the model is what is checked: one main button, drawn by the form
+    assert.ok(z.primary && ["answer", "raise_limit", "checks_accept", "checks_edit", "finish_confirm", "check_amend", "person_decide", "plan_return", "plan_accept"].includes(z.primary.action), `${set}: one main button, owned by the form`);
+    const html = panel(set);
+    assert.equal(mainOf(html).length, 0, `${set}: the row draws no second main button`);
+    assert.equal(buttons(html).filter((b) => /data-orch-stop/.test(b.attrs)).length, 1, `${set}: Stop once`);
+  }
+  const person = panel("awaiting_person_decision", { extra: { decisions: { runKey: "k".repeat(64), conditions: [], findings: false, proposal: null,
+    disputed: [{ reviewTurnId: "t1", index: 0, problem: "P", evidence: null, paths: [], candidates: [] }] } } });
+  assert.equal(buttons(person).filter((b) => /orch-primary/.test(b.attrs)).length, 1, "a person decision: the form's one main button");
+  const stopRow = ["push_protected", "lead_modified_tree"].map((set) => buttons(zoneOf(panel(set))).filter((b) => /data-orch-stop/.test(b.attrs)).length);
+  assert.deepEqual(stopRow, [1, 1], "Stop in the zone row carries data-orch-stop");
+  const newer = panel("newer_version", { extra: { newer: { chain: "ok", goal: null, compatible: true, fallback: null, version: 2 } } });
+  assert.ok(!buttons(zoneOf(newer)).some((b) => /release_newer/.test(b.attrs)), "no zone button without a handler");
+});
+
 test("dangerous buttons are outlined and ask first; the outcome reset only in a managed copy", async () => {
   const panel = await panelOf();
   const reset = buttons(panel("outcome_unknown")).find((b) => /data-orch-zone-action="recover_reset"/.test(b.attrs));
@@ -100,7 +121,7 @@ test("the limit field shows the current value; the reference facts left the zone
   const html = panel("limit_reached");
   assert.match(html, /data-orch-primary="raise_limit"/);
   assert.match(html, /data-orch-limit-value/);
-  const running = panel(view ? { view: view("running", null, { progress: { mode: "autopilot", finish: [], checks: [], prepare: null, completion: null, checksFrom: null, access: null, models: null } }), entries: [], onMac: true } : "x");
+  const running = panel({ view: view("running", null, { progress: { mode: "autopilot", finish: [], checks: [], prepare: null, completion: null, checksFrom: null, access: null, models: null } }), entries: [], onMac: true });
   assert.ok(running.indexOf("data-orch-working") < running.indexOf('id="orch-tabpanel"'), "a working run says who works in the zone");
   assert.ok(running.indexOf("data-orch-board") > running.indexOf('id="orch-tabpanel"'), "the board is in the summary, below");
   assert.match(footOf(running), /data-orch-primary="pause"/);

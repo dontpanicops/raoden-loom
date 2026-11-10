@@ -3,7 +3,7 @@
 // to confirm) and the clarify field. The forms of a decision (a question, commands, a limit, ...) are the body: they
 // bring their own submit button, so the model's buttons for those actions are not drawn twice. The panel's footer
 // (outside the scroll) holds Pause / Stop and the local copy buttons.
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { LocaleId } from "../../../../shared/contracts";
 import { UiIcon } from "../../components/UiIcon";
 import { t, type TranslationKey } from "../../lib/i18n";
@@ -26,13 +26,25 @@ export function DangerConfirm({ locale, label, text, disabled, onConfirm, attr }
   locale: LocaleId; label: string; text: string; disabled?: boolean; onConfirm(): void; attr?: Record<string, string | boolean>;
 }): React.JSX.Element {
   const [asking, setAsking] = useState(false);
-  if (!asking) return <button type="button" className="orch-stop" disabled={disabled} data-orch-danger {...attr} onClick={() => setAsking(true)}>{label}</button>;
+  const opener = useRef<HTMLButtonElement>(null);
+  const textId = useId();
+  const cancel = (): void => { setAsking(false); requestAnimationFrame(() => opener.current?.focus()); };
+  // Esc cancels only the question: the capture listener keeps it from the panel's own Esc (which closes the panel)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cancel only sets state and focuses the opener
+  useEffect(() => {
+    if (!asking) return;
+    const onKey = (e: KeyboardEvent): void => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); cancel(); } };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [asking]);
+  if (!asking) return <button ref={opener} type="button" className="orch-stop" disabled={disabled} data-orch-danger {...attr} onClick={() => setAsking(true)}>{label}</button>;
   return (
-    <div className="orch-confirm" role="alertdialog" aria-label={label} data-orch-confirm>
-      <span>{text}</span>
+    <div className="orch-confirm" role="alertdialog" aria-label={label} aria-describedby={textId} data-orch-confirm>
+      <span id={textId}>{text}</span>
       <span className="orch-confirm__row">
         <button type="button" className="orch-stop" disabled={disabled} data-orch-confirm-do onClick={() => { setAsking(false); onConfirm(); }}>{label}</button>
-        <button type="button" onClick={() => setAsking(false)}>{t(locale, "orchCancel")}</button>
+        {/* biome-ignore lint/a11y/noAutofocus: the safe answer of a dangerous question takes focus */}
+        <button type="button" autoFocus onClick={cancel}>{t(locale, "orchCancel")}</button>
       </span>
     </div>
   );
@@ -42,6 +54,7 @@ export interface ZoneClarify { value: string; onChange(v: string): void; onSend(
 export interface ActionZoneProps {
   locale: LocaleId;
   zone: ZoneModel;
+  runKey: string; // resets what a dangerous button remembers (an open question) when another run shows
   headline: string; // the run's headline key, for the scripts' data-headline
   status: string;
   task: { key: string; title: string } | null;
@@ -54,6 +67,7 @@ export interface ActionZoneProps {
   confirmText(b: ZoneButton): string | null; // a dangerous button's question
   resumeNext?: string; // data-orch-resume of the Resume button: where the run goes on
   clarify: ZoneClarify;
+  clarifyOff?: string | null; // the platform cannot take a clarification: the reason to show
   who?: string | null; // a working run: who works now
   words(text: string): React.ReactNode; // the glossary marks the terms of a text (RunPanel Termed)
   children?: React.ReactNode; // the body: the forms
@@ -63,6 +77,10 @@ export interface ActionZoneProps {
 export function ActionZone(p: ActionZoneProps): React.JSX.Element {
   const { locale, zone } = p;
   const [clarifyOpen, setClarifyOpen] = useState(zone.clarify === "open");
+  const [seenVariant, setSeenVariant] = useState(zone.variant);
+  if (seenVariant !== zone.variant) { setSeenVariant(zone.variant); setClarifyOpen(zone.clarify === "open"); }
+  const clarifyOff = zone.clarify === "disabled" || !!p.clarifyOff;
+  const reasonId = useId();
   const row = (b: ZoneButton, kind: "primary" | "secondary" | "dangerous"): React.JSX.Element | null => {
     if (FORM_ACTIONS.has(b.action)) return null;
     const off = p.sending || p.disabled(b);
@@ -70,10 +88,11 @@ export function ActionZone(p: ActionZoneProps): React.JSX.Element {
     const hint = HINT[b.action];
     if (hint) attr.title = t(locale, hint);
     if (LOCAL[b.action]) attr[LOCAL[b.action]!] = true;
+    if (b.action === "stop") attr["data-orch-stop"] = "";
     if (b.action === "resume" && p.resumeNext !== undefined) attr["data-orch-resume"] = p.resumeNext;
     if (kind === "dangerous") {
       const text = p.confirmText(b);
-      return text ? <DangerConfirm key={b.action} locale={locale} label={b.label} text={text} disabled={off} attr={attr} onConfirm={() => p.onButton(b)} />
+      return text ? <DangerConfirm key={`${p.runKey}:${b.action}`} locale={locale} label={b.label} text={text} disabled={off} attr={attr} onConfirm={() => p.onButton(b)} />
         : <button key={b.action} type="button" className="orch-stop" disabled={off} {...attr} onClick={() => p.onButton(b)}>{b.label}</button>;
     }
     const cls = kind === "primary" ? (b.danger ? "orch-danger" : "orch-primary") : undefined;
@@ -94,22 +113,23 @@ export function ActionZone(p: ActionZoneProps): React.JSX.Element {
       {zone.todo && <p className="orch-zone__next" data-orch-next><b>{tr(locale, "orchNextStep")}:</b> {p.words(zone.todo)}</p>}
       {p.who && <p className="orch-zone__who" data-orch-working>{p.who}</p>}
       {p.children}
+      {p.notices}
       {rows.length > 0 && <div className="orch-panel__actions orch-zone__actions" data-orch-actions>{rows}</div>}
       {zone.clarify !== "hidden" && (
         <div className="orch-zone__clarify" data-orch-clarify={zone.clarify}>
-          {!clarifyOpen || zone.clarify === "disabled"
-            ? <button type="button" disabled={zone.clarify === "disabled"} aria-expanded={false} data-orch-clarify-open onClick={() => setClarifyOpen(true)}>{tr(locale, "orchClarify")}</button>
+          {!clarifyOpen || clarifyOff
+            ? <button type="button" disabled={clarifyOff} title={p.clarifyOff ?? undefined} aria-describedby={clarifyOff ? reasonId : undefined} aria-expanded={false} data-orch-clarify-open onClick={() => setClarifyOpen(true)}>{tr(locale, "orchClarify")}</button>
             : <>
               <textarea rows={2} value={p.clarify.value} placeholder={tr(locale, "orchClarifyPlaceholder")} onChange={(e) => p.clarify.onChange(e.target.value)} />
               <span className="orch-confirm__row">
-                <button type="button" disabled={p.sending || !p.clarify.value.trim()} data-orch-clarify-send onClick={p.clarify.onSend}>{tr(locale, "orchClarify")}</button>
+                <button type="button" disabled={p.sending || clarifyOff || !p.clarify.value.trim()} data-orch-clarify-send onClick={p.clarify.onSend}>{tr(locale, "orchClarify")}</button>
                 <button type="button" onClick={() => setClarifyOpen(false)}>{tr(locale, "orchCancel")}</button>
               </span>
             </>}
-          {zone.clarify === "disabled" && <small className="orch-hint" data-orch-proposal-waits>{tr(locale, "orchProposalWaitsHint")}</small>}
+          {zone.clarify === "disabled" && <small className="orch-hint" id={reasonId} data-orch-proposal-waits>{tr(locale, "orchProposalWaitsHint")}</small>}
+          {zone.clarify !== "disabled" && p.clarifyOff && <small className="orch-hint" id={reasonId} data-orch-platform-hint>{p.clarifyOff}</small>}
         </div>
       )}
-      {p.notices}
     </section>
   );
 }

@@ -1385,7 +1385,7 @@ function RaiseLimit({ locale, cost, budget, sending, onRaise }: {
   const n = Number(value);
   // main refuses a time limit that is already over: the new total must exceed the time spent
   const spent = kind === "runMs" && cost?.elapsedMs != null ? Math.ceil(cost.elapsedMs / 60_000) : null;
-  const tooSmall = spent !== null && Number.isInteger(n) && n <= spent;
+  const tooSmall = kind === "runMs" && cost?.elapsedMs != null && Number.isInteger(n) && n * 60_000 <= cost.elapsedMs;
   const valid = Number.isInteger(n) && n > 0 && (current === null || n > current) && !tooSmall;
   return (
     <div className="orch-limit" data-orch-limit>
@@ -1514,7 +1514,8 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
   const [flash, setFlash] = useState(false);
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent): void => { if (event.key === "Escape") onClose(); };
+    // an open danger question takes the Esc first (its own capture listener cancels it); the panel stays
+    const onKey = (event: KeyboardEvent): void => { if (event.key === "Escape" && !document.querySelector("[data-orch-confirm]")) onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
@@ -1553,27 +1554,40 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
     return () => { live = false; window.clearTimeout(id); };
   }, [runId, state?.seq]);
 
-  const deliver = async (req: PendingCommand, after?: () => void): Promise<void> => {
+  // what goes on after a command that did not get an answer (a lost connection): Repeat keeps it, by the command id
+  const afterOf = useRef(new Map<string, () => void | Promise<void>>());
+  const deliver = async (req: PendingCommand, afterNew?: () => void | Promise<void>): Promise<void> => {
+    const after = afterNew ?? afterOf.current.get(req.commandId);
+    if (afterNew) afterOf.current.set(req.commandId, afterNew);
     setSending(true);
     setNotice(null);
     setOffline(false);
     setProgressNote(null);
-    const { outcome } = await outcomeOf(() => api().command(req));
-    setSending(false);
-    if (outcome.kind === "transport") return setOffline(true);
-    if (outcome.kind === "in_progress") return setProgressNote(t(locale, "orchInProgress"));
-    orch.commands.settle(req);
-    if (outcome.kind === "rejected" && outcome.code === "stale_revision") {
-      await orch.refreshRun(req.runId);
-      return setNotice(t(locale, "orchStaleRefreshed"));
+    try {
+      const { outcome } = await outcomeOf(() => api().command(req));
+      if (outcome.kind === "transport") return setOffline(true);
+      if (outcome.kind === "in_progress") return setProgressNote(t(locale, "orchInProgress"));
+      afterOf.current.delete(req.commandId);
+      orch.commands.settle(req);
+      if (outcome.kind === "rejected" && outcome.code === "stale_revision") {
+        await orch.refreshRun(req.runId);
+        return setNotice(t(locale, "orchStaleRefreshed"));
+      }
+      const text = outcomeText(locale, outcome);
+      if (text) return setNotice(text);
+      await after?.(); // sending holds until the whole chain (raise the limit, then resume) is done
+    } finally {
+      setSending(false);
     }
-    const text = outcomeText(locale, outcome);
-    if (text) return setNotice(text);
-    after?.();
   };
-  const send = (action: RunAction, input: Parameters<typeof commandOf>[1] = {}, after?: () => void): Promise<void> =>
+  const send = (action: RunAction, input: Parameters<typeof commandOf>[1] = {}, after?: () => void | Promise<void>): Promise<void> =>
     view ? deliver(orch.commands.request(view.runId, view.revision, commandOf(action, input)), after) : Promise.resolve();
   const unknown = runId ? orch.commands.pending(runId) : [];
+  // a refusal, a lost connection or a command still in progress shows above the buttons: bring it into view when it appears
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the three notices are the triggers
+  useEffect(() => {
+    summary.current?.querySelector("[data-orch-refused], [data-orch-offline], [data-orch-in-progress]")?.scrollIntoView({ block: "nearest" });
+  }, [notice, offline, progressNote, unknown.length]);
   // «Поднять лимит и продолжить» (UX audit Н7): main records the new limit and leaves the run paused; the run goes on with
   // a resume at the revision the raise made (two commands, as the person would send them)
   const continueAfterRaise = async (): Promise<void> => {
@@ -1616,13 +1630,13 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
     const can = (b: ZoneButton) => !(b.action === "project_settings" && !onProjectSettings) && !(b.action === "new_goal" && (!onNewGoal || busy));
     const takeFirst = !!take?.allowed && view.status === "completed" && z.primary !== null && can(z.primary);
     const first = z.primary && can(z.primary) ? z.primary : null;
-    return { ...z, primary: takeFirst ? null : first, secondary: [...(takeFirst && first ? [first] : []), ...z.secondary.filter(can)], dangerous: z.dangerous.filter(can), footer: z.footer.filter(can) };
+    return { ...z, primary: takeFirst ? null : first, secondary: [...(takeFirst && first ? [first] : []), ...z.secondary.filter((b) => can(b) && b.action !== "release_newer")], dangerous: z.dangerous.filter(can), footer: z.footer.filter(can) };
   }, [view, locale, activity.entries, onProjectSettings, onNewGoal, busy, take?.allowed]);
   const zoneWho = view && ["preparing", "running", "pausing", "stopping"].includes(view.status) ? who : null;
   const zoneDisabled = (b: ZoneButton): boolean => b.action === "stop" ? false : b.action === "new_goal" ? entry.disabled
     : ["resume", "step", "pause", "keep_running"].includes(b.action) ? off(b.action as RunAction) : b.action.startsWith("recover_") ? off("recover") : false;
   const zoneConfirm = (b: ZoneButton): string | null => (b.action === "recover_reset" ? t(locale, "orchRecoverConfirm") : null);
-  const zoneLabel = (b: ZoneButton): string => (copiedWhich.current === b.action && copied !== "idle" ? t(locale, copyKey(copied, "orchZone_copyId", "docCopied")) : b.label);
+  const zoneLabel = (b: ZoneButton): string => (copiedWhich.current === b.action && copied !== "idle" ? t(locale, copyKey(copied, "orchZone_copyId", "docCopied")) : b.action === "copy_journal" && journal?.status !== "ready" ? t(locale, "orchZone_copyJournalPartial") : b.label);
   const onZone = (b: ZoneButton): void => {
     switch (b.action) {
       case "resume": case "step": case "stop": case "pause": case "keep_running": return void send(b.action);
@@ -1681,7 +1695,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
           : <p className="orch-panel__empty">{runId ? t(locale, "orchLoading") : t(locale, "orchNoRun")}</p>
       ) : (
         <>
-          <ActionZone locale={locale} zone={zone!} headline={head.headline} status={view.status} task={task ?? null} zoneRef={summary} flash={flash}
+          <ActionZone locale={locale} zone={zone!} runKey={view.runId} clarifyOff={actionEnabled("clarify", available) ? null : entry.hint ? t(locale, entry.hint) : t(locale, "orchClarify")} headline={head.headline} status={view.status} task={task ?? null} zoneRef={summary} flash={flash}
             compact={curTab !== "summary" || panel.section !== "overview"} sending={sending} disabled={zoneDisabled} onButton={onZone} confirmText={zoneConfirm}
             resumeNext={head.next} who={zoneWho} words={(text) => <Termed locale={locale} text={text} />} clarify={{ value: clarify, onChange: setClarify, onSend: () => void send("clarify", { text: clarify.trim() }, () => setClarify("")) }}
             notices={<>
@@ -1750,7 +1764,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
             )}
             {zone!.primary?.action === "raise_limit" && (
               <RaiseLimit key={`${view.revision}:${cost?.reached ?? ""}`} locale={locale} cost={cost} budget={view.progress?.budget ?? null}
-                sending={sending || off("raise_limit")} onRaise={(kind, value) => void send("raise_limit", { limit: kind, value }, () => void continueAfterRaise())} />
+                sending={sending || off("raise_limit")} onRaise={(kind, value) => void send("raise_limit", { limit: kind, value }, continueAfterRaise)} />
             )}
             {takenLines(locale, take).map((line) => <p key={line} className="orch-take__taken" data-orch-taken>{line}</p>)}
             {take?.allowed && runId && (
