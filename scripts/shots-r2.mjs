@@ -4,7 +4,7 @@
 // Frames are written as PNG (<dir>/<combo>-<screen>.png); the caller shrinks them (sips) to JPEG.
 import fs from "node:fs";
 import path from "node:path";
-import { FIXTURES, NODE, byText, canvasState, card, createAgent, launch, q, sleep, startGoal, workspace, JOURNAL_V2 } from "./orchestration-app-kit.mjs";
+import { FIXTURES, NODE, canvasState, card, createAgent, launch, q, sleep, startGoal, workspace, JOURNAL_V2 } from "./orchestration-app-kit.mjs";
 
 const arg = (name) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : null; };
 const OUT = path.resolve(arg("out") ?? "r2-shots");
@@ -49,7 +49,6 @@ const BEFORE = process.argv.includes("--before");
 const combos = BEFORE ? [{ name: "before", patch: { palette: "sand", canvasColor: "theme" } }]
   : ["sand", "bay"].flatMap((t) => ["theme", "linen"].map((c) => ({ name: `${t}-${c}`, patch: { palette: t, canvasColor: c } })));
 const laptop = (app) => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
-const ids = (app) => app.ev(`window.canvasTTY.terminal.list().then((l) => l.map((s) => s.id))`);
 let app;
 try {
   app = await launch({ userData: D("user-data"), providers, port: PORT, shots: OUT });
@@ -96,23 +95,28 @@ try {
       chip = true;
     } catch (e) { console.log(`[shots-r2] run not made: ${String(e).slice(0, 160)}`); }
   }
-  const leadId = lead.agentId, execId = exec.agentId;
+  const leadId = lead.agentId;
   const fit = async () => { // both agent cards in one view: zoom out and pan so their centre is mid-window
     const b = await app.ev(`(() => { const r = [...document.querySelectorAll("[data-agent-id]")].map((e) => e.getBoundingClientRect()); return { cx: (Math.min(...r.map((x) => x.left)) + Math.max(...r.map((x) => x.right))) / 2, cy: (Math.min(...r.map((x) => x.top)) + Math.max(...r.map((x) => x.bottom))) / 2 }; })()`);
     await app.panBy({ x: 720 - b.cx, y: 470 - b.cy }); await sleep(700);
   };
   for (const c of combos) {
     await settle({ ...c.patch, onboardingDismissed: true });
-    if (c.name !== "before" || true) await shot(c.name, "canvas-cards-home");
+    await shot(c.name, "canvas-cards-home");
     await app.reveal(card(leadId)); await fit();
+    if (!BEFORE && await app.ev(`!!document.querySelector(".agent-link__reset")`)) { await app.clickEl(q(".agent-link__reset")); await sleep(700); } // each combo starts from a straight link
     await shot(c.name, "agents-link");
     if (!BEFORE) {
-      await app.ev(`window.canvasTTY.orchestration.setLinkBend(${JSON.stringify(linkId)}, null).then(() => true)`);
-      await sleep(500); await shot(c.name, "link-plain");
+      // the real controls (a bend set through the bare IPC never reaches the renderer's state): the chip's reset, then a drag of the handle
+      if (await app.ev(`!!document.querySelector(".agent-link__reset")`)) await app.clickEl(q(".agent-link__reset"));
+      await app.waitFor(`!document.querySelector(".agent-link__reset")`, "bend cleared", 10_000);
+      await sleep(700); await shot(c.name, "link-plain");
       await app.click(...Object.values(await app.ev(`(() => { const p = document.querySelector(".agent-link__line"); const m = p.getScreenCTM(); const q = p.getPointAtLength(p.getTotalLength() * 0.3); return { x: m.a * q.x + m.e, y: m.d * q.y + m.f }; })()`)));
       await sleep(500); await shot(c.name, "link-selected");
-      await app.ev(`window.canvasTTY.orchestration.setLinkBend(${JSON.stringify(linkId)}, { along: 0.1, across: 0.6 }).then(() => true)`);
-      await sleep(700); await shot(c.name, "link-bent-selected");
+      const h = await app.center(`document.querySelector(".agent-link__handle")`);
+      await app.drag(h, { x: h.x - 70, y: h.y + 20 }, 16);
+      await app.waitFor(`!!document.querySelector(".agent-link__reset")`, "bend saved", 10_000);
+      await sleep(900); await shot(c.name, "link-bent-selected");
       await app.key("Escape", "Escape", 27); await app.click(40, 880); await sleep(500);
       await shot(c.name, "link-bent");
     }

@@ -1331,6 +1331,8 @@ button { border: 0; }
 .agent-card__body { overflow: hidden; }
 .agent-card__actions { flex-wrap: nowrap; }
 .agent-card__actions button { white-space: nowrap; }
+.agent-card__actions button { min-width: 0; overflow: hidden; text-overflow: ellipsis; } /* a narrow card: the earlier buttons shrink with «…», «Итог» and «Наблюдать» stay whole */
+.agent-card__actions button.agent-card__observe, .agent-card__actions button.agent-card__summary { flex: none; }
 .agent-card__body button.agent-card__summary { color: var(--accent-text); background: var(--accent-bg); }
 
 /* The run panel: wider for the summary, expandable to the window. */

@@ -263,7 +263,7 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
         const label = shown?.permission ? t(locale, "orchLinkNeedsYou") : shown?.newer ? t(locale, "orchReadOnly") : shown ? viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ?? t(locale, `orchStatus_${runStatusKey(shown)}` as TranslationKey) : t(locale, "orchNoRun");
         // on the curve, off the cards (and the bend handle when selected) (Н14, linkChip.ts)
         const g = linkGeometry(rightMid(from), leftMid(to), bendDrag?.linkId === link.linkId ? bendDrag.bend : link.bend);
-        const at = chipOnCurve(g, agents.map(({ bounds }) => rect(bounds)), chipSize(label, (busy ? 0 : 1) + (view ? 1 : 0) + (view?.newer ? 1 : 0) + (link.bend ? 1 : 0)), selectedLink === link.linkId);
+        const at = chipOnCurve(g, agents.map(({ bounds }) => rect(bounds)), chipSize(label, (busy ? 0 : 2) + (view ? 2 : 0) + (view?.newer ? 1 : 0) + (link.bend ? 1 : 0) + (liveViews.length > 1 ? 1 : 0)) /* new goal, ×, open run, observe, release, reset, runs: every button counts */, selectedLink === link.linkId);
         return (
           <div key={link.linkId} className={`agent-link__chip${view?.permission ? " agent-link__chip--needs-you" : ""}`} data-interactive="true" data-agent-link-id={link.linkId}
             role="group" aria-label={t(locale, "orchLink")}
