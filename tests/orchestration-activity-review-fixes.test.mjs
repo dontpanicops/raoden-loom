@@ -7,6 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { outcomeKey, readJournal, runStatus, roleStatus, stageTitleMap, summaryModel } from "../src/renderer/src/features/orchestration/runStatus.ts";
+import { legacyView } from "../src/renderer/src/features/orchestration/panelTabs.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(path.join(ROOT, "package.json"));
@@ -150,7 +151,7 @@ function props({ records = [], journalStatus = "ready", texts = {}, v = view(), 
     commands: { pending: () => [] }, catalog: { checks: [] },
     loadText: (...a) => calls.push(["loadText", ...a]), syncJournal: (...a) => calls.push(["syncJournal", ...a]), retry: () => calls.push(["retry"])
   };
-  return { calls, p: { orch, runId: "r", locale: "ru", panel: { linkId: "L", tab, role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {} } };
+  return { calls, p: { orch, runId: "r", locale: "ru", panel: { linkId: "L", mode: "feed", ...legacyView(tab), role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {} } };
 }
 const render = (p) => renderToStaticMarkup(React.createElement(RunPanel, p));
 const ready = (text) => ({ status: "ready", text });

@@ -12,6 +12,7 @@ import { PAUSED_REASONS_V2 } from "../src/main/services/orchestration/journal.ts
 import { PAUSES, availableActions, pauseLabel, pauseText, primaryAction } from "../src/renderer/src/features/orchestration/runModel.ts";
 import { runStatus } from "../src/renderer/src/features/orchestration/runStatus.ts";
 import { t } from "../src/renderer/src/lib/i18n.ts";
+import { legacyView } from "../src/renderer/src/features/orchestration/panelTabs.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SETS = [...PAUSED_REASONS_V2, "sandbox_unsupported", "awaiting_checks_none"];
@@ -83,7 +84,7 @@ const panelOf = async () => {
     orch: { runs: { r: { view: v, open: true, seq: 9, tick: 0 } }, activity: { r: { entries, gaps: [], firstId: entries[0]?.id ?? 0, status: "ready", resyncs: 0 } },
       runErrors: {}, canvas: { links: [], agents: [] }, journals: { r: { records: [], next: 0, status: "ready" } }, texts: {},
       commands: { pending: () => [] }, catalog: { checks: [] }, loadText() {}, syncJournal() {}, retry() {}, stageTitles: () => ({}) },
-    runId: "r", locale, panel: { linkId: "L", tab, role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {}
+    runId: "r", locale, panel: { linkId: "L", mode: "feed", ...legacyView(tab), role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {}
   }));
 };
 const buttons = (html) => [...html.matchAll(/<button([^>]*)>([\s\S]*?)<\/button>/g)].map((m) => ({ attrs: m[1], text: m[2].replace(/<[^>]+>/g, "") }));

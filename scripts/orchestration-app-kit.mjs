@@ -330,8 +330,24 @@ export const visibleNow = (app, selector) => app.ev(`(() => { const el = ${selec
   for (let p = el.parentElement; p; p = p.parentElement) { if (/(auto|scroll|hidden)/.test(getComputedStyle(p).overflowY)) { const b = p.getBoundingClientRect(); if (r.top < b.top - 1 || r.bottom > b.bottom + 1) ok = false; } }
   const h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
   return { exists: true, ok: ok && !!h && el.contains(h), top: Math.round(r.top), bottom: Math.round(r.bottom) }; })()`);
-// The run panel's tabs (overview, activity, changes, log, history).
-export const openTab = (app, tab) => app.clickEl(q(`[data-orch-tab="${tab}"]`));
+// The run panel's tabs. R3a: three tabs (summary, work, changes), work has modes (feed, journal, records), the summary
+// has sections (plan, result, overview). Callers still say the old keys; this maps them, and falls back to the old
+// eight-tab markup while the panel has no [data-orch-tab="work"] (before part B).
+export const LEGACY = {
+  summary: { tab: "summary" }, plan: { tab: "summary", section: "plan" }, result: { tab: "summary", section: "result" },
+  overview: { tab: "summary", section: "overview" }, activity: { tab: "work", mode: "feed" }, log: { tab: "work", mode: "journal" },
+  history: { tab: "work", mode: "records" }, changes: { tab: "changes" }
+};
+export async function openTab(app, key) {
+  const to = LEGACY[key] ?? { tab: key };
+  const three = await app.ev(`!!${q('[data-orch-tab="work"]')}`);
+  if (!three) return app.clickEl(q(`[data-orch-tab="${key}"]`));
+  const r = await app.clickEl(q(`[data-orch-tab="${to.tab}"]`));
+  if (to.mode) await app.clickEl(q(`[data-orch-mode="${to.mode}"]`));
+  // a lazy section opens by its summary; a section that is already open stays open
+  if (to.section) await app.ev(`(() => { const d = ${q(`[data-orch-section="${to.section}"]`)}; if (d && d.tagName === "DETAILS") d.open = true; return true; })()`);
+  return r;
+}
 export const byText = (selector, text) => `[...document.querySelectorAll(${JSON.stringify(selector)})].find((el) => el.textContent.trim() === ${JSON.stringify(text)})`;
 export const card = (agentId, inner = "") => q(`[data-agent-id="${agentId}"] ${inner}`.trim());
 export const canvasState = (app) => app.ev("window.canvasTTY.orchestration.canvas().then((r) => r.value)");

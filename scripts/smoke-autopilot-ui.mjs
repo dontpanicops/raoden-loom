@@ -115,9 +115,9 @@ try {
   // UX audit PR 2: Start / Save pinned at the dialog's bottom, in view without scrolling; the dialog's controls are light
   const pinned = () => app.ev(`(() => { const d = [...document.querySelectorAll(".orch-dialog")].at(-1); const a = d.querySelector(".orch-form__actions");
     const b = a.querySelector('button[type="submit"]'); const r = b.getBoundingClientRect(), dr = d.getBoundingClientRect();
-    return { sticky: getComputedStyle(a).position, visible: r.top >= dr.top && r.bottom <= dr.bottom + 1, scrolls: d.scrollHeight > d.clientHeight, scheme: getComputedStyle(d).colorScheme }; })()`);
+    return { sticky: getComputedStyle(a).position, visible: r.top >= dr.top && r.bottom <= dr.bottom + 1, scrolls: d.scrollHeight > d.clientHeight, scheme: getComputedStyle(d).colorScheme, appScheme: getComputedStyle(document.body).colorScheme }; })()`);
   const goalPinned = await pinned();
-  expect(goalPinned.sticky === "sticky" && goalPinned.visible && goalPinned.scrolls && goalPinned.scheme === "light", "goal dialog: «Старт» pinned and in view while the dialog scrolls", goalPinned);
+  expect(goalPinned.sticky === "sticky" && goalPinned.visible && goalPinned.scrolls && goalPinned.scheme === goalPinned.appScheme, "goal dialog (R1, Н10: native controls follow the theme): «Старт» pinned and in view while the dialog scrolls", goalPinned);
   await app.clickEl(q("[data-orch-open-settings]"));
   await app.waitFor(`${q("[data-orch-settings]")} && true`, "settings");
   const needed = await app.ev(`${q("[data-orch-needed]")}.textContent`);

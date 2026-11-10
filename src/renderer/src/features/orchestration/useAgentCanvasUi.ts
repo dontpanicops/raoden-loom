@@ -6,17 +6,27 @@ import type { LocaleId, Point } from "../../../../shared/contracts";
 import type { OrchestrationAgentLink, OrchestrationProviderKind } from "../../../../shared/orchestration";
 import { AGENT_CARD_SIZE } from "./agentCardGeometry";
 import { linkTrace } from "./linkTrace";
-import { createIdKeeper, TERMINAL_STATUSES } from "./runModel";
+import { createIdKeeper, shownRunId, TERMINAL_STATUSES, type PickedRun } from "./runModel";
 import { outcomeText, type Orchestration } from "./useOrchestration";
 
-export type PanelTab = "plan" | "result" | "summary" | "overview" | "activity" | "changes" | "log" | "history";
-export type PanelRole = "lead" | "executor" | "reviewer" | "check";
+import { panelView, type PanelMode, type PanelRole, type PanelSection, type PanelTab, type PanelView, type PanelViewArg } from "./panelTabs";
+export type { PanelMode, PanelRole, PanelSection, PanelTab };
 // The one run panel: which link, which tab and participant, and a counter that grows with every "open" so that opening
 // the panel that is already open still has a visible effect (it scrolls to the pinned summary and highlights it).
 // runId: a run opened by id (a workspace's history, a link that is gone); absent: the link's latest run.
-export interface PanelState { linkId: string | null; runId?: string; tab: PanelTab; role: PanelRole; focus: number }
+export interface PanelState { linkId: string | null; runId?: string; tab: PanelTab; mode: PanelMode; section?: PanelSection; role: PanelRole; focus: number }
 
 export interface CardMessage { text: string; tone: "error" | "info" }
+
+// A view request as the panel's tab/mode/section. What it does not name stays as the current view of the same link;
+// with nothing to stay (dflt) a bare open lands on the summary's overview section (part B drops it with the old eight tabs).
+function target(v: PanelView, cur: PanelState | null, dflt?: PanelSection): Pick<PanelState, "tab" | "mode" | "section"> {
+  const tab = (v.tab as PanelTab | undefined) ?? cur?.tab ?? "summary";
+  return {
+    tab, mode: v.mode ?? cur?.mode ?? "feed",
+    section: tab !== "summary" ? undefined : v.section ?? (v.tab ? undefined : cur ? cur.section : dflt)
+  };
+}
 
 export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspaceId: string) {
   const [linkingFrom, setLinkingFrom] = useState<string | null>(null);
@@ -27,6 +37,9 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
   const [panel, setPanel] = useState<PanelState | null>(null);
   const panelLinkId = panel?.linkId ?? null;
   const focusCount = useRef(0);
+  // The live run of a link the person picked (the chip on the canvas and the panel show the same one): linkId -> runId
+  const [pickedRuns, setPickedRuns] = useState<Record<string, PickedRun>>({});
+  const pickOf = (linkId: string, runId: string): PickedRun => ({ runId, seen: orch.canvas.links.find((l) => l.linkId === linkId)?.runIds.length ?? 0 });
   const [messages, setMessages] = useState<Record<string, CardMessage>>({});
   // A link or card id is kept across a transport failure, so the retry names the same object.
   const ids = useRef(createIdKeeper(() => crypto.randomUUID())).current;
@@ -81,40 +94,62 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
     linkingFrom, setLinkingFrom, messages, connect, createAgent, deleteAgent, deleteLink,
     createAt, openCreate: (provider: OrchestrationProviderKind, point: Point) => setCreateAt({ provider, point }),
     closeCreate: () => setCreateAt(null),
-    goalLinkId, goalTask, openGoal: (linkId: string, task: GoalTask | null = null) => { setPanel(null); setGoalTask(task); setGoalLinkId(linkId); },
+    goalLinkId, goalTask, openGoal: (linkId: string, task: GoalTask | null = null) => { setPanel(null); setPickedRuns((p) => { const { [linkId]: _drop, ...rest } = p; return rest; }); // a new goal's run is the one shown
+      setGoalTask(task); setGoalLinkId(linkId); },
     closeGoal: () => { setGoalLinkId(null); setGoalTask(null); },
     panel, panelLinkId,
-    // "Open run": the overview; "Observe": the live activity of one participant. The same panel either way.
-    openPanel: (linkId: string, opts: { tab?: PanelTab; role?: PanelRole } = {}) => {
+    openPanel: (linkId: string, opts: PanelView = {}) => {
       setGoalLinkId(null);
       focusCount.current += 1;
       const focus = focusCount.current;
-      setPanel((cur) => ({ linkId, tab: opts.tab ?? (cur?.linkId === linkId ? cur.tab : "overview"), role: opts.role ?? (cur?.linkId === linkId ? cur.role : "executor"), focus }));
+      const v = panelView(opts);
+      setPanel((cur) => {
+        const same = cur?.linkId === linkId ? cur : null;
+        return { linkId, ...target(v, same, "overview"), role: v.role ?? same?.role ?? "executor", focus };
+      });
     },
-    setPanelView: (next: { tab?: PanelTab; role?: PanelRole }) => setPanel((cur) => (cur ? { ...cur, ...next } : cur)),
-    // "Open run" of an ended run starts at its summary; of a run that goes on, at the overview.
+    // Switch the tab/mode/section/participant, or (runId) the run shown among a link's live ones.
+    setPanelView: (next: PanelView & { runId?: string }) => {
+      const v = panelView(next);
+      if (next.runId) {
+        orch.watchRun(next.runId);
+        const runId = next.runId;
+        // the one choice lives in pickedRuns (the chip reads it too); the panel is not remounted by it
+        if (panel?.linkId) setPickedRuns((p) => ({ ...p, [panel.linkId as string]: pickOf(panel.linkId as string, runId) }));
+        else setPanel((cur) => (cur ? { ...cur, runId } : cur));
+      }
+      setPanel((cur) => (cur ? { ...cur, ...(v.tab ? target(v, cur) : { ...(v.mode ? { mode: v.mode } : {}), ...(v.section ? { section: v.section } : {}) }), ...(v.role ? { role: v.role } : {}) } : cur));
+    },
+    pickedRuns,
+    pickRun: (linkId: string, runId: string) => setPickedRuns((p) => ({ ...p, [linkId]: pickOf(linkId, runId) })),
+    // "Open run": the summary (a run that goes on starts at its overview section); "Observe": the live feed of one participant.
     openRun: (linkId: string) => {
-      const runId = orch.canvas.links.find((l) => l.linkId === linkId)?.runIds.at(-1);
+      const link = orch.canvas.links.find((l) => l.linkId === linkId);
+      const runId = shownRunId(link, orch.runs, pickedRuns);
       const status = runId ? orch.runs[runId]?.view.status : undefined;
       setGoalLinkId(null);
       focusCount.current += 1;
       const focus = focusCount.current;
-      setPanel((cur) => ({ linkId, tab: status && TERMINAL_STATUSES.includes(status) ? "summary" : "overview", role: cur?.linkId === linkId ? cur.role : "executor", focus }));
+      setPanel((cur) => ({ linkId, tab: "summary", mode: "feed", section: status && TERMINAL_STATUSES.includes(status) ? undefined : "overview", role: cur?.linkId === linkId ? cur.role : "executor", focus }));
     },
-    // A run by id, with or without its link: the summary once it ended, the overview while it goes on.
-    openRunById: (runId: string, tab?: PanelTab) => {
+    // A run by id, with or without its link; the same view arguments as openPanel (a bare string stays a legacy key).
+    openRunById: (runId: string, arg?: PanelViewArg) => {
       orch.watchRun(runId);
       const linkId = orch.canvas.links.find((l) => l.runIds.includes(runId))?.linkId ?? null;
       const status = orch.runs[runId]?.view.status;
       setGoalLinkId(null);
       focusCount.current += 1;
       const focus = focusCount.current;
-      setPanel({ linkId, runId, tab: tab ?? (!status || TERMINAL_STATUSES.includes(status) ? "summary" : "overview"), role: "executor", focus });
+      const v = panelView(arg);
+      const dflt = !status || TERMINAL_STATUSES.includes(status) ? undefined : "overview";
+      // a run of a link is the link's picked run (chip and panel agree); only a run without its link is held by the panel
+      if (linkId) setPickedRuns((p) => ({ ...p, [linkId]: pickOf(linkId, runId) }));
+      setPanel({ linkId, ...(linkId ? {} : { runId }), ...target(v, null, dflt), role: v.role ?? "executor", focus });
     },
     closePanel: () => setPanel(null),
     // The native browser view composites above the DOM; it hides while one of these is open.
     overlayOpen: createAt !== null || goalLinkId !== null || panel !== null
-  }), [connect, createAgent, createAt, deleteAgent, deleteLink, goalLinkId, goalTask, linkingFrom, messages, orch.canvas.links, orch.runs, panel, panelLinkId]);
+  }), [connect, createAgent, createAt, deleteAgent, deleteLink, goalLinkId, goalTask, linkingFrom, messages, orch.canvas.links, orch.runs, panel, panelLinkId, pickedRuns]);
 }
 
 export type AgentCanvasUi = ReturnType<typeof useAgentCanvasUi>;

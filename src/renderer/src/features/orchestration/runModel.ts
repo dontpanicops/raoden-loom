@@ -28,6 +28,24 @@ const STOP_ONLY = ["lead_modified_tree", "shared_git_tampered", "journal_corrupt
 export const ACTIVE_STATUSES = ["preparing", "running", "pausing", "paused", "stopping"];
 export const TERMINAL_STATUSES = ["stopped", "completed", "failed"];
 
+// C1 (stage-c-parallel.md §6.2): a link may run several tasks at once. Its live runs (at most the last four), the one
+// shown — the picked one while it is the link's, else the latest that goes on, else the latest. Chip and panel use the same.
+export function liveRuns(link: { runIds: string[] }, runs: Record<string, { view: { status: string } } | undefined>): string[] {
+  return link.runIds.slice(-4).filter((id) => {
+    const v = runs[id]?.view;
+    return !!v && !TERMINAL_STATUSES.includes(v.status);
+  });
+}
+// A pick (chip, switcher or open by id) holds the run shown until a run is added to the link after it (`seen` is the link's
+// run count at the pick): then the new work is shown, never hidden by an old pick.
+export interface PickedRun { runId: string; seen: number }
+export function shownRunId(link: { linkId: string; runIds: string[] } | undefined, runs: Record<string, { view: { status: string } } | undefined>, picked: Record<string, PickedRun>): string | undefined {
+  if (!link) return undefined;
+  const p = picked[link.linkId];
+  if (p && link.runIds.includes(p.runId) && link.runIds.length <= p.seen) return p.runId;
+  return liveRuns(link, runs).at(-1) ?? link.runIds.at(-1);
+}
+
 export type RunAction = "pause" | "keep_running" | "resume" | "step" | "stop" | "answer" | "clarify" | "raise_limit" | "recover" | "permission"
   | "checks_decide" | "finish_confirm" // journal v2: the person's decisions, with Stop the only actions on their pauses
   | "check_amend" // A1.1: a lead's check the sandbox refused — the person's line in its place (edited or not)
@@ -749,6 +767,18 @@ export function factLines(locale: LocaleId, view: OrchestrationRunView, facts: R
     { key: "checkpoint", label: t(locale, "orchFactCheckpoint"), value: facts.checkpoint === null ? t(locale, "orchNo") : `${t(locale, "orchStage")} ${facts.checkpoint}` },
     { key: "accepted", label: t(locale, "orchFactAccepted"), value: facts.goalAccepted ? t(locale, "orchYes") : !journalReady ? t(locale, "orchFactNotLoaded") : t(locale, TERMINAL_STATUSES.includes(view.status) ? "orchNo" : "orchFactNotYet") }
   ];
+}
+
+// R3a (Н5): the one sentence at the top of the result facts — what is proven and what is not — from the same outcome
+// the summary shows (runStatus outcomeKey), so it never says the opposite of the headline. A completed run's
+// "goal accepted" field is not drawn (this line says it); «no changes» then carries its meaning (changesNote).
+export function proofLine(locale: LocaleId, outcome: string, facts: ResultFacts): string {
+  const key = outcome === "completed" ? (facts.checks === "passed" ? "completed" : facts.checks === "none" ? "completed_unrun" : facts.checks === "not_verified" ? "completed_notverified" : facts.checks === "running" ? "completed_running" : "completed_unpassed") : outcome;
+  return t(locale, `orchProof_${key}` as TranslationKey);
+}
+export function changesNote(locale: LocaleId, view: OrchestrationRunView, facts: ResultFacts): string | null {
+  if (view.status !== "completed" || facts.changes === "yes") return null;
+  return t(locale, facts.changes === "no" ? "orchProofChangesNo" : view.newer ? "orchProofChangesUnknownNewer" : "orchProofChangesUnknown");
 }
 
 // UX audit PR 2 (Н11): one table of the interface's terms, each with one sentence of explanation (orchTerm_<term>) —

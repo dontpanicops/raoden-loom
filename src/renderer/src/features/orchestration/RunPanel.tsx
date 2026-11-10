@@ -61,6 +61,8 @@ import {
   idLabel,
   idNumber,
   factLines,
+  proofLine,
+  changesNote,
   conditionStatusKey,
   requirementStatusKey,
   pauseLabel,
@@ -76,6 +78,7 @@ import {
   orchestrationEntry,
   participantState,
   roleModel,
+  runStatusKey,
   resultFacts,
   runHeadline,
   type HistoryLine,
@@ -87,7 +90,8 @@ import {
 } from "./runModel";
 import { duration, findingsLine, finishText, isServiceEntry, outcomeKey, personDecisionsLine, readJournal, reportParts, saidKey, summaryModel, type ReportParts, type RunJournalState, type TextRef } from "./runStatus";
 import { pickDocs, planDoc, readCreatedFile, resultDoc, toMarkdown, type CreatedDocs, type CreatedFile, type DocInput, type Loaded, type PlanEntry, type PlanJson, type RunDoc } from "./runDocs";
-import type { PanelRole, PanelState, PanelTab } from "./useAgentCanvasUi";
+import type { PanelRole, PanelState } from "./useAgentCanvasUi";
+import type { PanelMode, PanelSection, PanelTab, PanelView } from "./panelTabs";
 import { outcomeText, type Orchestration, type RunActivityState } from "./useOrchestration";
 
 // What stays different from the same CLI in a terminal (stage 12). Shown before the start and in the run panel.
@@ -1162,13 +1166,28 @@ function RunDocs({ kind, orch, runId, view, records, locale, task, take, seq, in
   </>;
 }
 
+// One block of the summary tab. lazy: the content is drawn only while open (the plan's and the result's texts are read
+// from the journal's store, which opening the panel must not do). The caller owns `open`: a view can open it.
+function Sect({ id, title, open, lazy, onToggle, elRef, children }: {
+  id: PanelSection; title: string; open: boolean; lazy: boolean; onToggle(open: boolean): void;
+  elRef(el: HTMLDetailsElement | null): void; children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <details ref={elRef} className="orch-sect" data-orch-section={id} open={open} onToggle={(e) => onToggle(e.currentTarget.open)}>
+      <summary>{title}</summary>
+      {(open || !lazy) && <div className="orch-sect__body">{children}</div>}
+    </details>
+  );
+}
+
 // ---------- the panel ----------
 
 // runId: the run shown (a link's latest, or one opened from a workspace's history). onNewGoal: only for a link's
 // latest run whose link still exists.
 type RunPanelProps = {
   orch: Orchestration; runId: string | null; locale: LocaleId; panel: PanelState;
-  onClose(): void; onNewGoal: (() => void) | null; onView(next: { tab?: PanelTab; role?: PanelRole }): void;
+  onClose(): void; onNewGoal: (() => void) | null; onView(next: PanelView & { runId?: string }): void;
+  liveRunIds?: readonly string[]; // the live runs of the panel's link (at most four): the switch in the header shows from two
   task?: { key: string; title: string } | null; // B2: the board task of the run — the summary starts with it
   onNoteFromText?: (markdown: string, source: { runId: string; doc: "plan" | "result" }) => void; // «To the canvas» of the Plan and Result tabs
 };
@@ -1293,6 +1312,7 @@ function NewerRunPanel({ orch, runId, locale, onClose, newer }: {
         {newer.chain !== "ok" && <p className="dialog-error" data-orch-newer-chain={newer.chain}>{t(locale, "orchNewerChain")}</p>}
         {newer.fallback && (
           <p className="dialog-error" data-orch-newer-fallback={newer.fallback.code}>
+            <strong data-orch-newer-fallback-title>{t(locale, "orchNewerFallbackTitle")}</strong><br />
             {t(locale, "orchNewerFallback").replace("{line}", String(newer.fallback.line)).replace("{code}", newer.fallback.code)}
           </p>
         )}
@@ -1395,7 +1415,7 @@ function RaiseLimit({ locale, cost, budget, primary, sending, onRaise, children 
   );
 }
 
-function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onView, task, onNoteFromText }: RunPanelProps): React.JSX.Element {
+function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onView, task, onNoteFromText, liveRunIds }: RunPanelProps): React.JSX.Element {
   const state = runId ? orch.runs[runId] ?? null : null;
   const view: OrchestrationRunView | null = state?.view ?? null;
   const activity = (runId && orch.activity[runId]) || { entries: [], gaps: [], firstId: 0, status: "loading" as const, resyncs: 0 };
@@ -1421,14 +1441,47 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
   const [expanded, setExpanded] = useState(false);
   // The run ended while the person watched another tab: offer the summary, never switch or scroll by itself.
   const status = view?.status ?? null;
-  const lastStatus = useRef(status);
+  const lastStatus = useRef({ runId, status });
   const [endedHere, setEndedHere] = useState(false);
   useEffect(() => {
     const was = lastStatus.current;
-    lastStatus.current = status;
-    if (was && status && !TERMINAL_STATUSES.includes(was) && TERMINAL_STATUSES.includes(status)) setEndedHere(true);
-  }, [status]);
-  useEffect(() => { if (panel.tab === "summary" || panel.tab === "result") setEndedHere(false); }, [panel.tab]);
+    lastStatus.current = { runId, status };
+    if (was.runId === runId && was.status && status && !TERMINAL_STATUSES.includes(was.status) && TERMINAL_STATUSES.includes(status)) setEndedHere(true);
+  }, [status, runId]);
+  useEffect(() => { if (panel.tab === "summary") setEndedHere(false); }, [panel.tab]);
+  // The summary's sections: the overview is open, the plan and the result are read only when opened (no text read, no
+  // created files listed before). A section named by the view (a board button, «Open plan») is opened and brought into
+  // view once per request.
+  const [opened, setOpened] = useState<Record<PanelSection, boolean>>({ overview: true, plan: panel.section === "plan", result: panel.section === "result" });
+  const sectionEls = useRef<Partial<Record<PanelSection, HTMLDetailsElement | null>>>({});
+  const sectionEl = (id: PanelSection) => (el: HTMLDetailsElement | null) => { sectionEls.current[id] = el; };
+  const toggleSection = (id: PanelSection, open: boolean): void => setOpened((o) => (o[id] === open ? o : { ...o, [id]: open }));
+  const [jump, setJump] = useState<{ section: PanelSection; n: number } | null>(null);
+  // The panel stays mounted when the shown run changes (the live-run switch, a chip pick): what belongs to the old run goes.
+  const shownRun = useRef(runId);
+  useEffect(() => {
+    if (shownRun.current === runId) return;
+    shownRun.current = runId;
+    setEndedHere(false); setOpened({ overview: true, plan: false, result: false }); setJump(null);
+    setAnswer(""); setClarify(""); setConfirmReset(false); setTake(null); setTakeOpen(null); setChangedFiles(null); setNotice(null);
+    // a pick made in the panel keeps its focus on the chosen run's button (a remount would drop it to the page)
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active.closest("[data-orch-runs]")) summary.current?.closest("aside")?.querySelector<HTMLElement>(`[data-orch-run-pick="${runId}"]`)?.focus({ preventScroll: true });
+  }, [runId]);
+  const reveal = useCallback((id: PanelSection): (() => void) => {
+    setOpened((o) => (o[id] ? o : { ...o, [id]: true }));
+    const raf = window.requestAnimationFrame(() => {
+      const el = sectionEls.current[id];
+      el?.scrollIntoView({ block: "start" });
+      // the button that asked for it is gone: the focus goes to the opened section, not to the page body
+      if (!document.activeElement || document.activeElement === document.body) el?.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, []);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: panel.focus is the trigger: every request reveals its section
+  useEffect(() => (panel.tab === "summary" && panel.section ? reveal(panel.section) : undefined), [panel.tab, panel.section, panel.focus, reveal, !!view]);
+  useEffect(() => (jump ? reveal(jump.section) : undefined), [jump, reveal]);
+  const openSection = (section: PanelSection): void => { onView({ tab: "summary", section }); setJump((j) => ({ section, n: (j?.n ?? 0) + 1 })); };
 
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -1557,7 +1610,9 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
   };
 
   // a newer version's run: its changes are not read here (main refuses them), so there is no tab for them
-  const tabs: PanelTab[] = view?.newer ? ["plan", "result", "summary", "overview", "activity", "log", "history"] : ["plan", "result", "summary", "overview", "activity", "changes", "log", "history"];
+  const tabs: PanelTab[] = view?.newer ? ["summary", "work"] : ["summary", "work", "changes"];
+  const curTab: PanelTab = tabs.includes(panel.tab) ? panel.tab : "summary"; // a readable newer run has no Changes tab
+  const outcome = view ? outcomeKey(view, d.finalVerdict, journal?.status === "ready") : "active";
   const roleFilter = useCallback((e: OrchestrationActivityEntry) => panel.role === "check"
     ? (e.role === "check" || e.role === "run") && FEED_KINDS.has(e.kind)
     : (e.role === panel.role && FEED_KINDS.has(e.kind)) || (e.role === "run" && e.kind === "status"), [panel.role]);
@@ -1565,10 +1620,10 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
     && (LOG_KINDS.has(e.kind) || (e.kind === "tool_finished" && typeof e.detail?.output === "string")), [panel.role]);
   const selected = panel.role === "lead" ? lead : panel.role === "executor" ? executor : panel.role === "reviewer" ? reviewer : null;
 
-  const wide = panel.tab === "summary" || panel.tab === "plan" || panel.tab === "result";
+  const wide = curTab === "summary" && (opened.plan || opened.result); // only the documents are wide
   return (
     <aside className={`orch-panel${wide ? " orch-panel--wide" : ""}${expanded ? " orch-panel--full" : ""}`}
-      data-interactive="true" data-wheel-owner="local" data-canvas-wheel-priority="local" aria-label={t(locale, "orchRun")} data-orch-panel-tab={panel.tab} data-orch-run-id={runId ?? undefined}>
+      data-interactive="true" data-wheel-owner="local" data-canvas-wheel-priority="local" aria-label={t(locale, "orchRun")} data-orch-panel-tab={curTab} data-orch-panel-mode={curTab === "work" ? panel.mode : undefined} data-orch-run-id={runId ?? undefined}>
       <header className="orch-panel__header">
         <strong>{t(locale, "orchRun")}</strong>
         {runId && <code title={runId}>{runId.slice(0, 8)}</code>}
@@ -1585,17 +1640,17 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
           : <p className="orch-panel__empty">{runId ? t(locale, "orchLoading") : t(locale, "orchNoRun")}</p>
       ) : (
         <>
-          <section ref={summary} tabIndex={-1} className={`orch-summary orch-summary--${head.headline} orch-panel__status orch-panel__status--${view.status}${flash ? " orch-summary--flash" : ""}${panel.tab !== "overview" ? " orch-summary--compact" : ""}`}
+          <section ref={summary} tabIndex={-1} className={`orch-summary orch-summary--${head.headline} orch-panel__status orch-panel__status--${view.status}${flash ? " orch-summary--flash" : ""}${curTab !== "summary" || panel.section !== "overview" ? " orch-summary--compact" : ""}`}
             role="status" aria-live="polite" data-orch-summary data-headline={head.headline}>
             {task && <div className="orch-summary__task" data-orch-task={task.key} title={task.title}>{tr(locale, "boardTask")} {task.key} · {task.title}</div>}
             <div className="orch-summary__headline">
               <strong data-orch-what><Termed locale={locale} text={pause ? pause.what : headlineText(locale, view, activity.entries)} /></strong>
               {view.reason && <span data-orch-reason><Termed locale={locale} text={pause ? pause.why : reasonText(locale, view, activity.entries)} /></span>}
             </div>
-            {endedHere && panel.tab !== "summary" && panel.tab !== "result" && (
+            {endedHere && curTab !== "summary" && (
               <div className="orch-ended" role="status" data-orch-ended>
                 <span>{t(locale, "orchSummaryReady")}</span>
-                <button type="button" className="orch-primary" onClick={() => onView({ tab: "result" })}>{t(locale, "orchSummaryOpen")}</button>
+                <button type="button" className="orch-primary" onClick={() => onView({ tab: "summary", section: "result" })}>{t(locale, "orchSummaryOpen")}</button>
               </div>
             )}
             {view.newer && (
@@ -1607,8 +1662,8 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
               </div>
             )}
             {!view.newer && <p className="orch-summary__next" data-orch-next><b>{t(locale, "orchNextStep")}:</b> <Termed locale={locale} text={pause ? pause.todo : nextStepText(locale, view, activity.entries)} /></p>}
-            {head.headline === "awaiting_plan_review" && panel.tab !== "plan" && (
-              <button type="button" className="orch-primary" data-orch-open-plan onClick={() => onView({ tab: "plan" })}>{t(locale, "docOpenPlan")}</button>
+            {head.headline === "awaiting_plan_review" && !(curTab === "summary" && opened.plan) && (
+              <button type="button" className="orch-primary" data-orch-open-plan onClick={() => openSection("plan")}>{t(locale, "docOpenPlan")}</button>
             )}
             {view.permission && !view.newer && (
               <PermissionBlock key={view.permission.requestId} locale={locale} request={view.permission} more={(view.pendingPermissions ?? 1) - 1} sending={sending || off("permission")}
@@ -1685,7 +1740,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
               <dl className="orch-board" data-orch-board data-action={top.action ? "yes" : "no"}>
                 <div><dt>{t(locale, "orchRunMode")}:</dt><dd data-board="mode">{tr(locale, `orchRunMode_${progress.mode}`)}</dd></div>
                 <div><dt>{t(locale, "orchBoardStage")}:</dt><dd data-board="stage">{stageText ?? "—"}</dd></div>
-                {depsText && <div><dt>{t(locale, "orchBoardDeps")}:</dt><dd data-board="deps">{depsText.text}{depsText.failed && <> <button type="button" data-deps-step onClick={() => onView({ tab: "activity", role: "check" })}>{t(locale, "orchDepsStep")}</button></>}</dd></div>}
+                {depsText && <div><dt>{t(locale, "orchBoardDeps")}:</dt><dd data-board="deps">{depsText.text}{depsText.failed && <> <button type="button" data-deps-step onClick={() => onView({ tab: "work", mode: "feed", role: "check" })}>{t(locale, "orchDepsStep")}</button></>}</dd></div>}
                 {top.prepare && <div><dt>{t(locale, "orchBoardPrepare")}:</dt><dd data-board="prepare">{tr(locale, `orchPrepare_${top.prepare}`)}
                   {progress.prepare?.status === "failed" && runId && <PrepareFailure orch={orch} runId={runId} locale={locale} prepare={progress.prepare} entries={activity.entries} />}</dd></div>}
                 <div><dt>{t(locale, "orchBoardChecked")}:</dt><dd data-board="checked">{top.checked.total && top.checked.ran === 0 ? fill(t(locale, "orchBoardCheckedNotRun"), { total: top.checked.total }) : top.checked.total ? t(locale, "orchBoardCheckedValue").replace("{passed}", String(top.checked.passed)).replace("{total}", String(top.checked.total)) : progress.completion === "no_checks" ? t(locale, "orchBoardNoChecks") : "—"}
@@ -1744,13 +1799,43 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
             {notice && <div className="dialog-error" role="alert">{notice}</div>}
           </section>
 
-          <nav className="orch-tabs" role="tablist" aria-label={t(locale, "orchRun")}>
+          {liveRunIds && liveRunIds.length >= 2 && (
+            <nav className="orch-runs" aria-label={t(locale, "orchRunsSwitch")} data-orch-runs>
+              {liveRunIds.slice(0, 4).map((id) => (
+                <button key={id} type="button" aria-pressed={id === runId} data-orch-run-pick={id}
+                  aria-label={`${t(locale, "orchRunPick").replace("{id}", id.slice(0, 8))}: ${orch.runs[id] ? t(locale, `orchStatus_${runStatusKey(orch.runs[id]!.view)}` as TranslationKey) : ""}`}
+                  onClick={() => onView({ runId: id })}>
+                  <i data-run-status={orch.runs[id]?.view.status} aria-hidden="true" />{id.slice(0, 8)}
+                </button>
+              ))}
+            </nav>
+          )}
+          <div className="orch-tabs orch-seg" role="tablist" aria-label={t(locale, "orchRun")}
+            onKeyDown={(e) => {
+              const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+              if (!step && e.key !== "Home" && e.key !== "End") return;
+              e.preventDefault();
+              const next = e.key === "Home" ? tabs[0] : e.key === "End" ? tabs[tabs.length - 1] : tabs[(tabs.indexOf(curTab) + step + tabs.length) % tabs.length];
+              onView({ tab: next });
+              e.currentTarget.querySelector<HTMLElement>(`[data-orch-tab="${next}"]`)?.focus();
+            }}>
             {tabs.map((tab) => (
-              <button key={tab} type="button" role="tab" aria-selected={panel.tab === tab} data-orch-tab={tab}
-                className={panel.tab === tab ? "orch-tabs__on" : undefined} onClick={() => onView({ tab })}>{tr(locale, `orchTab_${tab}`)}</button>
+              <button key={tab} type="button" role="tab" id={`orch-tab-${tab}`} aria-controls="orch-tabpanel" tabIndex={curTab === tab ? 0 : -1} aria-selected={curTab === tab} data-orch-tab={tab}
+                className={curTab === tab ? "orch-tabs__on" : undefined} onClick={() => onView({ tab })}>
+                {tr(locale, `orchTab_${tab}`)}{tab === "changes" && changedFiles !== null && <span data-orch-changes-count> · {changedFiles}</span>}
+              </button>
             ))}
-          </nav>
-          {(panel.tab === "activity" || panel.tab === "log") && (
+          </div>
+          {curTab === "work" && (
+            // biome-ignore lint/a11y/useSemanticElements: a button segment, not a form group
+            <div className="orch-seg orch-modes" role="group" aria-label={t(locale, "orchModeGroup")}>
+              {(["feed", "journal", "records"] as const satisfies readonly PanelMode[]).map((mode) => (
+                <button key={mode} type="button" aria-pressed={panel.mode === mode} data-orch-mode={mode}
+                  className={panel.mode === mode ? "orch-tabs__on" : undefined} onClick={() => onView({ mode })}>{tr(locale, `orchMode_${mode}`)}</button>
+              ))}
+            </div>
+          )}
+          {curTab === "work" && panel.mode !== "records" && (
             <div className="orch-roles" role="radiogroup" aria-label={t(locale, "orchObserveWho")}>
               {(["lead", "executor", "check"] as const).map((role) => (
                 <button key={role} type="button" role="radio" aria-checked={panel.role === role} data-orch-role={role}
@@ -1759,12 +1844,8 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
             </div>
           )}
 
-          <div className="orch-panel__body" data-orch-body={panel.tab}>
-            {(panel.tab === "plan" || panel.tab === "result") && runId && (records.length
-              ? <RunDocs kind={panel.tab} orch={orch} runId={runId} view={view} records={records} locale={locale} task={task ?? null} take={take}
-                seq={state?.seq ?? 0} incomplete={journal?.status !== "ready"} onNote={onNoteFromText} />
-              : <p className="orch-hint">{t(locale, "orchLoading")}</p>)}
-            {panel.tab === "summary" && runId && <>
+          <div className="orch-panel__body" id="orch-tabpanel" role="tabpanel" aria-labelledby={`orch-tab-${curTab}`} data-orch-body={curTab} data-orch-mode={curTab === "work" ? panel.mode : undefined}>
+            {curTab === "summary" && runId && <>
               {/* A failed read keeps what was read, says it is incomplete and offers to read the rest (from where it stopped). */}
               {journal?.status === "error" && (
                 <p className="dialog-error" role="alert" data-sum-journal-error>
@@ -1779,14 +1860,13 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
                   onFinding={has("person_decide") && view.decisions?.findings
                     ? (id, decision) => void send("person_decide", { person: { subject: "finding", target: id, decision, finding: null, runKey: view.decisions!.runKey } }) : undefined}
                   incomplete={journal?.status !== "ready"} />}
-            </>}
-            {panel.tab === "overview" && (
-              <>
+              <Sect id="overview" title={tr(locale, "orchTab_overview")} open={opened.overview} lazy={false} onToggle={(o) => toggleSection("overview", o)} elRef={sectionEl("overview")}>
                 <section className="orch-panel__section orch-facts" data-orch-facts>
                   <h4>{t(locale, "orchResult")}</h4>
+                  <p className={`orch-proof orch-proof--${outcome}`} data-orch-proof={outcome} data-orch-result={d.finalVerdict ?? undefined}>{proofLine(locale, outcome, facts)}</p>
                   <ul>
-                    {factLines(locale, view, facts, journal?.status === "ready").map((f) => (
-                      <li key={f.key} data-fact={f.key} data-orch-result={f.key === "accepted" ? d.finalVerdict ?? undefined : undefined}><Termed locale={locale} text={f.label} />: <b>{f.value}</b></li>
+                    {factLines(locale, view, facts, journal?.status === "ready").filter((f) => !(f.key === "accepted" && view.status === "completed")).map((f) => (
+                      <li key={f.key} data-fact={f.key}><Termed locale={locale} text={f.label} />: <b>{f.value}</b>{f.key === "changes" && changesNote(locale, view, facts) && <span data-fact-note="changes"> — {changesNote(locale, view, facts)}</span>}</li>
                     ))}
                     {view.workMode === "project"
                       ? <li data-fact="in_place">{t(locale, "orchFactInPlace")} — {t(locale, "orchFactInPlaceHint")}</li>
@@ -1835,7 +1915,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
                             return <span className="orch-access-badge" data-participant-model={m.model ?? "cli"} data-model-reported={m.reported ? "yes" : "no"}>{t(locale, "orchModels")}: {modelLabel(locale, m)}</span>;
                           })()}
                           <span>{phaseText(locale, p, now)}{p.lastEventAt ? ` · ${t(locale, "orchLastEvent")} ${time(locale, p.lastEventAt)}` : ""}</span>
-                          <button type="button" onClick={() => onView({ tab: "activity", role })}>{t(locale, "orchObserve")}</button>
+                          <button type="button" onClick={() => onView({ tab: "work", mode: "feed", role })}>{t(locale, "orchObserve")}</button>
                         </li>
                       );
                     })}
@@ -1883,19 +1963,31 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
                     {proposalBlocks(view, "clarify") && <small className="orch-hint" data-orch-proposal-waits>{t(locale, "orchProposalWaitsHint")}</small>}
                   </section>
                 )}
-              </>
-            )}
-            {panel.tab === "activity" && runId && (
+              </Sect>
+              <Sect id="plan" title={tr(locale, "orchTab_plan")} open={opened.plan} lazy onToggle={(o) => toggleSection("plan", o)} elRef={sectionEl("plan")}>
+                {records.length
+                  ? <RunDocs kind="plan" orch={orch} runId={runId} view={view} records={records} locale={locale} task={task ?? null} take={take}
+                    seq={state?.seq ?? 0} incomplete={journal?.status !== "ready"} onNote={onNoteFromText} />
+                  : <p className="orch-hint">{t(locale, "orchLoading")}</p>}
+              </Sect>
+              <Sect id="result" title={tr(locale, "orchTab_result")} open={opened.result} lazy onToggle={(o) => toggleSection("result", o)} elRef={sectionEl("result")}>
+                {records.length
+                  ? <RunDocs kind="result" orch={orch} runId={runId} view={view} records={records} locale={locale} task={task ?? null} take={take}
+                    seq={state?.seq ?? 0} incomplete={journal?.status !== "ready"} onNote={onNoteFromText} />
+                  : <p className="orch-hint">{t(locale, "orchLoading")}</p>}
+              </Sect>
+            </>}
+            {curTab === "work" && panel.mode === "feed" && runId && (
               <ActivityList key={`a:${panel.role}`} locale={locale} entries={activity.entries} gaps={activity.gaps} filter={roleFilter}
                 emptyText={activity.status === "loading" ? t(locale, "orchLoading") : t(locale, "orchFeedEmpty")}
                 silence={selected ? silenceFor(selected) : null} />
             )}
-            {panel.tab === "log" && runId && (
+            {curTab === "work" && panel.mode === "journal" && runId && (
               <ActivityList key={`l:${panel.role}`} locale={locale} entries={activity.entries} gaps={activity.gaps} filter={logFilter}
                 emptyText={t(locale, "orchLogEmpty")} silence={null} />
             )}
-            {panel.tab === "changes" && runId && !view.newer && <ChangesTab locale={locale} runId={runId} seq={state?.seq ?? 0} inPlace={view.workMode === "project"} />}
-            {panel.tab === "history" && (
+            {curTab === "changes" && runId && !view.newer && <ChangesTab locale={locale} runId={runId} seq={state?.seq ?? 0} inPlace={view.workMode === "project"} />}
+            {curTab === "work" && panel.mode === "records" && (
               <section className="orch-panel__section">
                 <ol className="orch-history">
                   {lines.map((l) => (

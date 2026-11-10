@@ -25,6 +25,7 @@ import { parseCommand } from "../src/main/ipc/orchestrationIpc.ts";
 import { availableActions, proposalBlocks } from "../src/renderer/src/features/orchestration/runModel.ts";
 import { personDecisionsLine } from "../src/renderer/src/features/orchestration/runStatus.ts";
 import { closedByPerson } from "../src/shared/orchestration.ts";
+import { legacyView } from "../src/renderer/src/features/orchestration/panelTabs.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES = path.join(HERE, "..", "docs", "agent-orchestration", "implementation", "v2-fixtures", "runs");
@@ -559,7 +560,7 @@ test("gate: the reviewer's mark of a check condition is left out and never count
     orch: { runs: { r: { view: v, open: true, seq: 9, tick: 0 } }, activity: { r: { entries, gaps: [], firstId: entries[0]?.id ?? 0, status: "ready", resyncs: 0 } },
       runErrors: {}, canvas: { links: [], agents: [] }, journals: { r: { records: [], next: 0, status: "ready" } }, texts: {},
       commands: { pending: () => [] }, catalog: { checks: [] }, loadText() {}, syncJournal() {}, retry() {} },
-    runId: "r", locale, panel: { linkId: "L", tab: "activity", role: "reviewer", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {}
+    runId: "r", locale, panel: { linkId: "L", mode: "feed", ...legacyView("activity"), role: "reviewer", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {}
   })).replace(/<[^>]+>/g, "");
   assert.match(feed("ru"), /проверяющий отметил C2 — не учтено: условие засчитывается командой/);
   assert.match(feed("en"), /the reviewer marked C2 — not counted: the condition is met by its command/);

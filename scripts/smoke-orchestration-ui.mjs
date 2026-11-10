@@ -165,7 +165,7 @@ try {
   fs.rmSync(HOLD);
   await app.waitFor(`${q(".orch-panel__status--completed")} && true`, "run 1 completed", 90_000);
   // v1: the lead's final verdict; v2 has none (the reviewer marks requirements): the result line itself
-  await app.waitFor(`${q(V2 ? '[data-fact="accepted"]' : "[data-orch-result]")} && true`, "final verdict shown", 10_000);
+  await app.waitFor(`${q(V2 ? '[data-orch-proof]' : "[data-orch-result]")} && true`, "final verdict shown", 10_000);
   const run1 = link.runIds[0] ?? (await canvasState(app)).links[0].runIds[0];
   expect(await app.ev(`document.querySelectorAll(".orch-checks li").length > 0 && document.querySelectorAll(".orch-plan li").length === 1`), "completed: plan and check results in the overview", null);
   await openTab(app, "history");
@@ -253,7 +253,8 @@ try {
   await app.clickEl(byText(".orch-panel__actions button", "Стоп"));
   await app.waitFor(`${q(".orch-panel__status--stopped")} && true`, "run 2 stopped", 30_000);
 
-  // run 3: Stop while the executor works
+  // run 3: Stop while the executor works (the wide plan section of run 2 covers the link chip: the panel is closed first)
+  await app.clickEl(q(".orch-panel__close"));
   fs.writeFileSync(HOLD, "");
   await startGoal(app, link.linkId);
   await app.waitFor(`${card(exec.agentId, ".agent-card__state")}?.textContent === "Работает"`, "run 3 executor working", 60_000);

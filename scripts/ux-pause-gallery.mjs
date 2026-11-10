@@ -4,7 +4,7 @@
 // Needs `npm run build` first; macOS. Usage: node scripts/ux-pause-gallery.mjs --shots <dir> [--only r1,r2]
 import fs from "node:fs";
 import path from "node:path";
-import { FIXTURES, NODE, byText, launch as launchApp, q, startGoal, workspace } from "./orchestration-app-kit.mjs";
+import { FIXTURES, NODE, byText, launch as launchApp, openTab, q, startGoal, workspace } from "./orchestration-app-kit.mjs";
 import { PAUSED_REASONS_V2, buildRecord } from "../src/main/services/orchestration/journal.ts";
 
 const arg = (n) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : null; };
@@ -95,9 +95,9 @@ for (const reason of PAUSED_REASONS_V2) {
     await new Promise((r) => setTimeout(r, 600));
     out.panel = await app.ev(`${q(".orch-panel")}.innerText.slice(0, 1500)`);
     await app.shot(`pause-${reason}-2-panel`);
-    const tab = await app.ev(`[...document.querySelectorAll(".orch-panel [role=tab], .orch-panel .orch-tabs button")].find((b) => b.textContent.trim() === "Действия") ? true : false`);
+    const tab = await app.ev(`!!${q('[data-orch-tab="work"]')}`);
     if (tab) {
-      await app.clickEl(byText(".orch-panel [role=tab], .orch-panel .orch-tabs button", "Действия"));
+      await openTab(app, "activity");
       await new Promise((r) => setTimeout(r, 400));
       await app.shot(`pause-${reason}-3-activity`);
     }

@@ -12,7 +12,7 @@
 // Needs `npm run build` first. Usage: node scripts/smoke-activity-ui.mjs [--shots <dir>]
 import fs from "node:fs";
 import path from "node:path";
-import { FIXTURES, NODE, launch, q, sleep, workspace, JOURNAL_V2 } from "./orchestration-app-kit.mjs";
+import { FIXTURES, NODE, launch, openTab, q, sleep, workspace, JOURNAL_V2 } from "./orchestration-app-kit.mjs";
 
 const { D, project, script } = workspace("cto-activity-");
 const shotsArg = process.argv.indexOf("--shots");
@@ -164,21 +164,20 @@ try {
 
   // ---------- 4. the run ends while its activity is watched ----------
   await app.clickEl(cardSel(leadA.agentId, ".agent-card__open"));
-  await app.waitFor(`${q(".orch-panel")}?.dataset.orchPanelTab === "overview"`, "a running run opens at the overview");
-  await app.clickEl(q('[data-orch-tab="activity"]'));
+  await app.waitFor(`${q(".orch-panel")}?.dataset.orchPanelTab === "summary"`, "a running run opens at the summary");
+  await openTab(app, "activity");
   await app.waitFor(`${q("[data-orch-feed]")} && true`, "activity feed");
   hold("codex", false);
   await waitView(runA, (v) => v.status === "completed", "A completed", 60_000);
   await app.waitFor(`${q("[data-orch-ended]")} && true`, "the offer to open the summary", 20_000);
-  expect((await app.ev(`${q(".orch-panel")}.dataset.orchPanelTab`)) === "activity", "the tab is not switched by itself", await app.ev(`${q(".orch-panel")}.dataset.orchPanelTab`));
+  expect((await app.ev(`${q(".orch-panel")}.dataset.orchPanelTab`)) === "work" && (await app.ev(`${q(".orch-panel")}.dataset.orchPanelMode`)) === "feed", "the tab is not switched by itself", await app.ev(`${q(".orch-panel")}.dataset.orchPanelTab`));
   await app.shot("04-ended-offer");
   const ledgerBefore = ledgerCount();
 
   // ---------- 5. the summary ----------
   await app.clickEl(q("[data-orch-ended] button"));
-  // the offer opens the Result document; the report with its sources is the "Итог" tab
-  await app.waitFor(`${q(".orch-panel")}.dataset.orchPanelTab === "result"`, "the offer leads to the result");
-  await app.clickEl(q('[data-orch-tab="summary"]'));
+  // R3a: the offer opens the Result section of the Summary tab
+  await app.waitFor(`${q(".orch-panel")}.dataset.orchPanelTab === "summary" && ${q('[data-orch-section="result"][open]')} && true`, "the offer leads to the result");
   // v1: the lead's remarks of its final review; v2: the reviewer's findings (the final review's remarks as wishes)
   await app.waitFor(`${q("[data-orch-run-summary]")} && ${q(V2 ? "[data-finding]" : '[data-sum="remarks"] [data-sum-findings]')} && true`, "summary loaded", 20_000);
   const sum = await app.ev(`${q("[data-orch-run-summary]")}.innerText`);
@@ -210,10 +209,10 @@ try {
 
   // ---------- 6. details repeat nothing ----------
   for (const tab of ["overview", "activity", "log", "history", "changes", "summary"]) {
-    await app.clickEl(q(`[data-orch-tab="${tab}"]`));
+    await openTab(app, tab);
     await sleep(250);
   }
-  await app.clickEl(q('[data-orch-tab="activity"]'));
+  await openTab(app, "activity");
   await app.clickEl(q('[data-orch-role="lead"]'));
   await sleep(300);
   expect(!(await app.ev(`${q("[data-orch-feed]")}.innerText`)).includes('"verdict"'), "a structured answer in the feed is shown as text, not JSON", null);
@@ -280,7 +279,7 @@ try {
       .catch(async (e) => { const v = await viewOf(runC); throw new Error(`${e.message}: ${JSON.stringify({ status: v.status, reason: v.reason, findings: v.progress?.findings, shown: await app.ev(`document.querySelectorAll("[data-finding]").length`) }).slice(0, 600)}`); });
     const open = await app.ev(`[...document.querySelectorAll("[data-finding]")].map((e) => e.dataset.findingSeverity + ":" + e.dataset.findingStatus + ":" + ${JSON.stringify(OPEN_REMARKS)}.some((r) => e.textContent.includes(r)))`);
     expect(open.join() === "blocking:open:true,blocking:open:true", "R3: the reviewer's open blocking findings are shown while paused, before any final review", open);
-    await app.reveal(q('[data-sum="findings"]'));
+    await app.reveal(q('[data-finding]'));
   } else {
     await app.waitFor(`document.querySelectorAll('[data-sum="remarks"] [data-sum-findings] li').length === ${OPEN_REMARKS.length}`, "C: the open remarks", 20_000);
     const remarks = await app.ev(`${q('[data-sum="remarks"]')}.innerText`);

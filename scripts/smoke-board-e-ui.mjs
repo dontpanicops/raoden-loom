@@ -201,7 +201,7 @@ await scenario(3, "two refusals, split again", [
   const panelRun = await waitForValue(() => app.ev(`${q("[data-orch-run-id]")}?.dataset.orchRunId ?? null`), "the split run's panel", 15_000).catch(() => null);
   ok("«Открыть разбиение» opens the split run's panel", panelRun === first, [panelRun, first]);
   await openTab(app, "plan");
-  const plan = await waitForValue(() => app.ev(`${q('[data-orch-body="plan"]')}?.textContent ?? null`).then((t) => (/requirements not covered/.test(t ?? "") ? t : null)), "the refusal's reasons on the Plan tab", 20_000).catch(() => null);
+  const plan = await waitForValue(() => app.ev(`${q('[data-orch-section="plan"]')}?.textContent ?? null`).then((t) => (/requirements not covered/.test(t ?? "") ? t : null)), "the refusal's reasons on the Plan tab", 20_000).catch(() => null);
   ok("the Plan tab shows the refusal's reasons", !!plan, plan);
   await app.shot("e3-split-panel-refused");
   await app.ev(`${q(".orch-panel__close")}?.click()`);
@@ -211,7 +211,7 @@ await scenario(3, "two refusals, split again", [
   await app.waitFor(`${q('[data-board-task="T-1"][data-board-reason="decomposing"] [data-board-split-open]')} && true`, "«Открыть разбиение» of the second split", 60_000);
   await app.clickEl(q('[data-board-task="T-1"] [data-board-split-open]'));
   await openTab(app, "plan");
-  const proposal = await waitForValue(() => app.ev(`${q('[data-orch-body="plan"]')}?.textContent ?? null`).then((t) => (/S2 Часть S2 — зависит от: —; закрывает: R2/.test(t ?? "") ? t : null)), "the proposal on the Plan tab", 90_000).catch(() => null);
+  const proposal = await waitForValue(() => app.ev(`${q('[data-orch-section="plan"]')}?.textContent ?? null`).then((t) => (/S2 Часть S2 — зависит от: —; закрывает: R2/.test(t ?? "") ? t : null)), "the proposal on the Plan tab", 90_000).catch(() => null);
   ok("the Plan tab shows the proposal: title, dependencies, covered R", !!proposal, proposal);
   await app.shot("e3-split-panel-proposal");
   await app.ev(`${q(".orch-panel__close")}?.click()`);
