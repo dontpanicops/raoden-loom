@@ -26,3 +26,13 @@ export function chipCenter(from: Rect, to: Rect, cards: readonly Rect[], size: {
   const above = { x, y: Math.min(from.y, to.y) - GAP - size.height / 2 };
   return free(above) ? above : below;
 }
+
+// R2: the chip hangs off the curve's t=0.5 point (where the bend handle is) along the normal n̂, one step to a side, more
+// steps / the other side until it covers no card (Н14); nothing free within 4 steps: the first step.
+export function chipOnCurve(mid: Point, normal: Point, cards: readonly Rect[], size: { width: number; height: number }): Point {
+  const free = (c: Point) => !cards.some((r) => overlaps(around(c, size.width, size.height), r));
+  const step = Math.abs(normal.x) * size.width / 2 + Math.abs(normal.y) * size.height / 2 + GAP + 6;
+  const at = (k: number): Point => ({ x: mid.x + normal.x * step * k, y: mid.y + normal.y * step * k });
+  for (let i = 1; i <= 4; i++) for (const s of [1, -1]) if (free(at(i * s))) return at(i * s);
+  return at(1);
+}
