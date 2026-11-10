@@ -69,8 +69,8 @@ async function oneRun(index) {
     await app.mouse("mouseReleased", start.x, start.y, "left", 0);
     const stats = await app.ev(`(() => { const s = window.__fps; s.stop = true;
       const d = [...s.deltas].sort((a, b) => a - b); const total = d.reduce((a, b) => a + b, 0);
-      return { frames: d.length, fps: d.length / (total / 1000), p95Ms: d[Math.floor(d.length * 0.95)] ?? null, maxMs: d[d.length - 1] ?? null }; })()`);
-    console.log(`[fps-pan] run ${index + 1}: ${stats.fps.toFixed(1)} fps, p95 frame ${stats.p95Ms?.toFixed(1)} ms, worst ${stats.maxMs?.toFixed(1)} ms (${stats.frames} frames)`);
+      return { frames: d.length, fps: d.length / (total / 1000), p95Ms: d[Math.floor(d.length * 0.95)] ?? null, p99Ms: d[Math.floor(d.length * 0.99)] ?? null, maxMs: d[d.length - 1] ?? null }; })()`);
+    console.log(`[fps-pan] run ${index + 1}: ${stats.fps.toFixed(1)} fps, p95 frame ${stats.p95Ms?.toFixed(1)} ms, p99 ${stats.p99Ms?.toFixed(1)} ms, worst ${stats.maxMs?.toFixed(1)} ms (${stats.frames} frames)`);
     return stats;
   } finally {
     await app.stop();
@@ -82,10 +82,10 @@ try {
   for (let i = 0; i < RUNS; i++) results.push(await oneRun(i));
   const summary = {
     cards: CARDS, seconds: SECONDS, runs: results,
-    medianFps: median(results.map((r) => r.fps)), medianP95Ms: median(results.map((r) => r.p95Ms ?? 0)),
+    medianFps: median(results.map((r) => r.fps)), medianP95Ms: median(results.map((r) => r.p95Ms ?? 0)), medianP99Ms: median(results.map((r) => r.p99Ms ?? 0)),
     machine: `${process.platform}-${process.arch}`, node: process.version
   };
-  console.log(`[fps-pan] median over ${RUNS}: ${summary.medianFps.toFixed(1)} fps, p95 frame ${summary.medianP95Ms.toFixed(1)} ms`);
+  console.log(`[fps-pan] median over ${RUNS}: ${summary.medianFps.toFixed(1)} fps, p95 frame ${summary.medianP95Ms.toFixed(1)} ms, p99 ${summary.medianP99Ms.toFixed(1)} ms`);
   if (OUT) fs.writeFileSync(path.resolve(OUT), `${JSON.stringify(summary, null, 2)}\n`);
 } finally {
   fs.rmSync(D(), { recursive: true, force: true });

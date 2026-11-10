@@ -33,7 +33,7 @@ export function TitleBar({ locale, windowState, onWindowStateChange }: TitleBarP
 
   if (windowState.isMacOS) {
     return (
-      <header className="titlebar titlebar--macos">
+      <header className="titlebar titlebar--macos surface-3">
         <div className="titlebar__macos-controls-space" aria-hidden="true" />
         <div className="titlebar__brand">
           <span className="titlebar__logo"><ProviderIcon provider="terminal" size="small" /></span>
@@ -47,7 +47,7 @@ export function TitleBar({ locale, windowState, onWindowStateChange }: TitleBarP
   }
 
   return (
-    <header className="titlebar">
+    <header className="titlebar surface-3">
       <div className="titlebar__brand">
         <span className="titlebar__logo"><ProviderIcon provider="terminal" size="small" /></span>
         <strong>Raoden Loom</strong>

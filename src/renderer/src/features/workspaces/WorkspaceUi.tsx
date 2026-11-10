@@ -99,7 +99,7 @@ export function WorkspaceBar({ controls, counts, locale, onDialog, board }: {
   };
   const act = (d: WorkspaceDialog) => { setMenuOpen(false); onDialog(d); };
   return (
-    <nav className="workspace-bar" data-interactive="true" data-workspace-bar aria-label={tk(locale, "wsBar")}>
+    <nav className="workspace-bar surface-3" data-interactive="true" data-workspace-bar aria-label={tk(locale, "wsBar")}>
       <div className="workspace-bar__tabs" role="tablist">
         {open.map((w, i) => {
           const c = counts[w.id] ?? NO_COUNTS;
@@ -108,9 +108,9 @@ export function WorkspaceBar({ controls, counts, locale, onDialog, board }: {
               data-workspace-tab={w.id} title={`${workspaceTitle(locale, w)}${w.root ? ` — ${w.root}` : ""}\n${countsHint(locale, c)}${window.canvasTTY.window.isMacOS && i < 9 ? `\n⌘${i + 1}` : ""}`}
               onClick={() => controls.switchTo(w.id)}>
               <span className="workspace-bar__name">{workspaceTitle(locale, w)}</span>
-              {c.runs > 0 && <span className="workspace-bar__count workspace-bar__count--runs" data-ws-runs={c.runs} aria-label={tr(locale, "wsCountRuns", { n: String(c.runs) })}>▶{c.runs}</span>}
-              {c.cli > 0 && <span className="workspace-bar__count workspace-bar__count--cli" data-ws-cli={c.cli} aria-label={tr(locale, "wsCountCli", { n: String(c.cli) })}>⌨{c.cli}</span>}
-              {c.attention > 0 && <span className="workspace-bar__count workspace-bar__count--attention" data-ws-attention={c.attention} aria-label={tr(locale, "wsCountAttention", { n: String(c.attention) })}>!{c.attention}</span>}
+              {c.runs > 0 && <span className="workspace-bar__count workspace-bar__count--runs" data-ws-runs={c.runs} aria-label={tr(locale, "wsCountRuns", { n: String(c.runs) })}><UiIcon name="working" size={12} />{c.runs}</span>}
+              {c.cli > 0 && <span className="workspace-bar__count workspace-bar__count--cli" data-ws-cli={c.cli} aria-label={tr(locale, "wsCountCli", { n: String(c.cli) })}><UiIcon name="terminal" size={12} />{c.cli}</span>}
+              {c.attention > 0 && <span className="workspace-bar__count workspace-bar__count--attention" data-ws-attention={c.attention} aria-label={tr(locale, "wsCountAttention", { n: String(c.attention) })}><UiIcon name="bell" size={12} />{c.attention}</span>}
             </button>
           );
         })}

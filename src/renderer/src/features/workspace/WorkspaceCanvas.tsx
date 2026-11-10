@@ -1318,14 +1318,14 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
                 workspaceId={workspace.activeId} onCameraChange={commitCamera} />
             )}
             {settings.canvasControlsPlacement === placement && (
-              <div className="canvas-controls" data-interactive="true">
+              <div className="canvas-controls surface-3" data-interactive="true">
                 <button type="button" onClick={onGoHome} title={t(settings.locale, "home")}><UiIcon name="home" size={17} /></button>
                 <button type="button" onClick={() => wheelNavigation.zoomBy(0.82)} title={t(settings.locale, "zoomOut")}><UiIcon name="zoom-out" size={17} /></button>
                 <button type="button" onClick={() => wheelNavigation.zoomBy(1.22)} title={t(settings.locale, "zoomIn")}><UiIcon name="zoom-in" size={17} /></button>
               </div>
             )}
             {settings.showShortcutHints && settings.shortcutHintsPlacement === placement && (
-              <aside className="shortcut-hints" aria-label={t(settings.locale, "keyboardShortcuts")}>
+              <aside className="shortcut-hints surface-3" aria-label={t(settings.locale, "keyboardShortcuts")}>
                 <div><kbd>{settings.shortcuts.home}</kbd><span>{t(settings.locale, "homeShortcut")}</span></div>
                 <div><kbd>{settings.shortcuts.renameWindow}</kbd><span>{t(settings.locale, "renameWindow")}</span></div>
                 {settings.canvasWheelCaptureMode === "key" && settings.canvasWheelOverride !== null && (

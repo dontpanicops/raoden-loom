@@ -11,7 +11,7 @@ export function mainWindowChromeOptions(
   if (platform === "darwin") {
     return {
       titleBarStyle: "hidden",
-      trafficLightPosition: { x: 12, y: 10 }
+      trafficLightPosition: { x: 16, y: 15 }
     };
   }
 

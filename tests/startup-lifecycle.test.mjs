@@ -93,8 +93,8 @@ test("macOS startup page reserves space for native traffic lights", () => {
   const url = startupPageUrl({ locale: "en", isMacOS: true });
   const html = decodeURIComponent(url.slice(url.indexOf(",") + 1));
 
-  assert.match(html, /--titlebar-height: 32px;/);
+  assert.match(html, /--titlebar-height: 44px;/);
   assert.match(html, /grid-template-rows: var\(--titlebar-height\) 1fr/);
-  assert.match(html, /padding-left: 78px/);
+  assert.match(html, /padding-left: 72px/);
   assert.doesNotMatch(html, /traffic-light/);
 });

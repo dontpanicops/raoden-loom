@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type {
   AgentProviderId,
   AppSettings,
@@ -40,6 +40,7 @@ import {
 import { normalizeExternalUrl } from "../../shared/externalUrl";
 import { TitleBar } from "./components/TitleBar";
 import { Toast } from "./components/Toast";
+import { toastReducer, type ToastAction, type ToastKind } from "./lib/toastQueue";
 import { AgentLaunchDialog } from "./features/launcher/AgentLaunchDialog";
 import { SettingsPanel } from "./features/settings/SettingsPanel";
 import { resolveAppearanceSettings } from "./features/settings/appearanceSettings";
@@ -223,7 +224,8 @@ export function App(): React.JSX.Element {
   const [browserSelected, setBrowserSelected] = useState(false);
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [pendingTerminalUrl, setPendingTerminalUrl] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toasts, dispatchToast] = useReducer(toastReducer, []);
+  const toastId = useRef(0);
   const [ready, setReady] = useState(false);
   const [windowState, setWindowState] = useState<WindowState>({
     isMacOS: window.canvasTTY.window.isMacOS,
@@ -231,17 +233,15 @@ export function App(): React.JSX.Element {
     fullscreen: false
   });
 
-  const showToast = useCallback((message: string): void => setToast(message), []);
+  const showToast = useCallback((message: string, kind: ToastKind = "info", action?: ToastAction): void => {
+    toastId.current += 1;
+    dispatchToast({ type: "push", toast: { id: toastId.current, kind, message, action } });
+  }, []);
+  const dismissToast = useCallback((id: number): void => dispatchToast({ type: "dismiss", id }), []);
 
   useEffect(() => {
     browserCanvasRef.current = settings.browserCanvas;
   }, [settings.browserCanvas]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 2_600);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
 
   useEffect(() => {
     const unsubscribe = window.canvasTTY.window.onState(setWindowState);
@@ -299,7 +299,7 @@ export function App(): React.JSX.Element {
           if (active) setMediaData(data);
         }
       })
-      .catch((error) => showToast(error instanceof Error ? error.message : "Raoden Loom initialization failed"))
+      .catch((error) => showToast(error instanceof Error ? error.message : "Raoden Loom initialization failed", "error"))
       .finally(() => active && setReady(true));
 
     return () => {
@@ -409,8 +409,8 @@ export function App(): React.JSX.Element {
         : [...current.workspaces, { ...target, closed: false }]
     }));
     void window.canvasTTY.workspaces.activate(id).then((r) => {
-      if (!r.ok) showToast(t(settingsRef.current.locale, "wsActionFailed"));
-    }, () => showToast(t(settingsRef.current.locale, "wsActionFailed")));
+      if (!r.ok) showToast(t(settingsRef.current.locale, "wsActionFailed"), "error");
+    }, () => showToast(t(settingsRef.current.locale, "wsActionFailed"), "error"));
   }, [showToast]);
 
   // A state main answered with: its list, keeping the cameras this window already has (they were saved already).
@@ -434,7 +434,7 @@ export function App(): React.JSX.Element {
     try {
       await persistSettings(patch);
     } catch {
-      showToast(t(settings.locale, "settingsFailed"));
+      showToast(t(settings.locale, "settingsFailed"), "error");
     }
   }, [persistSettings, settings.locale, showToast]);
 
@@ -467,9 +467,9 @@ export function App(): React.JSX.Element {
   const openTerminal = useCallback(async (position?: Point): Promise<void> => {
     try {
       await createSession("terminal", "normal", defaultDirectory, position);
-      showToast(t(settings.locale, "terminalStarted"));
+      showToast(t(settings.locale, "terminalStarted"), "success");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : t(settings.locale, "launchFailed"));
+      showToast(error instanceof Error ? error.message : t(settings.locale, "launchFailed"), "error");
     }
   }, [createSession, defaultDirectory, settings.locale, showToast]);
 
@@ -491,15 +491,15 @@ export function App(): React.JSX.Element {
   ): Promise<void> => {
     await createSession(provider, profile, cwd, launchPosition ?? undefined);
     setLaunchPosition(null);
-    showToast(`${t(settings.locale, "sessionStarted")}: ${provider}`);
+    showToast(`${t(settings.locale, "sessionStarted")}: ${provider}`, "success");
   }, [createSession, launchPosition, settings.locale, showToast]);
 
   const restartSession = useCallback(async (id: string): Promise<void> => {
     try {
       await window.canvasTTY.terminal.restart(id);
-      showToast(t(settings.locale, "sessionRestarted"));
+      showToast(t(settings.locale, "sessionRestarted"), "success");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : t(settings.locale, "restartFailed"));
+      showToast(error instanceof Error ? error.message : t(settings.locale, "restartFailed"), "error");
     }
   }, [settings.locale, showToast]);
 
@@ -519,7 +519,7 @@ export function App(): React.JSX.Element {
       setSettings(updated);
       setMediaData(selection.dataUrl);
     } catch {
-      showToast(t(settings.locale, "mediaFailed"));
+      showToast(t(settings.locale, "mediaFailed"), "error");
     }
   }, [settings.locale, showToast]);
 
@@ -529,7 +529,7 @@ export function App(): React.JSX.Element {
       setSettings(updated);
       setMediaData(null);
     } catch {
-      showToast(t(settings.locale, "mediaFailed"));
+      showToast(t(settings.locale, "mediaFailed"), "error");
     }
   }, [settings.locale, showToast]);
 
@@ -741,7 +741,7 @@ export function App(): React.JSX.Element {
       return;
     }
     void openBrowser(undefined, position).catch((error: unknown) => {
-      showToast(error instanceof Error ? error.message : t(settings.locale, "browserActionFailed"));
+      showToast(error instanceof Error ? error.message : t(settings.locale, "browserActionFailed"), "error");
     });
   }, [openBrowser, settings.locale, showToast]);
 
@@ -754,7 +754,7 @@ export function App(): React.JSX.Element {
       await saveSettings({ browserCanvas: null });
       setBrowserSelected(false);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : t(settings.locale, "browserActionFailed"));
+      showToast(error instanceof Error ? error.message : t(settings.locale, "browserActionFailed"), "error");
     }
   }, [saveSettings, settings.locale, showToast]);
 
@@ -788,7 +788,7 @@ export function App(): React.JSX.Element {
       const metadata = await window.canvasTTY.terminal.rename(id, title);
       setSessions((current) => upsertSession(current, metadata));
     } catch {
-      showToast(t(settings.locale, "renameFailed"));
+      showToast(t(settings.locale, "renameFailed"), "error");
     }
   }, [settings.locale, showToast]);
 
@@ -837,7 +837,7 @@ export function App(): React.JSX.Element {
       settings.homeGridSize
     );
     if (!result) {
-      showToast(t(settings.locale, "homeLayoutFull"));
+      showToast(t(settings.locale, "homeLayoutFull"), "error");
       return;
     }
     await saveSettings({
@@ -865,7 +865,7 @@ export function App(): React.JSX.Element {
       homeLayout = [...homeLayout, result.placement];
     }
     if (homeLayout !== settings.homeLayout) await saveSettings({ homeGridSize, homeLayout });
-    showToast(`${t(settings.locale, "pluginInstalled")}: ${installed.manifest.name}`);
+    showToast(`${t(settings.locale, "pluginInstalled")}: ${installed.manifest.name}`, "success");
   }, [saveSettings, settings.homeGridSize, settings.homeLayout, settings.locale, showToast]);
 
   const refreshPlugins = useCallback(async (): Promise<void> => {
@@ -929,7 +929,7 @@ export function App(): React.JSX.Element {
       homeLayout: settings.homeLayout.filter((placement) => !placement.widgetId.startsWith(`plugin:${pluginId}:`)),
       pluginCanvas: settings.pluginCanvas.filter((instance) => instance.pluginId !== pluginId)
     });
-    showToast(t(settings.locale, "pluginRemoved"));
+    showToast(t(settings.locale, "pluginRemoved"), "success");
   }, [refreshPlugins, saveSettings, settings.homeLayout, settings.locale, settings.pluginCanvas, showToast]);
 
   const searchPlugins = useCallback((query: string): Promise<GithubPluginSearchResult[]> => (
@@ -961,7 +961,7 @@ export function App(): React.JSX.Element {
       throw error;
     }
     setPlugins((current) => current.map((plugin) => plugin.manifest.id === pluginId ? updated : plugin));
-    showToast(`${t(settings.locale, "pluginUpdated")}: ${updated.manifest.name}`);
+    showToast(`${t(settings.locale, "pluginUpdated")}: ${updated.manifest.name}`, "success");
   }, [refreshPlugins, settings.locale, showToast]);
 
   const openPluginCanvasContribution = useCallback(async (
@@ -1024,11 +1024,11 @@ export function App(): React.JSX.Element {
     const plugin = plugins.find((candidate) => candidate.manifest.id === request.pluginId);
     const contribution = plugin?.manifest.contributions.find((candidate) => candidate.id === request.contributionId);
     if (!plugin || !contribution || contribution.kind !== "canvas-app" || !plugin.enabled) {
-      showToast(t(settings.locale, "pluginActionFailed"));
+      showToast(t(settings.locale, "pluginActionFailed"), "error");
       return;
     }
     void openPluginCanvasContribution(plugin, contribution, request.sourceCanvasInstanceId)
-      .catch((error) => showToast(error instanceof Error ? error.message : t(settings.locale, "pluginActionFailed")));
+      .catch((error) => showToast(error instanceof Error ? error.message : t(settings.locale, "pluginActionFailed"), "error"));
   }), [openPluginCanvasContribution, plugins, settings.locale, showToast]);
 
   const startHomeEditor = useCallback((): void => {
@@ -1048,7 +1048,7 @@ export function App(): React.JSX.Element {
       setSettings(updated);
       setHomeEditDraft(null);
     } catch {
-      showToast(t(settings.locale, "settingsFailed"));
+      showToast(t(settings.locale, "settingsFailed"), "error");
     }
   }, [homeEditDraft, settings.locale, showToast]);
 
@@ -1230,7 +1230,7 @@ export function App(): React.JSX.Element {
       const error = await moveItem("browser", "browser", target);
       const moved = settingsRef.current.browserCanvas;
       if (error || !moved) {
-        showToast(error ?? t(settingsRef.current.locale, "wsActionFailed"));
+        showToast(error ?? t(settingsRef.current.locale, "wsActionFailed"), "error");
         return;
       }
       if (activeIdRef.current !== target) return; // switched away meanwhile: the camera shown is left alone
@@ -1275,7 +1275,7 @@ export function App(): React.JSX.Element {
             try {
               setPendingTerminalUrl(normalizeExternalUrl(url));
             } catch (error) {
-              showToast(error instanceof Error ? error.message : t(settings.locale, "browserActionFailed"));
+              showToast(error instanceof Error ? error.message : t(settings.locale, "browserActionFailed"), "error");
             }
           }}
           onRequestMedia={requestMedia}
@@ -1340,13 +1340,13 @@ export function App(): React.JSX.Element {
         onOpenCanvas={(url) => {
           setPendingTerminalUrl(null);
           void openBrowser(url).catch((error: unknown) => {
-            showToast(error instanceof Error ? error.message : t(settings.locale, "browserActionFailed"));
+            showToast(error instanceof Error ? error.message : t(settings.locale, "browserActionFailed"), "error");
           });
         }}
         onOpenExternal={(url) => {
           setPendingTerminalUrl(null);
           void window.canvasTTY.external.openUrl(url).catch((error: unknown) => {
-            showToast(error instanceof Error ? error.message : t(settings.locale, "browserActionFailed"));
+            showToast(error instanceof Error ? error.message : t(settings.locale, "browserActionFailed"), "error");
           });
         }}
       />
@@ -1374,7 +1374,7 @@ export function App(): React.JSX.Element {
         onEditHome={startHomeEditor}
         onOpenBrowser={openBrowser}
       />
-      <Toast message={toast} />
+      <Toast toasts={toasts} closeLabel={t(settings.locale, "close")} onDismiss={dismissToast} />
     </div>
   );
 }

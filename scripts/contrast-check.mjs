@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // WCAG contrast check of the design tokens (stage R, spec §7.2). Reads src/renderer/src/styles/tokens.css and exits 1 on any violation.
-// R0: levels 3-4 are checked on their -solid values only (there is no glass yet). R1 adds --surface-3/-4 over every canvas background.
+// Levels 3-4 are checked on their -solid values, and (R1) the glass --surface-3/-4 over every canvas background of every theme;
+// a compound `.app--<theme>.app--canvas-<name>` block overrides the glass for that pair.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -133,6 +134,26 @@ for (const [selector, v] of homes) {
   const name = selector.replace(".app--", "");
   for (const role of ["clock", "dock", "dock-tile", "browser", "settings", "media"]) {
     check(`${name}: --home-${role}-text on --home-${role}`, need(v, `--home-${role}-text`, name), need(v, `--home-${role}`, name), TEXT);
+  }
+}
+
+// R1: the glass over every canvas background (surface-0 and both gradient ends), for the texts that sit on levels 3-4
+const glassTexts = ["--text-primary", "--text-secondary", "--text-muted", "--status-waiting", "--status-working", "--danger-fg"];
+const compound = blocks(/^\.app--(sand|bay|paper|frost)\.app--canvas-[a-z]+$/);
+for (const [themeSel, tv] of themes) {
+  const theme = themeSel.replace(".app--", "");
+  if (theme === "paper" || theme === "frost") continue; // not offered in Settings until R4; their glass over dark canvases is checked then
+  for (const [canvasSel, cv] of canvases) {
+    const canvas = canvasSel.replace(".app--", "");
+    const own = compound.get(`${themeSel}${canvasSel}`) ?? {};
+    for (const level of ["--surface-3", "--surface-4"]) {
+      const glass = own[level] ?? need(tv, level, theme);
+      for (const stop of ["--surface-0", "--surface-0-hi", "--surface-0-lo"]) {
+        for (const text of glassTexts) {
+          check(`${theme} over ${canvas}: ${text} on ${level} (${stop})`, need(tv, text, theme), glass, TEXT, need(cv, stop, canvas));
+        }
+      }
+    }
   }
 }
 
