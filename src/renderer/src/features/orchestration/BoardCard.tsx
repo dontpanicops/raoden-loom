@@ -309,8 +309,8 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                                 ? <button type="button" className="orch-primary" data-board-open data-board-answer onClick={() => ui.openRunById(runId)}>{t(locale, "boardAnswer")}</button>
                                 : runId && <button type="button" data-board-open onClick={() => ui.openRunById(runId)}>{t(locale, "orchOpenRun")}</button>}
                               {runId && <>
-                                <button type="button" data-board-open-plan onClick={() => ui.openRunById(runId, "plan")}>{t(locale, "orchTab_plan")}</button>
-                                <button type="button" data-board-open-result onClick={() => ui.openRunById(runId, "result")}>{t(locale, "orchTab_result")}</button>
+                                <button type="button" data-board-open-plan onClick={() => ui.openRunById(runId, { tab: "summary", section: "plan" })}>{t(locale, "orchTab_plan")}</button>
+                                <button type="button" data-board-open-result onClick={() => ui.openRunById(runId, { tab: "summary", section: "result" })}>{t(locale, "orchTab_result")}</button>
                               </>}
                               {st.reason === "no_checks" && <button type="button" className="orch-primary" data-board-accept onClick={() => setAccepting(task.id)}>{t(locale, "boardAccept")}</button>}
                               {canMerge && merging !== task.id && <button type="button" data-board-merge

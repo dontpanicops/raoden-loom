@@ -35,7 +35,8 @@ import { BOARD_SIZE, BoardCard } from "../orchestration/BoardCard";
 import { useBoard } from "../orchestration/useBoard";
 import { OrchestrationOverlays } from "../orchestration/OrchestrationDialogs";
 import { activityRuns } from "../orchestration/runStatus";
-import { useAgentCanvasUi, type PanelTab } from "../orchestration/useAgentCanvasUi";
+import { useAgentCanvasUi } from "../orchestration/useAgentCanvasUi";
+import type { PanelViewArg } from "../orchestration/panelTabs";
 import { useOrchestration } from "../orchestration/useOrchestration";
 import { NotifyBanner, useRunNotifications } from "../orchestration/useRunNotifications";
 import { PluginCanvasCard } from "../plugins/PluginCanvasCard";
@@ -256,13 +257,13 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
   });
   const [wsDialog, setWsDialog] = useState<WorkspaceDialog | null>(null);
   // From the widget or the history: the run's own workspace, its lead card in view, its panel.
-  const openRunInWorkspace = useCallback((runId: string, tab?: PanelTab, target = ownerOfRun(runId)): void => {
+  const openRunInWorkspace = useCallback((runId: string, tab?: PanelViewArg, target = ownerOfRun(runId)): void => {
     workspace.switchTo(target);
     const link = orch.canvas.links.find((l) => l.runIds.at(-1) === runId);
     const lead = link ? orch.canvas.agents.find((a) => a.agentId === link.fromAgentId) : undefined;
     if (lead && workspaceOf(lead, knownWorkspace) === target) workspace.focusBounds(lead.bounds);
     if (link && !tab) agentUi.openRun(link.linkId);
-    else if (link) agentUi.openPanel(link.linkId, { tab });
+    else if (link) agentUi.openPanel(link.linkId, typeof tab === "string" ? { tab } : tab);
     else agentUi.openRunById(runId, tab);
   }, [agentUi, knownWorkspace, orch.canvas, ownerOfRun, workspace]);
   // UX audit PR 3: a notification names the project (and its workspace where there are several), never a path

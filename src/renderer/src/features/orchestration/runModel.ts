@@ -28,6 +28,21 @@ const STOP_ONLY = ["lead_modified_tree", "shared_git_tampered", "journal_corrupt
 export const ACTIVE_STATUSES = ["preparing", "running", "pausing", "paused", "stopping"];
 export const TERMINAL_STATUSES = ["stopped", "completed", "failed"];
 
+// C1 (stage-c-parallel.md §6.2): a link may run several tasks at once. Its live runs (at most the last four), the one
+// shown — the picked one if it still goes on, else the latest that goes on, else the latest. Chip and panel use the same.
+export function liveRuns(link: { runIds: string[] }, runs: Record<string, { view: { status: string } } | undefined>): string[] {
+  return link.runIds.slice(-4).filter((id) => {
+    const v = runs[id]?.view;
+    return !!v && !TERMINAL_STATUSES.includes(v.status);
+  });
+}
+export function shownRunId(link: { linkId: string; runIds: string[] } | undefined, runs: Record<string, { view: { status: string } } | undefined>, picked: Record<string, string>): string | undefined {
+  if (!link) return undefined;
+  const live = liveRuns(link, runs);
+  const p = picked[link.linkId];
+  return p && live.includes(p) ? p : live.at(-1) ?? link.runIds.at(-1);
+}
+
 export type RunAction = "pause" | "keep_running" | "resume" | "step" | "stop" | "answer" | "clarify" | "raise_limit" | "recover" | "permission"
   | "checks_decide" | "finish_confirm" // journal v2: the person's decisions, with Stop the only actions on their pauses
   | "check_amend" // A1.1: a lead's check the sandbox refused — the person's line in its place (edited or not)

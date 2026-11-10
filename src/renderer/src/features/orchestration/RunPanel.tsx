@@ -87,7 +87,9 @@ import {
 } from "./runModel";
 import { duration, findingsLine, finishText, isServiceEntry, outcomeKey, personDecisionsLine, readJournal, reportParts, saidKey, summaryModel, type ReportParts, type RunJournalState, type TextRef } from "./runStatus";
 import { pickDocs, planDoc, readCreatedFile, resultDoc, toMarkdown, type CreatedDocs, type CreatedFile, type DocInput, type Loaded, type PlanEntry, type PlanJson, type RunDoc } from "./runDocs";
-import type { PanelRole, PanelState, PanelTab } from "./useAgentCanvasUi";
+import type { PanelRole, PanelState } from "./useAgentCanvasUi";
+// R3a: the markup still draws the eight old tabs; part B moves it to PanelTab (three) and drops the legacy alias
+import { normalizePanel, type LegacyPanelTab as PanelTab } from "./panelTabs";
 import { outcomeText, type Orchestration, type RunActivityState } from "./useOrchestration";
 
 // What stays different from the same CLI in a terminal (stage 12). Shown before the start and in the run panel.
@@ -1395,7 +1397,8 @@ function RaiseLimit({ locale, cost, budget, primary, sending, onRaise, children 
   );
 }
 
-function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onView, task, onNoteFromText }: RunPanelProps): React.JSX.Element {
+function CurrentRunPanel({ orch, runId, locale, panel: panelProp, onClose, onNewGoal, onView, task, onNoteFromText }: RunPanelProps): React.JSX.Element {
+  const panel = normalizePanel(panelProp);
   const state = runId ? orch.runs[runId] ?? null : null;
   const view: OrchestrationRunView | null = state?.view ?? null;
   const activity = (runId && orch.activity[runId]) || { entries: [], gaps: [], firstId: 0, status: "loading" as const, resyncs: 0 };
