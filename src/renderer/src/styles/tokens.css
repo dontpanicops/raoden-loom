@@ -425,9 +425,27 @@
   --home-media-text:#F5EDE0;
 }
 
+/* Native controls follow the theme (no inversion, Н10) */
+.app--paper,.app--frost{color-scheme:light}
+
 /* "Less transparency": the glass levels turn solid. Motion follows prefers-reduced-motion, not this class. */
 .app--reduce {
   --surface-3: var(--surface-3-solid);
   --surface-4: var(--surface-4-solid);
 }
 .app.app--reduce * { backdrop-filter: none; }
+
+/* Glass levels (stage R, spec 2): backdrop-filter lives only here, on levels 3-4. Panels join with the class or the same declarations. */
+.surface-3{background:var(--surface-3);backdrop-filter:blur(var(--blur-3)) saturate(170%);box-shadow:inset 0 1px 0 var(--edge-light),inset 0 0 0 1px var(--border),var(--elev-3)}
+.surface-4,.canvas-menu,.radial-launcher__center,.radial-launcher__item,.usage-row__failure-tooltip{background:var(--surface-4);backdrop-filter:blur(var(--blur-4)) saturate(170%);box-shadow:inset 0 1px 0 var(--edge-light),inset 0 0 0 1px var(--border-strong),var(--elev-4)}
+.app--reduce .surface-3{background:var(--surface-3-solid);backdrop-filter:none}
+.app--reduce .surface-4,.app--reduce .canvas-menu,.app--reduce .radial-launcher__center,.app--reduce .radial-launcher__item,.app--reduce .usage-row__failure-tooltip{background:var(--surface-4-solid);backdrop-filter:none}
+@media (prefers-reduced-transparency:reduce){.surface-3{background:var(--surface-3-solid);backdrop-filter:none}.surface-4,.canvas-menu,.radial-launcher__center,.radial-launcher__item,.usage-row__failure-tooltip{background:var(--surface-4-solid);backdrop-filter:none}}
+
+/* Dark glass over the light canvas backgrounds is denser: text stays at 4.5:1 (contrast-check checks every pair). */
+.app--sand.app--canvas-stone,.app--sand.app--canvas-lilac{--surface-3:rgba(56,53,47,.88);--surface-4:rgba(62,59,52,.92)}
+.app--sand.app--canvas-linen,.app--sand.app--canvas-mist{--surface-3:rgba(56,53,47,.94);--surface-4:rgba(62,59,52,.96)}
+.app--bay.app--canvas-stone,.app--bay.app--canvas-lilac{--surface-3:rgba(34,40,58,.88);--surface-4:rgba(38,45,64,.92)}
+.app--bay.app--canvas-linen,.app--bay.app--canvas-mist{--surface-3:rgba(34,40,58,.94);--surface-4:rgba(38,45,64,.96)}
+/* doubled class: specificity above the dark-theme-over-light-canvas glass rules above, so reduced transparency always wins */
+.app--reduce.app--reduce{--surface-3:var(--surface-3-solid);--surface-4:var(--surface-4-solid)}

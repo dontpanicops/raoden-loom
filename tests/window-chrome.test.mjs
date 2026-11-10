@@ -5,7 +5,7 @@ import { mainWindowChromeOptions } from "../src/main/windowChrome.ts";
 test("uses native macOS controls in a hidden title bar", () => {
   assert.deepEqual(mainWindowChromeOptions("darwin"), {
     titleBarStyle: "hidden",
-    trafficLightPosition: { x: 12, y: 10 }
+    trafficLightPosition: { x: 16, y: 15 }
   });
 });
 

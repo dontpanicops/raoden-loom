@@ -24,6 +24,9 @@ test("viewport-bound overlays and camera sizing share the titlebar boundary", as
   assert.match(titleBar, /import appManifest from "\.\.\/\.\.\/\.\.\/\.\.\/package\.json";/);
   assert.match(titleBar, /import\.meta\.env\.DEV \? "DEV" : "RELEASE"/);
   assert.match(titleBar, /`\$\{BUILD_CHANNEL\} v\$\{appManifest\.version\}`/);
+  assert.match(styles, /\.app \{ --titlebar-height: var\(--header-h\);/);
+  assert.match(titleBar, /titlebar surface-3/);
+  assert.match(startupPage, /const titlebarHeight = 44;/);
   assert.match(styles, /\.titlebar__build--dev \{/);
   assert.match(styles, /\.titlebar__build--release \{/);
 });

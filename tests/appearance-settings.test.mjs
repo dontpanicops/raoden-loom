@@ -52,11 +52,20 @@ test("HOME palette updates never include the Canvas background field", () => {
 
 test("Canvas color classes only override the Canvas background and pattern color", () => {
   const tokens = readFileSync(new URL("../src/renderer/src/styles/tokens.css", import.meta.url), "utf8");
-  const blocks = [...tokens.matchAll(/\.app--canvas-[^{]+\{([^}]*)\}/g)];
+  const blocks = [...tokens.matchAll(/^\.app--canvas-[^{]+\{([^}]*)\}/gm)];
   assert.equal(blocks.length, 6);
   for (const [, body] of blocks) {
     const variables = [...body.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((match) => match[1]).sort();
     assert.deepEqual(variables, ["--canvas-dot", "--canvas-ink", "--canvas-ink-muted", "--surface-0", "--surface-0-hi", "--surface-0-lo"]);
+  }
+});
+
+test("R1: the dark themes' glass over a light canvas overrides only the two glass levels", () => {
+  const tokens = readFileSync(new URL("../src/renderer/src/styles/tokens.css", import.meta.url), "utf8");
+  const blocks = [...tokens.matchAll(/^[^\n{]*\.app--(?:sand|bay)\.app--canvas-[^{]+\{([^}]*)\}/gm)];
+  assert.equal(blocks.length, 4);
+  for (const [, body] of blocks) {
+    assert.deepEqual([...body.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((match) => match[1]), ["--surface-3", "--surface-4"]);
   }
 });
 

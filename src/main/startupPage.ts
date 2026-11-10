@@ -8,7 +8,7 @@ interface StartupPageOptions {
 
 export function startupPageUrl({ locale, isMacOS, error }: StartupPageOptions): string {
   const russian = locale.toLowerCase().startsWith("ru");
-  const titlebarHeight = isMacOS ? 32 : 44;
+  const titlebarHeight = 44;
   const failed = typeof error === "string";
   const title = failed
     ? (russian ? "Raoden Loom не удалось запустить" : "Raoden Loom could not start")
@@ -36,7 +36,7 @@ export function startupPageUrl({ locale, isMacOS, error }: StartupPageOptions): 
       header strong { font-size: 13px; letter-spacing: .02em; }
       button { width: 46px; height: 100%; border: 0; color: rgba(255,255,255,.8); background: transparent; cursor: pointer; font-size: 22px; -webkit-app-region: no-drag; }
       button:hover { color: white; background: #d85b61; }
-      .macos-titlebar { justify-content: flex-start; gap: 10px; padding-left: 78px; }
+      .macos-titlebar { justify-content: flex-start; gap: 10px; padding-left: 72px; }
       .macos-titlebar .drag { flex: 1; height: 100%; }
       main { display: grid; place-items: center; padding: 32px; background: ${DARK_WINDOW_BACKGROUND}; }
       section { width: min(620px, 100%); padding: 28px; border-radius: 18px; color: #2f3038; background: #e4f1cf; box-shadow: 0 18px 48px rgba(30,31,40,.22); }

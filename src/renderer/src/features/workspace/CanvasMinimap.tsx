@@ -164,7 +164,7 @@ export function CanvasMinimap({
 
   return (
     <button
-      className="canvas-minimap"
+      className="canvas-minimap surface-3"
       type="button"
       data-interactive="true"
       data-interaction-mode={interactionMode}

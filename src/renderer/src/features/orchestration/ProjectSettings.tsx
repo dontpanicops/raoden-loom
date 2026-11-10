@@ -339,7 +339,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
 
       {check?.({ checks: checks.split("\n").map((c) => c.trim()).filter(Boolean), workMode: p.workMode, access: p.access })}
       <div className="orch-form__actions">
-        <button type="button" onClick={onCancel}>{t(locale, "orchCancel")}</button>
+        <button type="button" className="orch-cancel" onClick={onCancel}>{t(locale, "orchCancel")}</button>
         <button type="submit" className="orch-primary" disabled={busy}>{busy ? t(locale, "orchSending") : t(locale, "orchSettingsSave")}</button>
       </div>
       {error && <div className="dialog-error" role="alert">{error}</div>}
