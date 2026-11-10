@@ -697,6 +697,8 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
     ({ action, label, danger, commands, ...(after ? { after } : {}) });
   const stop = (danger = false) => b("stop", L("orchStop"), ["stop"], danger);
   const status = view.status, reason = view.reason ?? "";
+  // version 2: the panel offers the journal-v2 commands only on pauses that exist in v2; a v1 run never has those reasons,
+  // and the version gate matters to person.decide / plan.decide alone, which the zone sends on their own v2-only pauses
   const ctx = { status, reason, version: 2, proposalWaits: !!view.proposalWaits, inPlace: view.workMode !== "copy" };
   // Clarify is main's own gate: a state that denies it hides it, except the one denial that passes (a waiting proposal)
   const clarifyOpen = !view.halted && !view.newer && admits("clarify", { ...ctx, proposalWaits: false }) === null;
@@ -760,7 +762,8 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
   } else {
     switch (reason) {
       case "awaiting_answer": primary = b("answer", L("orchAnswer"), ["answer"]); clarify = "hidden"; break;
-      case "limit_reached": primary = b("raise_limit", text!.button, ["raise_limit"], false, "resume"); break;
+      // a waiting plan proposal: main refuses the raise, Resume opens the proposal
+      case "limit_reached": primary = view.proposalWaits ? resume(L("orchResume")) : b("raise_limit", text!.button, ["raise_limit"], false, "resume"); break;
       case "outcome_unknown":
         primary = b("recover_accept", text!.button, ["recover"]);
         secondary.push(b("recover_retry", L("orchRecoverRetry"), ["recover"]));

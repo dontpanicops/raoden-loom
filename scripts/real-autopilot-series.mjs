@@ -704,7 +704,7 @@ async function stopActiveRuns() {
     if (!st || !["running", "created", "preparing", "pausing", "stopping"].includes(st.status)) continue;
     try {
       if (!(await app.ev(`!!${q(".orch-panel")}`))) await app.clickEl(byText(`[data-agent-link-id="${report.scenarios[name]?.linkId}"] button`, "Открыть запуск"));
-      await app.clickEl(byText(".orch-panel button", "Стоп"));
+      await app.clickEl(q("[data-orch-stop]"));
       const end = Date.now() + 60_000;
       while (Date.now() < end && ["running", "created", "preparing", "pausing", "stopping"].includes(lastStatus(own.runId)?.status)) await sleep(500);
       out.stopped.push({ scenario: name, from: st, to: lastStatus(own.runId) });
@@ -779,8 +779,8 @@ async function runScenario(name) {
   const answered = new Set();
   const argvByPid = own.argvByPid;
   for (;;) {
-    if (Date.now() - start > SCENARIO_MS) { sc.stop = "scenario time limit (20 min)"; await app.clickEl(byText(".orch-panel button", "Стоп")).catch(() => {}); halt(`${name}: 20 min limit`); }
-    if (Date.now() - t0 > SERIES_MS) { sc.stop = `series time limit (${SERIES_MS / 60_000} min)`; await app.clickEl(byText(".orch-panel button", "Стоп")).catch(() => {}); halt(`series ${SERIES_MS / 60_000} min limit`); }
+    if (Date.now() - start > SCENARIO_MS) { sc.stop = "scenario time limit (20 min)"; await app.clickEl(q("[data-orch-stop]")).catch(() => {}); halt(`${name}: 20 min limit`); }
+    if (Date.now() - t0 > SERIES_MS) { sc.stop = `series time limit (${SERIES_MS / 60_000} min)`; await app.clickEl(q("[data-orch-stop]")).catch(() => {}); halt(`series ${SERIES_MS / 60_000} min limit`); }
     const v = await view(app, runId);
     if (v?.workDir) own.workDir = workDir = v.workDir;
     for (const p of claudeSessions()) if (!argvByPid.has(p.pid)) argvByPid.set(p.pid, permissionFlag(p.args));

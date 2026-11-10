@@ -158,7 +158,7 @@ try {
   await app.waitFor(`${q("[data-orch-newer]")} && true`, "the newer run's panel");
   await app.waitFor(`document.querySelectorAll("[data-orch-newer-history] li").length === 4`, "four records in the history");
   const panel = await app.ev(`(() => { const p = ${q("[data-orch-newer]")}; return {
-    version: p.dataset.orchNewer, title: p.querySelector(".orch-summary__headline").textContent, goal: p.querySelector("[data-orch-newer-goal]").textContent,
+    version: p.dataset.orchNewer, title: p.querySelector(".orch-zone__headline").textContent, goal: p.querySelector("[data-orch-newer-goal]").textContent,
     types: [...p.querySelectorAll("[data-orch-newer-history] code")].map((c) => c.textContent),
     buttons: [...p.querySelectorAll("button")].map((b) => b.getAttribute("aria-label") ?? b.textContent.trim()),
     text: p.textContent }; })()`);

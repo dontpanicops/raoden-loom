@@ -34,6 +34,8 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
   const [goalLinkId, setGoalLinkId] = useState<string | null>(null);
   // B2: the board task the goal dialog starts from (its text and requirements; the run names it in goal.task)
   const [goalTask, setGoalTask] = useState<GoalTask | null>(null);
+  // R3b: the goal dialog opens on the project's settings («Project settings» of a pause)
+  const [goalSettings, setGoalSettings] = useState(false);
   const [panel, setPanel] = useState<PanelState | null>(null);
   const panelLinkId = panel?.linkId ?? null;
   const focusCount = useRef(0);
@@ -94,9 +96,9 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
     linkingFrom, setLinkingFrom, messages, connect, createAgent, deleteAgent, deleteLink,
     createAt, openCreate: (provider: OrchestrationProviderKind, point: Point) => setCreateAt({ provider, point }),
     closeCreate: () => setCreateAt(null),
-    goalLinkId, goalTask, openGoal: (linkId: string, task: GoalTask | null = null) => { setPanel(null); setPickedRuns((p) => { const { [linkId]: _drop, ...rest } = p; return rest; }); // a new goal's run is the one shown
-      setGoalTask(task); setGoalLinkId(linkId); },
-    closeGoal: () => { setGoalLinkId(null); setGoalTask(null); },
+    goalLinkId, goalTask, goalSettings, openGoal: (linkId: string, task: GoalTask | null = null, settings = false) => { setPanel(null); setPickedRuns((p) => { const { [linkId]: _drop, ...rest } = p; return rest; }); // a new goal's run is the one shown
+      setGoalTask(task); setGoalSettings(settings); setGoalLinkId(linkId); },
+    closeGoal: () => { setGoalLinkId(null); setGoalTask(null); setGoalSettings(false); },
     panel, panelLinkId,
     openPanel: (linkId: string, opts: PanelView = {}) => {
       setGoalLinkId(null);
@@ -149,7 +151,7 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
     closePanel: () => setPanel(null),
     // The native browser view composites above the DOM; it hides while one of these is open.
     overlayOpen: createAt !== null || goalLinkId !== null || panel !== null
-  }), [connect, createAgent, createAt, deleteAgent, deleteLink, goalLinkId, goalTask, linkingFrom, messages, orch.canvas.links, orch.runs, panel, panelLinkId, pickedRuns]);
+  }), [connect, createAgent, createAt, deleteAgent, deleteLink, goalLinkId, goalSettings, goalTask, linkingFrom, messages, orch.canvas.links, orch.runs, panel, panelLinkId, pickedRuns]);
 }
 
 export type AgentCanvasUi = ReturnType<typeof useAgentCanvasUi>;

@@ -200,7 +200,7 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
       async reveal(selector) {
         for (let i = 0; i < 30; i++) {
           const r = await app.ev(`(() => { const el = ${selector}; if (!el) return null; const r = el.getBoundingClientRect();
-            const scroller = el.closest(".orch-summary, .orch-panel__body, .orch-dialog"); // the panel's body or a dialog taller than the window
+            const scroller = el.closest(".orch-zone, .orch-panel__body, .orch-dialog"); // the panel's body or a dialog taller than the window
             const sbox = scroller?.getBoundingClientRect() ?? { left: 0, top: 40, right: innerWidth, bottom: innerHeight };
             // a dialog's pinned bottom (Start / Save) covers what scrolls under it: the visible part ends above it
             const foot = scroller?.matches(".orch-dialog") ? scroller.querySelector(".orch-form__actions") : null;

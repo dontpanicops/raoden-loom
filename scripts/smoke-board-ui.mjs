@@ -170,7 +170,7 @@ try {
   const run1 = runs1[0];
   const done1 = await until("T-1", (s) => s.done === "confirmed", "T-1 done (confirmed)");
   expect(done1.column === "done" && done1.line.startsWith("Готово — подтверждено проверками") && done1.badge?.includes("confirmed"), "T-1: Done, confirmed by checks", done1);
-  expect(await app.ev(`${q("[data-orch-task]")}?.dataset.orchTask`) === "T-1", "the run's summary starts with T-1", await app.ev(`${q(".orch-summary")}?.textContent.slice(0, 200)`));
+  expect(await app.ev(`${q("[data-orch-task]")}?.dataset.orchTask`) === "T-1", "the run's summary starts with T-1", await app.ev(`${q(".orch-zone")}?.textContent.slice(0, 200)`));
   await closePanel();
   await app.clickEl(`${q(task("T-1"))}.querySelector("[data-board-open-result]")`);
   await app.waitFor(`!!(${q('[data-orch-tab="summary"][aria-selected="true"]')} && ${q('[data-orch-section="result"][open]')} && ${q('[data-run-doc="result"]')})`, "board: Result opens the result section");

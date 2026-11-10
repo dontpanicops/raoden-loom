@@ -151,7 +151,7 @@ try {
   await app.waitFor(`${q("[data-orch-permission]")} && true`, "permission prompt", 60_000);
   const perm = await app.ev(`${q("[data-orch-permission]")}.textContent`);
   expect(perm.includes("Bash") && perm.includes("node --test"), "the executor's Bash prompt is in the panel with its command", perm);
-  expect(await app.ev(`${q(".orch-summary")}.textContent.includes("разреш") || ${q(".orch-summary")}.textContent.includes("Разреш")`), "the headline says a decision is awaited", null);
+  expect(await app.ev(`${q(".orch-zone")}.textContent.includes("разреш") || ${q(".orch-zone")}.textContent.includes("Разреш")`), "the headline says a decision is awaited", null);
   await app.shot("04-permission");
   await app.clickEl(q(`[data-orch-permission] [data-decision="allow_once"]`));
   await app.waitFor(`${q("[data-orch-permission] .orch-permission__q")} && true`, "question", 30_000);

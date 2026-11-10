@@ -131,7 +131,7 @@ function tree(pid) {
 }
 const runProcesses = (mainPid) => tree(mainPid).filter((p) => p.command.includes("supervisor.mjs")).flatMap((s) => [s, ...tree(s.pid)]);
 const isClaude = (p) => !p.command.includes("supervisor.mjs") && p.command.split(" ").slice(0, 2).some((t) => path.basename(t).startsWith("claude"));
-const clickAction = (app, label) => app.clickEl(byText(".orch-panel__actions button, .orch-panel__section button, .orch-summary > button, .orch-panel__row button", label));
+const clickAction = (app, label) => app.clickEl(byText(".orch-zone__actions button, .orch-panel__foot button, .orch-panel__section button, .orch-zone > button, .orch-panel__row button", label));
 const calls = () => Object.values(report.scenarios).reduce((n, s) => n + (s.calls ?? 0), 0);
 const LIMIT_TEXT = /usage limit|rate limit|limit reached|hit your limit|quota|429|overloaded|try again (at|later|in)/i;
 
@@ -224,7 +224,7 @@ async function scenario(name) {
     if (s.action === "stop") {
       const turnId = await claudeRunning();
       log(`${name}: Claude turn ${turnId.slice(0, 8)} running; «Стоп»`);
-      await clickAction(app, "Стоп");
+      await clickAction(app, "Остановить запуск");
       if (REHEARSE) fs.rmSync(HOLD, { force: true });
       v = await until((x) => x.status === "stopped", 3 * 60_000);
       const fin = journalOf(root, runId).find((r) => r.type === "turn.finished" && r.data.turnId === turnId);
@@ -307,7 +307,7 @@ async function scenario(name) {
   } finally {
     if (runId) {
       const v = await app.ev(`window.canvasTTY.orchestration.get(${JSON.stringify(runId)}).then((r) => r.value.view.status)`).catch(() => null);
-      if (["running", "pausing", "preparing", "paused"].includes(v)) await clickAction(app, "Стоп").catch(() => {});
+      if (["running", "pausing", "preparing", "paused"].includes(v)) await clickAction(app, "Остановить запуск").catch(() => {});
     }
     fs.rmSync(HOLD, { force: true });
     await app.quit().catch(() => app.stop());

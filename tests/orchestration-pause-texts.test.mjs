@@ -82,19 +82,22 @@ const panelOf = async () => {
 };
 const buttons = (html) => [...html.matchAll(/<button([^>]*)>([\s\S]*?)<\/button>/g)].map((m) => ({ attrs: m[1], text: m[2].replace(/<[^>]+>/g, "") }));
 
-test("the header's main button is the pause's action; Stop is secondary and last; the headline is said once", async () => {
+test("the zone's main button is the pause's action; Stop is in the footer outside the zone; the headline is said once", async () => {
   const panel = await panelOf();
   const primaryOf = (html) => buttons(html).filter((b) => /class="[^"]*orch-primary/.test(b.attrs));
-  const stopOf = (html) => buttons(html).find((b) => b.text === t("ru", "orchStop") || b.text === t("ru", "orchPause_lead_modified_tree_button"));
+  const stopsOf = (html) => buttons(html).filter((b) => /data-orch-stop/.test(b.attrs) || b.text === t("ru", "orchPause_lead_modified_tree_button"));
+  const zoneOf = (html) => html.slice(html.indexOf("data-orch-summary"), html.indexOf("data-orch-foot") > 0 ? html.indexOf("data-orch-foot") : html.length);
 
   const resumed = panel(view("paused", "user_request"));
   assert.match(primaryOf(resumed)[0].attrs, /data-orch-primary="resume"/);
   assert.equal(primaryOf(resumed)[0].text, "Продолжить");
-  assert.match(stopOf(resumed).attrs, /class="orch-stop"/, "Stop is secondary");
-  assert.doesNotMatch(stopOf(resumed).attrs, /orch-danger|orch-primary/);
-  const at = resumed.indexOf("data-orch-actions");
-  const row = buttons(resumed.slice(at, resumed.indexOf("</div>", at)));
-  assert.equal(row.at(-1).text, "Остановить запуск", "Stop is last in the row");
+  assert.equal(primaryOf(resumed).length, 1, "one main button");
+  assert.equal(stopsOf(resumed).length, 1);
+  assert.match(stopsOf(resumed)[0].attrs, /class="orch-stop"/, "Stop is outlined, never filled");
+  assert.doesNotMatch(stopsOf(resumed)[0].attrs, /orch-danger|orch-primary/);
+  assert.equal(stopsOf(resumed)[0].text, "Остановить запуск");
+  assert.ok(resumed.indexOf("data-orch-foot") > resumed.indexOf('id="orch-tabpanel"'), "the footer is under the tabs");
+  assert.equal(stopsOf(zoneOf(resumed)).length, 0, "no Stop inside the zone");
 
   const step = panel(view("paused", "invalid_report"));
   assert.equal(primaryOf(step)[0].text, "Повторить ход", "the button says what the text says");
@@ -104,22 +107,25 @@ test("the header's main button is the pause's action; Stop is secondary and last
   const proposal = { checks: [{ id: "c1", command: "npm test", why: "the tests", source: [] }], none: null };
   const checks = panel(view("paused", "awaiting_checks_decision", { proposal }));
   assert.match(primaryOf(checks)[0].attrs, /data-orch-checks-accept/);
-  assert.ok(checks.indexOf("data-orch-checks-accept") < checks.indexOf("data-orch-actions"), "the form before the Stop row");
+  assert.ok(checks.indexOf("data-orch-checks-accept") < checks.indexOf("data-orch-foot"), "the form before the footer with Stop");
   assert.ok(checks.indexOf("data-orch-next") < checks.indexOf("data-orch-checks-proposal"), "the form right under what to do");
-  assert.match(stopOf(checks).attrs, /class="orch-stop"/);
+  assert.match(stopsOf(checks)[0].attrs, /class="orch-stop"/);
 
   const limit = panel(view("paused", "limit_reached"));
   assert.match(primaryOf(limit)[0].attrs, /data-orch-primary="raise_limit"/);
   assert.match(limit, /Новое значение/, "the limit's field says what it is");
 
   const tree = panel(view("paused", "lead_modified_tree"));
-  assert.match(stopOf(tree).attrs, /orch-danger/, "where stopping is all main allows, Stop is the main action");
-  assert.equal(stopOf(tree).text, "Остановить запуск");
+  assert.equal(stopsOf(tree).length, 1, "Stop once: the main button, not the footer");
+  assert.match(stopsOf(tree)[0].attrs, /orch-danger/, "where stopping is all main allows, Stop is the main action");
+  assert.match(stopsOf(tree)[0].attrs, /data-orch-primary="stop"/);
+  assert.equal(stopsOf(tree)[0].text, "Остановить запуск");
+  assert.doesNotMatch(tree, /data-orch-foot/, "no footer: nothing else to do there");
   assert.doesNotMatch(tree, /контрольной точке/, "no button to return to a checkpoint here, so it is not advised");
 
   const running = panel(view("running", null));
   assert.match(primaryOf(running)[0].attrs, /data-orch-primary="pause"/);
-  assert.match(stopOf(running).attrs, /class="orch-stop"/);
+  assert.match(stopsOf(running)[0].attrs, /class="orch-stop"/);
 
   for (const reason of ["needs_user_action", "awaiting_person_decision", "coverage_lost"]) {
     // the glossary wraps words in <abbr>: compare the text, not the markup
@@ -253,6 +259,11 @@ test("the buttons of the disputed pauses are those spec-vs-code §1.3 settled (p
   assert.equal(clarify("loop_suspected"), "open");
   for (const set of ["awaiting_answer", "journal_corrupt", "lead_modified_tree", "push_protected", "coverage_lost", "awaiting_checks_decision", "newer_version"]) assert.equal(clarify(set), "hidden", set);
   assert.equal(clarify("limit_reached", { proposalWaits: true }), "disabled");
+  // a waiting plan proposal: main refuses the raise, so the zone offers Resume (it opens the proposal) and no limit field
+  const waits = fixture("limit_reached");
+  const lz = actionZone("ru", { ...waits.view, proposalWaits: true }, waits.entries, true);
+  assert.equal(lz.primary.action, "resume");
+  assert.ok(!lz.commands.includes("raise_limit"));
 });
 
 test("a protected branch is read from the feed: only while that pause lasts", () => {
