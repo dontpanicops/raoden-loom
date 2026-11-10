@@ -1470,7 +1470,12 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
   }, [runId]);
   const reveal = useCallback((id: PanelSection): (() => void) => {
     setOpened((o) => (o[id] ? o : { ...o, [id]: true }));
-    const raf = window.requestAnimationFrame(() => sectionEls.current[id]?.scrollIntoView({ block: "start" }));
+    const raf = window.requestAnimationFrame(() => {
+      const el = sectionEls.current[id];
+      el?.scrollIntoView({ block: "start" });
+      // the button that asked for it is gone: the focus goes to the opened section, not to the page body
+      if (!document.activeElement || document.activeElement === document.body) el?.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
+    });
     return () => window.cancelAnimationFrame(raf);
   }, []);
   // biome-ignore lint/correctness/useExhaustiveDependencies: panel.focus is the trigger: every request reveals its section
@@ -1808,9 +1813,9 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
           <div className="orch-tabs orch-seg" role="tablist" aria-label={t(locale, "orchRun")}
             onKeyDown={(e) => {
               const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-              if (!step) return;
+              if (!step && e.key !== "Home" && e.key !== "End") return;
               e.preventDefault();
-              const next = tabs[(tabs.indexOf(curTab) + step + tabs.length) % tabs.length];
+              const next = e.key === "Home" ? tabs[0] : e.key === "End" ? tabs[tabs.length - 1] : tabs[(tabs.indexOf(curTab) + step + tabs.length) % tabs.length];
               onView({ tab: next });
               e.currentTarget.querySelector<HTMLElement>(`[data-orch-tab="${next}"]`)?.focus();
             }}>

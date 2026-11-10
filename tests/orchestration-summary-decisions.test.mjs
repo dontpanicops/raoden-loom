@@ -93,11 +93,15 @@ test("the proof line says what is proven and what is not, never against the head
     }
   }
   // a completed run whose checks did not pass or never ran says so
-  for (const [checks, ru, en] of [["failed", /проверки не пройдены/, /checks did not pass/], ["not_verified", /проверки не пройдены/, /checks did not pass/], ["running", /проверки не пройдены/, /checks did not pass/], ["none", /проверки не запускались/, /checks did not run/]]) {
+  for (const [checks, ru, en] of [["failed", /проверки не пройдены/, /checks did not pass/], ["not_verified", /проверки не подтверждены/, /checks are not confirmed/], ["running", /проверки ещё идут/, /checks are still running/], ["none", /проверки не запускались/, /checks did not run/]]) {
     const f = { ...resultFacts(view("completed"), digest(), 1, null), checks };
     assert.match(proofLine("ru", "completed", f), ru, checks);
     assert.match(proofLine("en", "completed", f), en, checks);
   }
+  const newerV = view("completed", null, { newer: { version: 9 } });
+  const unk = { ...resultFacts(newerV, digest(), null, null), changes: "unknown" };
+  assert.doesNotMatch(changesNote("ru", newerV, unk), /Изменения/);
+  assert.doesNotMatch(changesNote("en", newerV, unk), /Changes tab/);
   assert.notEqual(proofLine("ru", "completed_unloaded", resultFacts(view("completed"), digest(), null, null)), proofLine("ru", "completed", resultFacts(view("completed"), digest(), null, null)));
 });
 

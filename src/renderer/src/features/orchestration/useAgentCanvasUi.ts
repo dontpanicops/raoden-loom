@@ -6,7 +6,7 @@ import type { LocaleId, Point } from "../../../../shared/contracts";
 import type { OrchestrationAgentLink, OrchestrationProviderKind } from "../../../../shared/orchestration";
 import { AGENT_CARD_SIZE } from "./agentCardGeometry";
 import { linkTrace } from "./linkTrace";
-import { createIdKeeper, TERMINAL_STATUSES } from "./runModel";
+import { createIdKeeper, shownRunId, TERMINAL_STATUSES, type PickedRun } from "./runModel";
 import { outcomeText, type Orchestration } from "./useOrchestration";
 
 import { panelView, type PanelMode, type PanelRole, type PanelSection, type PanelTab, type PanelView, type PanelViewArg } from "./panelTabs";
@@ -38,7 +38,8 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
   const panelLinkId = panel?.linkId ?? null;
   const focusCount = useRef(0);
   // The live run of a link the person picked (the chip on the canvas and the panel show the same one): linkId -> runId
-  const [pickedRuns, setPickedRuns] = useState<Record<string, string>>({});
+  const [pickedRuns, setPickedRuns] = useState<Record<string, PickedRun>>({});
+  const pickOf = (linkId: string, runId: string): PickedRun => ({ runId, seen: orch.canvas.links.find((l) => l.linkId === linkId)?.runIds.length ?? 0 });
   const [messages, setMessages] = useState<Record<string, CardMessage>>({});
   // A link or card id is kept across a transport failure, so the retry names the same object.
   const ids = useRef(createIdKeeper(() => crypto.randomUUID())).current;
@@ -114,16 +115,17 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
         orch.watchRun(next.runId);
         const runId = next.runId;
         // the one choice lives in pickedRuns (the chip reads it too); the panel is not remounted by it
-        if (panel?.linkId) setPickedRuns((p) => ({ ...p, [panel.linkId as string]: runId }));
+        if (panel?.linkId) setPickedRuns((p) => ({ ...p, [panel.linkId as string]: pickOf(panel.linkId as string, runId) }));
         else setPanel((cur) => (cur ? { ...cur, runId } : cur));
       }
       setPanel((cur) => (cur ? { ...cur, ...(v.tab ? target(v, cur) : { ...(v.mode ? { mode: v.mode } : {}), ...(v.section ? { section: v.section } : {}) }), ...(v.role ? { role: v.role } : {}) } : cur));
     },
     pickedRuns,
-    pickRun: (linkId: string, runId: string) => setPickedRuns((p) => ({ ...p, [linkId]: runId })),
+    pickRun: (linkId: string, runId: string) => setPickedRuns((p) => ({ ...p, [linkId]: pickOf(linkId, runId) })),
     // "Open run": the summary (a run that goes on starts at its overview section); "Observe": the live feed of one participant.
     openRun: (linkId: string) => {
-      const runId = orch.canvas.links.find((l) => l.linkId === linkId)?.runIds.at(-1);
+      const link = orch.canvas.links.find((l) => l.linkId === linkId);
+      const runId = shownRunId(link, orch.runs, pickedRuns);
       const status = runId ? orch.runs[runId]?.view.status : undefined;
       setGoalLinkId(null);
       focusCount.current += 1;
@@ -141,7 +143,7 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
       const v = panelView(arg);
       const dflt = !status || TERMINAL_STATUSES.includes(status) ? undefined : "overview";
       // a run of a link is the link's picked run (chip and panel agree); only a run without its link is held by the panel
-      if (linkId) setPickedRuns((p) => ({ ...p, [linkId]: runId }));
+      if (linkId) setPickedRuns((p) => ({ ...p, [linkId]: pickOf(linkId, runId) }));
       setPanel({ linkId, ...(linkId ? {} : { runId }), ...target(v, null, dflt), role: v.role ?? "executor", focus });
     },
     closePanel: () => setPanel(null),

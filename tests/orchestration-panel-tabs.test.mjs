@@ -42,11 +42,14 @@ test("the live runs of a link and the one shown (the chip and the panel agree)",
   const runs = { a: { view: { status: "running" } }, b: { view: { status: "completed" } }, c: { view: { status: "paused" } }, d: { view: { status: "completed" } } };
   const link = { linkId: "L", runIds: ["a", "b", "c", "d"] };
   assert.deepEqual(liveRuns(link, runs), ["a", "c"]);
+  const pk = (runId, seen = 4) => ({ L: { runId, seen } });
   assert.equal(shownRunId(link, runs, {}), "c");
-  assert.equal(shownRunId(link, runs, { L: "a" }), "a");
-  assert.equal(shownRunId(link, runs, { L: "d" }), "d", "a picked run that ended is not swapped silently");
-  assert.equal(shownRunId(link, runs, { L: "b" }), "c", "a newer run that goes on is shown over an ended pick");
-  assert.equal(shownRunId(link, runs, { L: "zz" }), "c", "a pick that is not the link's is ignored");
+  assert.equal(shownRunId(link, runs, pk("a")), "a", "an old run opened by id wins over a live newer one that was there");
+  assert.equal(shownRunId(link, runs, pk("d")), "d", "a picked run that ended is not swapped silently");
+  assert.equal(shownRunId(link, runs, pk("b")), "b", "an ended pick stays while nothing new came");
+  assert.equal(shownRunId(link, runs, pk("a", 3)), "c", "a run added after the pick is shown");
+  assert.equal(shownRunId({ linkId: "L", runIds: ["a", "b", "c", "d", "e"] }, { ...runs, e: { view: { status: "preparing" } } }, pk("d")), "e", "new work after the pick");
+  assert.equal(shownRunId(link, runs, pk("zz")), "c", "a pick that is not the link's is ignored");
   assert.equal(shownRunId({ linkId: "M", runIds: ["b", "d"] }, runs, {}), "d");
   assert.equal(shownRunId(undefined, runs, {}), undefined);
 });

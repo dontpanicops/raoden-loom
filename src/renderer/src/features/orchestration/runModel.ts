@@ -36,16 +36,14 @@ export function liveRuns(link: { runIds: string[] }, runs: Record<string, { view
     return !!v && !TERMINAL_STATUSES.includes(v.status);
   });
 }
-export function shownRunId(link: { linkId: string; runIds: string[] } | undefined, runs: Record<string, { view: { status: string } } | undefined>, picked: Record<string, string>): string | undefined {
+// A pick (chip, switcher or open by id) holds the run shown until a run is added to the link after it (`seen` is the link's
+// run count at the pick): then the new work is shown, never hidden by an old pick.
+export interface PickedRun { runId: string; seen: number }
+export function shownRunId(link: { linkId: string; runIds: string[] } | undefined, runs: Record<string, { view: { status: string } } | undefined>, picked: Record<string, PickedRun>): string | undefined {
   if (!link) return undefined;
-  const live = liveRuns(link, runs);
   const p = picked[link.linkId];
-  // the picked run stays shown while it is one of the link's runs, also after it ended (never swapped silently),
-  // until a newer run of the link goes on: new work on the link is shown, an old pick does not hide it
-  const at = p ? link.runIds.indexOf(p) : -1;
-  const newerLive = live.find((id) => link.runIds.indexOf(id) > at);
-  if (at >= 0 && (live.includes(p as string) || !newerLive)) return p;
-  return live.at(-1) ?? link.runIds.at(-1);
+  if (p && link.runIds.includes(p.runId) && link.runIds.length <= p.seen) return p.runId;
+  return liveRuns(link, runs).at(-1) ?? link.runIds.at(-1);
 }
 
 export type RunAction = "pause" | "keep_running" | "resume" | "step" | "stop" | "answer" | "clarify" | "raise_limit" | "recover" | "permission"
@@ -775,12 +773,12 @@ export function factLines(locale: LocaleId, view: OrchestrationRunView, facts: R
 // the summary shows (runStatus outcomeKey), so it never says the opposite of the headline. A completed run's
 // "goal accepted" field is not drawn (this line says it); «no changes» then carries its meaning (changesNote).
 export function proofLine(locale: LocaleId, outcome: string, facts: ResultFacts): string {
-  const key = outcome === "completed" ? (facts.checks === "passed" ? "completed" : facts.checks === "none" ? "completed_unrun" : "completed_unpassed") : outcome;
+  const key = outcome === "completed" ? (facts.checks === "passed" ? "completed" : facts.checks === "none" ? "completed_unrun" : facts.checks === "not_verified" ? "completed_notverified" : facts.checks === "running" ? "completed_running" : "completed_unpassed") : outcome;
   return t(locale, `orchProof_${key}` as TranslationKey);
 }
 export function changesNote(locale: LocaleId, view: OrchestrationRunView, facts: ResultFacts): string | null {
   if (view.status !== "completed" || facts.changes === "yes") return null;
-  return t(locale, facts.changes === "no" ? "orchProofChangesNo" : "orchProofChangesUnknown");
+  return t(locale, facts.changes === "no" ? "orchProofChangesNo" : view.newer ? "orchProofChangesUnknownNewer" : "orchProofChangesUnknown");
 }
 
 // UX audit PR 2 (Н11): one table of the interface's terms, each with one sentence of explanation (orchTerm_<term>) —
