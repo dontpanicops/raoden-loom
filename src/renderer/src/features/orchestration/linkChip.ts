@@ -1,5 +1,7 @@
 // Where a link's chip goes (UX audit PR 2, Н14): between the two cards it links, unless it would cover a card there —
 // then under the pair, else above it. The chip is centred on the point (translate(-50%, -50%)). Pure: tested under node.
+import { curvePoint, type LinkGeometry } from "./linkCurve.ts";
+
 export interface Rect { x: number; y: number; width: number; height: number }
 export interface Point { x: number; y: number }
 
@@ -27,12 +29,18 @@ export function chipCenter(from: Rect, to: Rect, cards: readonly Rect[], size: {
   return free(above) ? above : below;
 }
 
-// R2: the chip hangs off the curve's t=0.5 point (where the bend handle is) along the normal n̂, one step to a side, more
-// steps / the other side until it covers no card (Н14); nothing free within 4 steps: the first step.
-export function chipOnCurve(mid: Point, normal: Point, cards: readonly Rect[], size: { width: number; height: number }): Point {
+// R2: the chip sits ON the curve, at the first of t = 0.5, 0.42, 0.58, ... that covers no card (Н14). With the link selected
+// t=0.5 is the bend handle's: skipped. No free t: along the normal from the middle in big steps, else the middle.
+const CHIP_T = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74];
+export function chipOnCurve(g: LinkGeometry, cards: readonly Rect[], size: { width: number; height: number }, selected = false): Point {
   const free = (c: Point) => !cards.some((r) => overlaps(around(c, size.width, size.height), r));
+  for (const t of selected ? CHIP_T.slice(1) : CHIP_T) {
+    const c = curvePoint(g, t);
+    if (free(c)) return c;
+  }
+  const { mid, normal } = g;
   const step = Math.abs(normal.x) * size.width / 2 + Math.abs(normal.y) * size.height / 2 + GAP + 6;
   const at = (k: number): Point => ({ x: mid.x + normal.x * step * k, y: mid.y + normal.y * step * k });
-  for (let i = 1; i <= 4; i++) for (const s of [1, -1]) if (free(at(i * s))) return at(i * s);
-  return at(1);
+  for (const k of [3, -3, 5, -5, 8, -8]) if (free(at(k))) return at(k);
+  return selected ? at(3) : mid;
 }

@@ -50,16 +50,18 @@ test("degenerate ports and arrow path are finite", () => {
   assert.ok(!/NaN/.test(arrowPath(linkGeometry({ x: 0, y: 0 }, { x: 300, y: 0 }), 12)));
 });
 
-test("chip: hangs off the curve's middle (clear of the handle), steps along the normal off a card, never sits on one", () => {
-  const size = { width: 100, height: 26 };
-  const mid = { x: 200, y: 0 }, n = { x: 0, y: 1 };
-  const free = chipOnCurve(mid, n, [], size);
-  assert.equal(free.x, 200);
-  assert.ok(free.y >= 13 + 10, "the chip does not cover the point where the handle is");
-  const card = { x: 100, y: 10, width: 200, height: 60 };
-  const at = chipOnCurve(mid, n, [card], size);
-  assert.ok(at.y + 13 <= card.y || at.y - 13 >= card.y + card.height, "clear of the card");
-  assert.equal(at.x, 200);
+test("chip: on the curve at t=0.5, shifts along t off a card, skips the handle when selected, never on a card if a t is free", () => {
+  const size = { width: 40, height: 26 };
+  const g = linkGeometry({ x: 0, y: 0 }, { x: 1000, y: 0 });
+  const over = (c, r) => c.x - 20 < r.x + r.width && r.x < c.x + 20 && c.y - 13 < r.y + r.height && r.y < c.y + 13;
+  const mid = chipOnCurve(g, [], size);
+  close(mid.x, g.mid.x); close(mid.y, g.mid.y);
+  const card = { x: g.mid.x - 10, y: g.mid.y - 30, width: 20, height: 60 };
+  const moved = chipOnCurve(g, [card], size);
+  assert.ok(!over(moved, card), "clear of the card");
+  assert.ok(Math.abs(moved.x - g.mid.x) > 1, "moved along the curve");
+  const sel = chipOnCurve(g, [], size, true);
+  assert.ok(Math.abs(sel.x - g.mid.x) > 1, "not on the handle");
 });
 
 test("css: links without backdrop-filter, the dashed march stops under prefers-reduced-motion", () => {
