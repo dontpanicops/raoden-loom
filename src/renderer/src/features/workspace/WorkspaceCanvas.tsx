@@ -18,12 +18,13 @@ import type {
   SessionSnapshot,
   StickyNote
 } from "../../../../shared/contracts";
+import { HOME_GRID_GAP } from "../../../../shared/contracts";
 import { UiIcon } from "../../components/UiIcon";
 import { t } from "../../lib/i18n";
 import { displayCanvasNavigationBinding, matchesPhysicalOrLayoutKey, matchesShortcut } from "../../lib/shortcuts";
 import { BrowserCard } from "../browser/BrowserCard";
 import type { LimitsLoadState } from "../home/homeModel";
-import { homeGridPixelSize, homeLayoutFitsGrid } from "../home/homeLayout";
+import { HOME_GRID_COLUMN_STEP, HOME_GRID_ROW_STEP, homeGridPixelSize, homeLayoutFitsGrid } from "../home/homeLayout";
 import { HomeZone } from "../home/HomeZone";
 import { RadialLauncher } from "../launcher/QuickRadialMenu";
 import { StickyNoteCard } from "../notes/StickyNoteCard";
@@ -476,20 +477,20 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     position: { x: 0, y: 0 },
     size: homeGridPixelSize(settings.homeGridSize)
   }), [settings.homeGridSize]);
-  // The first-run card clears the HOME tiles on screen: measured (the HOME grid is larger than the tiles it holds)
+  // The first-run card clears the HOME tiles on screen: plain arithmetic from the layout and the camera (no DOM measuring per camera frame)
   const [onboardingPlace, setOnboardingPlace] = useState<{ left: number; top: number } | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: camera and home settings are the triggers: the tiles' screen rects move with them
   useLayoutEffect(() => {
     const view = viewport.current;
-    if (!view || settings.onboardingDismissed) return;
-    const box = view.getBoundingClientRect();
-    const tiles = [...view.querySelectorAll(".home-zone .tile")].map((el) => el.getBoundingClientRect());
-    if (tiles.length === 0) { setOnboardingPlace(null); return; }
+    if (!view || settings.onboardingDismissed || settings.homeLayout.length === 0) { setOnboardingPlace(null); return; }
+    const w = (v: number): number => v * camera.zoom;
     const home = {
-      left: Math.min(...tiles.map((r) => r.left)) - box.left, top: Math.min(...tiles.map((r) => r.top)) - box.top,
-      right: Math.max(...tiles.map((r) => r.right)) - box.left, bottom: Math.max(...tiles.map((r) => r.bottom)) - box.top
+      left: camera.x + w(Math.min(...settings.homeLayout.map((p) => p.column)) * HOME_GRID_COLUMN_STEP),
+      top: camera.y + w(Math.min(...settings.homeLayout.map((p) => p.row)) * HOME_GRID_ROW_STEP),
+      right: camera.x + w(Math.max(...settings.homeLayout.map((p) => (p.column + p.columnSpan) * HOME_GRID_COLUMN_STEP - HOME_GRID_GAP))),
+      bottom: camera.y + w(Math.max(...settings.homeLayout.map((p) => (p.row + p.rowSpan) * HOME_GRID_ROW_STEP - HOME_GRID_GAP)))
     };
-    const next = onboardingPlacement(home, { width: box.width, height: box.height });
+    const next = onboardingPlacement(home, { width: view.clientWidth, height: view.clientHeight });
     setOnboardingPlace((prev) => (prev?.left === next?.left && prev?.top === next?.top ? prev : next));
   }, [camera.x, camera.y, camera.zoom, settings.homeGridSize, settings.homeLayout, settings.onboardingDismissed]);
 

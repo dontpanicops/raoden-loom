@@ -263,7 +263,7 @@ export function useOrchestration() {
     createLink: (input: { linkId: string; fromAgentId: string; toAgentId: string }) =>
       apply(() => api().createLink(input), (link) => setCanvas((c) => (c.links.some((l) => l.linkId === link.linkId) ? c : { ...c, links: [...c.links, link] }))),
 
-    setLinkBend: (linkId: string, bend: { along: number; across: number } | null) => apply(() => api().setLinkBend(linkId, bend), (link) => setCanvas((c) => ({ ...c, links: c.links.map((l) => (l.linkId === linkId ? link : l)) }))),
+    setLinkBend: (linkId: string, bend: { along: number; across: number } | null) => apply(() => api().setLinkBend(linkId, bend), (link) => setCanvas((c) => ({ ...c, links: c.links.map((l) => { if (l.linkId !== linkId) return l; const { bend: _old, ...rest } = l; return link.bend ? { ...rest, bend: link.bend } : rest; }) }))),
     deleteLink: (linkId: string) => apply(() => api().deleteLink(linkId), () => setCanvas((c) => ({ ...c, links: c.links.filter((l) => l.linkId !== linkId) }))),
 
     // commandId: one per confirmation, so a repeat after a lost answer is the same release.

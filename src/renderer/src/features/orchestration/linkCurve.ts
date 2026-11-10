@@ -36,6 +36,12 @@ export function linkGeometry(f: BendPoint, t: BendPoint, bend?: LinkBend | null)
   return { f, c1, c2, t, mid, normal: pt(-tan.y / m, tan.x / m), arrow: pt(a.x / am, a.y / am) };
 }
 
+// the curve's point at parameter t (0..1)
+export function curvePoint(g: LinkGeometry, t: number): BendPoint {
+  const u = 1 - t, a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t;
+  return pt(a * g.f.x + b * g.c1.x + c * g.c2.x + d * g.t.x, a * g.f.y + b * g.c1.y + c * g.c2.y + d * g.t.y);
+}
+
 export const linkPath = (g: LinkGeometry): string => `M ${g.f.x} ${g.f.y} C ${g.c1.x} ${g.c1.y} ${g.c2.x} ${g.c2.y} ${g.t.x} ${g.t.y}`;
 
 // Arrowhead at T pointing along the end tangent; size in world px (the caller divides by zoom for a constant screen size).

@@ -52,7 +52,7 @@ interface Dependencies {
   settings: SettingsStore;
   terminals: TerminalManager;
   limits: LimitsService;
-  providerClis: ProviderCliRegistry;
+  newProviderClis: () => ProviderCliRegistry; // a fresh registry per call: the cached one never sees a CLI installed later
   plugins: PluginManager;
   pluginMedia: PluginMediaService;
   pluginSecrets: PluginSecretsService;
@@ -76,7 +76,7 @@ export function registerIpc({
   settings,
   terminals,
   limits,
-  providerClis,
+  newProviderClis,
   plugins,
   pluginMedia,
   pluginSecrets,
@@ -215,7 +215,10 @@ export function registerIpc({
   });
 
   handleMain(IPC.limitsGet, () => limits.get());
-  handleMain(IPC.providersAvailable, () => PROVIDER_CLI_IDS.filter((id) => providerClis.get(id).state === "available"));
+  handleMain(IPC.providersAvailable, () => {
+    const clis = newProviderClis();
+    return PROVIDER_CLI_IDS.filter((id) => clis.get(id).state === "available");
+  });
 
   ipcMain.handle(IPC.pluginsList, (event) => {
     assertMainRenderer(event, getMainWindow);

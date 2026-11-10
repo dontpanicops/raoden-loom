@@ -55,6 +55,8 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
       portDrag.current = null;
       setPreview(null);
       setSelectedLink(null);
+      bendRef.current = null; // the handle unmounts mid-drag: no pointerup will come
+      setBendDrag(null);
     };
     // a press anywhere but on a link's curve or chip deselects it
     const onDown = (event: PointerEvent): void => {
@@ -148,10 +150,11 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
                     const r = bendRef.current;
                     if (r?.pointerId !== e.pointerId) return;
                     bendRef.current = null;
-                    if (r.bend) void orch.setLinkBend(link.linkId, r.bend).then(() => setBendDrag(null));
+                    if (r.bend) void orch.setLinkBend(link.linkId, r.bend).finally(() => setBendDrag(null));
                     else setBendDrag(null);
                   }}
                   onPointerCancel={() => { bendRef.current = null; setBendDrag(null); }}
+                  onLostPointerCapture={() => { if (!bendRef.current) return; bendRef.current = null; setBendDrag(null); }} // after pointerup the ref is already clear and the save is in flight
                   onDoubleClick={resetBend}>
                   <title>{t(locale, "orchLinkBendHandle")}</title>
                 </circle>
@@ -258,9 +261,9 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
         const liveViews = liveRuns(link).map((id) => orch.runs[id]?.view).filter((v): v is NonNullable<typeof v> => !!v);
         const shown = liveViews.length > 1 ? liveViews.find((v) => v.permission) ?? liveViews.find((v) => v.status === "paused") ?? view : view;
         const label = shown?.permission ? t(locale, "orchLinkNeedsYou") : shown?.newer ? t(locale, "orchReadOnly") : shown ? viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ?? t(locale, `orchStatus_${runStatusKey(shown)}` as TranslationKey) : t(locale, "orchNoRun");
-        // on the curve at t=0.5, off the cards along the normal (Н14, linkChip.ts)
+        // on the curve, off the cards (and the bend handle when selected) (Н14, linkChip.ts)
         const g = linkGeometry(rightMid(from), leftMid(to), bendDrag?.linkId === link.linkId ? bendDrag.bend : link.bend);
-        const at = chipOnCurve(g.mid, g.normal, agents.map(({ bounds }) => rect(bounds)), chipSize(label, (busy ? 0 : 1) + (view ? 1 : 0) + (view?.newer ? 1 : 0) + (link.bend ? 1 : 0)));
+        const at = chipOnCurve(g, agents.map(({ bounds }) => rect(bounds)), chipSize(label, (busy ? 0 : 1) + (view ? 1 : 0) + (view?.newer ? 1 : 0) + (link.bend ? 1 : 0)), selectedLink === link.linkId);
         return (
           <div key={link.linkId} className={`agent-link__chip${view?.permission ? " agent-link__chip--needs-you" : ""}`} data-interactive="true" data-agent-link-id={link.linkId}
             role="group" aria-label={t(locale, "orchLink")}
@@ -286,7 +289,7 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
               const r = view.permission?.role ?? activeRole(view);
               ui.openPanel(link.linkId, { tab: "activity", role: r === "check" ? "check" : r ?? "executor" });
             }}>{t(locale, "orchObserve")}</button>}
-            {link.bend && <button type="button" className="agent-link__reset" onClick={() => void orch.setLinkBend(link.linkId, null)}>{t(locale, "orchLinkBendReset")}</button>}
+            {link.bend && <button type="button" className="agent-link__reset" onClick={() => { bendRef.current = null; setBendDrag(null); void orch.setLinkBend(link.linkId, null); }}>{t(locale, "orchLinkBendReset")}</button>}
             {!busy && (
               <button type="button" className="agent-link__delete" onClick={() => void ui.deleteLink(link)}
                 title={t(locale, "orchDeleteLink")} aria-label={t(locale, "orchDeleteLink")}>×</button>
