@@ -6,7 +6,7 @@ import type { LocaleId, SessionBounds } from "../../../../shared/contracts";
 import type { OrchestrationAgentLink } from "../../../../shared/orchestration";
 import { AUTOPILOT_BUDGET, type AutopilotLimit, conflictsOf, placeKey, externalInForce, isCopy, startBase, taskText, mergeMark, parallelOf, type AutopilotBudget, type AutopilotState, type BoardHead, type BoardMerge, type BoardTask, type ImportReport, type InboxRow, type InboxTask, type RunTaskFacts, type TaskColumn, type TaskStatus } from "../../../../shared/taskBoard";
 import { t, type TranslationKey } from "../../lib/i18n";
-import { Dialog } from "./OrchestrationDialogs";
+import { Dialog } from "../../components/Dialog";
 import { ACTIVE_STATUSES, providerName, resetTime } from "./runModel";
 import { ASKS_HINT_OVER, askCount, permissionLine, splitActions, stopText, subtaskInfo, taskLine, tr, unsplit } from "./boardModel";
 import { conditionsLine, costLine, findingsLine } from "./runStatus";
@@ -422,7 +422,7 @@ function TaskForm({ locale, task, remoteBase, splitLocked, tasks, projects, depe
           {onDelete && <button type="button" className="orch-danger" data-board-delete
             onClick={async () => (dependents.length && !deleting ? setDeleting(true) : setError(await onDelete(dependents.map((x) => x.id))))}>
             {t(locale, deleting ? "boardDeleteConfirm" : "boardDelete")}</button>}
-          <button type="button" onClick={onClose}>{t(locale, "orchCancel")}</button>
+          <button type="button" className="orch-cancel" onClick={onClose}>{t(locale, "orchCancel")}</button>
           <button type="submit" className="orch-primary" data-board-save disabled={!complete || busy}>{t(locale, "boardSave")}</button>
         </div>
       </form>

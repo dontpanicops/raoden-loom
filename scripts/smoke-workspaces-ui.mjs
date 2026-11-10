@@ -332,6 +332,22 @@ try {
   await app.shot("05-history-deleted-link-1280");
   await app.key("Escape", "Escape", 27);
 
+  // ---------- R1: the dialog holds focus (Tab / Shift+Tab stay inside), Esc closes it, focus goes back to the opener ----------
+  await app.clickEl(q("[data-workspace-menu]"));
+  await app.clickEl(q('[data-ws-action="settings"]'));
+  await app.waitFor(`!!${q(".orch-dialog[role=dialog]")}`, "R1: the settings dialog is open");
+  const inDialog = `!!document.activeElement && !!document.activeElement.closest(".orch-dialog")`;
+  expect(await app.ev(`${q(".orch-dialog")}.matches(".surface-4") && ${q(".orch-dialog")}.getAttribute("aria-modal") === "true" && !!document.getElementById(${q(".orch-dialog")}.getAttribute("aria-labelledby"))`), "R1: level 4, aria-modal, labelled by its title", null);
+  expect(await app.ev(inDialog), "R1: focus starts inside the dialog", null);
+  const stops = await app.ev(`[...${q(".orch-dialog")}.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])")].length`);
+  let leaked = null;
+  for (let i = 0; i < stops + 3 && !leaked; i += 1) { await app.key("Tab", "Tab", 9); if (!(await app.ev(inDialog))) leaked = `Tab #${i + 1}`; }
+  for (let i = 0; i < stops + 3 && !leaked; i += 1) { await app.shiftKey("Tab", "Tab", 9); if (!(await app.ev(inDialog))) leaked = `Shift+Tab #${i + 1}`; }
+  expect(!leaked, "R1: Tab and Shift+Tab never leave the open dialog", leaked);
+  await app.key("Escape", "Escape", 27);
+  await app.waitFor(`!${q(".orch-dialog")}`, "R1: Esc closes the dialog");
+  expect(await app.ev(`document.activeElement === ${q("[data-workspace-menu]")}`), "R1: focus returns to the button that opened it", await app.ev("document.activeElement?.outerHTML.slice(0, 120)"));
+
   // ---------- W10: the one browser is in the common canvas; B shows where it is and brings it with its tab ----------
   await switchTo("common");
   await app.ev("window.canvasTTY.browser.open('about:blank').then(() => true)");

@@ -37,7 +37,7 @@ interface CanvasCommandPaletteProps {
 
 type CommandItem = {
   id: string;
-  group: "sessions" | "actions";
+  group: "waiting" | "sessions" | "actions";
   kind: "session" | "provider" | "action";
   label: string;
   searchDetail: string;
@@ -69,7 +69,7 @@ export function CanvasCommandPalette({
   const commands = useMemo<CommandItem[]>(() => [
     ...sessions.map((session) => ({
       id: `session:${session.id}`,
-      group: "sessions" as const,
+      group: session.status === "needs_approval" ? "waiting" as const : "sessions" as const,
       kind: "session" as const,
       label: session.title,
       searchDetail: PROVIDERS[session.provider].label,
@@ -147,12 +147,16 @@ export function CanvasCommandPalette({
   ], [launcherItems, locale, onCreateNote, onCreateOrchestrationAgent, onCreateRegion, onFocusSession, onLaunch, onOpenBrowser, onOpenSettings, onSwitchWorkspace, sessions, workspaces]);
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase(locale);
-    if (!normalized) return commands;
-    return commands.filter((command) => (
+    // the arrow keys walk the rows in the order they are shown: waiting, sessions, actions
+    const rank = { waiting: 0, sessions: 1, actions: 2 } as const;
+    const shown = [...commands].sort((a, b) => rank[a.group] - rank[b.group]);
+    if (!normalized) return shown;
+    return shown.filter((command) => (
       `${command.label} ${command.searchDetail}`.toLocaleLowerCase(locale).includes(normalized)
     ));
   }, [commands, locale, query]);
   const selectedIndex = Math.min(selected, Math.max(0, filtered.length - 1));
+  const waitingCommands = filtered.filter((command) => command.group === "waiting");
   const sessionCommands = filtered.filter((command) => command.group === "sessions");
   const actionCommands = filtered.filter((command) => command.group === "actions");
 
@@ -269,13 +273,19 @@ export function CanvasCommandPalette({
           {filtered.length === 0 && (
             <p className="canvas-command-palette__empty">{t(locale, "commandPaletteEmpty")}</p>
           )}
+          {waitingCommands.length > 0 && (
+            <>
+              <CanvasMenuLabel>{t(locale, "canvasMenuWaiting")}</CanvasMenuLabel>
+              {waitingCommands.map(renderCommand)}
+            </>
+          )}
           {sessionCommands.length > 0 && (
             <>
               <CanvasMenuLabel>{t(locale, "canvasMenuSessions")}</CanvasMenuLabel>
               {sessionCommands.map(renderCommand)}
             </>
           )}
-          {sessionCommands.length > 0 && actionCommands.length > 0 && <CanvasMenuDivider />}
+          {(waitingCommands.length > 0 || sessionCommands.length > 0) && actionCommands.length > 0 && <CanvasMenuDivider />}
           {actionCommands.length > 0 && (
             <>
               <CanvasMenuLabel>{t(locale, "canvasMenuActions")}</CanvasMenuLabel>

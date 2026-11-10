@@ -280,6 +280,12 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
         await call("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode: keyCode });
         await sleep(120);
       },
+      // The same with Shift held (CDP modifiers: 8 = Shift): Shift+Tab walks focus backwards.
+      async shiftKey(key, code = key, keyCode = 0) {
+        await call("Input.dispatchKeyEvent", { type: "rawKeyDown", key, code, windowsVirtualKeyCode: keyCode, modifiers: 8 });
+        await call("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode: keyCode, modifiers: 8 });
+        await sleep(120);
+      },
       async type(selector, value) {
         await app.ev(`(() => { const el = ${selector}; el.focus(); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
           Object.getOwnPropertyDescriptor(proto, "value").set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event("input", { bubbles: true })); })()`);

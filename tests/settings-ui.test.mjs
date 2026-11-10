@@ -175,21 +175,23 @@ test("region members follow the region during the gesture and commit only at rel
 });
 
 test("the redesigned menus use shared tokens, em geometry, and the configured UI scale", async () => {
-  const [settings, styles, contextMenu, commandPalette, menuPrimitives] = await Promise.all([
+  const [settings, styles, contextMenu, commandPalette, menuPrimitives, tokens] = await Promise.all([
     readFile(settingsPanelPath, "utf8"),
     readFile(appStylesPath, "utf8"),
     readFile(contextMenuPath, "utf8"),
     readFile(commandPalettePath, "utf8"),
-    readFile(menuPrimitivesPath, "utf8")
+    readFile(menuPrimitivesPath, "utf8"),
+    readFile(new URL("../src/renderer/src/styles/tokens.css", import.meta.url), "utf8")
   ]);
   assert.match(settings, /value=\{settings\.palette\}/);
   assert.match(settings, /min=\{UI_SCALE_MIN\}/);
   assert.match(settings, /canvasLauncherItems: setCanvasLauncherItemEnabled/);
   assert.match(styles, /\.canvas-menu, \.canvas-region-editor, \.canvas-command-palette \{ font-size: calc\(13px \* var\(--ui-scale, 1\)\); \}/);
-  assert.match(styles, /\.canvas-menu \{[^}]*min-width: 19em;[^}]*padding: \.45em;[^}]*background: var\(--surface-3-solid\);[^}]*box-shadow: var\(--elev-4\)/);
+  assert.match(styles, /\.canvas-menu \{[^}]*min-width: 19em;[^}]*padding: \.45em;/);
+  assert.match(tokens, /\.surface-4,\.canvas-menu,/); // R1: menus are level 4
   assert.match(styles, /\.canvas-menu__row \{[^}]*font-weight: 400;/);
-  assert.match(styles, /\.canvas-menu__icon \{[^}]*width: 1\.85em;[^}]*height: 1\.85em;[^}]*border-radius: \.55em;[^}]*color: var\(--text-secondary\);[^}]*background: var\(--surface-sunken\)/);
-  assert.match(styles, /\.canvas-menu__kbd \{[^}]*color: var\(--text-primary\);[^}]*background: var\(--surface-2-b\)/);
+  assert.match(styles, /\.canvas-menu__icon \{[^}]*width: 1\.5em;[^}]*height: 1\.5em;[^}]*color: var\(--text-secondary\)/);
+  assert.match(styles, /\.canvas-menu__kbd \{[^}]*margin-left: auto;[^}]*color: var\(--text-muted\)/);
   assert.match(styles, /\.canvas-menu__swatches \{[^}]*gap: \.45em/);
   assert.match(styles, /\.canvas-command-palette__footer \{[^}]*border-top:/);
   assert.match(menuPrimitives, /<span className="canvas-menu__icon">[\s\S]*<UiIcon name=\{icon\} size="1\.05em" \/>/);

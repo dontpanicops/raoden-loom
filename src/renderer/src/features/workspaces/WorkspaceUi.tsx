@@ -1,10 +1,10 @@
 // Project workspaces: the switcher and its dialogs (docs/agent-orchestration/implementation/workspaces-spec.md §5).
 // Every rule is main's; these views only ask, show main's answer and never move or stop anything without a click.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppSettings, LocaleId, SessionSnapshot, TerminalStopResult, WorkspaceRecord, WorkspacesState } from "../../../../shared/contracts";
 import { t, type TranslationKey } from "../../lib/i18n";
 import { UiIcon } from "../../components/UiIcon";
-import { Dialog } from "../orchestration/OrchestrationDialogs";
+import { Dialog } from "../../components/Dialog";
 import { outcomeOf, runStatusKey, TERMINAL_STATUSES } from "../orchestration/runModel";
 import { outcomeText, type Orchestration } from "../orchestration/useOrchestration";
 import {
@@ -97,7 +97,9 @@ export function WorkspaceBar({ controls, counts, locale, onDialog, board }: {
     setMessage(text);
     if (text) window.setTimeout(() => setMessage((m) => (m === text ? null : m)), 8000);
   };
-  const act = (d: WorkspaceDialog) => { setMenuOpen(false); onDialog(d); };
+  // the menu closes with the click: the dialog's focus returns to the ⋯ button, not to the vanished menu row
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const act = (d: WorkspaceDialog) => { menuButton.current?.focus(); setMenuOpen(false); onDialog(d); };
   return (
     <nav className="workspace-bar surface-3" data-interactive="true" data-workspace-bar aria-label={tk(locale, "wsBar")}>
       <div className="workspace-bar__tabs" role="tablist">
@@ -121,7 +123,7 @@ export function WorkspaceBar({ controls, counts, locale, onDialog, board }: {
       <button type="button" className="workspace-bar__icon" data-workspace-new title={tk(locale, "wsNew")} aria-label={tk(locale, "wsNew")}
         disabled={!controls.state.available} onClick={() => act({ kind: "create" })}><UiIcon name="plus" size={15} /></button>
       <div className="workspace-bar__menu-anchor">
-        <button type="button" className="workspace-bar__icon" data-workspace-menu aria-haspopup="menu" aria-expanded={menuOpen}
+        <button ref={menuButton} type="button" className="workspace-bar__icon" data-workspace-menu aria-haspopup="menu" aria-expanded={menuOpen}
           title={tk(locale, "wsMenu")} aria-label={tk(locale, "wsMenu")} onClick={() => setMenuOpen((v) => !v)}>⋯</button>
         {menuOpen && active && (
           <div className="workspace-bar__menu canvas-menu" role="menu">
@@ -192,7 +194,7 @@ function WorkspaceForm({ controls, locale, id, onClose }: { controls: WorkspaceC
           </div>
         )}
         <div className="orch-form__actions">
-          <button type="button" onClick={onClose}>{t(locale, "orchCancel")}</button>
+          <button type="button" className="orch-cancel" onClick={onClose}>{t(locale, "orchCancel")}</button>
           <button type="submit" className="orch-primary" data-ws-submit disabled={busy || (!title.trim() && !folder) || (!!twin && !confirmedTwin && !id)}>
             {tk(locale, id ? "wsSave" : "wsCreate")}
           </button>
@@ -247,7 +249,7 @@ function MoveDialog({ controls, orch, locale, layout, item, id, label, onClose }
             </label>
           )}
         <div className="orch-form__actions">
-          <button type="button" onClick={onClose}>{t(locale, "orchCancel")}</button>
+          <button type="button" className="orch-cancel" onClick={onClose}>{t(locale, "orchCancel")}</button>
           <button type="submit" className="orch-primary" data-ws-move-submit disabled={busy || blocked || !target}>{tk(locale, "wsMoveConfirm")}</button>
         </div>
         {error && <div className="dialog-error" role="alert" data-ws-move-error>{error}</div>}
@@ -369,7 +371,7 @@ export function CloseDialog({ controls, orch, locale, id, onClose, onOpenRun }: 
         {stops && <p className="orch-hint" role="status" data-ws-close-summary>{failed ? tk(locale, "wsStopPartial") : allStopped ? tk(locale, "wsStopDone") : tk(locale, "wsStopWaiting")}</p>}
         {unknownNow && <p className="orch-hint" role="status" data-ws-close-unknown>{tk(locale, "wsCloseUnknown")}</p>}
         <div className="orch-form__actions">
-          <button type="button" data-ws-close-cancel onClick={onClose}>{t(locale, stops ? "orchClose" : "orchCancel")}</button>
+          <button type="button" className="orch-cancel" data-ws-close-cancel onClick={onClose}>{t(locale, stops ? "orchClose" : "orchCancel")}</button>
           {!stops && <button type="button" className="orch-danger" data-ws-close-stop onClick={() => void stopAll()}>{tk(locale, "wsStopAndHide")}</button>}
           <button type="button" className="orch-primary" data-ws-close-hide autoFocus onClick={() => void hide()}>{tk(locale, stops ? "wsHideRest" : "wsHideKeep")}</button>
         </div>
@@ -480,7 +482,7 @@ function ArrangeDialog({ controls, orch, locale, layout, id, onClose }: {
           </fieldset>
         ))}
         <div className="orch-form__actions">
-          <button type="button" onClick={onClose}>{t(locale, "orchCancel")}</button>
+          <button type="button" className="orch-cancel" onClick={onClose}>{t(locale, "orchCancel")}</button>
           <button type="submit" className="orch-primary" data-ws-arrange-submit disabled={busy || checked.size === 0}>{tr(locale, "wsArrangeConfirm", { n: String(checked.size) })}</button>
         </div>
         {errors.map((e) => <div key={e} className="dialog-error" role="alert">{e}</div>)}
@@ -513,7 +515,7 @@ export function BrowserElsewhereDialog({ controls, locale }: { controls: Workspa
       <div className="orch-form" data-ws-browser-elsewhere={controls.browserElsewhere}>
         <p>{tr(locale, "wsBrowserElsewhere", { name: workspaceTitle(locale, w) })}</p>
         <div className="orch-form__actions">
-          <button type="button" onClick={controls.closeBrowserNotice}>{t(locale, "orchCancel")}</button>
+          <button type="button" className="orch-cancel" onClick={controls.closeBrowserNotice}>{t(locale, "orchCancel")}</button>
           <button type="button" data-ws-browser-bring onClick={() => void controls.bringBrowserHere()}>{tk(locale, "wsBrowserBring")}</button>
           <button type="button" className="orch-primary" data-ws-browser-go onClick={controls.goToBrowser}>{tr(locale, "wsOpenNamed", { name: workspaceTitle(locale, w) })}</button>
         </div>

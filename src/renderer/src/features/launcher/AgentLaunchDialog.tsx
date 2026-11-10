@@ -4,6 +4,7 @@ import type {
   AppSettings,
   LaunchProfileId
 } from "../../../../shared/contracts";
+import { Dialog } from "../../components/Dialog";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { UiIcon } from "../../components/UiIcon";
 import { t } from "../../lib/i18n";
@@ -39,15 +40,6 @@ export function AgentLaunchDialog({
     setConfirmDanger(false);
     setError(null);
   }, [provider, settings.lastDirectory]);
-
-  useEffect(() => {
-    if (!provider) return;
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [provider, onClose]);
 
   if (!provider) return null;
 
@@ -96,14 +88,8 @@ export function AgentLaunchDialog({
   };
 
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onClose();
-    }}>
-      <section className="launch-dialog" role="dialog" aria-modal="true" aria-label={`${t(locale, "launchAgent")}: ${PROVIDERS[provider].label}`}>
-        <div className="launch-dialog__toolbar">
-          <button className="launch-dialog__close" type="button" onClick={onClose} aria-label={t(locale, "close")}><UiIcon name="close" size={18} /></button>
-        </div>
-
+    <Dialog label={`${t(locale, "launchAgent")}: ${PROVIDERS[provider].label}`} onClose={onClose} locale={locale} className="agent-launch-dialog">
+      <form className="orch-form" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
         <div className="launch-dialog__top">
           <div className="launch-dialog__provider"><ProviderIcon provider={provider} size="large" /></div>
           <div className="folder-field">
@@ -122,18 +108,15 @@ export function AgentLaunchDialog({
           </div>
         </div>
 
-        <div className="profile-row">
-          <button className={profile === "normal" ? "profile-button profile-button--active" : "profile-button"} type="button" onClick={() => {
+        <div className="profile-row" role="group">
+          <button className={profile === "normal" ? "profile-button profile-button--active" : "profile-button"} type="button" aria-pressed={profile === "normal"} onClick={() => {
             setProfile("normal");
             setConfirmDanger(false);
           }}>{t(locale, "normal")}</button>
-          <button className={profile === "yolo" ? "profile-button profile-button--active" : "profile-button"} type="button" onClick={() => {
+          <button className={profile === "yolo" ? "profile-button profile-button--active" : "profile-button"} type="button" aria-pressed={profile === "yolo"} onClick={() => {
             setProfile("yolo");
             setConfirmDanger(false);
           }}>{t(locale, "yolo")}</button>
-          <button className="launch-submit" type="button" disabled={busy} onClick={() => void submit()}>
-            {busy ? <span className="launch-submit__busy" /> : <UiIcon name="arrow" size={38} />}
-          </button>
         </div>
 
         {profile === "yolo" && (
@@ -142,8 +125,12 @@ export function AgentLaunchDialog({
             {!acknowledged && <span>{confirmDanger ? t(locale, "dangerousFirstUse") : t(locale, "confirmLaunch")}</span>}
           </div>
         )}
-        {error && <div className="dialog-error">{error}</div>}
-      </section>
-    </div>
+        {error && <div className="dialog-error" role="alert">{error}</div>}
+        <div className="orch-form__actions">
+          <button type="button" className="orch-cancel" onClick={onClose}>{t(locale, "cancel")}</button>
+          <button type="submit" className="orch-primary" disabled={busy}>{busy ? <span className="launch-submit__busy" /> : t(locale, "launch")}</button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

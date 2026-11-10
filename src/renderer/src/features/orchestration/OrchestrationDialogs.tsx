@@ -5,6 +5,7 @@ import type {
   OrchestrationGoalInput, OrchestrationLimitKind, OrchestrationProfileInfo, OrchestrationReadiness, OrchestrationReadinessItem, OrchestrationRoleModels, OrchestrationRunMode,
   OrchestrationWorkMode
 } from "../../../../shared/orchestration";
+import { Dialog } from "../../components/Dialog";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { UiIcon } from "../../components/UiIcon";
 import { t, type TranslationKey } from "../../lib/i18n";
@@ -15,33 +16,6 @@ import { Differences, RunPanel, Termed } from "./RunPanel";
 import { accessProblemText, commandLike, dirtyInPlace, failingOnSource } from "./runModel";
 import type { AgentCanvasUi } from "./useAgentCanvasUi";
 import { outcomeText, type Orchestration } from "./useOrchestration";
-
-function useEscape(onClose: () => void): void {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-}
-
-export function Dialog({ label, onClose, children, locale }: { label: string; onClose(): void; children: React.ReactNode; locale: LocaleId }): React.JSX.Element {
-  useEscape(onClose);
-  return (
-    <div className="dialog-backdrop" role="presentation" data-interactive="true" data-wheel-owner="local" data-canvas-wheel-priority="local" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onClose();
-    }}>
-      <section className="launch-dialog orch-dialog" role="dialog" aria-modal="true" aria-label={label}>
-        <div className="launch-dialog__toolbar">
-          <strong className="orch-dialog__title">{label}</strong>
-          <button className="launch-dialog__close" type="button" onClick={onClose} aria-label={t(locale, "orchClose")}><UiIcon name="close" size={18} /></button>
-        </div>
-        {children}
-      </section>
-    </div>
-  );
-}
 
 function AgentCreateDialog({ ui, locale, defaultProject }: { ui: AgentCanvasUi; locale: LocaleId; defaultProject: string }): React.JSX.Element | null {
   const at = ui.createAt!;
@@ -72,7 +46,7 @@ function AgentCreateDialog({ ui, locale, defaultProject }: { ui: AgentCanvasUi; 
           </label>
         </div>
         <div className="orch-form__actions">
-          <button type="button" onClick={ui.closeCreate}>{t(locale, "orchCancel")}</button>
+          <button type="button" className="orch-cancel" onClick={ui.closeCreate}>{t(locale, "orchCancel")}</button>
           <button type="submit" className="orch-primary" disabled={busy || !project.trim().startsWith("/")}>{t(locale, "orchCreate")}</button>
         </div>
         {error && <div className="dialog-error" role="alert">{error}</div>}
@@ -597,7 +571,7 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
           {/* why Start is off, beside it in the pinned bottom (UX audit PR 2) */}
           {!complete && <span className="orch-hint orch-form__why" data-orch-incomplete>{t(locale, optionalChecks ? "orchGoalIncompleteNoChecks" : "orchGoalIncomplete")}</span>}
           {complete && !ready && <span className="orch-hint orch-form__why" data-orch-not-ready>{blockedBy ? `${t(locale, "orchStartBlockedBy")} ${blockedBy}` : t(locale, "orchReadyNotYet")}</span>}
-          <button type="button" onClick={ui.closeGoal}>{t(locale, "orchCancel")}</button>
+          <button type="button" className="orch-cancel" onClick={ui.closeGoal}>{t(locale, "orchCancel")}</button>
           <button type="submit" className="orch-primary" disabled={busy || choosing || !complete || !ready}>{busy ? t(locale, "orchSending") : t(locale, "orchStart")}</button>
         </div>
         {error && <div className="dialog-error" role="alert">{error}</div>}
