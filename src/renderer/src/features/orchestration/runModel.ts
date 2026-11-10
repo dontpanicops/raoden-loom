@@ -29,7 +29,7 @@ export const ACTIVE_STATUSES = ["preparing", "running", "pausing", "paused", "st
 export const TERMINAL_STATUSES = ["stopped", "completed", "failed"];
 
 // C1 (stage-c-parallel.md §6.2): a link may run several tasks at once. Its live runs (at most the last four), the one
-// shown — the picked one if it still goes on, else the latest that goes on, else the latest. Chip and panel use the same.
+// shown — the picked one while it is the link's, else the latest that goes on, else the latest. Chip and panel use the same.
 export function liveRuns(link: { runIds: string[] }, runs: Record<string, { view: { status: string } } | undefined>): string[] {
   return link.runIds.slice(-4).filter((id) => {
     const v = runs[id]?.view;
@@ -40,7 +40,12 @@ export function shownRunId(link: { linkId: string; runIds: string[] } | undefine
   if (!link) return undefined;
   const live = liveRuns(link, runs);
   const p = picked[link.linkId];
-  return p && live.includes(p) ? p : live.at(-1) ?? link.runIds.at(-1);
+  // the picked run stays shown while it is one of the link's runs, also after it ended (never swapped silently),
+  // until a newer run of the link goes on: new work on the link is shown, an old pick does not hide it
+  const at = p ? link.runIds.indexOf(p) : -1;
+  const newerLive = live.find((id) => link.runIds.indexOf(id) > at);
+  if (at >= 0 && (live.includes(p as string) || !newerLive)) return p;
+  return live.at(-1) ?? link.runIds.at(-1);
 }
 
 export type RunAction = "pause" | "keep_running" | "resume" | "step" | "stop" | "answer" | "clarify" | "raise_limit" | "recover" | "permission"
@@ -770,7 +775,7 @@ export function factLines(locale: LocaleId, view: OrchestrationRunView, facts: R
 // the summary shows (runStatus outcomeKey), so it never says the opposite of the headline. A completed run's
 // "goal accepted" field is not drawn (this line says it); «no changes» then carries its meaning (changesNote).
 export function proofLine(locale: LocaleId, outcome: string, facts: ResultFacts): string {
-  const key = outcome === "completed" ? (facts.checks === "passed" ? "completed" : "completed_plain") : outcome;
+  const key = outcome === "completed" ? (facts.checks === "passed" ? "completed" : facts.checks === "none" ? "completed_unrun" : "completed_unpassed") : outcome;
   return t(locale, `orchProof_${key}` as TranslationKey);
 }
 export function changesNote(locale: LocaleId, view: OrchestrationRunView, facts: ResultFacts): string | null {

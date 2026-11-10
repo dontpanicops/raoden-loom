@@ -44,7 +44,9 @@ test("the live runs of a link and the one shown (the chip and the panel agree)",
   assert.deepEqual(liveRuns(link, runs), ["a", "c"]);
   assert.equal(shownRunId(link, runs, {}), "c");
   assert.equal(shownRunId(link, runs, { L: "a" }), "a");
-  assert.equal(shownRunId(link, runs, { L: "b" }), "c"); // a picked run that ended is not kept
+  assert.equal(shownRunId(link, runs, { L: "d" }), "d", "a picked run that ended is not swapped silently");
+  assert.equal(shownRunId(link, runs, { L: "b" }), "c", "a newer run that goes on is shown over an ended pick");
+  assert.equal(shownRunId(link, runs, { L: "zz" }), "c", "a pick that is not the link's is ignored");
   assert.equal(shownRunId({ linkId: "M", runIds: ["b", "d"] }, runs, {}), "d");
   assert.equal(shownRunId(undefined, runs, {}), undefined);
 });
@@ -66,11 +68,11 @@ async function loadRunPanel() {
   const { renderToStaticMarkup } = require("react-dom/server");
   const base = { runId: "r", revision: 1, status: "running", reason: null, stage: 1, active: null, permission: null, halted: false, newer: null,
     workMode: "project", workDir: "/p", progress: null, proposal: null, refused: null, confirm: null, decisions: null };
-  return (panel, { view = {}, live, extraRuns = {} } = {}) => renderToStaticMarkup(React.createElement(mod.exports.RunPanel, {
+  return (panel, { view = {}, live, extraRuns = {}, records = [], loadText = () => {}, readCreatedFile } = {}) => renderToStaticMarkup(React.createElement(mod.exports.RunPanel, {
     liveRunIds: live,
     orch: { runs: { r: { view: { ...base, ...view }, open: true, seq: 9, tick: 0 }, ...extraRuns }, activity: { r: { entries: [], gaps: [], firstId: 0, status: "ready", resyncs: 0 } },
-      runErrors: {}, canvas: { links: [], agents: [] }, journals: { r: { records: [], next: 0, status: "ready" } }, texts: {},
-      commands: { pending: () => [] }, catalog: { checks: [] }, loadText() {}, syncJournal() {}, retry() {}, stageTitles: () => ({}) },
+      runErrors: {}, canvas: { links: [], agents: [] }, journals: { r: { records, next: 0, status: "ready" } }, texts: {},
+      commands: { pending: () => [] }, catalog: { checks: [] }, loadText, readCreatedFile, syncJournal() {}, retry() {}, stageTitles: () => ({}) },
     runId: "r", locale: "ru", panel: { linkId: "L", role: "lead", focus: 1, ...panel }, onClose() {}, onNewGoal() {}, onView() {}
   }));
 }
@@ -100,6 +102,19 @@ test("the summary holds the overview, plan and result sections; the plan and the
   assert.match(closed, /data-orch-proof="active"/, "the proof line opens the facts");
   assert.doesNotMatch(closed, /data-run-doc=/, "closed: no document drawn");
   assert.match(render({ tab: "summary", mode: "feed", section: "plan" }, { view: { status: "paused" } }), /<details[^>]*data-orch-section="plan"[^>]*open/);
+  // with a journal that has a plan and a result: closed draws no document and reads nothing, open draws it
+  const records = [{ seq: 1, type: "plan.recorded", data: { plan: { sha256: "p1", bytes: 5 }, firstStage: 1 } },
+    { seq: 2, type: "turn.finished", data: { report: { ref: { sha256: "r1", bytes: 5 } } } }];
+  const calls = [];
+  const spy = { loadText: (...a) => calls.push(a), readCreatedFile: (...a) => calls.push(a) };
+  const withDocs = render({ tab: "summary", mode: "feed" }, { records, view: { status: "completed" }, ...spy });
+  assert.deepEqual(attr(withDocs, "data-orch-section"), ["overview", "plan", "result"]);
+  assert.doesNotMatch(withDocs, /data-run-doc=/, "closed with a journal: no document drawn");
+  assert.equal(calls.length, 0, "closed: nothing read");
+  const openPlan = render({ tab: "summary", mode: "feed", section: "plan" }, { records, view: { status: "completed" }, ...spy });
+  assert.match(openPlan, /data-run-doc="plan"/);
+  assert.doesNotMatch(openPlan, /data-run-doc="result"/);
+  assert.match(render({ tab: "summary", mode: "feed", section: "result" }, { records, view: { status: "completed" }, ...spy }), /data-run-doc="result"/);
 });
 
 test("the work tab: three modes, the role filter on the feed and the journal only, the body says which mode", { timeout: 120_000 }, async () => {
@@ -120,4 +135,17 @@ test("the Changes tab shows its count only when it is known; the live-run switch
   const two = render({ tab: "summary", mode: "feed" }, { live: ["r", "q"], extraRuns: { q: { view: { status: "paused" }, open: true, seq: 1, tick: 0 } } });
   assert.deepEqual(attr(two, "data-orch-run-pick"), ["r", "q"]);
   assert.match(two, /data-run-status="paused"/);
+});
+
+test("a readable newer run has no Changes tab: a request for it shows the summary; the switch labels carry the status; modes are a labelled group", { timeout: 120_000 }, async () => {
+  const render = await loadRunPanel();
+  const newer = render({ tab: "changes", mode: "feed" }, { view: { newer: { version: 9, compatible: true, chain: "ok" } } });
+  assert.equal(selected(newer), "summary");
+  assert.match(newer, /data-orch-body="summary"/);
+  const two = render({ tab: "work", mode: "feed" }, { live: ["r", "q"], extraRuns: { q: { view: { status: "paused" }, open: true, seq: 1, tick: 0 } } });
+  assert.match(two, /data-orch-run-pick="q"[^>]*aria-label="[^"]*[:] [^"]+"|aria-label="[^"]*: [^"]+"[^>]*data-orch-run-pick="q"/);
+  assert.match(two, /role="group" aria-label="[^"]+"/);
+  assert.doesNotMatch(two, /data-orch-mode="feed"[^>]*title=/);
+  assert.match(two, /role="tab"[^>]*tabindex="-1"|tabindex="-1"[^>]*role="tab"/);
+  assert.match(two, /role="tabpanel"/);
 });

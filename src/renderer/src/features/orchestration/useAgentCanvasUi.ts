@@ -93,7 +93,8 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
     linkingFrom, setLinkingFrom, messages, connect, createAgent, deleteAgent, deleteLink,
     createAt, openCreate: (provider: OrchestrationProviderKind, point: Point) => setCreateAt({ provider, point }),
     closeCreate: () => setCreateAt(null),
-    goalLinkId, goalTask, openGoal: (linkId: string, task: GoalTask | null = null) => { setPanel(null); setGoalTask(task); setGoalLinkId(linkId); },
+    goalLinkId, goalTask, openGoal: (linkId: string, task: GoalTask | null = null) => { setPanel(null); setPickedRuns((p) => { const { [linkId]: _drop, ...rest } = p; return rest; }); // a new goal's run is the one shown
+      setGoalTask(task); setGoalLinkId(linkId); },
     closeGoal: () => { setGoalLinkId(null); setGoalTask(null); },
     panel, panelLinkId,
     openPanel: (linkId: string, opts: PanelView = {}) => {
@@ -112,8 +113,9 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
       if (next.runId) {
         orch.watchRun(next.runId);
         const runId = next.runId;
+        // the one choice lives in pickedRuns (the chip reads it too); the panel is not remounted by it
         if (panel?.linkId) setPickedRuns((p) => ({ ...p, [panel.linkId as string]: runId }));
-        setPanel((cur) => (cur ? { ...cur, runId } : cur));
+        else setPanel((cur) => (cur ? { ...cur, runId } : cur));
       }
       setPanel((cur) => (cur ? { ...cur, ...(v.tab ? target(v, cur) : { ...(v.mode ? { mode: v.mode } : {}), ...(v.section ? { section: v.section } : {}) }), ...(v.role ? { role: v.role } : {}) } : cur));
     },
@@ -138,7 +140,9 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
       const focus = focusCount.current;
       const v = panelView(arg);
       const dflt = !status || TERMINAL_STATUSES.includes(status) ? undefined : "overview";
-      setPanel({ linkId, runId, ...target(v, null, dflt), role: v.role ?? "executor", focus });
+      // a run of a link is the link's picked run (chip and panel agree); only a run without its link is held by the panel
+      if (linkId) setPickedRuns((p) => ({ ...p, [linkId]: runId }));
+      setPanel({ linkId, ...(linkId ? {} : { runId }), ...target(v, null, dflt), role: v.role ?? "executor", focus });
     },
     closePanel: () => setPanel(null),
     // The native browser view composites above the DOM; it hides while one of these is open.
