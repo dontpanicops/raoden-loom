@@ -56,6 +56,7 @@ export function createOrchestrationClient(ipc: OrchestrationIpc, platform: strin
     moveAgentGroup: (agentIds, workspaceId) => ipc.invoke(IPC.orchestrationAgentGroupMove, agentIds, workspaceId),
     createLink: (input) => ipc.invoke(IPC.orchestrationLinkCreate, input),
     deleteLink: (linkId) => ipc.invoke(IPC.orchestrationLinkDelete, linkId),
+    setLinkBend: (linkId, bend) => ipc.invoke(IPC.orchestrationLinkBend, linkId, bend),
     releaseNewerLink: (input) => ipc.invoke(IPC.orchestrationLinkReleaseNewer, input),
     startOnLink: (input) => ipc.invoke(IPC.orchestrationLinkStart, input),
     activity: (runId, afterId, limit) => ipc.invoke(IPC.orchestrationActivity, runId, afterId, limit),

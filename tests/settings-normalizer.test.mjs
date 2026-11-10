@@ -17,6 +17,7 @@ const fallback = {
   persistStickyNotes: true,
   palette: "sand",
   reduceTransparency: false,
+  onboardingDismissed: false,
   homeAccentPreset: "theme",
   homeAccentColors: {
     clock: "#D8E1C5",
@@ -307,6 +308,10 @@ test("R0 migration table: every old id is rewritten, only new ids come out", () 
   assert.equal(n({}).reduceTransparency, false);
   assert.equal(n({ reduceTransparency: true }).reduceTransparency, true);
   assert.equal(n({ reduceTransparency: "yes" }).reduceTransparency, false);
+  // onboardingDismissed (R2): optional boolean, no version bump
+  assert.equal(n({}).onboardingDismissed, false);
+  assert.equal(n({ onboardingDismissed: true }).onboardingDismissed, true);
+  assert.equal(n({ onboardingDismissed: "yes" }).onboardingDismissed, false);
 });
 
 test("R0: a v15 file is migrated on load, saved with new ids only and survives save -> load", async () => {

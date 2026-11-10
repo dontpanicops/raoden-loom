@@ -415,6 +415,7 @@ async function initializeServices(): Promise<void> {
     settings,
     terminals: terminalManager,
     limits: limitsService,
+    newProviderClis: () => (hermeticSmoke() ? createProviderCliRegistry({ pathOnly: true, environment: {} }) : buildProviderCliRegistry()),
     plugins: pluginManager,
     pluginMedia: pluginMediaService,
     pluginSecrets: pluginSecretsService,

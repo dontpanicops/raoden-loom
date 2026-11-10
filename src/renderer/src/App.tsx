@@ -78,6 +78,7 @@ const FALLBACK_SETTINGS: AppSettings = {
   persistStickyNotes: true,
   palette: "sand",
   reduceTransparency: false,
+  onboardingDismissed: false,
   homeAccentPreset: "theme",
   homeAccentColors: { ...DEFAULT_HOME_ACCENT_COLORS },
   sessionRowColorMode: "status",
@@ -1320,6 +1321,7 @@ export function App(): React.JSX.Element {
           onStickyNoteBoundsChange={changeStickyNoteBounds}
           onStickyNoteTextChange={changeStickyNoteText}
           onDeleteStickyNote={deleteStickyNote}
+          onDismissOnboarding={() => void saveSettings({ onboardingDismissed: true })}
         />
       </main>
 

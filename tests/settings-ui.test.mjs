@@ -213,7 +213,8 @@ test("the redesigned menus use shared tokens, em geometry, and the configured UI
   const menuStyles = styles.slice(menuStyleStart, menuStyleEnd);
   assert.doesNotMatch(menuStyles, /#[\da-f]{3,8}|rgba?\(/i);
   assert.match(styles, /\.launcher-dock \{[^}]*font-size: calc\(13px \* var\(--ui-scale, 1\)\)/);
-  assert.match(styles, /--card-header-height: calc\(54px \* var\(--ui-scale, 1\)\)/);
+  // R2: one 44px header for every card kind (was 54px on terminal, plugin and browser, 3.15em on agent, board and note)
+  assert.match(styles, /--card-header-height: calc\(var\(--card-header-h\) \* var\(--ui-scale, 1\)\)/);
   assert.match(styles, /\.terminal-card__header \{[^}]*font-size: calc\(13px \* var\(--ui-scale, 1\)\)/);
   assert.match(styles, /\.plugin-canvas-card__header \{[^}]*font-size: calc\(13px \* var\(--ui-scale, 1\)\)/);
   assert.match(styles, /\.browser-card__header \{[^}]*font-size: calc\(13px \* var\(--ui-scale, 1\)\)/);

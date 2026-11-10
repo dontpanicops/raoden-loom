@@ -63,6 +63,7 @@ import { boardStatuses, heldDeps, isCopy, mergeOfTask, namedPaths, parallelOf, r
 import { AUTOPILOT_BUDGET, baseOf, missingPushField, placeKey, type PushField, type AutopilotBudget, type Board, type BoardOpts, type BoardPlace, type BoardTask, type BoardView, type ImportReport, type RunTaskFacts } from "../../../shared/taskBoard.ts";
 import type { OrchestrationRunView, OrchestrationTurnPurpose, OrchestrationWorkMode } from "../../../shared/orchestration.ts";
 import { viewCause } from "../../../shared/orchestrationPause.ts";
+import type { LinkBend } from "../../../shared/linkBend.ts";
 import { runOwners, workspaceOf } from "../../../shared/workspaceOwnership.ts";
 import { createBoardAutopilot, placeOptsOf } from "./boardAutopilot.ts";
 import { COMMON_WORKSPACE_ID } from "../../../shared/contracts.ts";
@@ -1815,6 +1816,7 @@ export function createRunManager(deps: RunManagerDeps) {
     deleteAgent: (agentId: string) => result(() => canvas.deleteAgent(agentId, busy)),
     createLink: (input: { linkId: string; fromAgentId: string; toAgentId: string }) => result(() => { platformOk(); return canvas.createLink(input); }),
     deleteLink: (linkId: string) => result(() => canvas.deleteLink(linkId, busy)),
+    setLinkBend: (linkId: string, bend: LinkBend | null) => result(() => canvas.setLinkBend(linkId, bend)),
     // Only a link that holds a newer version's run (busy says "newer" for that run), and only its own run.
     releaseNewerLink: (input: { commandId: string; linkId: string; runId: string }) =>
       result(() => canvas.releaseNewer({ ...input, appVersion: deps.appVersion?.() ?? "unknown" }, busy)),

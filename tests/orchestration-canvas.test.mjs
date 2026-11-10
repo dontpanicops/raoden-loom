@@ -186,7 +186,11 @@ test("the canvas channels refuse a foreign renderer and anything but their field
     [IPC.orchestrationLinkCreate, { linkId: randomUUID(), fromAgentId: randomUUID(), toAgentId: randomUUID(), role: "lead" }],
     [IPC.orchestrationLinkStart, { linkId: randomUUID(), requestId: randomUUID(), goal: goal(), source: "/etc" }],
     [IPC.orchestrationLinkStart, { linkId: randomUUID(), requestId: randomUUID(), goal: { ...goal(), argv: ["x"] } }],
-    [IPC.orchestrationLinkDelete, "../x"]
+    [IPC.orchestrationLinkDelete, "../x"],
+    [IPC.orchestrationLinkBend, randomUUID(), { along: 3, across: 0 }],
+    [IPC.orchestrationLinkBend, randomUUID(), { along: 0, across: NaN }],
+    [IPC.orchestrationLinkBend, randomUUID(), undefined],
+    [IPC.orchestrationLinkBend, "../x", null]
   ]) {
     const r = await call(main, channel, ...args);
     assert.deepEqual([r.ok, r.code], [false, "invalid_argument"], `${channel} ${JSON.stringify(args)}`);
