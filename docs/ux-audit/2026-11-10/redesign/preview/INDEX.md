@@ -1,0 +1,65 @@
+# Скриншоты редизайна
+
+PNG 2× (`shots/`, локально) и JPEG 1440 q80 (`preview/`, в репозиторий): каждый артборд в Песке и Бумаге, все состояния панели в Песке.
+Отрисованы из исходников артбордов Claude Design. Темы: Песок (sand), Залив (bay), Бумага (paper), Иней (frost). Марки провайдеров — заглушки «лого», данные — примеры.
+
+## preview/
+
+| Файл | Экран | Тема | Состояние |
+|---|---|---|---|
+| `01-tokens-sand.jpg` | Токены | Песок | весь артборд |
+| `01-tokens-paper.jpg` | Токены | Бумага | весь артборд |
+| `02-components-sand.jpg` | Компоненты | Песок | весь артборд |
+| `02-components-paper.jpg` | Компоненты | Бумага | весь артборд |
+| `03-canvas-sand.jpg` | Холст целиком | Песок | весь артборд |
+| `03-canvas-paper.jpg` | Холст целиком | Бумага | весь артборд |
+| `04-first-run-sand.jpg` | Первый запуск | Песок | весь артборд |
+| `04-first-run-paper.jpg` | Первый запуск | Бумага | весь артборд |
+| `05-home-sand.jpg` | HOME крупно | Песок | весь артборд |
+| `05-home-paper.jpg` | HOME крупно | Бумага | весь артборд |
+| `06-cards-sand.jpg` | Карточки | Песок | весь артборд |
+| `06-cards-paper.jpg` | Карточки | Бумага | весь артборд |
+| `07-run-panel-sand.jpg` | Панель запуска · паузы по коду | Песок | весь артборд |
+| `07-run-panel-01-working-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 1 · working |
+| `07-run-panel-02-awaiting-answer-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 2 · awaiting-answer |
+| `07-run-panel-03-permission-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 3 · permission |
+| `07-run-panel-04-plan-review-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 4 · plan-review |
+| `07-run-panel-05-checks-decision-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 5 · checks-decision |
+| `07-run-panel-06-checks-none-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 6 · checks-none |
+| `07-run-panel-07-limit-reached-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 7 · limit-reached |
+| `07-run-panel-08-outcome-unknown-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 8 · outcome-unknown |
+| `07-run-panel-09-loop-suspected-clarify-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 9 · loop-suspected-clarify |
+| `07-run-panel-10-person-decision-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 10 · person-decision |
+| `07-run-panel-11-coverage-lost-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 11 · coverage-lost |
+| `07-run-panel-12-finish-confirmation-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 12 · finish-confirmation |
+| `07-run-panel-13-finish-unconfirmed-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 13 · finish-unconfirmed |
+| `07-run-panel-14-check-needs-permissions-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 14 · check-needs-permissions |
+| `07-run-panel-15-lead-modified-tree-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 15 · lead-modified-tree |
+| `07-run-panel-16-needs-user-action-mcp-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 16 · needs-user-action-mcp |
+| `07-run-panel-17-completed-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 17 · completed |
+| `07-run-panel-18-failed-sand.jpg` | Панель запуска · паузы по коду | Песок | состояние 18 · failed |
+| `07-run-panel-paper.jpg` | Панель запуска · паузы по коду | Бумага | весь артборд |
+| `08-board-sand.jpg` | Доска задач | Песок | весь артборд |
+| `08-board-paper.jpg` | Доска задач | Бумага | весь артборд |
+| `09-goal-dialog-sand.jpg` | Новая цель | Песок | весь артборд |
+| `09-goal-dialog-paper.jpg` | Новая цель | Бумага | весь артборд |
+| `10-overlays-sand.jpg` | Палитра, меню, тосты | Песок | весь артборд |
+| `10-overlays-paper.jpg` | Палитра, меню, тосты | Бумага | весь артборд |
+| `11-settings-sand.jpg` | Настройки: Оформление, Агенты | Песок | весь артборд |
+| `11-settings-paper.jpg` | Настройки: Оформление, Агенты | Бумага | весь артборд |
+| `12-tokens-v2-sand.jpg` | Токены v2 | Песок | весь артборд |
+| `12-tokens-v2-paper.jpg` | Токены v2 | Бумага | весь артборд |
+| `13-run-panel-tabs-sand.jpg` | Панель: вкладки по коду, только чтение, «Уточнить» | Песок | весь артборд |
+| `13-run-panel-tabs-paper.jpg` | Панель: вкладки по коду, только чтение, «Уточнить» | Бумага | весь артборд |
+| `14-launch-card-sand.jpg` | Карточка запуска агента | Песок | весь артборд |
+| `14-launch-card-paper.jpg` | Карточка запуска агента | Бумага | весь артборд |
+| `15-project-settings-sand.jpg` | Настройки проекта оркестрации | Песок | весь артборд |
+| `15-project-settings-paper.jpg` | Настройки проекта оркестрации | Бумага | весь артборд |
+| `16-settings-more-sand.jpg` | Настройки: остальные разделы | Песок | весь артборд |
+| `16-settings-more-paper.jpg` | Настройки: остальные разделы | Бумага | весь артборд |
+| `17-workspaces-sand.jpg` | Диалоги пространств | Песок | весь артборд |
+| `17-workspaces-paper.jpg` | Диалоги пространств | Бумага | весь артборд |
+| `18-canvas-bits-sand.jpg` | Мелочи холста | Песок | весь артборд |
+| `18-canvas-bits-paper.jpg` | Мелочи холста | Бумага | весь артборд |
+| `19-links-sand.jpg` | Связи: граничные случаи | Песок | весь артборд |
+| `19-links-paper.jpg` | Связи: граничные случаи | Бумага | весь артборд |
