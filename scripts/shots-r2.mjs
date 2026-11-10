@@ -4,7 +4,7 @@
 // Frames are written as PNG (<dir>/<combo>-<screen>.png); the caller shrinks them (sips) to JPEG.
 import fs from "node:fs";
 import path from "node:path";
-import { FIXTURES, NODE, byText, canvasState, card, createAgent, launch, q, sleep, startGoal, waitForValue, workspace, JOURNAL_V2 } from "./orchestration-app-kit.mjs";
+import { FIXTURES, NODE, createAgent, launch, q, sleep, workspace, JOURNAL_V2 } from "./orchestration-app-kit.mjs";
 
 const arg = (name) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : null; };
 const OUT = path.resolve(arg("out") ?? "r2-shots");

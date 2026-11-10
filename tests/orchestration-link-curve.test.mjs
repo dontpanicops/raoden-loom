@@ -31,6 +31,18 @@ test("bend: the curve passes through (M+P)/2 and the handle round-trips to the s
   close(back.along, bend.along); close(back.across, bend.across);
 });
 
+test("strong bend: leaves right, enters from the left (arrow points right, not up/down), handle stays finite and round-trips continuously", () => {
+  const f = { x: 0, y: 0 }, t = { x: 300, y: 120 };
+  for (const bend of [{ along: 0, across: 2 }, { along: 0, across: -2 }, { along: 1.5, across: 1 }, { along: -1.5, across: -2 }]) {
+    const g = linkGeometry(f, t, bend);
+    assert.ok(g.c1.x >= f.x + 40 && g.c2.x <= t.x - 40, "control points keep a horizontal run at both ports");
+    assert.ok(g.arrow.x > 0.4 && Math.abs(g.arrow.y) <= 2 * g.arrow.x + 1e-9, "arrow points rightwards into the left face");
+    assert.ok(Object.values(g.mid).every(Number.isFinite));
+  }
+  const g = linkGeometry(f, t, { along: 0, across: 0.3 });
+  assert.ok(g.arrow.x > 0.9);
+});
+
 test("degenerate ports and arrow path are finite", () => {
   const g = linkGeometry({ x: 5, y: 5 }, { x: 5, y: 5 }, { along: 0, across: 1 });
   assert.ok(Object.values(g.mid).every(Number.isFinite));

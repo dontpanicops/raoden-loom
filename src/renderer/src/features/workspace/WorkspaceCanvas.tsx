@@ -478,6 +478,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
   }), [settings.homeGridSize]);
   // The first-run card clears the HOME tiles on screen: measured (the HOME grid is larger than the tiles it holds)
   const [onboardingPlace, setOnboardingPlace] = useState<{ left: number; top: number } | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: camera and home settings are the triggers: the tiles' screen rects move with them
   useLayoutEffect(() => {
     const view = viewport.current;
     if (!view || settings.onboardingDismissed) return;

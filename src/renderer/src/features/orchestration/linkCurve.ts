@@ -5,13 +5,20 @@ import { bendCurve, bendFromPoint, type BendPoint, type LinkBend } from "../../.
 
 export interface LinkGeometry { f: BendPoint; c1: BendPoint; c2: BendPoint; t: BendPoint; mid: BendPoint; normal: BendPoint; arrow: BendPoint }
 
+const END_RUN = 40; // min horizontal run of the end tangents, world px
 const pt = (x: number, y: number): BendPoint => ({ x, y });
 
 export function linkGeometry(f: BendPoint, t: BendPoint, bend?: LinkBend | null): LinkGeometry {
   const bent = bendCurve(f, t, bend);
   let c1: BendPoint, c2: BendPoint;
-  if (bent) ({ c1, c2 } = bent);
-  else {
+  if (bent) {
+    // A strong bend can put a control point behind its port, so the curve would arrive from above/below and the arrow hide under the
+    // card. Keep both ends heading right (leave F rightwards, enter T from the left) at no steeper than ~63 degrees (rise <= 2x run).
+    // ponytail: the handle (t=0.5 of the clamped curve) only approximates the pointer inside the clamped zone; it is continuous, no jumps.
+    ({ c1, c2 } = bent);
+    c1 = pt(Math.max(c1.x, f.x + Math.max(END_RUN, Math.abs(c1.y - f.y) / 2)), c1.y);
+    c2 = pt(Math.min(c2.x, t.x - Math.max(END_RUN, Math.abs(c2.y - t.y) / 2)), c2.y);
+  } else {
     const dx = t.x - f.x, dy = t.y - f.y;
     if (dx >= 0) { // S: leave right, arrive from the left
       const k = Math.max(40, Math.min(dx / 2, 220));
