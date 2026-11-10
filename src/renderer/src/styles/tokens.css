@@ -411,17 +411,17 @@
   --home-media-text:#2F333A;
 }
 .app--home-dusk{
-  --home-clock:#2E3446;
+  --home-clock:#3A4258;
   --home-clock-text:#E8ECF5;
-  --home-dock:#263043;
+  --home-dock:#313D55;
   --home-dock-text:#E8ECF5;
-  --home-dock-tile:#323C52;
+  --home-dock-tile:#42506D;
   --home-dock-tile-text:#E8ECF5;
-  --home-browser:#22384A;
+  --home-browser:#2D4B62;
   --home-browser-text:#E3EEF5;
-  --home-settings:#3A2E44;
+  --home-settings:#4B3B5A;
   --home-settings-text:#F0E6F5;
-  --home-media:#3B3428;
+  --home-media:#4E4535;
   --home-media-text:#F5EDE0;
 }
 

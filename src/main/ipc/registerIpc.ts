@@ -32,6 +32,7 @@ import { importFilePicker, registerOrchestrationIpc } from "./orchestrationIpc";
 import type { RunManager } from "../services/orchestration/manager";
 import type { WorkspaceStore } from "../services/WorkspaceStore";
 import type { CameraState } from "../../shared/contracts";
+import { PROVIDER_CLI_IDS, type ProviderCliRegistry } from "../services/providerCliRegistry";
 import { toLegacyPalette } from "../../shared/appearance";
 
 const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
@@ -51,6 +52,7 @@ interface Dependencies {
   settings: SettingsStore;
   terminals: TerminalManager;
   limits: LimitsService;
+  providerClis: ProviderCliRegistry;
   plugins: PluginManager;
   pluginMedia: PluginMediaService;
   pluginSecrets: PluginSecretsService;
@@ -74,6 +76,7 @@ export function registerIpc({
   settings,
   terminals,
   limits,
+  providerClis,
   plugins,
   pluginMedia,
   pluginSecrets,
@@ -212,6 +215,7 @@ export function registerIpc({
   });
 
   handleMain(IPC.limitsGet, () => limits.get());
+  handleMain(IPC.providersAvailable, () => PROVIDER_CLI_IDS.filter((id) => providerClis.get(id).state === "available"));
 
   ipcMain.handle(IPC.pluginsList, (event) => {
     assertMainRenderer(event, getMainWindow);

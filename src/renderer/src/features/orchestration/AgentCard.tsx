@@ -3,6 +3,7 @@ import type { LocaleId, SessionBounds } from "../../../../shared/contracts";
 import type { OrchestrationActivityEntry, OrchestrationAgentCard } from "../../../../shared/orchestration";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { UiIcon } from "../../components/UiIcon";
+import { CARD_STATUS_ICON, agentCardStatus } from "../../lib/cardStatus";
 import { t, type TranslationKey } from "../../lib/i18n";
 import { AGENT_CARD_EXPANDED, AGENT_CARD_LIMITS as LIMITS, AGENT_CARD_SIZE, agentCardSize, isCompact, withoutHome } from "./agentCardGeometry";
 import type { AgentState } from "./runModel";
@@ -127,7 +128,8 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
         <div className="agent-card__status" role="status">
           <span className={`agent-card__state agent-card__state--${state}`} data-agent-pause={props.pause && (state === "paused" || state === "needs_you") ? "yes" : undefined}
             title={props.pause && (state === "paused" || state === "needs_you") ? props.pause : t(locale, STATE_KEY[state])}>
-            {props.pause && (state === "paused" || state === "needs_you") ? props.pause : t(locale, STATE_KEY[state])}</span>
+            <UiIcon name={CARD_STATUS_ICON[agentCardStatus(state)]} size="1.1em" />
+            <span>{props.pause && (state === "paused" || state === "needs_you") ? props.pause : t(locale, STATE_KEY[state])}</span></span>
           {props.statusTime && <span className="agent-card__time" data-agent-time title={props.statusTime}>{props.statusTime}</span>}
         </div>
         {/* the pill already names a held state (paused, ended, waiting for you); the sentence adds what moves */}

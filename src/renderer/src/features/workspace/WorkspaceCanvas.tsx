@@ -41,6 +41,8 @@ import { PluginCanvasCard } from "../plugins/PluginCanvasCard";
 import { TerminalCard } from "../terminal/TerminalCard";
 import { CanvasCommandPalette } from "./CanvasCommandPalette";
 import { CanvasContextMenu } from "./CanvasContextMenu";
+import { OnboardingCard } from "../onboarding/OnboardingCard";
+import { onboardingPlacement } from "../onboarding/onboardingSteps";
 import { CanvasMinimap } from "./CanvasMinimap";
 import { CanvasRegionCard } from "./CanvasRegionCard";
 import { CanvasRegionMenu } from "./CanvasRegionMenu";
@@ -191,6 +193,7 @@ interface WorkspaceCanvasProps {
   onStickyNoteBoundsChange(id: string, bounds: SessionBounds): void;
   onStickyNoteTextChange(id: string, text: string): void;
   onDeleteStickyNote(id: string): void;
+  onDismissOnboarding(): void;
 }
 
 export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element {
@@ -206,7 +209,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     onRestartSession, onDisposeSession, onBrowserBoundsChange, onFocusBrowser,
     onCloseBrowser, onCreateCanvasRegion, onChangeCanvasRegion,
     onCanvasRegionBoundsChange, onDeleteCanvasRegion, onCreateStickyNote,
-    onStickyNoteBoundsChange, onStickyNoteTextChange, onDeleteStickyNote
+    onStickyNoteBoundsChange, onStickyNoteTextChange, onDeleteStickyNote, onDismissOnboarding
   } = props;
   const viewport = useRef<HTMLDivElement>(null);
   // Orchestration agent cards live in main (stage-8-contract.md §2), not in settings.
@@ -473,6 +476,21 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     position: { x: 0, y: 0 },
     size: homeGridPixelSize(settings.homeGridSize)
   }), [settings.homeGridSize]);
+  // The first-run card clears the HOME tiles on screen: measured (the HOME grid is larger than the tiles it holds)
+  const [onboardingPlace, setOnboardingPlace] = useState<{ left: number; top: number } | null>(null);
+  useLayoutEffect(() => {
+    const view = viewport.current;
+    if (!view || settings.onboardingDismissed) return;
+    const box = view.getBoundingClientRect();
+    const tiles = [...view.querySelectorAll(".home-zone .tile")].map((el) => el.getBoundingClientRect());
+    if (tiles.length === 0) { setOnboardingPlace(null); return; }
+    const home = {
+      left: Math.min(...tiles.map((r) => r.left)) - box.left, top: Math.min(...tiles.map((r) => r.top)) - box.top,
+      right: Math.max(...tiles.map((r) => r.right)) - box.left, bottom: Math.max(...tiles.map((r) => r.bottom)) - box.top
+    };
+    const next = onboardingPlacement(home, { width: box.width, height: box.height });
+    setOnboardingPlace((prev) => (prev?.left === next?.left && prev?.top === next?.top ? prev : next));
+  }, [camera.x, camera.y, camera.zoom, settings.homeGridSize, settings.homeLayout, settings.onboardingDismissed]);
 
   const selectMarquee = useCallback((bounds: SessionBounds | null): void => {
     if (bounds === null) {
@@ -1304,6 +1322,9 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
       <BrowserElsewhereDialog controls={workspace} locale={settings.locale} />
 
       <div className="canvas-overlays" ref={overlays}>
+        {/* first: the corner slots below paint over it */}
+        <OnboardingCard locale={settings.locale} dismissed={settings.onboardingDismissed} hasTerminal={sessions.some((s) => s.provider === "terminal")}
+          linked={orch.canvas.links.length > 0} place={onboardingPlace} onNewTerminal={() => onOpenTerminal()} onDismiss={onDismissOnboarding} />
         <div className="canvas-overlay-slot canvas-overlay-slot--top-center">
           <WorkspaceBar controls={workspace} counts={counts} locale={settings.locale} onDialog={openWsDialog}
             board={{ shown: !!boardPlace, toggle: () => showBoardRef.current(workspace.activeId) }} />
