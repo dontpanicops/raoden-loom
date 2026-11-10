@@ -447,5 +447,5 @@
 .app--sand.app--canvas-linen,.app--sand.app--canvas-mist{--surface-3:rgba(56,53,47,.94);--surface-4:rgba(62,59,52,.96)}
 .app--bay.app--canvas-stone,.app--bay.app--canvas-lilac{--surface-3:rgba(34,40,58,.88);--surface-4:rgba(38,45,64,.92)}
 .app--bay.app--canvas-linen,.app--bay.app--canvas-mist{--surface-3:rgba(34,40,58,.94);--surface-4:rgba(38,45,64,.96)}
-/* doubled class: specificity above the canvas-tinted .app--bay.app--canvas-* rules, so reduced transparency always wins */
+/* doubled class: specificity above the dark-theme-over-light-canvas glass rules above, so reduced transparency always wins */
 .app--reduce.app--reduce{--surface-3:var(--surface-3-solid);--surface-4:var(--surface-4-solid)}
