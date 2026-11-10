@@ -15,7 +15,7 @@ test("palette changes retheme the live xterm without recreating it", async () =>
   const mountDependencies = effectDependenciesContaining(source, "new Terminal({");
 
   assert.equal(mountDependencies, "session.id");
-  assert.match(source, /terminal\.options\.theme = terminalTheme\(palette\)/);
+  assert.match(source, /terminal\.options\.theme = readTerminalTheme\(host\)/);
 });
 
 test("terminal copy shortcuts write the xterm selection without reaching the PTY", async () => {
@@ -122,8 +122,9 @@ test("terminal viewport keeps the palette background after row-sized fits", asyn
     readFile(appStylesPath, "utf8")
   ]);
 
-  assert.match(source, /"--terminal-background": terminalBackground/);
-  assert.match(styles, /\.terminal-card__surface \.xterm-viewport \{ background-color: var\(--terminal-background, #202430\); \}/);
+  assert.doesNotMatch(source, /--terminal-background/);
+  assert.match(source, /getComputedStyle\(element\)[\s\S]*read\("--term-bg"\)/);
+  assert.match(styles, /\.terminal-card__surface \.xterm-viewport \{ background-color: var\(--term-bg\); \}/);
 });
 
 test("terminal fits preserve the active scrollback viewport", async () => {

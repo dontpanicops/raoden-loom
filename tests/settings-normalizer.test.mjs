@@ -15,8 +15,9 @@ const fallback = {
   restoreTerminalSessions: false,
   persistCanvasRegions: true,
   persistStickyNotes: true,
-  palette: "sage",
-  homeAccentPreset: "classic",
+  palette: "sand",
+  reduceTransparency: false,
+  homeAccentPreset: "theme",
   homeAccentColors: {
     clock: "#D8E1C5",
     launcher: "#B8CF99",
@@ -32,7 +33,7 @@ const fallback = {
   radialLauncherEnabled: false,
   agentLifecycleHooksEnabled: true,
   uiScale: 1,
-  canvasColor: "sage",
+  canvasColor: "theme",
   pattern: "dots",
   snapToGrid: true,
   invertTerminalWheel: true,
@@ -245,7 +246,7 @@ test("normalizes HOME accents, Canvas colors, and the expanded pattern set", () 
     settings: "#DDEEFF",
     media: "#778899"
   });
-  assert.equal(normalized.canvasColor, "slate");
+  assert.equal(normalized.canvasColor, "night"); // slate is an old id: rewritten
   assert.equal(normalized.pattern, "rings");
 
   const invalid = normalizeSettings({
@@ -272,9 +273,61 @@ test("normalizes the persisted session-row color mode", () => {
   assert.equal(normalizeSettings({ sessionRowColorMode: "rainbow" }, fallback).sessionRowColorMode, "status");
 });
 
-test("migrates legacy palette-backed Canvas colors to an independent concrete background", () => {
-  assert.equal(normalizeSettings({ palette: "night", canvasColor: "palette" }, fallback).canvasColor, "night");
-  assert.equal(normalizeSettings({ palette: "lilac" }, fallback).canvasColor, "lilac");
+test("R0 migration table: every old id is rewritten, only new ids come out", () => {
+  const n = (source) => normalizeSettings(source, fallback);
+  // canvasColor missing or "palette": by the OLD palette; no/unknown old palette -> theme
+  for (const canvas of [undefined, "palette"]) {
+    const src = (palette) => ({ ...(palette === undefined ? {} : { palette }), ...(canvas === undefined ? {} : { canvasColor: canvas }) });
+    assert.equal(n(src("sage")).canvasColor, "stone");
+    assert.equal(n(src("lilac")).canvasColor, "lilac");
+    assert.equal(n(src("night")).canvasColor, "night");
+    assert.equal(n(src(undefined)).canvasColor, "theme");
+    assert.equal(n(src("bogus")).canvasColor, "theme");
+    assert.equal(n(src("bay")).canvasColor, "theme", "a new palette is not an old one");
+  }
+  // explicit canvasColor
+  const canvas = { sage: "stone", lilac: "lilac", night: "night", sand: "stone", mist: "mist", rose: "lilac", slate: "night" };
+  for (const [from, to] of Object.entries(canvas)) assert.equal(n({ canvasColor: from, palette: "night" }).canvasColor, to, from);
+  for (const id of ["theme", "stone", "linen", "graphite", "lilac", "night", "mist"]) assert.equal(n({ canvasColor: id }).canvasColor, id);
+  // palette, and the pairs from the spec
+  assert.equal(n({ palette: "sage" }).palette, "sand");
+  assert.equal(n({ palette: "lilac" }).palette, "bay");
+  assert.equal(n({ palette: "night" }).palette, "bay");
+  for (const id of ["sand", "bay", "paper", "frost"]) assert.equal(n({ palette: id }).palette, id);
+  assert.equal(n({ palette: "bogus" }).palette, "sand");
+  const pairA = n({ palette: "lilac", canvasColor: "sage" });
+  assert.deepEqual([pairA.palette, pairA.canvasColor], ["bay", "stone"]);
+  const pairB = n({ palette: "lilac", canvasColor: "lilac" });
+  assert.deepEqual([pairB.palette, pairB.canvasColor], ["bay", "lilac"]);
+  // HOME accent
+  assert.equal(n({ homeAccentPreset: "classic" }).homeAccentPreset, "pastel");
+  for (const id of ["theme", "pastel", "dusk", "warm", "cool", "mono", "custom"]) assert.equal(n({ homeAccentPreset: id }).homeAccentPreset, id);
+  assert.equal(n({ homeAccentPreset: "bogus" }).homeAccentPreset, "theme");
+  // reduceTransparency
+  assert.equal(n({}).reduceTransparency, false);
+  assert.equal(n({ reduceTransparency: true }).reduceTransparency, true);
+  assert.equal(n({ reduceTransparency: "yes" }).reduceTransparency, false);
+});
+
+test("R0: a v15 file is migrated on load, saved with new ids only and survives save -> load", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "canvastty-settings-r0-"));
+  try {
+    await writeFile(join(dir, "settings.json"), JSON.stringify({
+      settingsVersion: 15, palette: "lilac", canvasColor: "sage", homeAccentPreset: "classic"
+    }), "utf8");
+    const loaded = await new SettingsStore(dir, "en").load();
+    assert.deepEqual([loaded.palette, loaded.canvasColor, loaded.homeAccentPreset], ["bay", "stone", "pastel"]);
+    const saved = JSON.parse(await readFile(join(dir, "settings.json"), "utf8"));
+    assert.deepEqual([saved.settingsVersion, saved.palette, saved.canvasColor, saved.homeAccentPreset, saved.reduceTransparency],
+      [16, "bay", "stone", "pastel", false]);
+    const again = await new SettingsStore(dir, "en").load();
+    assert.deepEqual(again, loaded);
+    await rm(join(dir, "settings.json"));
+    const fresh = await new SettingsStore(dir, "en").load();
+    assert.deepEqual([fresh.palette, fresh.canvasColor, fresh.homeAccentPreset, fresh.reduceTransparency], ["sand", "theme", "theme", false]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("normalizes the HOME launcher provider selection in canonical order", () => {
@@ -369,7 +422,7 @@ test("the Qwen migration does not rerun the older expanded-limit migration", asy
     assert.deepEqual(loaded.homeLimitProviders, ["codex", "claude", "kimi"]);
 
     const persisted = JSON.parse(await readFile(join(dir, "settings.json"), "utf8"));
-    assert.equal(persisted.settingsVersion, 15);
+    assert.equal(persisted.settingsVersion, 16);
     assert.equal(persisted.agentLifecycleHooksEnabled, true);
     assert.deepEqual(persisted.homeLimitProviders, ["codex", "claude", "kimi"]);
   } finally {
@@ -392,7 +445,7 @@ test("the limit-display migration preserves a version-three launcher subset", as
     assert.deepEqual(loaded.homeLimitProviders, fallback.homeLimitProviders);
 
     const persisted = JSON.parse(await readFile(join(dir, "settings.json"), "utf8"));
-    assert.equal(persisted.settingsVersion, 15);
+    assert.equal(persisted.settingsVersion, 16);
     assert.equal(persisted.agentLifecycleHooksEnabled, true);
     assert.deepEqual(persisted.homeLimitProviders, fallback.homeLimitProviders);
   } finally {
@@ -412,7 +465,7 @@ test("the expanded limit migration preserves a curated version-four subset", asy
     assert.deepEqual(loaded.homeLimitProviders, ["kimi"]);
 
     const persisted = JSON.parse(await readFile(join(dir, "settings.json"), "utf8"));
-    assert.equal(persisted.settingsVersion, 15);
+    assert.equal(persisted.settingsVersion, 16);
     assert.equal(persisted.agentLifecycleHooksEnabled, true);
     assert.deepEqual(persisted.homeLimitProviders, ["kimi"]);
   } finally {
@@ -470,12 +523,12 @@ test("fresh installs default to scroll pan and key-gated widget wheel input", as
     assert.equal(store.get().minimapInteractionMode, "click");
     assert.equal(store.get().shortcutHintsPlacement, "bottom-right");
     assert.equal(store.get().canvasControlsPlacement, "bottom-left");
-    assert.equal(store.get().homeAccentPreset, "classic");
+    assert.equal(store.get().homeAccentPreset, "theme");
     assert.equal(store.get().sessionRowColorMode, "status");
     assert.deepEqual(store.get().homeAccentColors, fallback.homeAccentColors);
     assert.deepEqual(store.get().homeLauncherProviders, fallback.homeLauncherProviders);
     assert.deepEqual(store.get().homeLimitProviders, fallback.homeLimitProviders);
-    assert.equal(store.get().canvasColor, "sage");
+    assert.equal(store.get().canvasColor, "theme");
     assert.equal(store.get().pattern, "dots");
     assert.deepEqual(store.get().homeGridSize, { columns: 16, rows: 12 });
     assert.equal(store.get().browserCanvas, null);
@@ -519,7 +572,7 @@ test("existing profiles migrate minimap interaction to click and persist later c
     const store = new SettingsStore(dir, "en");
     assert.equal((await store.load()).minimapInteractionMode, "click");
     let persisted = JSON.parse(await readFile(join(dir, "settings.json"), "utf8"));
-    assert.equal(persisted.settingsVersion, 15);
+    assert.equal(persisted.settingsVersion, 16);
     assert.equal(persisted.minimapInteractionMode, "click");
 
     await store.update({ minimapInteractionMode: "drag" });
@@ -552,10 +605,10 @@ test("existing settings migrate to wheel zoom and preserve legacy widget capture
     assert.equal(persisted.zoomOverApplications, false);
     assert.equal(persisted.canvasNavigationOverride, "Alt");
     assert.equal(persisted.canvasWheelOverride, null);
-    assert.equal(persisted.homeAccentPreset, "classic");
+    assert.equal(persisted.homeAccentPreset, "theme");
     assert.deepEqual(persisted.homeLauncherProviders, fallback.homeLauncherProviders);
     assert.deepEqual(persisted.homeLimitProviders, fallback.homeLimitProviders);
-    assert.equal(persisted.canvasColor, "sage");
+    assert.equal(persisted.canvasColor, "theme");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -567,11 +620,11 @@ test("a saved Chinese locale opens in Russian; the other settings stay as saved"
   assert.equal(normalizeSettings({ locale: "de" }, fallback).locale, "en");
   const dir = await mkdtemp(join(tmpdir(), "canvastty-settings-zh-"));
   try {
-    const saved = { locale: "zh-CN", palette: "night", snapToGrid: false, persistStickyNotes: false };
+    const saved = { locale: "zh-CN", palette: "bay", snapToGrid: false, persistStickyNotes: false };
     await writeFile(join(dir, "settings.json"), JSON.stringify(saved), "utf8");
     const loaded = await new SettingsStore(dir, "en").load();
     assert.deepEqual({ locale: loaded.locale, palette: loaded.palette, snapToGrid: loaded.snapToGrid, persistStickyNotes: loaded.persistStickyNotes },
-      { locale: "ru", palette: "night", snapToGrid: false, persistStickyNotes: false });
+      { locale: "ru", palette: "bay", snapToGrid: false, persistStickyNotes: false });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -590,7 +643,7 @@ test("existing settings without the legacy key use key mode and keep the legacy 
     const persisted = JSON.parse(await readFile(join(dir, "settings.json"), "utf8"));
     assert.equal(Object.hasOwn(persisted, "zoomOverApplications"), false);
 
-    await store.update({ palette: "night" });
+    await store.update({ palette: "bay" });
     const updated = JSON.parse(await readFile(join(dir, "settings.json"), "utf8"));
     assert.equal(Object.hasOwn(updated, "zoomOverApplications"), false);
 

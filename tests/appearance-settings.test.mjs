@@ -10,9 +10,9 @@ import {
 
 test("stale renderer settings resolve the new appearance fields without crashing", () => {
   assert.deepEqual(resolveAppearanceSettings({}), {
-    homeAccentPreset: "classic",
+    homeAccentPreset: "theme",
     homeAccentColors: DEFAULT_HOME_ACCENT_COLORS,
-    canvasColor: "sage"
+    canvasColor: "theme"
   });
 });
 
@@ -35,14 +35,14 @@ test("resolved appearance settings preserve a host-confirmed customization", () 
   });
 });
 
-test("legacy palette-backed Canvas colors resolve to a concrete background", () => {
-  assert.equal(resolveAppearanceSettings({ palette: "night", canvasColor: "palette" }).canvasColor, "night");
-  assert.equal(resolveAppearanceSettings({ palette: "lilac" }).canvasColor, "lilac");
+test("without a stored Canvas background the theme's own is used", () => {
+  assert.equal(resolveAppearanceSettings({ palette: "bay", canvasColor: "palette" }).canvasColor, "theme");
+  assert.equal(resolveAppearanceSettings({ palette: "bay" }).canvasColor, "theme");
 });
 
 test("Canvas background updates never include HOME palette fields", () => {
   assert.deepEqual(canvasColorPatch("sand"), { canvasColor: "sand" });
-  assert.deepEqual(canvasColorPatch("slate"), { canvasColor: "slate" });
+  assert.deepEqual(canvasColorPatch("stone"), { canvasColor: "stone" });
 });
 
 test("HOME palette updates never include the Canvas background field", () => {
@@ -53,10 +53,10 @@ test("HOME palette updates never include the Canvas background field", () => {
 test("Canvas color classes only override the Canvas background and pattern color", () => {
   const tokens = readFileSync(new URL("../src/renderer/src/styles/tokens.css", import.meta.url), "utf8");
   const blocks = [...tokens.matchAll(/\.app--canvas-[^{]+\{([^}]*)\}/g)];
-  assert.equal(blocks.length, 7);
+  assert.equal(blocks.length, 6);
   for (const [, body] of blocks) {
-    const variables = [...body.matchAll(/(--[a-z-]+)\s*:/g)].map((match) => match[1]).sort();
-    assert.deepEqual(variables, ["--canvas-bg", "--dot"]);
+    const variables = [...body.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((match) => match[1]).sort();
+    assert.deepEqual(variables, ["--canvas-dot", "--canvas-ink", "--canvas-ink-muted", "--surface-0", "--surface-0-hi", "--surface-0-lo"]);
   }
 });
 

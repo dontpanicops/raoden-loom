@@ -17,11 +17,11 @@ export function resolveAppearanceSettings(
     & { canvasColor?: CanvasColorId | "palette" }
 ): ResolvedAppearanceSettings {
   return {
-    homeAccentPreset: settings.homeAccentPreset ?? "classic",
+    homeAccentPreset: settings.homeAccentPreset ?? "theme",
     homeAccentColors: settings.homeAccentColors ?? DEFAULT_HOME_ACCENT_COLORS,
     canvasColor: settings.canvasColor && settings.canvasColor !== "palette"
       ? settings.canvasColor
-      : settings.palette ?? "sage"
+      : "theme"
   };
 }
 

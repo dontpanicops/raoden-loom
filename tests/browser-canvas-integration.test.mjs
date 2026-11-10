@@ -56,7 +56,7 @@ test("native Browser layout remains a BrowserService responsibility", async () =
   // carrying the page background. The horizontal insets are deliberately not
   // pinned - the page area is flush with the card edges and its corners are
   // rounded in the main process instead.
-  assert.match(styles, /\.browser-card__viewport \{[^}]*inset: calc\(var\(--card-header-height\) \+ 86px\) [^;]*;[^}]*background: #272934;/);
+  assert.match(styles, /\.browser-card__viewport \{[^}]*inset: calc\(var\(--card-header-height\) \+ 86px\) [^;]*;[^}]*background: var\(--surface-2\);/);
 });
 
 test("background browser activation cannot focus an inactive CanvasTTY window", async () => {
@@ -78,8 +78,8 @@ test("browser tab chrome highlights only the active tab", async () => {
   ]);
 
   assert.match(card, /tab\.id === browser\.activeTabId \? "browser-card__tab--active" : ""/);
-  assert.match(styles, /\.browser-card__tab \{[^}]*background: rgba\(255,255,255,\.025\);/);
-  assert.match(styles, /\.browser-card__tab--active \{[^}]*background: rgba\(255,255,255,\.13\);/);
+  assert.match(styles, /\.browser-card__tab \{[^}]*background: var\(--surface-1\);/);
+  assert.match(styles, /\.browser-card__tab--active \{[^}]*background: color-mix\(in srgb, var\(--text-primary\) 13%, transparent\);/);
 });
 
 test("browser window actions are separated from tab actions and use the Lucide globe", async () => {

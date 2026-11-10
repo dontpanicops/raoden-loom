@@ -58,13 +58,19 @@ import {
 } from "../../shared/canvasNavigation.ts";
 
 const LOCALES = new Set<LocaleId>(["ru", "en"]);
-const PALETTES = new Set<PaletteId>(["sage", "lilac", "night"]);
-const HOME_ACCENT_PRESETS = new Set<HomeAccentPresetId>(["classic", "warm", "cool", "mono", "custom"]);
+const PALETTES = new Set<PaletteId>(["sand", "bay", "paper", "frost"]);
+const HOME_ACCENT_PRESETS = new Set<HomeAccentPresetId>(["theme", "pastel", "dusk", "warm", "cool", "mono", "custom"]);
 const SESSION_ROW_COLOR_MODES = new Set<SessionRowColorMode>(["monochrome", "status"]);
-const CANVAS_COLORS = new Set<CanvasColorId>(["sage", "lilac", "night", "sand", "mist", "rose", "slate"]);
+const CANVAS_COLORS = new Set<CanvasColorId>(["theme", "stone", "linen", "graphite", "lilac", "night", "mist"]);
+// Old ids are read only: the normalizer rewrites them, only the new ids are saved.
+const LEGACY_PALETTE_TO_PALETTE: Record<string, PaletteId> = { sage: "sand", lilac: "bay", night: "bay" };
+const LEGACY_PALETTE_TO_CANVAS: Record<string, CanvasColorId> = { sage: "stone", lilac: "lilac", night: "night" };
+const LEGACY_CANVAS_COLORS: Record<string, CanvasColorId> = {
+  sage: "stone", sand: "stone", rose: "lilac", slate: "night"
+};
 const PATTERNS = new Set<CanvasPatternId>(["dots", "grid", "waves", "diagonal", "rings", "none"]);
 const MEDIA_FITS = new Set<MediaFit>(["cover", "contain"]);
-const SETTINGS_VERSION = 15;
+const SETTINGS_VERSION = 16;
 const GROK_LAUNCHER_SETTINGS_VERSION = 3;
 const EXPANDED_LIMIT_SETTINGS_VERSION = 5;
 const QWEN_SETTINGS_VERSION = 6;
@@ -271,8 +277,9 @@ function createDefaults(systemLocale: string, platform: CanvasNavigationPlatform
     restoreTerminalSessions: false,
     persistCanvasRegions: true,
     persistStickyNotes: true,
-    palette: "sage",
-    homeAccentPreset: "classic",
+    palette: "sand",
+    reduceTransparency: false,
+    homeAccentPreset: "theme",
     homeAccentColors: { ...DEFAULT_HOME_ACCENT_COLORS },
     sessionRowColorMode: "status",
     homeLauncherProviders: [...AGENT_PROVIDERS],
@@ -282,7 +289,7 @@ function createDefaults(systemLocale: string, platform: CanvasNavigationPlatform
     radialLauncherEnabled: false,
     agentLifecycleHooksEnabled: true,
     uiScale: DEFAULT_UI_SCALE,
-    canvasColor: "sage",
+    canvasColor: "theme",
     pattern: "dots",
     snapToGrid: true,
     invertTerminalWheel: true,
@@ -382,13 +389,19 @@ export function normalizeSettings(
     source.radialLauncherItems,
     fallback.radialLauncherItems ?? DEFAULT_RADIAL_LAUNCHER_ITEMS
   );
-  const palette = PALETTES.has(source.palette as PaletteId) ? source.palette as PaletteId : fallback.palette;
-  const canvasColorCandidate = (source as Record<string, unknown>).canvasColor;
-  const canvasColor = canvasColorCandidate === undefined || canvasColorCandidate === "palette"
-    ? palette
-    : CANVAS_COLORS.has(canvasColorCandidate as CanvasColorId)
-      ? canvasColorCandidate as CanvasColorId
-      : fallback.canvasColor;
+  const legacyPalette = (source as Record<string, unknown>).palette as string;
+  const palette = PALETTES.has(source.palette as PaletteId) ? source.palette as PaletteId
+    : LEGACY_PALETTE_TO_PALETTE[legacyPalette] ?? fallback.palette;
+  const canvasColorCandidate = (source as Record<string, unknown>).canvasColor as string | undefined;
+  // Canvas first (it reads the OLD palette), then the palette.
+  const canvasColor: CanvasColorId = canvasColorCandidate === undefined || canvasColorCandidate === "palette"
+    ? LEGACY_PALETTE_TO_CANVAS[legacyPalette] ?? "theme"
+    : LEGACY_CANVAS_COLORS[canvasColorCandidate]
+      ?? (CANVAS_COLORS.has(canvasColorCandidate as CanvasColorId) ? canvasColorCandidate as CanvasColorId : fallback.canvasColor);
+  const homeAccentCandidate = source.homeAccentPreset as string;
+  const homeAccentPreset = homeAccentCandidate === "classic" ? "pastel"
+    : HOME_ACCENT_PRESETS.has(homeAccentCandidate as HomeAccentPresetId) ? homeAccentCandidate as HomeAccentPresetId
+    : fallback.homeAccentPreset;
 
   return {
     // The Chinese interface was withdrawn: a saved "zh…" locale opens in Russian instead of the system default.
@@ -404,9 +417,10 @@ export function normalizeSettings(
       ? source.persistStickyNotes
       : fallback.persistStickyNotes ?? true,
     palette,
-    homeAccentPreset: HOME_ACCENT_PRESETS.has(source.homeAccentPreset as HomeAccentPresetId)
-      ? source.homeAccentPreset as HomeAccentPresetId
-      : fallback.homeAccentPreset,
+    reduceTransparency: typeof source.reduceTransparency === "boolean"
+      ? source.reduceTransparency
+      : fallback.reduceTransparency ?? false,
+    homeAccentPreset,
     homeAccentColors,
     sessionRowColorMode: SESSION_ROW_COLOR_MODES.has(source.sessionRowColorMode as SessionRowColorMode)
       ? source.sessionRowColorMode as SessionRowColorMode
