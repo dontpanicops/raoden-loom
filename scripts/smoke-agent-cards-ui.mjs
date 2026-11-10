@@ -135,7 +135,7 @@ async function besideOf(agentId, otherId) {
   for (let i = 0; i < 12; i++) {
     const [me, other] = [(await stored(agentId)).bounds, (await stored(otherId)).bounds];
     const want = { x: other.position.x - 60 - me.size.width - me.position.x, y: other.position.y - me.position.y };
-    if (Math.abs(want.x) < 8 && Math.abs(want.y) < 8) return;
+    if (Math.abs(want.x) < 8 && Math.abs(want.y) < 8) break;
     await app.reveal(card(agentId));
     const z = await zoomOf();
     const r = await rectOf(card(agentId, ".agent-card__identity"));
@@ -144,6 +144,11 @@ async function besideOf(agentId, otherId) {
     await app.drag(grip, { x: grip.x + dx, y: grip.y + dy }, 12);
     await sleep(400);
   }
+  // a pair that stands at the window's edge (where a new card lands depends on the free canvas: the minimap and the header are
+  // not the same height in every build) is brought to the middle, so that no card is left off the screen
+  const pair = await Promise.all([agentId, otherId].map((id) => rectOf(card(id))));
+  const [left, right] = [Math.min(...pair.map((r) => r.x)), Math.max(...pair.map((r) => r.right))];
+  if (left < 20 || right > 1260) await app.panBy({ x: 640 - (left + right) / 2, y: 0 });
 }
 
 try {
@@ -261,8 +266,10 @@ try {
   const zoom = await zoomOf();
   // from empty canvas right of the executor, leftwards over its resized part (below its compact size) and the lead's
   // lower part — the home zone may sit left of the cards
-  const from = { x: er.right + 30, y: er.y + 222 * zoom + 15 };
-  const to = { x: lr.x + 10, y: Math.min(er.bottom, lr.bottom) - 8 };
+  // (when the home zone sits right of the executor, the same marquee is made from the left of the lead, rightwards)
+  let from = { x: er.right + 30, y: er.y + 222 * zoom + 15 };
+  let to = { x: lr.x + 10, y: Math.min(er.bottom, lr.bottom) - 8 };
+  if (!(await app.isEmpty(from.x, from.y))) { from = { x: lr.x - 30, y: from.y }; to = { x: er.right - 10, y: to.y }; }
   expect(await app.isEmpty(from.x, from.y), "the marquee starts on empty canvas", from);
   await app.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: from.x, y: from.y, modifiers: 8 });
   await app.call("Input.dispatchMouseEvent", { type: "mousePressed", x: from.x, y: from.y, button: "left", buttons: 1, clickCount: 1, modifiers: 8 });

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { autoDismissMs, type ToastItem } from "../lib/toastQueue";
 import { UiIcon, type UiIconName } from "./UiIcon";
 
@@ -31,9 +31,32 @@ function ToastCard({ toast, closeLabel, onDismiss }: { toast: ToastItem; closeLa
   );
 }
 
+// The stack stands in the bottom right corner; the canvas overlays (hints, minimap, zoom) can stand there too: the stack
+// rises above whichever of them sits in its column (the bottom half of the window), so a toast never covers them.
+function liftAbove(stack: HTMLElement): void {
+  const own = stack.getBoundingClientRect();
+  let bottom = 20;
+  for (const slot of document.querySelectorAll<HTMLElement>(".canvas-overlay-slot")) {
+    const r = slot.getBoundingClientRect();
+    if (r.height === 0 || r.bottom < window.innerHeight / 2 || r.right < own.left || r.left > own.right) continue;
+    bottom = Math.max(bottom, window.innerHeight - r.top + 12);
+  }
+  stack.style.bottom = `${bottom}px`;
+}
+
 export function Toast({ toasts, closeLabel, onDismiss }: ToastProps): React.JSX.Element {
+  const stack = useRef<HTMLDivElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new or removed toast is the trigger; the overlays are measured, not props
+  useLayoutEffect(() => {
+    const node = stack.current;
+    if (!node) return;
+    const lift = (): void => liftAbove(node);
+    lift();
+    window.addEventListener("resize", lift);
+    return () => window.removeEventListener("resize", lift);
+  }, [toasts.length]);
   return (
-    <div className="toast-stack" data-interactive="true">
+    <div ref={stack} className="toast-stack" data-interactive="true">
       {toasts.map((toast) => <ToastCard key={toast.id} toast={toast} closeLabel={closeLabel} onDismiss={onDismiss} />)}
     </div>
   );

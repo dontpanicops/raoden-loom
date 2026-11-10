@@ -316,7 +316,7 @@ button { border: 0; }
 .canvas-region-editor__actions .canvas-region-editor__primary { color: var(--accent-text); background: var(--accent-bg); }
 .canvas-region-editor__actions .canvas-region-editor__primary:disabled { opacity: .42; cursor: not-allowed; }
 
-.canvas-command-palette__backdrop { position: absolute; inset: 0; z-index: 720; display: flex; justify-content: center; padding-top: min(14vh, 9em); background: var(--scrim); pointer-events: auto; }
+.canvas-command-palette__backdrop { position: absolute; inset: 0; z-index: 720; display: flex; justify-content: center; align-items: flex-start; padding-top: min(14vh, 9em); background: var(--scrim); pointer-events: auto; }
 .canvas-command-palette { position: relative; left: auto; top: auto; width: min(38.46em, calc(100vw - 3em)); min-width: 0; max-height: min(38em, calc(100vh - 7em)); overflow: hidden; }
 .canvas-command-palette__search { padding: .85em 1.1em; display: flex; align-items: center; gap: .75em; border-bottom: .08em solid color-mix(in srgb, var(--text-primary) 12%, transparent); color: var(--text-secondary); font-size: 1.05em; }
 .canvas-command-palette__search input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--text-primary); background: transparent; font-weight: 400; user-select: text; }
@@ -541,7 +541,7 @@ button { border: 0; }
 .profile-row { margin-top: 13px; padding: 3px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; border-radius: 9px; background: var(--surface-sunken); }
 .orch-form .profile-button { min-height: var(--control-h-m); border-radius: 7px; color: var(--text-secondary); background: transparent; cursor: pointer; font-size: 12px; font-weight: 500; box-shadow: none; }
 .orch-form .profile-button:hover { color: var(--text-primary); }
-.orch-form .profile-button--active { color: var(--text-primary); background: var(--surface-2); box-shadow: var(--edge), var(--elev-1); font-weight: 600; }
+.orch-form .profile-button--active { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 16%, var(--surface-sunken)); box-shadow: var(--edge), var(--elev-1), inset 0 0 0 1px var(--border-strong); font-weight: 600; }
 .launch-submit__busy { width: 14px; height: 14px; border: 2px solid color-mix(in srgb, currentColor 30%, transparent); border-top-color: currentColor; border-radius: 50%; animation: spin .8s linear infinite; }
 .danger-note { margin-top: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 5px; border-radius: 12px; color: var(--status-waiting); background: var(--status-waiting-bg); font-size: 12px; line-height: 1.35; }
 .danger-note span { opacity: .75; }
