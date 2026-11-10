@@ -13,6 +13,7 @@ import type {
   OrchestrationReleasedNewerRun
 } from "../../../shared/orchestration.ts";
 import { COMMON_WORKSPACE_ID } from "../../../shared/contracts.ts";
+import { isLinkBend, type LinkBend } from "../../../shared/linkBend.ts";
 import { runOwners, workspaceOf } from "../../../shared/workspaceOwnership.ts";
 
 class Refusal extends Error {
@@ -235,6 +236,15 @@ export function createCanvasStore(file: string, known: (workspaceId: string) => 
       const link = linkOf(c, linkId);
       refuseBusy(await busy(link), "link_active_run", "stop the run of this link first");
       return { next: { ...c, links: c.links.filter((l) => l.linkId !== linkId), owners: ownersFixed(c, [link]) }, value: null };
+    }),
+
+    // bend: null resets (the field is removed). A bend is the user's picture, not run state: no busy check.
+    setLinkBend: (linkId: string, bend: LinkBend | null) => change<OrchestrationAgentLink>(async (c) => {
+      if (bend !== null && !isLinkBend(bend)) refuse("invalid_argument", "bend must be null or finite {along, across} within -2..2");
+      const link = linkOf(c, linkId);
+      const { bend: _old, ...rest } = link;
+      const next: OrchestrationAgentLink = bend === null ? rest : { ...rest, bend: { along: bend.along, across: bend.across } };
+      return { next: { ...c, links: c.links.map((l) => (l === link ? next : l)) }, value: next };
     }),
 
     // A link held by a newer version's run is let go (acceptance-review-spec.md §2.2.1): the link is
