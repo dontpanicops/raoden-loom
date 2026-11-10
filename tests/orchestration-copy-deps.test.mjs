@@ -12,6 +12,7 @@ import { after, test } from "node:test";
 import { findGit } from "../src/main/services/orchestration/git.ts";
 import { createRunManager, testNativeRuntime } from "../src/main/services/orchestration/manager.ts";
 import { createProfileStore, suggestProfile } from "../src/main/services/orchestration/profile.ts";
+import { legacyView } from "../src/renderer/src/features/orchestration/panelTabs.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const GIT = findGit(process.env);
@@ -269,7 +270,7 @@ async function loadRunPanel() {
     orch: { runs: { r: { view, open: true, seq: 9, tick: 0 } }, activity: { r: { entries, gaps: [], firstId: entries[0]?.id ?? 0, status: "ready", resyncs: 0 } },
       runErrors: {}, canvas: { links: [], agents: [] }, journals: { r: { records: [], next: 0, status: "ready" } }, texts: {},
       commands: { pending: () => [] }, catalog: { checks: [] }, loadText() {}, syncJournal() {}, retry() {} },
-    runId: "r", locale, panel: { linkId: "L", tab: "overview", role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {}
+    runId: "r", locale, panel: { linkId: "L", mode: "feed", ...legacyView("overview"), role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {}
   }));
 }
 

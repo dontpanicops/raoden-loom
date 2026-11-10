@@ -47,19 +47,3 @@ export function panelView(arg: PanelViewArg | undefined): PanelView {
   if (section) out.section = section;
   return out;
 }
-
-// The old key of a new view — the compatibility layer for the panel's markup, which still draws eight tabs until part B.
-export function legacyKeyOf(p: { tab: PanelTab; mode?: PanelMode; section?: PanelSection }): LegacyPanelTab {
-  if (p.tab === "changes") return "changes";
-  if (p.tab === "work") return p.mode === "journal" ? "log" : p.mode === "records" ? "history" : "activity";
-  return p.section ?? "summary";
-}
-
-// The panel's first line: accepts a state with a new or a legacy tab and returns it with the legacy key in `tab`.
-// ponytail: part B draws three tabs from panel.tab/mode/section and drops this; until then it keeps eight tabs working.
-export function normalizePanel<T extends { tab: PanelTab | LegacyPanelTab; mode?: PanelMode; section?: PanelSection }>(
-  panel: T
-): Omit<T, "tab"> & { tab: LegacyPanelTab } {
-  const v = panelView({ tab: panel.tab, mode: panel.mode, section: panel.section });
-  return { ...panel, tab: legacyKeyOf({ tab: v.tab as PanelTab ?? "summary", mode: v.mode, section: v.section }) };
-}

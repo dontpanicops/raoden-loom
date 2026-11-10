@@ -6,10 +6,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire, Module } from "node:module";
 import { test } from "node:test";
-import { GLOSSARY, board, conditionStatusKey, factLines, glossarySplit, idLabel, nextStepText, pauseText, requirementStatusKey, resultFacts }
+import { GLOSSARY, board, changesNote, conditionStatusKey, factLines, proofLine, glossarySplit, idLabel, nextStepText, pauseText, requirementStatusKey, resultFacts }
   from "../src/renderer/src/features/orchestration/runModel.ts";
+import { outcomeKey } from "../src/renderer/src/features/orchestration/runStatus.ts";
 import { chipCenter, chipSize } from "../src/renderer/src/features/orchestration/linkChip.ts";
 import { t } from "../src/renderer/src/lib/i18n.ts";
+import { legacyView } from "../src/renderer/src/features/orchestration/panelTabs.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const view = (status, reason = null, extra = {}) => ({ runId: "r", revision: 1, status, reason, stage: 1, active: null, permission: null, halted: false,
@@ -64,6 +66,33 @@ test("the result block: no line says the opposite of another or of the headline,
       if (s.v.status === "completed" && facts.changes === "no") assert.match(nextStepText(locale, s.v, []), locale === "ru" ? /если изменения есть/ : /if there are changes/, at);
     }
   }
+});
+
+// R3a (Н5): the one proof line at the top of the result facts, in every state, ru and en
+test("the proof line says what is proven and what is not, never against the headline, with «no changes» explained", () => {
+  const unconfirmed = { name: "completed, the final review did not confirm", v: view("completed", null, { progress: progress({ completion: "checked" }) }), d: digest(), changed: 1 };
+  for (const locale of ["ru", "en"]) {
+    for (const s of [...STATES, unconfirmed]) {
+      const facts = resultFacts(s.v, s.d, s.changed, null);
+      const outcome = outcomeKey(s.v, s.d.finalVerdict);
+      const line = proofLine(locale, outcome, facts);
+      const at = `${locale}: ${s.name}`;
+      assert.ok(line && !/^orchProof/.test(line), `${at}: a sentence`);
+      const goalWords = locale === "ru" ? /Цель принята/ : /goal was accepted/;
+      const notReached = locale === "ru" ? /не достигнута/ : /not reached/;
+      if (s.v.status === "completed" && outcome !== "completed_unconfirmed") assert.match(line, goalWords, at);
+      if (outcome === "completed_unconfirmed") assert.doesNotMatch(line, goalWords, `${at}: nothing accepted`);
+      if (["paused", "stopped", "failed"].includes(s.v.status)) { assert.match(line, notReached, at); assert.doesNotMatch(line, goalWords, at); }
+      if (s.v.status === "running") assert.match(line, locale === "ru" ? /предварительный/ : /preliminary/, at);
+      if (outcome === "completed_no_checks") assert.match(line, locale === "ru" ? /ничем не подтверждён/ : /nothing confirms/, at);
+      if (outcome === "completed" && facts.checks === "passed") assert.match(line, locale === "ru" ? /проверки пройдены/ : /checks passed/, at);
+      // «no changes» / «not counted» of a completed run comes with its meaning; a run that changed files, or is not over, has no note
+      const note = changesNote(locale, s.v, facts);
+      if (s.v.status === "completed" && facts.changes === "no") assert.match(note, locale === "ru" ? /коммитить нечего/ : /nothing to commit/, at);
+      if (s.v.status !== "completed" || facts.changes === "yes") assert.equal(note, null, at);
+    }
+  }
+  assert.notEqual(proofLine("ru", "completed_unloaded", resultFacts(view("completed"), digest(), null, null)), proofLine("ru", "completed", resultFacts(view("completed"), digest(), null, null)));
 });
 
 test("checks that never ran read «not run yet», never «0 of N passed» (it reads as failed)", async () => {
@@ -168,6 +197,6 @@ async function panelOf() {
     orch: { runs: { r: { view: v, open: true, seq: 9, tick: 0 } }, activity: { r: { entries: [], gaps: [], firstId: 0, status: "ready", resyncs: 0 } },
       runErrors: {}, canvas: { links: [], agents: [] }, journals: { r: { records: [], next: 0, status: "ready" } }, texts: {},
       commands: { pending: () => [] }, catalog: { checks: [] }, loadText() {}, syncJournal() {}, retry() {}, stageTitles: () => ({}) },
-    runId: "r", locale, panel: { linkId: "L", tab, role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {}
+    runId: "r", locale, panel: { linkId: "L", mode: "feed", ...legacyView(tab), role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {}
   }));
 }

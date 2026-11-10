@@ -766,6 +766,18 @@ export function factLines(locale: LocaleId, view: OrchestrationRunView, facts: R
   ];
 }
 
+// R3a (Н5): the one sentence at the top of the result facts — what is proven and what is not — from the same outcome
+// the summary shows (runStatus outcomeKey), so it never says the opposite of the headline. A completed run's
+// "goal accepted" field is not drawn (this line says it); «no changes» then carries its meaning (changesNote).
+export function proofLine(locale: LocaleId, outcome: string, facts: ResultFacts): string {
+  const key = outcome === "completed" ? (facts.checks === "passed" ? "completed" : "completed_plain") : outcome;
+  return t(locale, `orchProof_${key}` as TranslationKey);
+}
+export function changesNote(locale: LocaleId, view: OrchestrationRunView, facts: ResultFacts): string | null {
+  if (view.status !== "completed" || facts.changes === "yes") return null;
+  return t(locale, facts.changes === "no" ? "orchProofChangesNo" : "orchProofChangesUnknown");
+}
+
 // UX audit PR 2 (Н11): one table of the interface's terms, each with one sentence of explanation (orchTerm_<term>) —
 // shown on hover wherever a text names it. The forms are the words as the texts use them (ru cases, en plurals).
 export const GLOSSARY = {

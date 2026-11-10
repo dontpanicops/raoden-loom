@@ -1138,7 +1138,7 @@ button { border: 0; }
 .orch-limits label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
 .orch-form__actions { display: flex; justify-content: flex-end; gap: 8px; }
 .orch-hint { opacity: .7; font-size: 12px; }
-.orch-panel { position: absolute; right: 16px; top: 16px; bottom: 16px; z-index: 510; width: min(420px, calc(100% - 32px)); display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-xl); color: var(--text-primary); background: var(--surface-3-solid); box-shadow: var(--elev-4); font-size: calc(13px * var(--ui-scale, 1)); }
+.orch-panel { position: absolute; right: 16px; top: 16px; bottom: 16px; z-index: 510; width: min(calc(400px * var(--ui-scale, 1)), calc(100% - 32px)); display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-xl); color: var(--text-primary); background: var(--surface-3-solid); box-shadow: var(--elev-4); font-size: calc(13px * var(--ui-scale, 1)); }
 .orch-panel__header { padding: 12px 12px 12px 16px; display: flex; align-items: center; gap: 10px; background: var(--surface-sunken); }
 .orch-panel__header code { opacity: .6; }
 .orch-panel__close { margin-left: auto; width: 30px; height: 30px; display: grid; place-items: center; padding: 0 !important; }
@@ -1194,6 +1194,21 @@ button { border: 0; }
 .orch-tabs, .orch-roles { flex: 0 0 auto; margin: 10px 12px 0; display: flex; flex-wrap: wrap; gap: 4px; }
 .orch-panel .orch-tabs button, .orch-panel .orch-roles button { padding: .35em .7em; background: transparent; box-shadow: inset 0 0 0 1px var(--focus); color: inherit; }
 .orch-panel .orch-tabs button.orch-tabs__on, .orch-panel .orch-roles button.orch-roles__on { color: var(--text-primary); background: var(--surface-2-b); }
+/* R3a: the three tabs and the work modes are a segment (the redesign's .seg-wrap); the role filter keeps its pills */
+.orch-seg { flex: 0 0 auto; margin: 10px 12px 0; padding: 3px; display: flex; flex-wrap: nowrap; gap: 2px; border-radius: 9px; background: var(--surface-sunken); }
+.orch-panel .orch-seg button { flex: 1; min-width: 0; padding: .3em .6em; border-radius: 7px; box-shadow: none; background: transparent; color: var(--text-secondary); font-weight: 500; white-space: nowrap; }
+.orch-panel .orch-seg button.orch-tabs__on { color: var(--text-primary); background: var(--surface-2); box-shadow: var(--edge), var(--elev-1); font-weight: 600; }
+.orch-runs { flex: 0 0 auto; margin: 8px 12px 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.orch-panel .orch-runs button { padding: .2em .6em; display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--border-strong); background: transparent; color: var(--text-secondary); font: 500 11px var(--font-mono); }
+.orch-panel .orch-runs button[aria-pressed="true"] { color: var(--text-primary); background: var(--surface-2-b); box-shadow: inset 0 0 0 1px var(--focus); }
+.orch-runs i { width: 8px; height: 8px; border-radius: 50%; background: var(--status-idle); }
+.orch-runs i[data-run-status="running"], .orch-runs i[data-run-status="preparing"] { background: var(--status-working); }
+.orch-runs i[data-run-status="paused"], .orch-runs i[data-run-status="pausing"] { background: var(--status-paused); }
+.orch-runs i[data-run-status="failed"], .orch-runs i[data-run-status="stopping"] { background: var(--status-failed); }
+.orch-sect { border-top: 1px solid var(--border-strong); padding-top: 8px; }
+.orch-sect > summary { cursor: pointer; font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; opacity: .72; }
+.orch-sect__body { margin-top: 8px; display: flex; flex-direction: column; gap: 12px; }
+.orch-proof { margin: 0 0 6px; font-weight: 700; }
 .orch-facts ul, .orch-people { width: 100%; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .orch-people li { padding: 8px 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; border-radius: 10px; background: var(--surface-sunken); }
 .orch-people li[data-phase="running"] { box-shadow: inset 4px 0 0 var(--status-working); }
@@ -1216,7 +1231,7 @@ button { border: 0; }
 .orch-feed__silence { padding: 6px 8px; border-radius: 8px; background: var(--surface-sunken); font-style: italic; }
 .orch-panel .orch-feed__new { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); color: var(--accent-text); background: var(--accent); box-shadow: var(--elev-2); }
 .orch-panel .orch-feed__earlier { align-self: flex-start; }
-.orch-panel__body[data-orch-body="activity"], .orch-panel__body[data-orch-body="log"] { overflow: hidden; }
+.orch-panel__body[data-orch-body="work"][data-orch-mode="feed"], .orch-panel__body[data-orch-body="work"][data-orch-mode="journal"] { overflow: hidden; }
 .orch-changes { display: flex; flex-direction: column; gap: 8px; }
 .orch-changes__files { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
 .orch-panel .orch-changes__file { width: 100%; box-shadow: none; padding: 4px 6px; display: flex; gap: 8px; text-align: left; color: inherit; background: transparent; font-weight: 400; }
@@ -1336,7 +1351,7 @@ button { border: 0; }
 .agent-card__body button.agent-card__summary { color: var(--accent-text); background: var(--accent-bg); }
 
 /* The run panel: wider for the summary, expandable to the window. */
-.orch-panel--wide { width: min(760px, calc(100% - 32px)); }
+.orch-panel--wide { width: min(calc(760px * var(--ui-scale, 1)), calc(100% - 32px)); }
 .orch-panel--full { left: 16px; width: auto; }
 .orch-panel__expand { margin-left: auto; width: 30px; height: 30px; display: grid; place-items: center; padding: 0 !important; }
 .orch-panel__expand + .orch-panel__close { margin-left: 0; }

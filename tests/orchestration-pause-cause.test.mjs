@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { activityRuns, roleStatus, runStatus } from "../src/renderer/src/features/orchestration/runStatus.ts";
 import { causeText, viewCause } from "../src/renderer/src/features/orchestration/runModel.ts";
 import { t } from "../src/renderer/src/lib/i18n.ts";
+import { legacyView } from "../src/renderer/src/features/orchestration/panelTabs.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const EVIDENCE = path.join(ROOT, "docs/agent-orchestration/evidence/real-stage-13/series-S3-S5-S6-attempt2");
@@ -56,7 +57,7 @@ function panel(tab) {
     commands: { pending: () => [] }, catalog: { checks: [] }, loadText() {}, syncJournal() {}, retry() {}
   };
   return renderToStaticMarkup(React.createElement(RunPanel, {
-    orch, runId: "r", locale: LOCALE, panel: { linkId: "L", tab, role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {}
+    orch, runId: "r", locale: LOCALE, panel: { linkId: "L", mode: "feed", ...legacyView(tab), role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {}
   }));
 }
 const text = (html) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");

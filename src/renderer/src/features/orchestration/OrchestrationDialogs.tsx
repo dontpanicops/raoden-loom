@@ -13,7 +13,7 @@ import { ProjectSettings } from "./ProjectSettings";
 import { NO_MODELS, RoleModelsField } from "./RoleModels";
 import { profileGoal } from "../../../../shared/taskBoard";
 import { Differences, RunPanel, Termed } from "./RunPanel";
-import { accessProblemText, commandLike, dirtyInPlace, failingOnSource, shownRunId } from "./runModel";
+import { accessProblemText, commandLike, dirtyInPlace, failingOnSource, liveRuns, shownRunId } from "./runModel";
 import type { AgentCanvasUi } from "./useAgentCanvasUi";
 import { outcomeText, type Orchestration } from "./useOrchestration";
 
@@ -594,7 +594,7 @@ export function OrchestrationOverlays({ orch, ui, locale, defaultProject, folder
       {ui.linkingFrom && <div className="orch-linking-hint" role="status">{t(locale, "orchLinkingHint")}</div>}
       {ui.createAt && <AgentCreateDialog key={`${ui.createAt.provider}:${ui.createAt.point.x}:${ui.createAt.point.y}`} ui={ui} locale={locale} defaultProject={defaultProject} />}
       {ui.goalLinkId && <GoalDialog key={ui.goalLinkId} orch={orch} ui={ui} locale={locale} folderBusy={folderBusy} />}
-      {ui.panel && (panelLink || ui.panel.runId) && <RunPanel key={ui.panel.runId ?? `${panelLink?.linkId}:${ui.pickedRuns[panelLink?.linkId ?? ""] ?? ""}`} orch={orch} runId={panelRunId} locale={locale} panel={ui.panel}
+      {ui.panel && (panelLink || ui.panel.runId) && <RunPanel key={ui.panel.runId ?? `${panelLink?.linkId}:${ui.pickedRuns[panelLink?.linkId ?? ""] ?? ""}`} orch={orch} runId={panelRunId} locale={locale} panel={ui.panel} liveRunIds={panelLink ? liveRuns(panelLink, orch.runs) : undefined}
         onClose={ui.closePanel} onNewGoal={panelLink && latestOfLink ? () => ui.openGoal(panelLink.linkId) : null} onView={ui.setPanelView}
         task={panelRunId ? taskOfRun?.(panelRunId) ?? null : null} onNoteFromText={onNoteFromText} />}
     </>
