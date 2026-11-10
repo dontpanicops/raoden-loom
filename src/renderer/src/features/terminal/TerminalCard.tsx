@@ -18,6 +18,8 @@ import { ProviderIcon } from "../../components/ProviderIcon";
 import { UiIcon } from "../../components/UiIcon";
 import { t } from "../../lib/i18n";
 import { sessionStatusLabel } from "../../lib/sessionStatus";
+import { sessionCardStatus } from "../../lib/cardStatus";
+import { CardStatus } from "../../components/CardStatus";
 import { attachTerminalMouseCoordinateAdapter, attachTerminalScrollbarCoordinateAdapter } from "./terminalMouseCoordinates";
 import {
   SHIFT_ENTER_SEQUENCE,
@@ -444,7 +446,7 @@ export function TerminalCard({
 
   return (
     <article
-      className={`terminal-card terminal-card--${session.provider} ${summaryMode ? "terminal-card--summary" : ""} ${selected || groupSelected ? "terminal-card--selected" : ""}`}
+      className={`terminal-card terminal-card--${session.provider} ${summaryMode ? "terminal-card--summary" : ""} ${selected || groupSelected ? "terminal-card--selected" : ""} ${session.status === "needs_approval" ? "terminal-card--waiting" : ""}`}
       data-interactive="true"
       data-canvas-layer-id={`terminal:${session.id}`}
       data-canvas-widget-id={terminalCanvasWidgetId(session.id)}
@@ -546,6 +548,7 @@ export function TerminalCard({
         </div>
       </header>
       <div className="terminal-card__surface" ref={terminalHost} />
+      <footer className="terminal-card__status"><CardStatus kind={sessionCardStatus(session.status)} label={sessionStatusLabel(locale, session.status, session.provider)} /></footer>
       <button
         className="terminal-card__summary"
         type="button"

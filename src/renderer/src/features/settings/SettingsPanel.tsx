@@ -102,7 +102,7 @@ const THEME_HOME_PREVIEW: Partial<Record<PaletteId, string[]>> = {
   bay: ["#232A3A", "#232A3A", "#232A3A", "#232A3A"]
 };
 const PASTEL_HOME_PREVIEW = ["#B8CF99", "#D8E1C5", "#9CC7DC", "#D5A2C9"];
-const DUSK_HOME_PREVIEW = ["#263043", "#2E3446", "#22384A", "#3A2E44"];
+const DUSK_HOME_PREVIEW = ["#313D55", "#3A4258", "#2D4B62", "#4B3B5A"];
 
 const CANVAS_COLOR_PREVIEWS: Partial<Record<CanvasColorId, string>> = {
   stone: "#B3B0A8",

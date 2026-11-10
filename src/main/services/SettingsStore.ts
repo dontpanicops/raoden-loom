@@ -282,6 +282,7 @@ function createDefaults(systemLocale: string, platform: CanvasNavigationPlatform
     persistStickyNotes: true,
     palette: "sand",
     reduceTransparency: false,
+    onboardingDismissed: false,
     homeAccentPreset: "theme",
     homeAccentColors: { ...DEFAULT_HOME_ACCENT_COLORS },
     sessionRowColorMode: "status",
@@ -423,6 +424,9 @@ export function normalizeSettings(
     reduceTransparency: typeof source.reduceTransparency === "boolean"
       ? source.reduceTransparency
       : fallback.reduceTransparency ?? false,
+    onboardingDismissed: typeof source.onboardingDismissed === "boolean"
+      ? source.onboardingDismissed
+      : fallback.onboardingDismissed ?? false,
     homeAccentPreset,
     homeAccentColors,
     sessionRowColorMode: SESSION_ROW_COLOR_MODES.has(source.sessionRowColorMode as SessionRowColorMode)

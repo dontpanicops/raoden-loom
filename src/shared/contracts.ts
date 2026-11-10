@@ -232,6 +232,7 @@ export interface AppSettings {
   persistStickyNotes: boolean;
   palette: PaletteId;
   reduceTransparency: boolean;
+  onboardingDismissed: boolean;
   homeAccentPreset: HomeAccentPresetId;
   homeAccentColors: HomeAccentColors;
   sessionRowColorMode: SessionRowColorMode;
@@ -1001,6 +1002,10 @@ export interface CanvasTTYApi {
   limits: {
     get(): Promise<LimitsSnapshot>;
   };
+  // the agent CLIs main finds on this machine (the first-run card counts them)
+  providers: {
+    available(): Promise<AgentProviderId[]>;
+  };
   plugins: {
     list(): Promise<InstalledPlugin[]>;
     search(query: string): Promise<GithubPluginSearchResult[]>;
@@ -1117,6 +1122,7 @@ export const IPC = {
   dialogPickMedia: "dialog:pick-media",
   mediaRead: "media:read",
   limitsGet: "limits:get",
+  providersAvailable: "providers:available",
   pluginsList: "plugins:list",
   pluginsSearch: "plugins:search",
   pluginsShowcase: "plugins:showcase",
@@ -1172,6 +1178,7 @@ export const IPC = {
   orchestrationAgentDelete: "orchestration:agent-delete",
   orchestrationLinkCreate: "orchestration:link-create",
   orchestrationLinkDelete: "orchestration:link-delete",
+  orchestrationLinkBend: "orchestration:link-bend",
   orchestrationLinkReleaseNewer: "orchestration:link-release-newer",
   orchestrationLinkStart: "orchestration:link-start",
   orchestrationAgentGroupMove: "orchestration:agent-group-move",

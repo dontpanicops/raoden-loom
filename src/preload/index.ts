@@ -86,6 +86,9 @@ const api: CanvasTTYApi = {
   limits: {
     get: () => ipcRenderer.invoke(IPC.limitsGet)
   },
+  providers: {
+    available: () => ipcRenderer.invoke(IPC.providersAvailable)
+  },
   plugins: {
     list: () => ipcRenderer.invoke(IPC.pluginsList),
     search: (query: string) => ipcRenderer.invoke(IPC.pluginsSearch, query),

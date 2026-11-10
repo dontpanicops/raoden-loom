@@ -4,6 +4,10 @@ import attentionIcon from "../assets/icons/lucide/circle-help.svg";
 import blocksIcon from "../assets/icons/lucide/blocks.svg";
 import checkIcon from "../assets/icons/lucide/check.svg";
 import chevronIcon from "../assets/icons/lucide/chevron-down.svg";
+import circleIcon from "../assets/icons/lucide/circle.svg";
+import circleCheckIcon from "../assets/icons/lucide/circle-check.svg";
+import circlePauseIcon from "../assets/icons/lucide/circle-pause.svg";
+import triangleAlertIcon from "../assets/icons/lucide/triangle-alert.svg";
 import closeIcon from "../assets/icons/lucide/x.svg";
 import copyIcon from "../assets/icons/lucide/copy.svg";
 import errorIcon from "../assets/icons/lucide/circle-alert.svg";
@@ -63,7 +67,11 @@ export type UiIconName =
   | "working"
   | "attention"
   | "error"
-  | "done";
+  | "done"
+  | "status-idle"
+  | "status-paused"
+  | "status-failed"
+  | "status-done";
 
 interface UiIconProps {
   name: UiIconName;
@@ -104,7 +112,11 @@ const ICONS: Record<UiIconName, string> = {
   working: workingIcon,
   attention: attentionIcon,
   error: errorIcon,
-  done: checkIcon
+  done: checkIcon,
+  "status-idle": circleIcon,
+  "status-paused": circlePauseIcon,
+  "status-failed": triangleAlertIcon,
+  "status-done": circleCheckIcon
 };
 
 export function UiIcon({ name, size = 24 }: UiIconProps): React.JSX.Element {

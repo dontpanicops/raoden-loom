@@ -103,6 +103,12 @@ for (const [selector, v] of themes) {
     check(`${theme}: --on-status on ${status}`, need(v, "--on-status", theme), need(v, status, theme), TEXT);
   }
 
+  // R2: a waiting terminal's footer: --status-waiting on its 16% tint over --surface-2-b (frost is not offered until R4: its tint is tuned then)
+  if (theme !== "frost") {
+    const c = parseColor(need(v, "--status-waiting", theme));
+    check(`${theme}: --status-waiting on its tint over --surface-2-b`, need(v, "--status-waiting", theme), `rgba(${c.r},${c.g},${c.b},0.16)`, TEXT, need(v, "--surface-2-b", theme));
+  }
+
   const termBg = need(v, "--term-bg", theme);
   check(`${theme}: --term-fg on --term-bg`, need(v, "--term-fg", theme), termBg, NON_TEXT);
   const skipped = dark ? ["black", "bright-black"] : ["white", "bright-white"];
