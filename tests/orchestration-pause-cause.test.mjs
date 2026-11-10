@@ -43,7 +43,8 @@ const entries = lines("codex-turn-error.jsonl");
 const view = { runId: "r", status: "paused", reason: "environment_error", stage: null, turns: 1, revision: 8, halted: false, active: null };
 const LOCALE = "ru";
 const REASON = t(LOCALE, "orchReason_provider_limit").replace("{provider}", "Codex");
-const HEADLINE = t(LOCALE, "orchHeadline_provider_limit");
+// R3b: the headline names the provider and the reset the CLI said (orchPause_provider_limit_at_what)
+const HEADLINE = t(LOCALE, "orchPause_provider_limit_at_what").replace("{provider}", "Codex").replace("{at}", "Sep 28th, 2026 11:51 PM");
 const ENV = t(LOCALE, "orchReason_environment_error");
 // UX audit PR 1: a pause is said as "Ждёт вас: <what happened>" on the canvas, in the widget and the feed; the panel's
 // headline is what happened

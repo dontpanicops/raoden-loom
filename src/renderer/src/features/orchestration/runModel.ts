@@ -20,11 +20,9 @@ import type { LocaleId } from "../../../../shared/contracts.ts";
 import { viewCause, type PauseCause } from "../../../../shared/orchestrationPause.ts";
 import { t, type TranslationKey } from "../../lib/i18n.ts";
 
-// The same sets the service uses (orchestrationService.ts); the service still decides.
-const RESUMABLE = ["user_request", "step_done", "plan_review", "permission_denied", "loop_suspected", "environment_error", "recovered",
-  "stage_done", "external_failure", "needs_user_action", "finish_unconfirmed", "app_closed", "tree_changed_during_review"];
-const STEP_ONLY = ["invalid_report", "protocol_error"];
-const STOP_ONLY = ["lead_modified_tree", "shared_git_tampered", "journal_corrupt", "sandbox_unavailable"];
+// The same sets and the same gate the service uses (shared/orchestrationAdmission.ts); the service still decides.
+import { STEP_ONLY, STOP_ONLY, RESUMABLE, admits, type AdmissionKind } from "../../../../shared/orchestrationAdmission.ts";
+export { admits, RESUMABLE, STEP_ONLY, STOP_ONLY, type AdmissionKind };
 export const ACTIVE_STATUSES = ["preparing", "running", "pausing", "paused", "stopping"];
 export const TERMINAL_STATUSES = ["stopped", "completed", "failed"];
 
@@ -501,6 +499,7 @@ export function causeText(locale: LocaleId, cause: PauseCause): string {
   if (cause.kind === "prepare") return t(locale, "orchReason_prepare_failed").replace("{command}", cause.command ?? "?");
   if (cause.kind === "model_unsupported") return t(locale, "orchReason_model_unsupported").replace("{provider}", providerName(cause.provider)).replace("{model}", cause.model);
   if (cause.kind === "mcp") return t(locale, `orchError_${cause.code}`).replaceAll("{cli}", providerName(cause.cli)).replace("{names}", cause.names);
+  if (cause.kind === "push") return t(locale, "orchError_push_protected").replaceAll("{name}", cause.branch);
   const ending = cause.kind === "ending" ? t(locale, `orchEnding_${cause.step}` as TranslationKey) : undefined;
   return ending ?? t(locale, `orchReason_${cause.reason}` as TranslationKey) ?? cause.reason;
 }
@@ -549,6 +548,7 @@ export function nextStepText(locale: LocaleId, view: OrchestrationRunView, entri
   }
   const cause = viewCause(view, entries);
   if (cause?.kind === "prepare") return t(locale, "orchNext_prepare_failed").replace("{command}", cause.command ?? "?");
+  if (cause?.kind === "push") return t(locale, "orchNext_push_protected");
   if (cause?.kind === "model_unsupported") return t(locale, "orchNext_model_unsupported").replace("{provider}", providerName(cause.provider)).replace("{model}", cause.model);
   const key = nextStepKey(view, entries);
   return t(locale, `orchNext_${key}` as TranslationKey) ?? key;
@@ -590,13 +590,20 @@ const pauseKey = (set: string, field: "what" | "why" | "do" | "button") => `orch
 
 // What happened, in a few words: the panel's headline; lowercased after "Waiting for you:" / "Paused:".
 function pauseWhat(locale: LocaleId, cause: PauseCause, onMac: boolean, noChecks = false): string {
-  if (cause.kind === "provider_limit" || cause.kind === "model_unsupported") return t(locale, `orchHeadline_${cause.kind}`);
+  if (cause.kind === "provider_limit") {
+    const at = cause.resetsAt ?? (cause.resetsAtMs !== null ? resetTime(locale, cause.resetsAtMs) : null);
+    return t(locale, at ? "orchPause_provider_limit_at_what" : "orchPause_provider_limit_what").replace("{provider}", providerName(cause.provider)).replace("{at}", at ?? "");
+  }
+  if (cause.kind === "model_unsupported") return t(locale, "orchPause_model_unsupported_what").replace("{provider}", providerName(cause.provider)).replace("{model}", cause.model);
   if (cause.kind === "prepare") return t(locale, "orchPause_prepare_failed_what");
+  if (cause.kind === "mcp") return t(locale, `orchPause_${cause.code}_what`).replaceAll("{cli}", providerName(cause.cli));
+  if (cause.kind === "push") return t(locale, "orchPause_push_protected_what");
   return t(locale, pauseKey(pauseSet(cause.reason, onMac, noChecks), "what")) ?? cause.reason;
 }
 
 // Why, in a sentence: the widget's and the cards' second line, the panel's.
 export function pauseWhy(locale: LocaleId, cause: PauseCause, onMac = orchestrationAvailableHere(), noChecks = false): string {
+  if (cause.kind === "prepare") return t(locale, "orchPause_prepare_failed_why").replace("{command}", cause.command ?? "?");
   return cause.kind === "reason" ? t(locale, pauseKey(pauseSet(cause.reason, onMac, noChecks), "why")) ?? causeText(locale, cause) : causeText(locale, cause);
 }
 
@@ -622,12 +629,18 @@ export function pauseText(locale: LocaleId, view: OrchestrationRunView, entries:
   const set = pauseSet(view.reason, onMac, view.proposal?.checks.length === 0);
   const own = cause.kind !== "reason" || nextStepKey(view, entries) === "app_failure" || view.reason === "finish_unconfirmed";
   const pending = view.reason === "finish_unconfirmed" ? finishPending(view) : null;
+  // a protected branch: only Stop helps; a failed preparation is repeated, MCP servers are checked again — by "Continue"
+  const button = pending?.status === "failed" ? `${t(locale, "orchFinishRetry")}: ${t(locale, `orchFinishStep_${pending.step}` as TranslationKey)}`
+    : cause.kind === "push" ? t(locale, "orchPause_push_protected_button")
+    : cause.kind === "prepare" ? t(locale, "orchPause_prepare_failed_button")
+    : cause.kind === "mcp" ? t(locale, "orchResume") : t(locale, pauseKey(set, "button"));
   return {
     what: pauseWhat(locale, cause, onMac, view.proposal?.checks.length === 0),
     why: pauseWhy(locale, cause, onMac, view.proposal?.checks.length === 0),
     todo: own ? nextStepText(locale, view, entries) : t(locale, pauseKey(set, "do")),
-    button: pending?.status === "failed" ? `${t(locale, "orchFinishRetry")}: ${t(locale, `orchFinishStep_${pending.step}` as TranslationKey)}` : t(locale, pauseKey(set, "button")),
-    ...PAUSES[view.reason]
+    button,
+    ...PAUSES[view.reason],
+    ...(cause.kind === "push" ? { primary: "stop" as const } : {})
   };
 }
 
@@ -637,6 +650,151 @@ export function primaryAction(view: OrchestrationRunView): RunAction | null {
   if (view.status === "running") return "pause";
   if (view.status === "pausing") return "keep_running";
   return view.status === "paused" && view.reason ? PAUSES[view.reason]?.primary ?? null : null;
+}
+
+// ---------- the action zone: what happened, what to do, one main button (R3b) ----------
+
+// Buttons that send nothing to main (a tab, a clipboard, the project's settings, a screen of the app) are local.
+export type ZoneLocal = "open_plan" | "open_changes" | "open_feed" | "open_journal" | "project_settings" | "copy_id" | "copy_journal" | "release_newer" | "new_goal";
+export type ZoneAction = RunAction | "recover_accept" | "recover_retry" | "recover_reset" | "checks_accept" | "checks_edit" | "plan_return" | "plan_accept" | ZoneLocal;
+// commands: what main is asked (AdmissionKind), [] for a local button; after: the command sent once main has answered the
+// first (a raised limit pauses the run on user_request, and "resume" follows)
+export interface ZoneButton { action: ZoneAction; label: string; danger: boolean; commands: AdmissionKind[]; after?: AdmissionKind }
+export type ZoneTone = "waiting" | "calm" | "neutral";
+export interface ZoneModel {
+  // the set of words: a pause reason, or one of the 10 derived ones (provider_limit, provider_limit_at, model_unsupported,
+  // prepare_failed, mcp_present, mcp_unchecked, push_protected, newer_version, sandbox_unsupported, awaiting_checks_none), or the
+  // run's state (working, pausing, stopping, completed, failed, stopped, halted, permission)
+  variant: string;
+  tone: ZoneTone; // waiting: "Waiting for you" (the glow); calm: "Paused"
+  title: string;
+  why: string;
+  todo: string;
+  primary: ZoneButton | null; // exactly one on a pause; the danger fill only where Stop is all main allows
+  secondary: ZoneButton[];
+  dangerous: ZoneButton[]; // outlined in the danger colour, each asks for a confirmation
+  clarify: "hidden" | "collapsed" | "open" | "disabled"; // disabled: a waiting plan proposal is the person's first
+  footer: ZoneButton[]; // under the tabs, outside the scroll: pause after the turn, Stop, copy id / journal
+  commands: AdmissionKind[]; // every command the zone can send, for the test against admits()
+}
+
+// The key of the words the zone says a pause with (orchPause_<set>_what).
+export function zoneSet(view: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[], onMac = orchestrationAvailableHere()): string {
+  if (view.newer) return "newer_version";
+  const reason = view.reason ?? "";
+  const cause = viewCause(view, entries);
+  if (cause?.kind === "provider_limit") return cause.resetsAt !== null || cause.resetsAtMs !== null ? "provider_limit_at" : "provider_limit";
+  if (cause?.kind === "model_unsupported") return "model_unsupported";
+  if (cause?.kind === "prepare") return "prepare_failed";
+  if (cause?.kind === "mcp") return cause.code;
+  if (cause?.kind === "push") return "push_protected";
+  return pauseSet(reason, onMac, view.proposal?.checks.length === 0);
+}
+
+export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[], onMac = orchestrationAvailableHere()): ZoneModel {
+  const L = (key: string) => t(locale, key as TranslationKey);
+  const b = (action: ZoneAction, label: string, commands: AdmissionKind[] = [], danger = false, after?: AdmissionKind): ZoneButton =>
+    ({ action, label, danger, commands, ...(after ? { after } : {}) });
+  const stop = (danger = false) => b("stop", L("orchStop"), ["stop"], danger);
+  const status = view.status, reason = view.reason ?? "";
+  const ctx = { status, reason, version: 2, proposalWaits: !!view.proposalWaits, inPlace: view.workMode !== "copy" };
+  // Clarify is main's own gate: a state that denies it hides it, except the one denial that passes (a waiting proposal)
+  const clarifyOpen = !view.halted && !view.newer && admits("clarify", { ...ctx, proposalWaits: false }) === null;
+  const done = (z: Omit<ZoneModel, "commands" | "clarify"> & { clarify?: ZoneModel["clarify"] }): ZoneModel => {
+    const clarify = z.clarify ?? (clarifyOpen ? (view.proposalWaits ? "disabled" : "collapsed") : "hidden");
+    const all = [z.primary, ...z.secondary, ...z.dangerous, ...z.footer].flatMap((x) => x?.commands ?? []);
+    return { ...z, clarify, commands: [...new Set<AdmissionKind>([...all, ...(clarify === "collapsed" || clarify === "open" ? (["clarify"] as AdmissionKind[]) : [])])] };
+  };
+  const none = { secondary: [], dangerous: [], footer: [] as ZoneButton[], primary: null, tone: "neutral" as ZoneTone, todo: "", why: "" };
+  const state = (variant: string, headline: string, extra: Partial<ZoneModel> = {}) => done({ ...none, variant, title: L(`orchHeadline_${headline}`), ...extra });
+
+  if (view.newer) {
+    return done({ variant: "newer_version", tone: "calm", title: L("orchPause_newer_version_what"), why: L("orchPause_newer_version_why"), todo: L("orchPause_newer_version_do"), primary: null,
+      secondary: [b("release_newer", L("orchReleaseLink"))], dangerous: [], footer: [b("copy_id", L("orchZone_copyId"))] });
+  }
+  if (view.halted) {
+    return state("halted", "halted", { tone: "waiting", why: L("orchNext_halted"), primary: b("open_journal", L("orchZone_openJournal")) });
+  }
+  if (view.permission && ["preparing", "running", "pausing"].includes(status)) {
+    return state("permission", "awaiting_permission", { tone: "waiting", todo: L("orchNext_permission"), footer: [stop()] });
+  }
+  const text = pauseText(locale, view, entries, onMac);
+  switch (status) {
+    case "preparing": return state("working", "working", { todo: L("orchNext_watch"), footer: [stop()] });
+    case "running": return state("working", "working", { todo: L("orchNext_watch"), footer: [b("pause", L("orchPause"), ["pause_after_turn"]), stop()] });
+    case "pausing": return state("pausing", "stopping_after_turn", { todo: L("orchNext_keep_running"), primary: b("keep_running", L("orchKeepRunning"), ["keep_running"]), footer: [stop()] });
+    case "stopping": return state("stopping", "stopping", { todo: L("orchNext_wait") });
+    case "completed": {
+      const key = runStatusKey(view);
+      const first = changesFirst(view, entries);
+      const next = b("new_goal", L("orchNewGoal"));
+      return state(key, key, { tone: "neutral", todo: nextStepText(locale, view, entries),
+        primary: first ? b("open_changes", L("orchViewChanges")) : next, secondary: first ? [next] : [] });
+    }
+    case "stopped": case "failed": {
+      const cause = viewCause(view, entries);
+      return state(status, status, { why: cause ? causeText(locale, cause) : "", primary: b("open_journal", L("orchZone_openJournal")), secondary: [b("new_goal", L("orchNewGoal"))] });
+    }
+  }
+  // paused
+  const set = zoneSet(view, entries, onMac);
+  const title = text?.what ?? L(`orchHeadline_${runHeadline(view).headline}`);
+  const base = { variant: set, tone: (text?.you === false ? "calm" : "waiting") as ZoneTone, title, why: text?.why ?? "", todo: text?.todo ?? "" };
+  const resume = (label = text?.button ?? L("orchResume")) => b("resume", label, ["resume"]);
+  const step = () => b("step", L("orchStep"), ["step"]);
+  const secondary: ZoneButton[] = [];
+  const dangerous: ZoneButton[] = [];
+  let primary: ZoneButton;
+  let footer: ZoneButton[] = [stop()];
+  let clarify: ZoneModel["clarify"] | undefined;
+  const stopOnly = STOP_ONLY.includes(reason) || set === "push_protected";
+  if (stopOnly) {
+    primary = stop(true);
+    footer = reason === "shared_git_tampered" ? [b("copy_id", L("orchZone_copyId"))] : reason === "journal_corrupt" ? [b("copy_journal", L("orchZone_copyJournal")), b("copy_id", L("orchZone_copyId"))] : [];
+    if (reason === "lead_modified_tree") secondary.push(b("open_changes", L("orchViewChanges")));
+    if (set === "push_protected") secondary.push(b("project_settings", L("orchProfileOpen")));
+    clarify = "hidden";
+  } else if (STEP_ONLY.includes(reason)) {
+    primary = b("step", text!.button, ["step"]);
+    if (reason === "invalid_report") secondary.push(b("open_feed", L("orchZone_openFeed")));
+  } else {
+    switch (reason) {
+      case "awaiting_answer": primary = b("answer", L("orchAnswer"), ["answer"]); clarify = "hidden"; break;
+      case "limit_reached": primary = b("raise_limit", text!.button, ["raise_limit"], false, "resume"); break;
+      case "outcome_unknown":
+        primary = b("recover_accept", text!.button, ["recover"]);
+        secondary.push(b("recover_retry", L("orchRecoverRetry"), ["recover"]));
+        // main refuses it anywhere but a managed copy: never written into the project (nor its worktree)
+        if (view.workMode === "copy") dangerous.push(b("recover_reset", L("orchRecoverReset"), ["recover", "recover.reset"], true));
+        break;
+      case "awaiting_checks_decision":
+        if (set === "awaiting_checks_none") {
+          primary = b("checks_edit", L("orchChecksSave"), ["checks.decide"]);
+          dangerous.push(b("checks_accept", L("orchChecksNoChecks"), ["checks.decide"], true));
+        } else {
+          primary = b("checks_accept", L("orchZone_acceptChecks"), ["checks.decide"]);
+          secondary.push(b("checks_edit", L("orchChecksEdit"), ["checks.decide"]));
+        }
+        break;
+      case "awaiting_finish_confirmation": primary = b("finish_confirm", L("orchZone_sendDecisions"), ["finish.confirm"]); break;
+      case "check_needs_permissions": primary = b("check_amend", L("orchZone_saveOwn"), ["check.amend"]); break;
+      case "awaiting_person_decision": primary = b("person_decide", L("orchZone_sendDecisions"), ["person.decide"]); break;
+      case "coverage_lost":
+        primary = b("plan_return", L("orchProposalReturn"), ["plan.decide"]);
+        dangerous.push(b("plan_accept", L("orchProposalAcceptDrop"), ["plan.decide"], true));
+        break;
+      default:
+        primary = resume();
+        if (set === "prepare_failed") secondary.push(b("project_settings", L("orchProfileOpen")));
+        else if (["user_request", "step_done", "recovered", "app_closed", "loop_suspected"].includes(reason)) secondary.push(step());
+        else if (reason === "plan_review") secondary.push(b("open_plan", L("orchZone_openPlan")), step());
+        else if (reason === "stage_done") secondary.push(step(), b("open_changes", L("orchViewChanges")));
+        else if (reason === "permission_denied") secondary.push(b("project_settings", L("orchProfileOpen")));
+        else if (reason === "needs_user_action" && set === "needs_user_action") secondary.push(b("open_feed", L("orchZone_openFeed")));
+        if (reason === "loop_suspected") clarify = view.proposalWaits ? "disabled" : "open";
+    }
+  }
+  return done({ ...base, primary, secondary, dangerous, footer, ...(clarify ? { clarify } : {}) });
 }
 
 // ---------- why a preparation failed ----------

@@ -59,6 +59,7 @@ import { runShell } from "./shellRun.ts";
 import type { ShellRunResult } from "./shellRun.ts";
 import type { Workspace } from "./workspace.ts";
 import { exportPaths } from "./reviewExport.ts";
+import { FINDING_PAUSES, admits, type AdmissionContext, type AdmissionKind } from "../../../shared/orchestrationAdmission.ts";
 import type { McpBlock } from "./sessions.ts";
 
 export interface GoalInput {
@@ -265,14 +266,6 @@ class Refused extends OrchestrationError {
 
 const DEFAULT_STOP_GRACE_MS = 20_000;
 const RAISABLE: readonly LimitKind[] = ["turns", "roundsPerStage", "replans", "runMs"];
-const RESUMABLE: readonly string[] = ["user_request", "step_done", "plan_review", "permission_denied", "loop_suspected", "environment_error", "recovered",
-  "app_closed", "stage_done", "external_failure", "needs_user_action", "finish_unconfirmed", "tree_changed_during_review"];
-const STEP_ONLY: readonly string[] = ["invalid_report", "protocol_error"];
-const STOP_ONLY: readonly string[] = ["lead_modified_tree", "shared_git_tampered", "journal_corrupt", "sandbox_unavailable"];
-// A4 (journal-v2-format.md §2.9): the pauses an open finding may be closed or made a wish on by the person — where the
-// run waits for the person anyway; never a pause of another decision (checks, push/QA, a plan proposal, recovery)
-const FINDING_PAUSES: readonly string[] = [...RESUMABLE, ...STEP_ONLY, "limit_reached", "awaiting_answer", "awaiting_person_decision"];
-const ACTIVE: readonly string[] = ["preparing", "running", "pausing", "paused"];
 const MAX_CHECK_OUTPUT_IN_TASK = 1500;
 // UX audit PR 2: what the person reads in the panel is written by the agents — in the interface's language. Ids (F1, C1),
 // paths, commands and code stay as they are.
@@ -2628,31 +2621,41 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
 
   const reject = (code: string): CommandResult => ({ status: "rejected", code });
   const ok: CommandResult = { status: "accepted", code: null };
+  // the status / reason part of every gate: src/shared/orchestrationAdmission.ts (the window's buttons are checked against it too)
+  const admission = (st: ReturnType<typeof state>): AdmissionContext => ({ status: st.status, reason: st.pausedReason ?? "", version: st.version,
+    proposalWaits: st.version === 2 && planProposalWaits(st), inPlace: inPlace(ws.mode) });
+  const gate = (kind: AdmissionKind, st: ReturnType<typeof state>): CommandResult | null => {
+    const code = admits(kind, admission(st));
+    return code ? reject(code) : null;
+  };
 
   // The decision goes to the journal first; the action (scheduling, stopping a process) follows in after().
   async function apply(commandId: string, expectedRevision: number, cmd: RunCommand): Promise<CommandResult> {
     const st = state();
     if (st.orch.revision !== expectedRevision) return reject("stale_revision");
-    const status = st.status, reason = st.pausedReason ?? "";
+    let denied: CommandResult | null;
     switch (cmd?.kind) {
       case "pause_after_turn":
         if (typeof cmd.on !== "boolean") return reject("invalid_command");
-        if (cmd.on && status === "running") { await setStatus("pausing"); return ok; }
-        if (!cmd.on && status === "pausing") { await setStatus("running"); return ok; }
-        return reject("invalid_state");
+        denied = gate(cmd.on ? "pause_after_turn" : "keep_running", st);
+        if (denied) return denied;
+        await setStatus(cmd.on ? "pausing" : "running");
+        return ok;
       case "stop":
-        if (!ACTIVE.includes(status)) return reject("invalid_state");
+        denied = gate("stop", st);
+        if (denied) return denied;
         await setStatus("stopping");
         return ok;
       case "resume":
       case "step":
-        if (status !== "paused" || STOP_ONLY.includes(reason)) return reject("invalid_state");
-        if (!RESUMABLE.includes(reason) && !(cmd.kind === "step" && STEP_ONLY.includes(reason))) return reject("invalid_state");
+        denied = gate(cmd.kind, st);
+        if (denied) return denied;
         await setStatus("running");
         return ok;
       case "answer": {
         const q = st.orch.question;
-        if (status !== "paused" || reason !== "awaiting_answer") return reject("invalid_state");
+        denied = gate("answer", st);
+        if (denied) return denied;
         if (!q || q.answered || q.questionId !== cmd.questionId) return reject("unknown_question");
         if (typeof cmd.text !== "string" || cmd.text.trim() === "" || cmd.text.length > 8000) return reject("invalid_command");
         const ref = await j(() => writer.putText(cmd.text));
@@ -2661,16 +2664,16 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
         return ok;
       }
       case "clarify": {
-        // on the person's decisions of journal v2 only that decision and Stop (journal-v2-format.md §2.1)
-        if (!ACTIVE.includes(status) || ["journal_corrupt", "awaiting_checks_decision", "awaiting_finish_confirmation", "check_needs_permissions", "awaiting_person_decision", "coverage_lost"].includes(reason)
-          || (st.version === 2 && planProposalWaits(st))) return reject("invalid_state"); // A4: a waiting proposal is the person's first
+        denied = gate("clarify", st);
+        if (denied) return denied; // on the person's decisions of journal v2 only that decision and Stop; a waiting proposal is the person's first
         if (typeof cmd.text !== "string" || cmd.text.trim() === "" || cmd.text.length > 8000) return reject("invalid_command");
         const ref = await j(() => writer.putText(cmd.text));
         await j(() => writer.recordClarification({ version: st.orch.clarifications + 1, commandId, text: ref }));
         return ok;
       }
       case "raise_limit": {
-        if (status !== "paused" || reason !== "limit_reached" || (st.version === 2 && planProposalWaits(st))) return reject("invalid_state");
+        denied = gate("raise_limit", st);
+        if (denied) return denied;
         const current = effectiveLimits(goal, st);
         if (!RAISABLE.includes(cmd.limit) || !Number.isSafeInteger(cmd.value) || cmd.value <= current[cmd.limit]) return reject("invalid_command");
         if (cmd.limit === "runMs" && goal.createdAt + cmd.value <= clock()) return reject("invalid_command"); // still expired
@@ -2679,10 +2682,14 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
         return ok;
       }
       case "recover": {
-        if (status !== "paused" || reason !== "outcome_unknown") return reject("invalid_state");
+        denied = gate("recover", st);
+        if (denied) return denied;
         if (!["accept", "retry_turn", "reset_to_checkpoint"].includes(cmd.action)) return reject("invalid_command");
         if (cmd.action === "reset_to_checkpoint" && cmd.confirm !== true) return reject("confirm_required");
-        if (cmd.action === "reset_to_checkpoint" && inPlace(ws.mode)) return reject("invalid_state"); // never written into the project
+        if (cmd.action === "reset_to_checkpoint") { // never written into the project
+          denied = gate("recover.reset", st);
+          if (denied) return denied;
+        }
         const unknown = Object.keys(st.turns).filter((id) => st.turns[id].status === "outcome_unknown" && !st.orch.recoveryDecisions[id]);
         if (unknown.length === 0) return reject("invalid_state");
         for (const turnId of unknown) await j(() => writer.recordRecoveryDecision({ commandId, action: cmd.action, turnId }));
@@ -2699,9 +2706,10 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
         return ok;
       }
       case "dismiss":
-        return ["stopped", "completed", "failed"].includes(status) ? ok : reject("invalid_state");
+        return gate("dismiss", st) ?? ok;
       case "checks.decide": {
-        if (status !== "paused" || reason !== "awaiting_checks_decision" || !st.orch.checksProposal || st.orch.checksDecision) return reject("invalid_state");
+        denied = gate("checks.decide", st);
+        if (denied || !st.orch.checksProposal || st.orch.checksDecision) return denied ?? reject("invalid_state");
         let lines: string[] | null = null;
         if (cmd.decision === "edit") {
           if (!Array.isArray(cmd.checks) || cmd.checks.length > 16 || cmd.checks.some((c) => typeof c !== "string" || !LINE(c.trim()))) return reject("invalid_command");
@@ -2715,7 +2723,8 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
         // A1.1 (§2.6): only the person, only for a lead's check the sandbox refused, once per check. Always with the
         // person's line (unchanged is a decision too): it becomes the person's command, without the sandbox. There is no
         // "run the lead's command without the sandbox" (owner's decision on S1-4: the refusal is seen in the output only)
-        if (status !== "paused" || reason !== "check_needs_permissions") return reject("invalid_state");
+        denied = gate("check.amend", st);
+        if (denied) return denied;
         const refused = refusedCheck(st);
         if (typeof cmd.checkId !== "string" || cmd.checkId !== refused?.checkId) return reject("invalid_state");
         if (typeof cmd.line !== "string" || !LINE(cmd.line.trim())) return reject("invalid_command");
@@ -2727,7 +2736,8 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
         return ok;
       }
       case "finish.confirm": {
-        if (status !== "paused" || reason !== "awaiting_finish_confirmation" || !withoutChecks(st)) return reject("invalid_state");
+        denied = gate("finish.confirm", st);
+        if (denied || !withoutChecks(st)) return denied ?? reject("invalid_state");
         const asked = (step: "push" | "qa") => !!goal.finish?.[step];
         const valid = (step: "push" | "qa", v: unknown) => asked(step) ? v === "confirm" || v === "decline" : v === null;
         if (!valid("push", cmd.push) || !valid("qa", cmd.qa) || typeof cmd.tree !== "string" || (cmd.commit !== null && typeof cmd.commit !== "string")) return reject("invalid_command");
@@ -2806,8 +2816,8 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
 
   async function personDecide(commandId: string, cmd: OrchestrationPersonDecide): Promise<CommandResult> {
     const st = state();
-    const reason = st.pausedReason ?? "";
-    if (st.version !== 2 || st.status !== "paused") return reject("invalid_state");
+    const ctx = admission(st);
+    if (admits("person.decide", ctx)) return reject("invalid_state");
     const c = await conds();
     const book = c?.findings?.book;
     let finding: string | null = null;
@@ -2816,7 +2826,7 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
     if (cmd.subject === "disputed") {
       const t = cmd.target as { reviewTurnId?: unknown; index?: unknown };
       const item = book?.disputed.find((d) => d.turnId === t?.reviewTurnId && d.index === t?.index);
-      if (reason !== "awaiting_person_decision" || !book || !item) return reject("invalid_state");
+      if (admits("person.decide.disputed", ctx) || !book || !item) return reject("invalid_state");
       if (cmd.decision === "new" && cmd.finding === null) finding = `F${book.next}`;
       else if (cmd.decision === "repeat" && typeof cmd.finding === "string" && item.candidates.includes(cmd.finding)) {
         const f = book.list.get(cmd.finding)!;
@@ -2832,12 +2842,12 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
       target = { reviewTurnId: item.turnId, index: item.index };
     } else if (cmd.subject === "condition") {
       const stage = Object.keys(st.orch.accepted).length + 1;
-      if (reason !== "awaiting_person_decision" || !c || typeof cmd.target !== "string" || !personIdsOf(c.book, stage).includes(cmd.target)) return reject("invalid_state");
+      if (admits("person.decide.condition", ctx) || !c || typeof cmd.target !== "string" || !personIdsOf(c.book, stage).includes(cmd.target)) return reject("invalid_state");
       if ((cmd.decision !== "met" && cmd.decision !== "not_met") || cmd.finding !== null) return reject("invalid_command");
       target = cmd.target;
     } else if (cmd.subject === "finding") {
       const f = typeof cmd.target === "string" ? book?.list.get(cmd.target) : undefined;
-      if (!FINDING_PAUSES.includes(reason) || !f || f.status !== "open") return reject("invalid_state");
+      if (admits("person.decide.finding", ctx) || !f || f.status !== "open") return reject("invalid_state");
       if ((cmd.decision !== "close" && cmd.decision !== "to_wish") || cmd.finding !== null || (cmd.decision === "to_wish" && f.severity !== "blocking")) return reject("invalid_command");
       target = f.id;
     } else return reject("invalid_command");
@@ -2852,7 +2862,7 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
   async function planDecide(commandId: string, cmd: OrchestrationPlanDecide): Promise<CommandResult> {
     const st = state();
     const p = st.orch.proposals.at(-1);
-    if (st.version !== 2 || st.status !== "paused" || st.pausedReason !== "coverage_lost" || !p || p.decision !== null || cmd.proposalTurnId !== p.turnId) return reject("invalid_state");
+    if (admits("plan.decide", admission(st)) || !p || p.decision !== null || cmd.proposalTurnId !== p.turnId) return reject("invalid_state");
     const c = (await conds())!;
     const text = await readJson<PlanText>(p.ref);
     let choices: PlanChoices = { findings: [] };

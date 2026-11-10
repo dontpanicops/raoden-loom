@@ -21,6 +21,9 @@ export type PauseCause =
   | { kind: "ending"; reason: string; step: string }
   // F4 (T-14): a run without MCP whose CLI named MCP servers (mcp_present) or whose list was not read whole (mcp_unchecked)
   | { kind: "mcp"; reason: string; code: "mcp_present" | "mcp_unchecked"; cli: string; names: string }
+  // R3b: a push into a protected branch the run's list freezes (finish step push, blocked: "push_protected: the branch X is
+  // protected"): only Stop helps, "resume" would pause again with the same words
+  | { kind: "push"; reason: string; branch: string }
   | { kind: "reason"; reason: string };
 const USAGE_LIMIT = /\bhit your usage limit\b/i;
 const MODEL_UNSUPPORTED = /The '([^']{1,100})' model is not supported when using Codex\b/i;
@@ -64,6 +67,18 @@ export function pausedTurn(entries: readonly OrchestrationActivityEntry[], end: 
   return entries[at].turnId;
 }
 
+// The protected branch the push step of this pause was blocked by (null: not this pause): the newest blocked push of the
+// feed, unless the run went on (a status other than paused) after it.
+const PUSH_PROTECTED = /^push: blocked — push_protected: the branch (.+) is protected; the push was not made/;
+function pushProtected(entries: readonly OrchestrationActivityEntry[]): string | null {
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i];
+    if (e.kind === "status" && e.detail?.status !== "paused") return null;
+    if (e.kind === "external_action" && e.detail?.step === "push" && e.detail?.phase === "blocked") return PUSH_PROTECTED.exec(e.text)?.[1] ?? null;
+  }
+  return null;
+}
+
 // The cause of the run's current state (null: no reason). Only a pause is explained by a turn.
 export function viewCause(view: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[]): PauseCause | null {
   if (!view.reason) return null;
@@ -71,5 +86,7 @@ export function viewCause(view: OrchestrationRunView, entries: readonly Orchestr
   // a failed preparation pauses the run before anything else (cycle.ts): the pause is that preparation's
   const prep = view.progress?.prepare;
   if (prep?.status === "failed" && (view.reason === "needs_user_action" || view.reason === "external_failure")) return { kind: "prepare", reason: view.reason, command: prep.command };
+  const branch = view.reason === "needs_user_action" ? pushProtected(entries) : null;
+  if (branch !== null) return { kind: "push", reason: view.reason, branch };
   return pauseCause(view.reason, pausedTurn(entries, entries.length, view.reason), entries);
 }
