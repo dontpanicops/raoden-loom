@@ -75,8 +75,9 @@ const FALLBACK_SETTINGS: AppSettings = {
   restoreTerminalSessions: false,
   persistCanvasRegions: true,
   persistStickyNotes: true,
-  palette: "sage",
-  homeAccentPreset: "classic",
+  palette: "sand",
+  reduceTransparency: false,
+  homeAccentPreset: "theme",
   homeAccentColors: { ...DEFAULT_HOME_ACCENT_COLORS },
   sessionRowColorMode: "status",
   homeLauncherProviders: ["codex", "claude", "qwen", "kimi", "opencode", "hermes", "grok", "omp", "pi"],
@@ -86,7 +87,7 @@ const FALLBACK_SETTINGS: AppSettings = {
   radialLauncherEnabled: false,
   agentLifecycleHooksEnabled: true,
   uiScale: DEFAULT_UI_SCALE,
-  canvasColor: "sage",
+  canvasColor: "theme",
   pattern: "dots",
   snapToGrid: true,
   invertTerminalWheel: true,
@@ -140,9 +141,10 @@ function customHomeAccentStyle(colors: HomeAccentColors): React.CSSProperties {
   return {
     "--home-clock": colors.clock,
     "--home-clock-text": readableTextColor(colors.clock),
-    "--home-launcher-dock": colors.launcher,
-    "--home-launcher-tile": launcherTile,
-    "--home-launcher-text": readableTextColor(launcherTile),
+    "--home-dock": colors.launcher,
+    "--home-dock-text": readableTextColor(colors.launcher),
+    "--home-dock-tile": launcherTile,
+    "--home-dock-tile-text": readableTextColor(launcherTile),
     "--home-browser": colors.browser,
     "--home-browser-text": readableTextColor(colors.browser),
     "--home-settings": colors.settings,
@@ -1099,16 +1101,27 @@ export function App(): React.JSX.Element {
   }, [activeSessionId, goHome, settings.locale, settings.shortcuts, showToast]);
 
   const appearance = resolveAppearanceSettings(settings);
+  const [systemReduceTransparency, setSystemReduceTransparency] = useState(
+    () => window.matchMedia?.("(prefers-reduced-transparency: reduce)").matches ?? false
+  );
+  useEffect(() => {
+    const query = window.matchMedia?.("(prefers-reduced-transparency: reduce)");
+    if (!query) return undefined;
+    const update = (): void => setSystemReduceTransparency(query.matches);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
   const rootClasses = useMemo(
     () => [
       "app",
       `app--${settings.palette}`,
-      `app--home-${appearance.homeAccentPreset}`,
-      `app--canvas-${appearance.canvasColor}`,
+      appearance.homeAccentPreset === "theme" ? "" : `app--home-${appearance.homeAccentPreset}`,
+      appearance.canvasColor === "theme" ? "" : `app--canvas-${appearance.canvasColor}`,
+      settings.reduceTransparency || systemReduceTransparency ? "app--reduce" : "",
       windowState.isMacOS ? "app--macos" : "",
       windowState.isMacOS && windowState.fullscreen ? "app--macos-fullscreen" : ""
     ].filter(Boolean).join(" "),
-    [appearance.canvasColor, appearance.homeAccentPreset, settings.palette, windowState.fullscreen, windowState.isMacOS]
+    [appearance.canvasColor, appearance.homeAccentPreset, settings.palette, settings.reduceTransparency, systemReduceTransparency, windowState.fullscreen, windowState.isMacOS]
   );
   const rootStyle = useMemo(
     () => ({

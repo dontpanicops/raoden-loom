@@ -7,19 +7,19 @@
 }
 
 .workspace.pattern-dots::before {
-  background-image: radial-gradient(circle, var(--dot) 1.15px, transparent 1.3px);
+  background-image: radial-gradient(circle, var(--canvas-dot) 1.15px, transparent 1.3px);
   background-size: 20px 20px;
 }
 
 .workspace.pattern-grid::before {
   background-image:
-    linear-gradient(var(--dot) 1px, transparent 1px),
-    linear-gradient(90deg, var(--dot) 1px, transparent 1px);
+    linear-gradient(var(--canvas-dot) 1px, transparent 1px),
+    linear-gradient(90deg, var(--canvas-dot) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
 .workspace.pattern-waves::before {
-  background-color: var(--dot);
+  background-color: var(--canvas-dot);
   -webkit-mask-image: url("../assets/patterns/waves.svg");
   mask-image: url("../assets/patterns/waves.svg");
   -webkit-mask-position: 0 0;
@@ -35,15 +35,15 @@
     135deg,
     transparent 0,
     transparent 23px,
-    var(--dot) 23px,
-    var(--dot) 24px,
+    var(--canvas-dot) 23px,
+    var(--canvas-dot) 24px,
     transparent 24px,
     transparent 48px
   );
 }
 
 .workspace.pattern-rings::before {
-  background-image: radial-gradient(circle, transparent 7px, var(--dot) 7.5px, transparent 8.5px);
+  background-image: radial-gradient(circle, transparent 7px, var(--canvas-dot) 7.5px, transparent 8.5px);
   background-size: 40px 40px;
 }
 

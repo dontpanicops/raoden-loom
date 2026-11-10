@@ -1,7 +1,7 @@
 .g2-settings {
-  border: 1px solid color-mix(in srgb, var(--text) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 13%, transparent);
   border-radius: 14px;
-  background: var(--surface-soft);
+  background: var(--surface-sunken);
   margin: 0 0 24px;
   overflow: hidden;
 }
@@ -15,9 +15,9 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  border: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
-  background: var(--surface);
-  color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 16%, transparent);
+  background: var(--surface-2);
+  color: var(--text-primary);
   border-radius: 8px;
   min-height: 36px;
   padding: 8px 13px;
@@ -28,9 +28,8 @@
   cursor: not-allowed;
 }
 .g2-settings button.g2-primary {
-  background: var(--primary);
-  color: var(--text-dark);
-  border-color: var(--primary);
+  background: var(--accent-bg); color: var(--accent-text);
+  border-color: var(--focus);
   font-weight: 700;
 }
 .g2-settings button.g2-link {
@@ -42,10 +41,10 @@
 }
 .g2-settings button.g2-danger {
   background: var(--danger);
-  color: var(--text-dark);
+  color: var(--danger-text);
 }
 .g2-settings :is(button, input, select):focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--focus);
   outline-offset: 3px;
 }
 .g2-settings__heading {
@@ -59,7 +58,7 @@
   margin: 5px 0 7px;
 }
 .g2-settings__heading p {
-  color: var(--text-muted-on-dark);
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.55;
   margin: 0;
@@ -69,8 +68,7 @@
   display: grid;
   place-items: center;
   border-radius: 13px;
-  background: var(--secondary);
-  color: var(--text-dark);
+  background: var(--surface-2-b); color: var(--text-primary);
   width: 56px;
   height: 56px;
   flex-shrink: 0;
@@ -78,25 +76,24 @@
 .g2-settings__eyebrow {
   font: 10px var(--font-mono);
   letter-spacing: 1.4px;
-  color: var(--primary);
+  color: var(--focus);
 }
 .g2-settings__status {
   margin-left: auto;
   align-self: flex-start;
-  border: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 16%, transparent);
   border-radius: 99px;
   padding: 5px 9px;
   font-size: 10px;
   white-space: nowrap;
-  color: var(--text-muted-on-dark);
+  color: var(--text-secondary);
 }
 .g2-settings__status.is-online {
-  background: var(--primary);
-  color: var(--text-dark);
+  background: var(--accent-bg); color: var(--accent-text);
 }
 .g2-settings__entry {
   padding: 17px 22px;
-  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
   display: flex;
   align-items: center;
   gap: 18px;
@@ -107,7 +104,7 @@
   line-height: 1.5;
   margin: 0;
   max-width: 320px;
-  color: var(--text-muted-on-dark);
+  color: var(--text-secondary);
 }
 .g2-settings__entry button {
   flex-shrink: 0;
@@ -115,14 +112,14 @@
 .g2-steps {
   display: flex;
   gap: 6px;
-  border-top: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent);
   padding: 15px 22px 0;
 }
 .g2-steps button {
   flex: 1;
   border: none;
   background: transparent;
-  color: var(--text-muted-on-dark);
+  color: var(--text-secondary);
   font-size: 12px;
   justify-content: flex-start;
 }
@@ -131,17 +128,16 @@
   place-items: center;
   width: 22px;
   height: 22px;
-  border: 1px solid color-mix(in srgb, var(--text) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 20%, transparent);
   border-radius: 50%;
   font-size: 10px;
 }
 .g2-steps .active {
-  color: var(--primary);
+  color: var(--focus);
 }
 .g2-steps .active b {
-  background: var(--primary);
-  color: var(--text-dark);
-  border-color: var(--primary);
+  background: var(--accent-bg); color: var(--accent-text);
+  border-color: var(--focus);
 }
 .g2-settings__body {
   padding: 22px;
@@ -154,7 +150,7 @@
 .g2-settings__body li {
   font-size: 12px;
   line-height: 1.65;
-  color: var(--text-muted-on-dark);
+  color: var(--text-secondary);
 }
 .g2-settings__body ol {
   padding-left: 19px;
@@ -172,21 +168,21 @@
   margin-top: 8px;
   width: 100%;
   min-height: 38px;
-  border: 1px solid color-mix(in srgb, var(--text) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 20%, transparent);
   border-radius: 7px;
-  background: var(--surface);
-  color: var(--text);
+  background: var(--surface-2);
+  color: var(--text-primary);
   padding: 9px 11px;
 }
 .g2-settings input[type="checkbox"] {
-  accent-color: var(--primary);
+  accent-color: var(--focus);
   width: 15px;
   height: 15px;
   flex-shrink: 0;
   margin: 0;
 }
 .g2-settings details {
-  border-top: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent);
   padding-top: 14px;
   margin-top: 17px;
 }
@@ -198,15 +194,15 @@
 .g2-muted {
   font-size: 11px !important;
   line-height: 1.6 !important;
-  color: var(--text-muted-on-dark);
+  color: var(--text-secondary);
   margin: 9px 0;
 }
 .g2-tag {
   display: inline-block;
   font: 10px var(--font-mono);
-  color: var(--blue);
+  color: var(--status-done);
   padding: 6px 9px;
-  background: color-mix(in srgb, var(--blue) 10%, transparent);
+  background: color-mix(in srgb, var(--status-done) 10%, transparent);
   border-radius: 5px;
 }
 .g2-actions {
@@ -229,10 +225,10 @@
   gap: 12px;
   margin-top: 8px;
   align-items: center;
-  border: 1px solid color-mix(in srgb, var(--text) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 15%, transparent);
   padding: 8px 8px 8px 12px;
   border-radius: 9px;
-  background: var(--surface);
+  background: var(--surface-2);
 }
 .g2-path span {
   flex: 1;
@@ -248,14 +244,14 @@
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent);
   border-radius: 9px;
-  background: var(--surface);
+  background: var(--surface-2);
   margin: 7px 0;
 }
 .g2-session-list small {
   display: block;
-  color: var(--text-muted-on-dark);
+  color: var(--text-secondary);
   font: 10px var(--font-mono);
   margin-top: 3px;
 }
@@ -277,7 +273,7 @@
   align-items: center;
   gap: 28px;
   padding: 20px;
-  background: var(--surface);
+  background: var(--surface-2);
   border-radius: 12px;
   margin: 20px 0;
 }
@@ -291,26 +287,26 @@
   display: block;
   font: 24px var(--font-mono);
   letter-spacing: 2px;
-  color: var(--primary);
+  color: var(--focus);
   white-space: nowrap;
 }
 .g2-approval {
   padding: 16px;
-  border: 1px solid var(--primary);
+  border: 1px solid var(--focus);
   border-radius: 10px;
 }
 .g2-approval p {
   font-size: 12px;
   line-height: 1.6;
-  color: var(--text-muted-on-dark);
+  color: var(--text-secondary);
 }
 .g2-waiting {
   font: 11px var(--font-mono);
-  color: var(--blue);
+  color: var(--status-done);
 }
 .g2-peer {
   margin: 0 20px 18px;
-  border-top: 1px solid color-mix(in srgb, var(--text) 13%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--text-primary) 13%, transparent);
   padding-top: 18px;
 }
 .g2-peer__top {
@@ -321,7 +317,7 @@
 }
 .g2-peer__top p {
   font-size: 11px;
-  color: var(--text-muted-on-dark);
+  color: var(--text-secondary);
   margin: 6px 0;
 }
 .g2-peer__top strong {
@@ -346,13 +342,13 @@
   background: var(--text-muted);
 }
 .g2-checks i.pass {
-  background: var(--success);
+  background: var(--status-working);
 }
 .g2-settings__error {
   font-size: 12px;
   line-height: 1.5;
-  color: var(--text);
-  background: color-mix(in srgb, var(--danger) 20%, var(--surface));
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--status-failed) 20%, var(--surface-2));
   padding: 11px 15px;
   border-radius: 8px;
   margin: 0 20px 14px;

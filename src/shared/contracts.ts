@@ -8,10 +8,12 @@ export type AgentProviderId = Exclude<ProviderId, "terminal">;
 export type LimitProviderId = Extract<AgentProviderId, "codex" | "claude" | "qwen" | "kimi" | "opencode" | "grok">;
 export type LaunchProfileId = "normal" | "yolo";
 export type SessionStatus = "idle" | "working" | "needs_approval" | "unavailable" | "done" | "failed";
-export type PaletteId = "sage" | "lilac" | "night";
-export type HomeAccentPresetId = "classic" | "warm" | "cool" | "mono" | "custom";
+export type PaletteId = "sand" | "bay" | "paper" | "frost";
+// Pre-redesign palette ids: still given to plugins as appearance.palette and read from old settings files.
+export type LegacyPaletteId = "sage" | "lilac" | "night";
+export type HomeAccentPresetId = "theme" | "pastel" | "dusk" | "warm" | "cool" | "mono" | "custom";
 export type SessionRowColorMode = "monochrome" | "status";
-export type CanvasColorId = "sage" | "lilac" | "night" | "sand" | "mist" | "rose" | "slate";
+export type CanvasColorId = "theme" | "stone" | "linen" | "graphite" | "lilac" | "night" | "mist";
 export type CanvasPatternId = "dots" | "grid" | "waves" | "diagonal" | "rings" | "none";
 export type LocaleId = "ru" | "en";
 export type MediaFit = "cover" | "contain";
@@ -229,6 +231,7 @@ export interface AppSettings {
   persistCanvasRegions: boolean;
   persistStickyNotes: boolean;
   palette: PaletteId;
+  reduceTransparency: boolean;
   homeAccentPreset: HomeAccentPresetId;
   homeAccentColors: HomeAccentColors;
   sessionRowColorMode: SessionRowColorMode;

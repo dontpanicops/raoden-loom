@@ -57,6 +57,7 @@ import type { RunManager } from "./services/orchestration/manager";
 import { JOURNAL_V2_BY_DEFAULT } from "./services/orchestration/journal";
 import { runOrchestrationIpcSmoke } from "./services/orchestration/ipcSmoke";
 import { startupPageUrl } from "./startupPage";
+import { DARK_WINDOW_BACKGROUND } from "../shared/appearance";
 import { mainWindowChromeOptions } from "./windowChrome";
 import { ensureUtf8Locale } from "./services/utf8Locale";
 
@@ -158,7 +159,7 @@ async function createWindow(): Promise<BrowserWindow> {
     minHeight: 620,
     show: true,
     ...mainWindowChromeOptions(),
-    backgroundColor: "#aaa7a2",
+    backgroundColor: DARK_WINDOW_BACKGROUND,
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,

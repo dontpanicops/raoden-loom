@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
-import { Terminal } from "@xterm/xterm";
+import { type ITheme, Terminal } from "@xterm/xterm";
 import {
   INITIAL_TERMINAL_COLS,
   INITIAL_TERMINAL_ROWS
@@ -125,7 +125,6 @@ export function TerminalCard({
   const liveBounds = useRef<SessionBounds>({ position: session.position, size: session.size });
   const summaryMode = zoom < 0.5;
   const summaryScale = summaryMode ? Math.min(2.5, Math.max(1, 0.5 / zoom)) : 1;
-  const terminalBackground = terminalTheme(palette).background;
 
   restartAction.current = async () => {
     if (restarting || !sessionExited.current) return;
@@ -163,7 +162,7 @@ export function TerminalCard({
       allowTransparency: true,
       // Claude Code and Codex track the mouse: ⌥ + drag selects as the terminal does, over the TUI
       macOptionClickForcesSelection: true,
-      theme: terminalTheme(palette),
+      theme: readTerminalTheme(host),
       // OSC 8 hyperlinks are handled by xterm itself rather than WebLinksAddon.
       // Without an explicit handler, xterm shows its own confirm() prompt and
       // attempts window.open(), bypassing CanvasTTY's link destination chooser.
@@ -284,9 +283,12 @@ export function TerminalCard({
     };
   }, [session.id]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: palette only triggers the re-read of the computed --term-* tokens
   useEffect(() => {
+    // After the commit: the theme class on .app is already the new one, so the computed --term-* are too.
     const terminal = terminalRef.current;
-    if (terminal) terminal.options.theme = terminalTheme(palette);
+    const host = terminalHost.current;
+    if (terminal && host) terminal.options.theme = readTerminalTheme(host);
   }, [palette]);
 
   useEffect(() => {
@@ -485,8 +487,7 @@ export function TerminalCard({
         zIndex: stackIndex,
         transform: `translate(${position.x}px, ${position.y}px)`,
         "--summary-scale": summaryScale,
-        "--summary-content-width": `${Math.max(0, (size.width - 72) / summaryScale)}px`,
-        "--terminal-background": terminalBackground
+        "--summary-content-width": `${Math.max(0, (size.width - 72) / summaryScale)}px`
       } as React.CSSProperties}
     >
       <header
@@ -575,13 +576,25 @@ export function TerminalCard({
   );
 }
 
-function terminalTheme(palette: PaletteId): { background: string; foreground: string; cursor: string; selectionBackground: string } {
-  const background = palette === "night" ? "#171a24" : "#202430";
+const ANSI_NAMES = [
+  "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
+  "bright-black", "bright-red", "bright-green", "bright-yellow", "bright-blue", "bright-magenta", "bright-cyan", "bright-white"
+] as const;
+
+// The xterm theme is the computed --term-* / --ansi-* of the current theme class (hex only, see styles/tokens.css).
+function readTerminalTheme(element: HTMLElement): ITheme {
+  const style = getComputedStyle(element);
+  const read = (name: string): string => style.getPropertyValue(name).trim();
+  const [black, red, green, yellow, blue, magenta, cyan, white, brightBlack, brightRed, brightGreen, brightYellow, brightBlue, brightMagenta, brightCyan, brightWhite] =
+    ANSI_NAMES.map((name) => read(`--ansi-${name}`));
   return {
-    background,
-    foreground: "#f7f4ec",
-    cursor: palette === "lilac" ? "#bfc9ee" : "#b8cf99",
-    selectionBackground: "#7b789966"
+    background: read("--term-bg"),
+    foreground: read("--term-fg"),
+    cursor: read("--term-cursor"),
+    cursorAccent: read("--term-bg"),
+    selectionBackground: read("--term-selection"),
+    black, red, green, yellow, blue, magenta, cyan, white,
+    brightBlack, brightRed, brightGreen, brightYellow, brightBlue, brightMagenta, brightCyan, brightWhite
   };
 }
 

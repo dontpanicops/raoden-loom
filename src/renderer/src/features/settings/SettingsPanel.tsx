@@ -95,16 +95,22 @@ const SETTINGS_SECTIONS: ReadonlyArray<{
   { id: "about", icon: "info" }
 ];
 
-const CLASSIC_HOME_PREVIEW = ["#B8CF99", "#D8E1C5", "#9CC7DC", "#D5A2C9"];
+// Previews show the token value, not the token: the one applied to .app belongs to the current choice. R4 adds paper/frost.
+const THEME_CANVAS_PREVIEW: Partial<Record<PaletteId, string>> = { sand: "#24221E", bay: "#161B27" };
+const THEME_HOME_PREVIEW: Partial<Record<PaletteId, string[]>> = {
+  sand: ["#3A3731", "#3A3731", "#3A3731", "#3A3731"],
+  bay: ["#232A3A", "#232A3A", "#232A3A", "#232A3A"]
+};
+const PASTEL_HOME_PREVIEW = ["#B8CF99", "#D8E1C5", "#9CC7DC", "#D5A2C9"];
+const DUSK_HOME_PREVIEW = ["#263043", "#2E3446", "#22384A", "#3A2E44"];
 
-const CANVAS_COLOR_PREVIEWS: Record<CanvasColorId, string> = {
-  sage: "#AAA7A2",
+const CANVAS_COLOR_PREVIEWS: Partial<Record<CanvasColorId, string>> = {
+  stone: "#B3B0A8",
   lilac: "#B8ADB9",
-  night: "#222632",
-  sand: "#B9AD96",
-  mist: "#A9B9BD",
-  rose: "#B9A6AD",
-  slate: "#262B36"
+  night: "#1E2230",
+  graphite: "#1E1E1D",
+  linen: "#ECE7DD",
+  mist: "#E2E9EC"
 };
 
 interface SettingsPanelProps {
@@ -388,18 +394,27 @@ export function SettingsPanel({
               <SettingGroup label={t(locale, "palette")} description={t(locale, "paletteDescription")}>
                 <Segmented
                   value={settings.palette}
-                  options={( ["sage", "lilac", "night"] as PaletteId[]).map((value) => [value, t(locale, value)])}
+                  options={([["sand", t(locale, "themeSand")], ["bay", t(locale, "themeBay")]] as [PaletteId, string][])}
                   onChange={(value) => void onChange({ palette: value as PaletteId })}
+                />
+              </SettingGroup>
+              <SettingGroup label={t(locale, "reduceTransparency")} description={t(locale, "reduceTransparencyDescription")}>
+                <Segmented
+                  value={settings.reduceTransparency ? "on" : "off"}
+                  options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
+                  onChange={(value) => void onChange({ reduceTransparency: value === "on" })}
                 />
               </SettingGroup>
               <SettingGroup label={t(locale, "homeColors")} description={t(locale, "homeColorsDescription")}>
                 <SwatchChoices
                   value={appearance.homeAccentPreset}
                   options={[
-                    ["classic", t(locale, "homePresetClassic"), CLASSIC_HOME_PREVIEW],
+                    ["theme", t(locale, "homePresetTheme"), THEME_HOME_PREVIEW[settings.palette] ?? PASTEL_HOME_PREVIEW],
+                    ["pastel", t(locale, "homePresetPastel"), PASTEL_HOME_PREVIEW],
                     ["warm", t(locale, "homePresetWarm"), ["#D99872", "#F1D4A8", "#A9CAD6", "#D99AA6"]],
                     ["cool", t(locale, "homePresetCool"), ["#8AB7C5", "#C4DCE2", "#A9B9E3", "#C3A9D9"]],
                     ["mono", t(locale, "homePresetMono"), ["#89919E", "#D8DCE1", "#AAB2BE", "#C3C7CE"]],
+                    ["dusk", t(locale, "homePresetDusk"), DUSK_HOME_PREVIEW],
                     ["custom", t(locale, "homePresetCustom"), Object.values(appearance.homeAccentColors)]
                   ]}
                   onChange={(value) => void onChange(homeAccentPresetPatch(value as HomeAccentPresetId))}
@@ -445,15 +460,15 @@ export function SettingsPanel({
                   value={appearance.canvasColor}
                   columns={4}
                   options={([
-                    ["sage", t(locale, "sage")],
+                    ["theme", t(locale, "canvasColorTheme")],
+                    ["stone", t(locale, "canvasColorStone")],
                     ["lilac", t(locale, "lilac")],
                     ["night", t(locale, "night")],
-                    ["sand", t(locale, "canvasColorSand")],
-                    ["mist", t(locale, "canvasColorMist")],
-                    ["rose", t(locale, "canvasColorRose")],
-                    ["slate", t(locale, "canvasColorSlate")]
+                    ["graphite", t(locale, "canvasColorGraphite")],
+                    ["linen", t(locale, "canvasColorLinen")],
+                    ["mist", t(locale, "canvasColorMist")]
                   ] as [CanvasColorId, string][]).map(([value, label]) => (
-                    [value, label, [CANVAS_COLOR_PREVIEWS[value]]]
+                    [value, label, [(value === "theme" ? THEME_CANVAS_PREVIEW[settings.palette] : CANVAS_COLOR_PREVIEWS[value]) ?? "#24221E"]]
                   ))}
                   onChange={(value) => void onChange(canvasColorPatch(value as CanvasColorId))}
                 />

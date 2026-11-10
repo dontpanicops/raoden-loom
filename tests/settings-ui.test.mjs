@@ -39,9 +39,9 @@ test("Settings uses the approved icon-sidebar modal instead of the legacy horizo
   assert.match(settings, /SETTINGS_SECTIONS\.map\(\(\{ id, icon \}\)/);
   assert.match(settings, /className=\{`setting-group setting-group--field\$\{layout === "stacked" \? " setting-group--stacked" : ""\}`\}/);
   assert.doesNotMatch(settings, /settings-panel__topbar/);
-  assert.match(styles, /\.settings-panel \{[^}]*grid-template-columns: 15\.5em minmax\(0, 1fr\);[^}]*background: var\(--surface\);[^}]*font-size: calc\(13px \* var\(--ui-scale, 1\)\)/);
+  assert.match(styles, /\.settings-panel \{[^}]*grid-template-columns: 15\.5em minmax\(0, 1fr\);[^}]*background: var\(--surface-3-solid\);[^}]*font-size: calc\(13px \* var\(--ui-scale, 1\)\)/);
   assert.match(styles, /\.settings-tabs \{[^}]*flex-direction: column/);
-  assert.match(styles, /\.settings-tabs__button--active \.settings-tabs__icon \{[^}]*background: var\(--primary\)/);
+  assert.match(styles, /\.settings-tabs__button--active \.settings-tabs__icon \{[^}]*background: var\(--accent-bg\)/);
   assert.match(styles, /\.setting-group--field \{[^}]*grid-template-columns: minmax\(11em, \.78fr\) minmax\(18em, 1\.22fr\)/);
   assert.match(styles, /\.setting-group--stacked \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
   assert.doesNotMatch(styles, /\.settings-tabs \{[^}]*grid-template-columns: repeat\(6/);
@@ -186,10 +186,10 @@ test("the redesigned menus use shared tokens, em geometry, and the configured UI
   assert.match(settings, /min=\{UI_SCALE_MIN\}/);
   assert.match(settings, /canvasLauncherItems: setCanvasLauncherItemEnabled/);
   assert.match(styles, /\.canvas-menu, \.canvas-region-editor, \.canvas-command-palette \{ font-size: calc\(13px \* var\(--ui-scale, 1\)\); \}/);
-  assert.match(styles, /\.canvas-menu \{[^}]*min-width: 19em;[^}]*padding: \.45em;[^}]*background: var\(--surface\);[^}]*box-shadow: var\(--shadow-lg\)/);
+  assert.match(styles, /\.canvas-menu \{[^}]*min-width: 19em;[^}]*padding: \.45em;[^}]*background: var\(--surface-3-solid\);[^}]*box-shadow: var\(--elev-4\)/);
   assert.match(styles, /\.canvas-menu__row \{[^}]*font-weight: 400;/);
-  assert.match(styles, /\.canvas-menu__icon \{[^}]*width: 1\.85em;[^}]*height: 1\.85em;[^}]*border-radius: \.55em;[^}]*color: var\(--secondary\);[^}]*background: var\(--surface-soft\)/);
-  assert.match(styles, /\.canvas-menu__kbd \{[^}]*color: var\(--text-dark\);[^}]*background: var\(--secondary\)/);
+  assert.match(styles, /\.canvas-menu__icon \{[^}]*width: 1\.85em;[^}]*height: 1\.85em;[^}]*border-radius: \.55em;[^}]*color: var\(--text-secondary\);[^}]*background: var\(--surface-sunken\)/);
+  assert.match(styles, /\.canvas-menu__kbd \{[^}]*color: var\(--text-primary\);[^}]*background: var\(--surface-2-b\)/);
   assert.match(styles, /\.canvas-menu__swatches \{[^}]*gap: \.45em/);
   assert.match(styles, /\.canvas-command-palette__footer \{[^}]*border-top:/);
   assert.match(menuPrimitives, /<span className="canvas-menu__icon">[\s\S]*<UiIcon name=\{icon\} size="1\.05em" \/>/);

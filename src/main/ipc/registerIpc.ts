@@ -32,6 +32,7 @@ import { importFilePicker, registerOrchestrationIpc } from "./orchestrationIpc";
 import type { RunManager } from "../services/orchestration/manager";
 import type { WorkspaceStore } from "../services/WorkspaceStore";
 import type { CameraState } from "../../shared/contracts";
+import { toLegacyPalette } from "../../shared/appearance";
 
 const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
 const MEDIA_MIME: Record<string, string> = {
@@ -406,7 +407,7 @@ export function registerIpc({
           modules: plugin.selectedModules
         },
         contribution: { id: contribution.id, kind: contribution.kind, title: contribution.title },
-        appearance: { locale: settings.get().locale, palette: settings.get().palette }
+        appearance: { locale: settings.get().locale, palette: toLegacyPalette(settings.get().palette), theme: settings.get().palette }
       };
     }
     if (method === "storage.get") return plugins.storageGet(pluginId, stringValue(values.key, "key"));

@@ -9,6 +9,7 @@ import type {
   ProviderId,
   SessionSnapshot
 } from "../../../../shared/contracts";
+import { toLegacyPalette } from "../../../../shared/appearance.ts";
 import {
   pluginCanvasFocusInput,
   pluginCanvasWheelInput,
@@ -78,7 +79,7 @@ export function PluginFrame({
       kind: contribution.kind,
       title: contribution.title
     },
-    appearance: { locale, palette }
+    appearance: { locale, palette: toLegacyPalette(palette), theme: palette }
   }), [contribution.id, contribution.kind, contribution.title, locale, palette, plugin.manifest, plugin.selectedModules]);
 
   useEffect(() => {
