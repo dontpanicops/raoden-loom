@@ -1602,7 +1602,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
     && (LOG_KINDS.has(e.kind) || (e.kind === "tool_finished" && typeof e.detail?.output === "string")), [panel.role]);
   const selected = panel.role === "lead" ? lead : panel.role === "executor" ? executor : panel.role === "reviewer" ? reviewer : null;
 
-  const wide = panel.tab === "summary";
+  const wide = panel.tab === "summary" && (opened.plan || opened.result); // only the documents are wide
   return (
     <aside className={`orch-panel${wide ? " orch-panel--wide" : ""}${expanded ? " orch-panel--full" : ""}`}
       data-interactive="true" data-wheel-owner="local" data-canvas-wheel-priority="local" aria-label={t(locale, "orchRun")} data-orch-panel-tab={panel.tab} data-orch-panel-mode={panel.tab === "work" ? panel.mode : undefined} data-orch-run-id={runId ?? undefined}>
@@ -1632,7 +1632,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onVie
             {endedHere && panel.tab !== "summary" && (
               <div className="orch-ended" role="status" data-orch-ended>
                 <span>{t(locale, "orchSummaryReady")}</span>
-                <button type="button" className="orch-primary" onClick={() => onView({ tab: "summary" })}>{t(locale, "orchSummaryOpen")}</button>
+                <button type="button" className="orch-primary" onClick={() => onView({ tab: "summary", section: "result" })}>{t(locale, "orchSummaryOpen")}</button>
               </div>
             )}
             {view.newer && (

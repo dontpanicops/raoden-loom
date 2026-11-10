@@ -31,7 +31,7 @@ import fs from "node:fs";
 import path from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 import { buildRecord, canonical, sha256Hex } from "../src/main/services/orchestration/journal.ts";
-import { FIXTURES, JOURNAL_V2, NODE, ROOT, byText, canvasState, card, createAgent, launch as launchApp, q, waitForValue, workspace } from "./orchestration-app-kit.mjs";
+import { FIXTURES, JOURNAL_V2, NODE, ROOT, byText, canvasState, card, createAgent, launch as launchApp, openTab, q, waitForValue, workspace } from "./orchestration-app-kit.mjs";
 
 if (!JOURNAL_V2) throw new Error("the board is journal v2 only (goal.task)");
 const { D, git, project, script } = workspace("cto-board-f4-");
@@ -219,7 +219,7 @@ async function closeDialogs() {
 async function openPanel(key) {
   await click(sel(key, "[data-board-open]"));
   await app.waitFor(`${q("[data-orch-run-id]")} && true`, `${key}: the run's panel`);
-  await app.clickEl(q('[data-orch-tab="overview"]'));
+  await openTab(app, "overview");
 }
 const readyItem = (id) => app.ev(`(() => { const el = ${q(`[data-ready-id="${id}"]`)}; return el ? { level: el.dataset.readyLevel, text: el.textContent } : null; })()`);
 async function goalDialogReadiness(ms = 45_000) {
