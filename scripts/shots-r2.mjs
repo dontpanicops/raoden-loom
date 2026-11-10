@@ -1,10 +1,10 @@
-// Frames of stage R2: themes sand and bay; the first-run card (nothing done, a terminal opened), the canvas with a terminal and two agent cards (card header 44px, status footer), the minimap over a card.
+// Frames of stage R2 (--before: the same screens, sand/theme, for a build of main without links bend, onboarding and the new card rules); themes sand and bay x canvas colours theme and linen; the first-run card (nothing done, a terminal opened), the canvas with a terminal and two agent cards (card header 44px, status footer), the minimap over a card.
 // The app is the real window with fake CLIs (no model); terminals and the launch dialog use a /private/tmp folder, the prompt is "$ ".
 // Needs `npm run build` first. Usage: node scripts/shots-r2.mjs --out <dir>
 // Frames are written as PNG (<dir>/<combo>-<screen>.png); the caller shrinks them (sips) to JPEG.
 import fs from "node:fs";
 import path from "node:path";
-import { FIXTURES, NODE, createAgent, launch, q, sleep, workspace, JOURNAL_V2 } from "./orchestration-app-kit.mjs";
+import { FIXTURES, NODE, byText, canvasState, card, createAgent, launch, q, sleep, startGoal, workspace, JOURNAL_V2 } from "./orchestration-app-kit.mjs";
 
 const arg = (name) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : null; };
 const OUT = path.resolve(arg("out") ?? "r2-shots");
@@ -45,61 +45,92 @@ fs.writeFileSync(providers, JSON.stringify({
 }));
 
 // ---------- the frames ----------
+const BEFORE = process.argv.includes("--before");
+const combos = BEFORE ? [{ name: "before", patch: { palette: "sand", canvasColor: "theme" } }]
+  : ["sand", "bay"].flatMap((t) => ["theme", "linen"].map((c) => ({ name: `${t}-${c}`, patch: { palette: t, canvasColor: c } })));
 const laptop = (app) => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+const ids = (app) => app.ev(`window.canvasTTY.terminal.list().then((l) => l.map((s) => s.id))`);
 let app;
 try {
   app = await launch({ userData: D("user-data"), providers, port: PORT, shots: OUT });
   await laptop(app);
   await app.waitFor(`${q(".workspace")} && true`, "window", 30_000);
-  const home = async () => { await app.key("Home", "Home", 36); await sleep(1200); };
-  const shot = async (name, screen) => { await sleep(500); await app.shot(`${name}-${screen}`); };
-  for (const theme of ["sand", "bay"]) {
-    await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ palette: theme, canvasColor: "theme", homeAccentPreset: "theme", onboardingDismissed: false, lastDirectory: termDir })}).then(() => true)`);
-    await app.call("Page.reload", {});
-    await sleep(1500);
-    await laptop(app);
+  const settle = async (patch) => {
+    await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ homeAccentPreset: "theme", lastDirectory: termDir, ...patch })}).then(() => true)`);
+    await app.call("Page.reload", {}); await sleep(1500); await laptop(app);
     await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas after reload", 30_000);
-    await home();
-    console.log(`[shots-r2] ${theme}: onboarding steps ${await app.ev(`[...document.querySelectorAll("[data-onboarding-step]")].map((e) => e.dataset.onboardingStep + ":" + e.dataset.done).join(" ")`)}`);
-    await shot(theme, "onboarding");
-    // a terminal ticks step 1
-    const t = await app.ev(`window.canvasTTY.terminal.create({ provider: "terminal", profile: "normal", cwd: ${JSON.stringify(termDir)}, position: { x: 500, y: 760 } })`);
-    await app.waitFor(`${q(".terminal-card .xterm-rows")} && true`, "terminal drawn", 20_000);
-    await sleep(800);
-    const say = (x) => app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(t.id)}, ${JSON.stringify(x)})`);
-    await say("PS1='$ ' PROMPT='$ '; clear\r");
-    await sleep(500);
-    await say("printf '\\033[31mred \\033[32mgreen \\033[33myellow\\033[0m\\n'; ls\r");
-    await sleep(800);
-    await home();
-    console.log(`[shots-r2] ${theme}: after terminal ${await app.ev(`[...document.querySelectorAll("[data-onboarding-step]")].map((e) => e.dataset.onboardingStep + ":" + e.dataset.done).join(" ")`)}`);
-    await shot(theme, "onboarding-terminal");
-    // Hide: the card goes and the setting is kept
-    await app.clickEl(`[...document.querySelectorAll(".onboarding footer button")][0]`);
-    await sleep(600);
-    console.log(`[shots-r2] ${theme}: hidden -> card ${await app.ev(`!!document.querySelector("[data-onboarding]")`)} setting ${await app.ev(`window.canvasTTY.settings.get().then((s) => s.onboardingDismissed)`)}`);
-    for (const id of await app.ev(`window.canvasTTY.terminal.list().then((l) => l.map((s) => s.id))`)) await app.ev(`window.canvasTTY.terminal.dispose(${JSON.stringify(id)})`);
-    if (theme === "sand") {
-      await app.ev(`window.canvasTTY.terminal.create({ provider: "terminal", profile: "normal", cwd: ${JSON.stringify(termDir)}, position: { x: 1100, y: 330 } })`);
-      await app.waitFor(`${q(".terminal-card .xterm-rows")} && true`, "terminal drawn", 20_000);
-      await createAgent(app, "Агент Codex (лид)", node);
-      await createAgent(app, "Агент Claude (исполнитель)", node);
-    } else {
-      await app.ev(`window.canvasTTY.terminal.create({ provider: "terminal", profile: "normal", cwd: ${JSON.stringify(termDir)}, position: { x: 1100, y: 330 } })`);
-      await app.waitFor(`${q(".terminal-card .xterm-rows")} && true`, "terminal drawn", 20_000);
-    }
-    await home();
-    // the minimap over a card: the card is moved under it by its rect, then what the minimap centre hits is read
-    const hit = await app.ev(`(() => { const m = document.querySelector(".canvas-minimap").getBoundingClientRect(); const x = m.left + m.width / 2, y = m.top + m.height / 2; const cards = [...document.querySelectorAll(".terminal-card, .agent-card")]; const el = document.elementFromPoint(x, y); return { overCard: cards.some((c) => { const r = c.getBoundingClientRect(); return r.left < m.right && r.right > m.left && r.top < m.bottom && r.bottom > m.top; }), topIsMinimap: !!el?.closest(".canvas-minimap") }; })()`);
-    console.log(`[shots-r2] ${theme}: minimap ${JSON.stringify(hit)}`);
-    await shot(theme, "canvas");
-    await app.panBy({ x: -700, y: 0 });
-    await sleep(600);
-    await shot(theme, "cards");
-    await home();
-    for (const id of await app.ev(`window.canvasTTY.terminal.list().then((l) => l.map((s) => s.id))`)) await app.ev(`window.canvasTTY.terminal.dispose(${JSON.stringify(id)})`);
+    await app.key("Home", "Home", 36); await sleep(1200);
+  };
+  const shot = async (name, screen) => { await sleep(500); await app.shot(`${name}-${screen}`); };
+  // phase 1: the first-run card on an empty canvas (main has none; the "before" frame is the empty HOME)
+  for (const c of combos) {
+    await settle({ ...c.patch, onboardingDismissed: false });
+    console.log(`[shots-r2] ${c.name}: onboarding ${await app.ev(`!!document.querySelector("[data-onboarding]")`)}`);
+    await shot(c.name, "canvas");
   }
-  console.log(`[shots-r2] done into ${OUT}`);
+  // phase 2: a terminal, a note, a browser, two agents with a link and one finished run
+  await settle({ ...combos[0].patch, onboardingDismissed: true, persistStickyNotes: true,
+    stickyNotes: [{ id: "r2-note", text: "Заметка\nпроверить связь агентов", position: { x: 900, y: 1150 }, size: { width: 300, height: 220 } }] });
+  const t = await app.ev(`window.canvasTTY.terminal.create({ provider: "terminal", profile: "normal", cwd: ${JSON.stringify(termDir)}, position: { x: 400, y: 760 } })`);
+  await app.waitFor(`${q(".terminal-card .xterm-rows")} && true`, "terminal drawn", 20_000);
+  await sleep(800);
+  const say = (x) => app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(t.id)}, ${JSON.stringify(x)})`);
+  await say("PS1='$ ' PROMPT='$ '; clear\r"); await sleep(500);
+  await say("printf '\\033[31mred \\033[32mgreen \\033[33myellow\\033[0m\\n'; ls\r"); await sleep(800);
+  await app.ev(`window.canvasTTY.browser.open("about:blank").then(() => true)`).catch(() => {});
+  await createAgent(app, "Агент Codex (лид)", node);
+  await createAgent(app, "Агент Claude (исполнитель)", node);
+  await app.key("Home", "Home", 36); await sleep(1200);
+  const cs = await canvasState(app);
+  const lead = cs.agents.find((a) => a.provider === "codex"), exec = cs.agents.find((a) => a.provider === "claude");
+  await app.reveal(card(exec.agentId));
+  await app.drag(await app.center(card(lead.agentId, ".agent-card__port")), await app.center(card(exec.agentId, ".agent-card__body")), 20);
+  await app.waitFor(`window.canvasTTY.orchestration.canvas().then((r) => r.value.links.length === 1)`, "link");
+  const linkId = (await canvasState(app)).links[0].linkId;
+  let chip = false;
+  if (!BEFORE) {
+    try {
+      await startGoal(app, linkId);
+      await app.waitFor(`${q(".orch-panel__status--completed")} && true`, "run completed", 90_000);
+      await app.clickEl(q(".orch-panel__close"));
+      chip = true;
+    } catch (e) { console.log(`[shots-r2] run not made: ${String(e).slice(0, 160)}`); }
+  }
+  const leadId = lead.agentId, execId = exec.agentId;
+  const fit = async () => { // both agent cards in one view: zoom out and pan so their centre is mid-window
+    const b = await app.ev(`(() => { const r = [...document.querySelectorAll("[data-agent-id]")].map((e) => e.getBoundingClientRect()); return { cx: (Math.min(...r.map((x) => x.left)) + Math.max(...r.map((x) => x.right))) / 2, cy: (Math.min(...r.map((x) => x.top)) + Math.max(...r.map((x) => x.bottom))) / 2 }; })()`);
+    await app.panBy({ x: 720 - b.cx, y: 470 - b.cy }); await sleep(700);
+  };
+  for (const c of combos) {
+    await settle({ ...c.patch, onboardingDismissed: true });
+    if (c.name !== "before" || true) await shot(c.name, "canvas-cards-home");
+    await app.reveal(card(leadId)); await fit();
+    await shot(c.name, "agents-link");
+    if (!BEFORE) {
+      await app.ev(`window.canvasTTY.orchestration.setLinkBend(${JSON.stringify(linkId)}, null).then(() => true)`);
+      await sleep(500); await shot(c.name, "link-plain");
+      await app.click(...Object.values(await app.ev(`(() => { const p = document.querySelector(".agent-link__line"); const m = p.getScreenCTM(); const q = p.getPointAtLength(p.getTotalLength() * 0.3); return { x: m.a * q.x + m.e, y: m.d * q.y + m.f }; })()`)));
+      await sleep(500); await shot(c.name, "link-selected");
+      await app.ev(`window.canvasTTY.orchestration.setLinkBend(${JSON.stringify(linkId)}, { along: 0.1, across: 0.6 }).then(() => true)`);
+      await sleep(700); await shot(c.name, "link-bent-selected");
+      await app.key("Escape", "Escape", 27); await app.click(40, 880); await sleep(500);
+      await shot(c.name, "link-bent");
+    }
+    // terminal, note, browser, agents: the cards' view, then a selected card
+    await app.key("Home", "Home", 36); await sleep(900);
+    await app.reveal(`document.querySelector(".terminal-card")`); await sleep(500);
+    await shot(c.name, "cards-terminal");
+    await app.clickEl(`document.querySelector(".terminal-card__header")`); await sleep(500);
+    await shot(c.name, "card-selected");
+    await app.click(40, 880);
+    const noteSel = `document.querySelector("[data-sticky-note-id]")`;
+    if (await app.ev(`!!${noteSel}`)) { await app.reveal(noteSel); await sleep(500); await shot(c.name, "cards-note"); }
+  }
+  if (!BEFORE) {
+    await settle({ palette: "sand", canvasColor: "theme", homeAccentPreset: "dusk", onboardingDismissed: true });
+    await shot("sand-dusk", "home");
+  }
+  console.log(`[shots-r2] done into ${OUT}; chip ${chip}`);
 } catch (error) {
   await app?.shot("failure").catch(() => {});
   console.error(String(error?.stack ?? error));
