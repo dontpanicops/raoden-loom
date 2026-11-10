@@ -532,16 +532,16 @@ button { border: 0; }
 .launch-dialog__provider { min-height: 108px; display: grid; place-items: center; border-radius: 18px; background: var(--surface-sunken); }
 .launch-dialog__provider .provider-icon { width: 76px; height: 76px; }
 .folder-field { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; overflow: hidden; border-radius: 18px; color: var(--text-primary); background: var(--surface-sunken); }
-.folder-field__picker { min-width: 0; padding: 18px 20px 18px 25px; display: grid; grid-template-columns: 34px minmax(0, 1fr) 22px; align-items: center; gap: 16px; color: inherit; background: transparent; cursor: pointer; text-align: left; }
+.orch-form .folder-field__picker { min-width: 0; padding: 18px 20px 18px 25px; display: grid; grid-template-columns: 34px minmax(0, 1fr) 22px; align-items: center; gap: 16px; color: inherit; background: transparent; cursor: pointer; text-align: left; box-shadow: none; }
 .folder-field__copy { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
 .folder-field small { font-size: 10px; font-weight: 900; letter-spacing: .11em; text-transform: uppercase; opacity: .58; }
 .folder-field strong { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 18px; }
-.folder-field__paste { min-width: 100px; padding: 0 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; border-left: 1px solid var(--border-strong); color: inherit; background: color-mix(in srgb, var(--text-primary) 20%, transparent); cursor: pointer; font-size: 10px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
-.folder-field__picker:hover, .folder-field__paste:hover, .folder-field__picker:focus-visible, .folder-field__paste:focus-visible { background: color-mix(in srgb, var(--text-primary) 34%, transparent); }
+.orch-form .folder-field__paste { min-width: 100px; padding: 0 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; border-left: 1px solid var(--border-strong); color: inherit; background: color-mix(in srgb, var(--text-primary) 20%, transparent); cursor: pointer; font-size: 10px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; box-shadow: none; }
+.orch-form .folder-field__picker:hover, .orch-form .folder-field__paste:hover, .orch-form .folder-field__picker:focus-visible, .orch-form .folder-field__paste:focus-visible { background: color-mix(in srgb, var(--text-primary) 34%, transparent); }
 .profile-row { margin-top: 13px; padding: 3px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; border-radius: 9px; background: var(--surface-sunken); }
-.profile-button { min-height: var(--control-h-m); border-radius: 7px; color: var(--text-secondary); background: transparent; cursor: pointer; font-size: 12px; font-weight: 500; }
-.profile-button:hover { color: var(--text-primary); }
-.profile-button--active { color: var(--text-primary); background: var(--surface-2); box-shadow: var(--edge), var(--elev-1); font-weight: 600; }
+.orch-form .profile-button { min-height: var(--control-h-m); border-radius: 7px; color: var(--text-secondary); background: transparent; cursor: pointer; font-size: 12px; font-weight: 500; box-shadow: none; }
+.orch-form .profile-button:hover { color: var(--text-primary); }
+.orch-form .profile-button--active { color: var(--text-primary); background: var(--surface-2); box-shadow: var(--edge), var(--elev-1); font-weight: 600; }
 .launch-submit__busy { width: 14px; height: 14px; border: 2px solid color-mix(in srgb, currentColor 30%, transparent); border-top-color: currentColor; border-radius: 50%; animation: spin .8s linear infinite; }
 .danger-note { margin-top: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 5px; border-radius: 12px; color: var(--status-waiting); background: var(--status-waiting-bg); font-size: 12px; line-height: 1.35; }
 .danger-note span { opacity: .75; }
@@ -1193,7 +1193,7 @@ button { border: 0; }
 .orch-panel__body[data-orch-body="activity"], .orch-panel__body[data-orch-body="log"] { overflow: hidden; }
 .orch-changes { display: flex; flex-direction: column; gap: 8px; }
 .orch-changes__files { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
-.orch-panel .orch-changes__file { width: 100%; padding: 4px 6px; display: flex; gap: 8px; text-align: left; color: inherit; background: transparent; font-weight: 400; }
+.orch-panel .orch-changes__file { width: 100%; box-shadow: none; padding: 4px 6px; display: flex; gap: 8px; text-align: left; color: inherit; background: transparent; font-weight: 400; }
 .orch-panel .orch-changes__file:hover { background: var(--surface-sunken); }
 .orch-changes__file code { overflow-wrap: anywhere; }
 .orch-changes__status { flex: 0 0 auto; min-width: 6em; font-size: 11px; font-weight: 800; }

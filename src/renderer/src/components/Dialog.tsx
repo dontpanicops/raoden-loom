@@ -19,16 +19,20 @@ export function Dialog({ label, onClose, children, locale, className = "", backd
   const close = useRef(onClose);
   close.current = onClose;
 
+  // taken during the first render: a child's autoFocus has already moved focus by the time effects run
+  const opener = useRef<HTMLElement | null | undefined>(undefined);
+  if (opener.current === undefined) opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
   useLayoutEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const node = root.current;
     if (node && !node.contains(document.activeElement)) {
       // the first field, else the main button, else the first control that is not the close cross
       const items = focusables(node);
-      (items.find((el) => /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) ?? node.querySelector<HTMLElement>(".orch-primary") ?? items.find((el) => !el.classList.contains("dialog__close")) ?? node)
+      (node.querySelector<HTMLElement>("[data-autofocus]") ?? items.find((el) => /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) ?? node.querySelector<HTMLElement>(".orch-primary") ?? items.find((el) => !el.classList.contains("dialog__close")) ?? node)
         .focus({ preventScroll: true });
     }
-    return () => { if (opener?.isConnected) opener.focus({ preventScroll: true }); };
+    const back = opener.current;
+    return () => { if (back?.isConnected) back.focus({ preventScroll: true }); };
   }, []);
 
   useEffect(() => {
@@ -36,7 +40,7 @@ export function Dialog({ label, onClose, children, locale, className = "", backd
     stack.push(me);
     const onKey = (event: KeyboardEvent): void => {
       if (stack[stack.length - 1] !== me) return;
-      if (event.key === "Escape") { close.current(); return; }
+      if (event.key === "Escape") { if (!event.defaultPrevented && !event.isComposing) close.current(); return; }
       if (event.key !== "Tab" || !root.current) return;
       const items = focusables(root.current);
       const at = items.indexOf(document.activeElement as HTMLElement);

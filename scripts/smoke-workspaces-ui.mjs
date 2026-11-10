@@ -389,6 +389,8 @@ try {
   await closeDialog();
   expect(await app.ev(`document.querySelectorAll("[data-ws-close-item]").length === 2`), "W9: the dialog lists the run and the terminal", await text(q("[data-ws-close]")));
   await app.clickEl(q("[data-ws-close-cancel]"));
+  await app.waitFor(`!${q("[data-ws-close]")}`, "R1: the close dialog is gone");
+  expect(await app.ev(`document.activeElement === ${q("[data-workspace-menu]")}`), "R1: focus returns to the opener after a dialog with autoFocus", await app.ev("document.activeElement?.outerHTML.slice(0, 120)"));
   expect(!(await state()).workspaces.find((w) => w.id === A).closed && (await viewOf(runA2)).active?.purpose === "execute", "W9: cancel changes nothing", null);
   await closeDialog();
   await app.clickEl(q("[data-ws-close-hide]"));

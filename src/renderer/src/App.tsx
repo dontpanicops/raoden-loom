@@ -719,7 +719,7 @@ export function App(): React.JSX.Element {
         () => window.canvasTTY.plugins.completeBrowserOpen({ requestId: request.requestId, ok: true }),
         (error: unknown) => {
           const message = error instanceof Error ? error.message : t(settings.locale, "browserActionFailed");
-          showToast(message);
+          showToast(message, "error");
           return window.canvasTTY.plugins.completeBrowserOpen({ requestId: request.requestId, ok: false, error: message });
         }
       ).catch(() => undefined);

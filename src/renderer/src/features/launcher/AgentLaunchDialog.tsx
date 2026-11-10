@@ -109,11 +109,11 @@ export function AgentLaunchDialog({
         </div>
 
         <div className="profile-row" role="group">
-          <button className={profile === "normal" ? "profile-button profile-button--active" : "profile-button"} type="button" aria-pressed={profile === "normal"} onClick={() => {
+          <button className={profile === "normal" ? "profile-button profile-button--active" : "profile-button"} type="button" data-autofocus={profile === "normal" ? "" : undefined} aria-pressed={profile === "normal"} onClick={() => {
             setProfile("normal");
             setConfirmDanger(false);
           }}>{t(locale, "normal")}</button>
-          <button className={profile === "yolo" ? "profile-button profile-button--active" : "profile-button"} type="button" aria-pressed={profile === "yolo"} onClick={() => {
+          <button className={profile === "yolo" ? "profile-button profile-button--active" : "profile-button"} type="button" data-autofocus={profile === "yolo" ? "" : undefined} aria-pressed={profile === "yolo"} onClick={() => {
             setProfile("yolo");
             setConfirmDanger(false);
           }}>{t(locale, "yolo")}</button>
