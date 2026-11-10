@@ -97,6 +97,10 @@ for (const [selector, v] of themes) {
   }
   check(`${theme}: --accent-text on --accent-bg`, need(v, "--accent-text", theme), need(v, "--accent-bg", theme), TEXT);
   check(`${theme}: --danger-text on --danger`, need(v, "--danger-text", theme), need(v, "--danger", theme), TEXT);
+  check(`${theme}: --accent-text on --accent`, need(v, "--accent-text", theme), need(v, "--accent", theme), TEXT);
+  for (const status of ["--status-working", "--status-waiting", "--status-done"]) {
+    check(`${theme}: --on-status on ${status}`, need(v, "--on-status", theme), need(v, status, theme), TEXT);
+  }
 
   const termBg = need(v, "--term-bg", theme);
   check(`${theme}: --term-fg on --term-bg`, need(v, "--term-fg", theme), termBg, NON_TEXT);

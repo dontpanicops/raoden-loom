@@ -41,7 +41,7 @@ test("without a stored Canvas background the theme's own is used", () => {
 });
 
 test("Canvas background updates never include HOME palette fields", () => {
-  assert.deepEqual(canvasColorPatch("sand"), { canvasColor: "sand" });
+  assert.deepEqual(canvasColorPatch("linen"), { canvasColor: "linen" });
   assert.deepEqual(canvasColorPatch("stone"), { canvasColor: "stone" });
 });
 

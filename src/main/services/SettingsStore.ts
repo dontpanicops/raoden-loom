@@ -68,6 +68,9 @@ const LEGACY_PALETTE_TO_CANVAS: Record<string, CanvasColorId> = { sage: "stone",
 const LEGACY_CANVAS_COLORS: Record<string, CanvasColorId> = {
   sage: "stone", sand: "stone", rose: "lilac", slate: "night"
 };
+// Own keys only: a saved "constructor" or "__proto__" is an unknown id, never an inherited member.
+const legacyId = <T>(table: Record<string, T>, key: unknown): T | undefined =>
+  typeof key === "string" && Object.hasOwn(table, key) ? table[key] : undefined;
 const PATTERNS = new Set<CanvasPatternId>(["dots", "grid", "waves", "diagonal", "rings", "none"]);
 const MEDIA_FITS = new Set<MediaFit>(["cover", "contain"]);
 const SETTINGS_VERSION = 16;
@@ -391,12 +394,12 @@ export function normalizeSettings(
   );
   const legacyPalette = (source as Record<string, unknown>).palette as string;
   const palette = PALETTES.has(source.palette as PaletteId) ? source.palette as PaletteId
-    : LEGACY_PALETTE_TO_PALETTE[legacyPalette] ?? fallback.palette;
+    : legacyId(LEGACY_PALETTE_TO_PALETTE, legacyPalette) ?? fallback.palette;
   const canvasColorCandidate = (source as Record<string, unknown>).canvasColor as string | undefined;
   // Canvas first (it reads the OLD palette), then the palette.
   const canvasColor: CanvasColorId = canvasColorCandidate === undefined || canvasColorCandidate === "palette"
-    ? LEGACY_PALETTE_TO_CANVAS[legacyPalette] ?? "theme"
-    : LEGACY_CANVAS_COLORS[canvasColorCandidate]
+    ? legacyId(LEGACY_PALETTE_TO_CANVAS, legacyPalette) ?? "theme"
+    : legacyId(LEGACY_CANVAS_COLORS, canvasColorCandidate)
       ?? (CANVAS_COLORS.has(canvasColorCandidate as CanvasColorId) ? canvasColorCandidate as CanvasColorId : fallback.canvasColor);
   const homeAccentCandidate = source.homeAccentPreset as string;
   const homeAccentPreset = homeAccentCandidate === "classic" ? "pastel"

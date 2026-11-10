@@ -929,3 +929,12 @@ test("notification settings: defaults when missing, each switch normalized on it
     { waiting: false, completed: true, failed: true, dockBadge: true, bounce: true, board: true, boardHead: false });
   assert.deepEqual(normalizeSettings({ notifications: [false] }, fallback).notifications.waiting, true);
 });
+
+test("an inherited member name is an unknown appearance id, never a value", () => {
+  for (const id of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+    const normalized = normalizeSettings({ palette: id, canvasColor: id, homeAccentPreset: id }, fallback);
+    assert.equal(normalized.palette, "sand");
+    assert.equal(normalized.canvasColor, fallback.canvasColor);
+    assert.equal(normalized.homeAccentPreset, "theme");
+  }
+});

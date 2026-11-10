@@ -743,7 +743,7 @@ button { border: 0; }
 .plugin-permissions > strong { opacity: .72; }
 .plugin-permissions > span, .plugin-permissions li { opacity: .68; }
 .plugin-permissions ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
-.plugin-hook-warning { margin-top: 9px; padding: 10px 11px; display: flex; flex-direction: column; gap: 4px; border: 1px solid color-mix(in srgb, var(--status-waiting) 35%, transparent); border-radius: 10px; color: var(--status-waiting); background: color-mix(in srgb, var(--status-waiting) 48%, transparent); font-size: 10px; line-height: 1.4; }
+.plugin-hook-warning { margin-top: 9px; padding: 10px 11px; display: flex; flex-direction: column; gap: 4px; border: 1px solid color-mix(in srgb, var(--status-waiting) 35%, transparent); border-radius: 10px; color: var(--status-waiting); background: var(--status-waiting-bg); font-size: 10px; line-height: 1.4; }
 .plugin-hook-warning strong { font-size: 10px; }
 .plugin-hook-warning span { opacity: .82; }
 .plugin-hook-warning ul { margin: 4px 0 0; padding: 0; display: grid; gap: 4px; list-style: none; }
@@ -888,7 +888,7 @@ button { border: 0; }
 .installed-plugin__header > div { display: flex; gap: 6px; }
 .installed-plugin__header .installed-plugin__update { color: var(--accent-text); background: var(--accent-bg); }
 .installed-plugin__header .installed-plugin__enable { color: var(--accent-text); background: var(--accent-bg); min-width: 86px; }
-.installed-plugin__header .installed-plugin__remove { color: var(--text-primary); background: color-mix(in srgb, var(--status-failed) 68%, transparent); }
+.installed-plugin__header .installed-plugin__remove { color: var(--danger-text); background: var(--danger); }
 .installed-plugin .plugin-permissions { padding: 9px 10px; border-radius: 10px; background: color-mix(in srgb, var(--text-primary) 6%, transparent); }
 .plugin-contribution-list { margin-top: 10px; display: grid; gap: 6px; }
 .plugin-contribution { min-height: 51px; padding: 7px 7px 7px 11px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; border-radius: 10px; background: var(--surface-sunken); }
@@ -1055,23 +1055,23 @@ button { border: 0; }
 .agent-card__feed-item time { color: var(--text-secondary); font-family: var(--font-mono); font-size: .92em; }
 .agent-card__feed-empty { margin: 0; color: var(--text-secondary); }
 .agent-card__state { align-self: flex-start; padding: .25em .65em; border-radius: 99px; color: var(--text-primary); background: var(--surface-2-b); font-weight: 800; }
-.agent-card__state--working { background: var(--status-working); animation: agent-pulse 1.4s ease-in-out infinite; }
-.agent-card__state--paused, .agent-card__state--stopping { background: var(--status-waiting); }
-.agent-card__state--needs_you { background: var(--status-waiting); animation: agent-pulse 1.4s ease-in-out infinite; }
+.agent-card__state--working { color: var(--on-status); background: var(--status-working); animation: agent-pulse 1.4s ease-in-out infinite; }
+.agent-card__state--paused, .agent-card__state--stopping { color: var(--on-status); background: var(--status-waiting); }
+.agent-card__state--needs_you { color: var(--on-status); background: var(--status-waiting); animation: agent-pulse 1.4s ease-in-out infinite; }
 .agent-card:has(.agent-card__state--needs_you) { outline: 3px solid var(--status-waiting); outline-offset: 2px; }
 .agent-card__state--failed { color: var(--danger-text); background: var(--danger); }
-.agent-card__state--completed { background: var(--accent); }
-.agent-card__state--completed_no_checks { background: var(--status-waiting); } /* a warning, never the completed mark */
+.agent-card__state--completed { color: var(--accent-text); background: var(--accent); }
+.agent-card__state--completed_no_checks { color: var(--on-status); background: var(--status-waiting); } /* a warning, never the completed mark */
 @keyframes agent-pulse { 50% { opacity: .62; } }
 .agent-card__message { padding: .4em .6em; border-radius: 8px; color: var(--danger-text); background: var(--danger); font-size: .88em; }
-.agent-card__message--info { color: var(--text-primary); background: color-mix(in srgb, var(--focus) 70%, var(--text-primary)); }
+.agent-card__message--info { color: var(--on-status); background: color-mix(in srgb, var(--focus) 70%, var(--text-primary)); }
 .agent-card__confirm { position: absolute; inset: 3.15em 0 0; z-index: 2; padding: .8em; display: flex; flex-direction: column; gap: .5em; border-radius: 0 0 13px 13px; background: var(--surface-2); }
 .agent-card__actions { margin-top: auto; display: flex; gap: .5em; }
 .agent-card__body button, .agent-link__chip button, .orch-panel button, .orch-form button { padding: .4em .8em; border-radius: 8px; color: var(--text-primary); background: var(--surface-2-b); font-weight: 800; cursor: pointer; }
 .agent-card__body button:disabled, .orch-panel button:disabled, .orch-form button:disabled { opacity: .5; cursor: default; }
-.agent-card button.agent-card__connect { background: var(--status-waiting); }
+.agent-card button.agent-card__connect { color: var(--on-status); background: var(--status-waiting); }
 .agent-card button.agent-card__danger, .orch-panel button.orch-danger { color: var(--danger-text); background: var(--danger); }
-.orch-panel button.orch-primary, .orch-form button.orch-primary { background: var(--accent); }
+.orch-panel button.orch-primary, .orch-form button.orch-primary { color: var(--accent-text); background: var(--accent); }
 /* UX audit (PR 1): Stop beside a pause's main action is secondary — outlined, last in the row */
 .orch-panel button.orch-stop { margin-left: auto; color: var(--danger-fg); background: transparent; box-shadow: inset 0 0 0 2px var(--danger-fg); }
 /* UX audit PR 2: a decision's subject stays in view; push and QA are two separate groups */
@@ -1198,7 +1198,7 @@ button { border: 0; }
 .orch-feed__item--thinking .orch-feed__text { opacity: .6; font-style: italic; }
 .orch-feed__item--truncated .orch-feed__text, .orch-feed__gap { padding: 4px 8px; border-radius: 8px; color: var(--status-waiting); background: var(--status-waiting-bg); }
 .orch-feed__silence { padding: 6px 8px; border-radius: 8px; background: var(--surface-sunken); font-style: italic; }
-.orch-panel .orch-feed__new { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); background: var(--accent); box-shadow: var(--elev-2); }
+.orch-panel .orch-feed__new { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); color: var(--accent-text); background: var(--accent); box-shadow: var(--elev-2); }
 .orch-panel .orch-feed__earlier { align-self: flex-start; }
 .orch-panel__body[data-orch-body="activity"], .orch-panel__body[data-orch-body="log"] { overflow: hidden; }
 .orch-changes { display: flex; flex-direction: column; gap: 8px; }
@@ -1213,7 +1213,7 @@ button { border: 0; }
 .orch-take { padding: 10px; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--focus); }
 .orch-take h4 { margin: 0 0 4px; font-size: 10px; letter-spacing: .11em; text-transform: uppercase; opacity: .62; }
 .orch-take p { margin: 0; }
-.orch-panel .agent-card__observe, .agent-card__body button.agent-card__observe { background: var(--status-done); color: var(--text-primary); }
+.orch-panel .agent-card__observe, .agent-card__body button.agent-card__observe { background: var(--status-done); color: var(--on-status); }
 .orch-ready ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .orch-ready__item { padding: 6px 8px; display: grid; grid-template-columns: 1.4em 1fr; gap: 6px; border-radius: 8px; background: color-mix(in srgb, var(--text-primary) 8%, transparent); font-size: 12px; }
 .orch-ready__item > span:last-child { display: flex; flex-direction: column; gap: 4px; }
@@ -1437,7 +1437,7 @@ button { border: 0; }
 .board-card__merge p { margin: .3em 0; }
 .board-card button { padding: .4em .8em; border-radius: 8px; color: var(--text-primary); background: var(--surface-2-b); font-weight: 800; cursor: pointer; white-space: nowrap; }
 .board-card button:disabled { opacity: .5; cursor: default; }
-.board-card button.orch-primary { background: var(--accent); }
+.board-card button.orch-primary { color: var(--accent-text); background: var(--accent); }
 .board-card button.board-card__hide { width: 2.15em; height: 2.15em; padding: 0; display: grid; place-items: center; color: var(--text-secondary); background: color-mix(in srgb, var(--text-primary) 8%, transparent); }
 .board-card__message, .board-card__empty { margin: .5em .9em 0; color: var(--text-secondary); }
 .board-card__message { color: var(--text-primary); }

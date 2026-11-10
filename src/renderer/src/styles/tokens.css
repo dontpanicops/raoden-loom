@@ -97,6 +97,7 @@
 }
 
 .app--sand{
+  --on-status:#1C1B18;
   --surface-0:#24221E;
   --surface-0-hi:#2A2823;
   --surface-0-lo:#1D1B18;
@@ -148,6 +149,7 @@
   --ansi-bright-blue:#A6C4EE;--ansi-bright-magenta:#DFB5D5;--ansi-bright-cyan:#A2D4CE;--ansi-bright-white:#F2EEE6;}
 
 .app--bay{
+  --on-status:#11151F;
   --surface-0:#161B27;
   --surface-0-hi:#22304A;
   --surface-0-lo:#11151F;
@@ -199,6 +201,7 @@
   --ansi-bright-blue:#A6C4EE;--ansi-bright-magenta:#DFB5D5;--ansi-bright-cyan:#A2D4CE;--ansi-bright-white:#F2EEE6;}
 
 .app--paper{
+  --on-status:#FFFFFF;
   --surface-0:#EDE9E1;
   --surface-0-hi:#F6F3ED;
   --surface-0-lo:#E2DDD3;
@@ -250,6 +253,7 @@
   --ansi-bright-blue:#3566A8;--ansi-bright-magenta:#9E4B8C;--ansi-bright-cyan:#2A807A;--ansi-bright-white:#FBFAF6;}
 
 .app--frost{
+  --on-status:#FFFFFF;
   --surface-0:#E8EDF5;
   --surface-0-hi:#F2F6FC;
   --surface-0-lo:#DDE4EF;
