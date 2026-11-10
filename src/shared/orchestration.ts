@@ -552,6 +552,7 @@ export interface OrchestrationAgentLink {
   toAgentId: string; // the executor
   createdAt: string;
   runIds: string[]; // the link's runs, oldest first; the last one is shown
+  bend?: { along: number; across: number } | null; // R2: how the user bent the curve (linkBend.ts); absent or null: automatic
 }
 export interface OrchestrationCanvas {
   agents: OrchestrationAgentCard[];
@@ -617,6 +618,7 @@ export interface OrchestrationApi {
   moveAgentGroup(agentIds: string[], workspaceId: string): Promise<OrchestrationResult<OrchestrationCanvas>>;
   createLink(input: { linkId: string; fromAgentId: string; toAgentId: string }): Promise<OrchestrationResult<OrchestrationAgentLink>>;
   deleteLink(linkId: string): Promise<OrchestrationResult<null>>;
+  setLinkBend(linkId: string, bend: { along: number; across: number } | null): Promise<OrchestrationResult<OrchestrationAgentLink>>;
   // A link held by a newer version's run is let go here (acceptance-review-spec.md §2.2.1): the
   // link is removed and its folder freed, the run's files stay as they are. A repeat of commandId answers the same.
   releaseNewerLink(input: { commandId: string; linkId: string; runId: string }): Promise<OrchestrationResult<OrchestrationReleasedNewerRun>>;
