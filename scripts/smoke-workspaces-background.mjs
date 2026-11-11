@@ -105,7 +105,7 @@ async function show() {
 }
 
 try {
-  app = await launch({ userData: USER_DATA, providers, port: PORT, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh" } });
+  app = await launch({ userData: USER_DATA, providers, port: PORT, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh", CANVASTTY_QUIET_WINDOW: "0" } });
   await size(1280, 800);
   await pageReady();
   const A = (await api(`w.create(${JSON.stringify({ title: "Альфа", root: projectA, activate: false })})`)).workspaces.at(-1).id;
@@ -165,7 +165,7 @@ try {
   expect(notes.cameraSavedHiddenMs !== null, "hidden right after the gesture: A's camera is saved for A (maybe late)", { stored: await stored(A), camA });
   await show();
   await app.quit();
-  app = await launch({ userData: USER_DATA, providers, port: PORT + 1, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh" } });
+  app = await launch({ userData: USER_DATA, providers, port: PORT + 1, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh", CANVASTTY_QUIET_WINDOW: "0" } });
   await size(1280, 800);
   await pageReady();
   expect((await state()).activeId === A && near(await cameraNow(), camA), "after a restart: A with the camera of that gesture", { now: await cameraNow(), camA });
