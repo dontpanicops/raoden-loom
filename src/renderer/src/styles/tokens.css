@@ -282,7 +282,7 @@
   --danger-text:#FFFFFF;
   --status-idle:#5B6680;
   --status-working:#1A6B4C;
-  --status-waiting:#9A5B00;
+  --status-waiting:#8A5200;
   --status-paused:#3C4659;
   --status-failed:#C13B3B;
   --status-done:#2A5FC0;
@@ -447,5 +447,10 @@
 .app--sand.app--canvas-linen,.app--sand.app--canvas-mist{--surface-3:rgba(56,53,47,.94);--surface-4:rgba(62,59,52,.96)}
 .app--bay.app--canvas-stone,.app--bay.app--canvas-lilac{--surface-3:rgba(34,40,58,.88);--surface-4:rgba(38,45,64,.92)}
 .app--bay.app--canvas-linen,.app--bay.app--canvas-mist{--surface-3:rgba(34,40,58,.94);--surface-4:rgba(38,45,64,.96)}
+/* Light glass over the dark canvas backgrounds (night, graphite) and the mid ones (stone, lilac) is denser too. */
+.app--paper.app--canvas-stone,.app--paper.app--canvas-lilac{--surface-3:rgba(255,253,248,.84);--surface-4:rgba(255,253,248,.9)}
+.app--paper.app--canvas-night,.app--paper.app--canvas-graphite{--surface-3:rgba(255,253,248,.96);--surface-4:rgba(255,253,248,.97)}
+.app--frost.app--canvas-stone,.app--frost.app--canvas-lilac{--surface-3:rgba(250,252,255,.84);--surface-4:rgba(250,252,255,.9)}
+.app--frost.app--canvas-night,.app--frost.app--canvas-graphite{--surface-3:rgba(250,252,255,.96);--surface-4:rgba(250,252,255,.97)}
 /* doubled class: specificity above the dark-theme-over-light-canvas glass rules above, so reduced transparency always wins */
 .app--reduce.app--reduce{--surface-3:var(--surface-3-solid);--surface-4:var(--surface-4-solid)}

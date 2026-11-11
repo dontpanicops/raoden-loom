@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffectiveTheme } from "../settings/useEffectiveTheme";
 import type {
   AgentProviderId,
   AppSettings,
@@ -283,6 +284,7 @@ export function HomeZone({
   onPluginCanvasWheel
 }: HomeZoneProps): React.JSX.Element {
   const locale = settings.locale;
+  const theme = useEffectiveTheme(settings);
   const launcherProviders = resolveHomeLauncherProviders(settings);
   const limitProviders = resolveHomeLimitProviders(settings);
   const [now, setNow] = useState(() => new Date());
@@ -590,7 +592,7 @@ export function HomeZone({
             plugin={plugin}
             contribution={contribution}
             locale={locale}
-            palette={settings.palette}
+            palette={theme}
             sessions={sessions}
             limits={limits}
             captureCanvasWheelOverWidgets={captureCanvasWheelOverWidgets || focusedWidgetId !== canvasWidgetId}

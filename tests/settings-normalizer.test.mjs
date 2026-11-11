@@ -18,6 +18,7 @@ const fallback = {
   palette: "sand",
   reduceTransparency: false,
   onboardingDismissed: false,
+  followSystem: false,
   homeAccentPreset: "theme",
   homeAccentColors: {
     clock: "#D8E1C5",
@@ -312,6 +313,13 @@ test("R0 migration table: every old id is rewritten, only new ids come out", () 
   assert.equal(n({}).onboardingDismissed, false);
   assert.equal(n({ onboardingDismissed: true }).onboardingDismissed, true);
   assert.equal(n({ onboardingDismissed: "yes" }).onboardingDismissed, false);
+  // followSystem (R4a): optional boolean, no version bump, palette (manual choice) is independent
+  assert.equal(n({}).followSystem, false);
+  assert.equal(n({ settingsVersion: 16, palette: "paper" }).followSystem, false);
+  assert.equal(n({ followSystem: true }).followSystem, true);
+  for (const bad of ["yes", 1, null, {}]) assert.equal(n({ followSystem: bad }).followSystem, false);
+  const both = n({ palette: "frost", followSystem: true });
+  assert.deepEqual([both.palette, both.followSystem], ["frost", true]);
 });
 
 test("R0: a v15 file is migrated on load, saved with new ids only and survives save -> load", async () => {

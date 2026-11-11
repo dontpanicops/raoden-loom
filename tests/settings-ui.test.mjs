@@ -183,7 +183,7 @@ test("the redesigned menus use shared tokens, em geometry, and the configured UI
     readFile(menuPrimitivesPath, "utf8"),
     readFile(new URL("../src/renderer/src/styles/tokens.css", import.meta.url), "utf8")
   ]);
-  assert.match(settings, /value=\{settings\.palette\}/);
+  assert.match(settings, /value=\{settings\.followSystem \? theme : settings\.palette\}/);
   assert.match(settings, /min=\{UI_SCALE_MIN\}/);
   assert.match(settings, /canvasLauncherItems: setCanvasLauncherItemEnabled/);
   assert.match(styles, /\.canvas-menu, \.canvas-region-editor, \.canvas-command-palette \{ font-size: calc\(13px \* var\(--ui-scale, 1\)\); \}/);
@@ -219,4 +219,14 @@ test("the redesigned menus use shared tokens, em geometry, and the configured UI
   assert.match(styles, /\.plugin-canvas-card__header \{[^}]*font-size: calc\(13px \* var\(--ui-scale, 1\)\)/);
   assert.match(styles, /\.browser-card__header \{[^}]*font-size: calc\(13px \* var\(--ui-scale, 1\)\)/);
   assert.doesNotMatch(styles, /\.canvas-region-menu/);
+});
+
+test("R4: four theme swatches, a follow-system row, a manual pick turns followSystem off", async () => {
+  const settings = await readFile(settingsPanelPath, "utf8");
+  for (const id of ["sand", "bay", "paper", "frost"]) assert.match(settings, new RegExp(`\\["${id}", t\\(locale, "theme`));
+  assert.match(settings, /onChange\(\{ followSystem: value === "on" \}\)/);
+  assert.match(settings, /onChange\(\{ palette: value as PaletteId, followSystem: false \}\)/);
+  // following the system, the tiles show the theme in effect and say so
+  assert.match(settings, /settings\.followSystem \? `\$\{t\(locale, "paletteBySystem"\)\}/);
+  assert.match(settings, /THEME_CANVAS_PREVIEW: Record<PaletteId, string>/);
 });

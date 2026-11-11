@@ -1,10 +1,10 @@
 // B2: the task board on the canvas (stage-b-board.md §6). One card per workspace, moved and resized as an agent card
 // is. Its columns and every line of a task card come from the shared status (boardStatuses) and the same display rules
 // as the agent cards (runStatus); the board only sends what the person asked for — main checks every rule.
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { LocaleId, SessionBounds } from "../../../../shared/contracts";
 import type { OrchestrationAgentLink } from "../../../../shared/orchestration";
-import { AUTOPILOT_BUDGET, type AutopilotLimit, conflictsOf, placeKey, externalInForce, isCopy, startBase, taskText, mergeMark, parallelOf, type AutopilotBudget, type AutopilotState, type BoardHead, type BoardMerge, type BoardTask, type ImportReport, type InboxRow, type InboxTask, type RunTaskFacts, type TaskColumn, type TaskStatus } from "../../../../shared/taskBoard";
+import { AUTOPILOT_BUDGET, type AutopilotLimit, type AutopilotStopCode, conflictsOf, placeKey, externalInForce, isCopy, startBase, taskText, mergeMark, parallelOf, type AutopilotBudget, type AutopilotState, type BoardHead, type BoardMerge, type BoardTask, type ImportReport, type InboxRow, type InboxTask, type RunTaskFacts, type TaskColumn, type TaskStatus } from "../../../../shared/taskBoard";
 import { t, type TranslationKey } from "../../lib/i18n";
 import { Dialog } from "../../components/Dialog";
 import { ACTIVE_STATUSES, providerName, resetTime } from "./runModel";
@@ -34,6 +34,7 @@ export interface BoardCardProps {
   defaultProject: string | null;
   onBoundsChange(bounds: SessionBounds): void;
   onHide(): void;
+  onRaise?(): void; // the card goes to the top of the canvas stack (the import report sits outside its box)
 }
 
 export function BoardCard(props: BoardCardProps): React.JSX.Element {
@@ -51,6 +52,21 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
   // F1 (T-2): «Import tasks» under way, and the report window (the button's result, or an inbox/ file's after «Import»)
   const [importing, setImporting] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
+  // R4: the report plate: raises the card, goes to the left when the right has no room, takes focus and gives it back to «Import»
+  const asideRef = useRef<HTMLElement>(null);
+  const importRef = useRef<HTMLButtonElement>(null);
+  const [asideLeft, setAsideLeft] = useState(false);
+  const closeReport = (): void => { setReport(null); importRef.current?.focus(); };
+  const asideOpen = !!report;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the plate opens or closes, not on every render
+  useLayoutEffect(() => {
+    setAsideLeft(false);
+    const el = asideRef.current;
+    if (!el) return;
+    props.onRaise?.();
+    if (el.getBoundingClientRect().right > window.innerWidth) setAsideLeft(true);
+    el.querySelector<HTMLElement>("[data-board-import-close]")?.focus();
+  }, [asideOpen]);
   const newInputs = window.canvasTTY.orchestration.newInputs;
   const view = board.view;
   const readOnly = !!view?.readOnly;
@@ -114,7 +130,7 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
         {readOnly && <span className="board-card__readonly" role="status">{t(locale, "boardReadOnly")}</span>}
         <span className="board-card__header-actions">
           <button type="button" data-board-new disabled={readOnly} onClick={() => setForm({ task: null })}>{t(locale, "boardNewTask")}</button>
-          <button type="button" data-board-import disabled={readOnly || !newInputs || importing} aria-busy={importing}
+          <button type="button" ref={importRef} data-board-import disabled={readOnly || !newInputs || importing} aria-busy={importing}
             title={newInputs ? undefined : t(locale, "boardImportCode_unsupported_platform")} onClick={async () => {
               setImporting(true);
               const r = await board.importFile();
@@ -317,6 +333,7 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                                 onClick={() => (head && fact?.board === head.ref ? void mergeTask(task) : setMerging(task.id))}>{t(locale, "boardMerge")}</button>}
                               {mark?.kind === "not_merged" && !mark.waits && mark.reason !== "skipped" && <button type="button" data-board-merge-skip-failed
                                 onClick={async () => { const f = failure(await board.skip(mark.runId)); if (f) say(task.id, f); }}>{t(locale, "boardMergeSkip")}</button>}
+                              {st.reason === "push_option_field" && <button type="button" className="orch-primary" data-board-open-task onClick={() => setForm({ task })}>{t(locale, "boardOpenTask")}</button>}
                               {(st.column === "queue" || st.column === "done") && <button type="button" data-board-edit onClick={() => setForm({ task })}>{t(locale, "boardEdit")}</button>}
                               {(st.column === "queue" || st.column === "done") && <button type="button" data-board-archive onClick={() => void board.archive(task.id, true)}>{t(locale, "boardArchive")}</button>}
                             </>
@@ -335,10 +352,16 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
         <div key={direction} className={`terminal-card__resize-handle terminal-card__resize-handle--${direction}`} aria-hidden="true" data-board-resize={direction}
           {...frame.handle(direction)} />
       ))}
+      {/* R4c: the import's report is a side plate, not a modal: the columns stay in reach */}
       {report && (
-        <Dialog label={t(locale, "boardImport")} onClose={() => setReport(null)} locale={locale}>
+        <aside ref={asideRef} className={`board-aside ${asideLeft ? "board-aside--left" : ""}`} aria-label={t(locale, "boardImport")} data-board-aside
+          onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeReport(); } }}>
+          <div className="board-aside__head">
+            <strong>{t(locale, "boardImportAside")}</strong>
+            <button type="button" className="board-aside__close" data-board-import-close aria-label={t(locale, "orchClose")} onClick={closeReport}>×</button>
+          </div>
           <ImportReportView locale={locale} report={report} tasks={view?.inbox?.find((r) => r.file === report.file)?.tasks ?? []} />
-        </Dialog>
+        </aside>
       )}
       {form && (
         <TaskForm locale={locale} task={form.task} remoteBase={(project) => !!view?.remoteBase?.includes(placeKey({ workspaceId: form.task?.workspaceId ?? workspaceId, project }))} splitLocked={!!form.task && ((board.statuses.get(form.task.id)?.attempts ?? 0) > 0 || tasks.some((x) => x.parentId === form.task!.id && !x.archivedAt))} tasks={tasks.filter((x) => !x.archivedAt)} projects={projects}
@@ -449,8 +472,8 @@ function AutopilotRow({ locale, state, project, many, onSet, onBudget }: {
       {many && <span className="board-card__autopilot-link">{tr(locale, "boardApLink", { project: name })}</span>}
       {state?.on ? (
         <>
-          <strong data-board-autopilot-on>{t(locale, "boardApOn")}</strong>
-          {state.waits && <span data-board-autopilot-waits={state.waits}>{state.waits === "provider_limit" && state.limit ? limitText(locale, state.limit) : tr(locale, `boardApWaits_${state.waits}`, { key: state.waitsKey ?? "" })}</span>}
+          <strong className="board-chip board-chip--working" data-board-autopilot-on>{t(locale, "boardApOn")}</strong>
+          {state.waits && <span className={`board-chip board-chip--${WAIT_TONE[state.waits] ?? "neutral"}`} data-board-autopilot-waits={state.waits}>{state.waits === "provider_limit" && state.limit ? limitText(locale, state.limit) : tr(locale, `boardApWaits_${state.waits}`, { key: state.waitsKey ?? "" })}</span>}
           {state.resumed && state.waits !== "provider_limit" && <span data-board-autopilot-resumed={state.resumed.key}>{tr(locale, "boardApResumed", { key: state.resumed.key, time: resetTime(locale, Date.parse(state.resumed.at)) })}</span>}
           {state.splitting && <span data-board-autopilot-splitting={state.splitting}>{tr(locale, "boardApDecomposing", { key: state.splitting })}</span>}
           <span data-board-autopilot-parallel>{tr(locale, "boardApOnParallel", { n: parallelOf(budget) })}</span>
@@ -476,12 +499,17 @@ function AutopilotRow({ locale, state, project, many, onSet, onBudget }: {
       ) : (
         <>
           <button type="button" data-board-autopilot-start onClick={() => { setRuns(String(budget.runs)); setMinutes(String(budget.minutes)); setParallel(String(parallelOf(budget))); setConflicts(conflictsOf(budget)); setAsking(true); }}>{t(locale, "boardApToggle")}</button>
-          {state?.stop && <span className="board-card__autopilot-stop" role="status" data-board-autopilot-stop={state.stop.code}>{tr(locale, "boardApLast", { reason: stopText(locale, state.stop) })}</span>}
+          {!state?.stop && <small className="board-card__autopilot-hint" data-board-autopilot-hint>{t(locale, "boardApRestartHint")}</small>}
+          {state?.stop && <span className={`board-card__autopilot-stop board-chip board-chip--${STOP_FAILED.has(state.stop.code) ? "danger" : "neutral"}`} role="status" data-board-autopilot-stop={state.stop.code}>{tr(locale, "boardApLast", { reason: stopText(locale, state.stop) })}</span>}
         </>
       )}
     </div>
   );
 }
+
+// R4c: the tone of a chip — the person and a provider's limit wait (amber), a run works (green), a failure of a run or a start is red
+const WAIT_TONE: Record<string, "waiting" | "working" | "neutral"> = { person: "waiting", provider_limit: "waiting", run: "working", permission: "waiting", accept: "waiting", merge: "waiting", external: "neutral" };
+const STOP_FAILED: ReadonlySet<AutopilotStopCode> = new Set(["run_failed", "run_unreadable", "take_failed", "start_failed", "merge_failed", "resume_failed", "decomposition_failed", "base_fetch_failed", "base_remote_mismatch"]);
 
 // C4 (stage-c4-limits.md §5): what the autopilot waits for at a provider's limit
 function limitText(locale: LocaleId, l: AutopilotLimit): string {
@@ -632,7 +660,7 @@ const reportLine = (locale: LocaleId, r: ImportReport) =>
 function ImportReportView({ locale, report, tasks }: { locale: LocaleId; report: ImportReport; tasks: InboxTask[] }): React.JSX.Element {
   return (
     <div className="board-import" data-board-import-report={report.status} data-wheel-owner="local">
-      <p data-board-import-line>{reportLine(locale, report)}</p>
+      <p data-board-import-line role="status" aria-live="polite">{reportLine(locale, report)}</p>
       <ul className="board-import__list">
         {report.created.map((x) => <li key={`c${x.ref}`} data-board-import-created={x.ref}>+ {x.ref} → {x.key}</li>)}
         {report.updated.map((x) => <li key={`u${x.ref}`} data-board-import-updated={x.ref}>~ {x.ref} → {x.key}</li>)}

@@ -70,7 +70,7 @@ const report = () => app.ev(`(() => { const el = ${q("[data-board-import-report]
   created: [...el.querySelectorAll("[data-board-import-created]")].map((x) => x.dataset.boardImportCreated),
   unchanged: [...el.querySelectorAll("[data-board-import-unchanged]")].map((x) => x.dataset.boardImportUnchanged),
   refused: [...el.querySelectorAll("[data-board-import-refused]")].map((x) => [x.dataset.boardImportRefused, x.textContent]) }; })()`);
-const closeReport = async () => { await app.clickEl(q(".launch-dialog__close")); await app.waitFor(`!${q("[data-board-import-report]")}`, "the report window closed"); };
+const closeReport = async () => { await app.clickEl(q("[data-board-import-close]")); await app.waitFor(`!${q("[data-board-import-report]")}`, "the report window closed"); };
 // a screenshot is evidence, not a check: one that does not come back is named in the log, the steps go on
 const shot = (name) => app.shot(`f1-${name}`).catch((e) => console.log(`[smoke] screenshot ${name}: ${String(e?.message ?? e)}`));
 
@@ -200,6 +200,7 @@ try {
   ok("f1.s12 checked: X1 and X2 to be created", e1.tasks.join() === "X1,X2", e1);
   put("g.json", file([row("X1")]));
   await rowIs("g.json", "checked");
+  await app.ev(`${q(inboxRow("g.json"))}.scrollIntoView({ block: "nearest" })`); // R4c: the inbox list is a scroller of 40% of the card
   await app.clickEl(`${q(inboxRow("g.json"))}.querySelector("[data-board-inbox-import]")`);
   await waitForValue(async () => (await report())?.status === "imported", "g.json imported");
   await closeReport();
@@ -232,7 +233,12 @@ try {
   ok("f1.s10 the report in the window: B1 created, B2 refused «У задачи B2 нет критериев»", s10?.created.join() === "B1" && s10.refused.length === 1 && s10.refused[0][0] === "no_criteria"
     && s10.refused[0][1].includes("У задачи B2 нет критериев") && /Задачи button-tasks\.json: создано 1, обновлено 0, без изменений 0, отказов 1/.test(s10.line), s10);
   await shot("s10-button-report");
-  await closeReport();
+  // R4: the plate takes focus on its close button, its line is a polite status, Esc closes it and the focus goes back to «Import tasks»
+  ok("f1.s10 the plate: focus on its close button, the line is a polite status", await app.ev(`document.activeElement === ${q("[data-board-import-close]")}
+    && ${q("[data-board-import-line]")}.getAttribute("role") === "status" && ${q("[data-board-import-line]")}.getAttribute("aria-live") === "polite" && !!${q("[data-board-aside]")}.getAttribute("aria-label")`));
+  await app.key("Escape", "Escape", 27);
+  await app.waitFor(`!${q("[data-board-import-report]")}`, "Esc closed the report plate");
+  ok("f1.s10 Esc closed the plate and the focus is back on «Import tasks»", await app.ev(`document.activeElement === ${q("[data-board-import]")}`));
   ok("f1.s10 B1 on the board; nothing put in inbox/", (await refs()).includes("B1") && JSON.stringify(ls()) === JSON.stringify(inboxBefore), { inbox: ls(), before: inboxBefore });
 
   // ---------- f1.s9: a restart — the files of inbox/ checked again ----------

@@ -7,7 +7,7 @@ const en = source.indexOf("\nconst en:");
 
 test("the R0 appearance labels exist in Russian and English", () => {
   assert.ok(en > 0);
-  for (const key of ["themeSand", "themeBay", "reduceTransparency", "reduceTransparencyDescription", "homePresetTheme",
+  for (const key of ["themeSand", "themeBay", "themePaper", "themeFrost", "followSystem", "followSystemDescription", "reduceTransparency", "reduceTransparencyDescription", "homePresetTheme",
     "homePresetPastel", "homePresetDusk", "canvasColorTheme", "canvasColorStone", "canvasColorLinen", "canvasColorGraphite"]) {
     const line = new RegExp(`\\n\\s+${key}: "[^"]+"`, "g");
     const at = [...source.matchAll(line)].map((m) => m.index);

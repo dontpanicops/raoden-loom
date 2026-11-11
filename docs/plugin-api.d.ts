@@ -80,7 +80,7 @@ export interface CanvasTTYPluginContext {
     locale: "ru" | "en";
     /** Frozen at the pre-redesign ids: sand maps to sage, bay to night, paper and frost to sage. */
     palette: "sage" | "lilac" | "night";
-    /** The real theme of the host. */
+    /** The theme in effect: with "follow the system" paper or sand, otherwise the chosen one. */
     theme: "sand" | "bay" | "paper" | "frost";
   };
 }

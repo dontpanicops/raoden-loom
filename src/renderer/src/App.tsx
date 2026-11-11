@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffectiveTheme } from "./features/settings/useEffectiveTheme";
 import type {
   AgentProviderId,
   AppSettings,
+  PaletteId,
   BrowserCanvasState,
   BrowserSnapshot,
   CameraState,
@@ -71,14 +73,21 @@ interface HomeEditDraft {
   homeLayout: HomeWidgetPlacement[];
 }
 
+// Main passes the theme in effect as ?theme= (read from settings.json before the window): the first frame is already right.
+function earlyPalette(): PaletteId {
+  const id = new URLSearchParams(window.location.search).get("theme");
+  return id === "bay" || id === "paper" || id === "frost" ? id : "sand";
+}
+
 const FALLBACK_SETTINGS: AppSettings = {
   locale: "ru",
   restoreTerminalSessions: false,
   persistCanvasRegions: true,
   persistStickyNotes: true,
-  palette: "sand",
+  palette: earlyPalette(),
   reduceTransparency: false,
   onboardingDismissed: false,
+  followSystem: false,
   homeAccentPreset: "theme",
   homeAccentColors: { ...DEFAULT_HOME_ACCENT_COLORS },
   sessionRowColorMode: "status",
@@ -1102,6 +1111,7 @@ export function App(): React.JSX.Element {
   }, [activeSessionId, goHome, settings.locale, settings.shortcuts, showToast]);
 
   const appearance = resolveAppearanceSettings(settings);
+  const theme = useEffectiveTheme(settings);
   const [systemReduceTransparency, setSystemReduceTransparency] = useState(
     () => window.matchMedia?.("(prefers-reduced-transparency: reduce)").matches ?? false
   );
@@ -1115,14 +1125,14 @@ export function App(): React.JSX.Element {
   const rootClasses = useMemo(
     () => [
       "app",
-      `app--${settings.palette}`,
+      `app--${theme}`,
       appearance.homeAccentPreset === "theme" ? "" : `app--home-${appearance.homeAccentPreset}`,
       appearance.canvasColor === "theme" ? "" : `app--canvas-${appearance.canvasColor}`,
       settings.reduceTransparency || systemReduceTransparency ? "app--reduce" : "",
       windowState.isMacOS ? "app--macos" : "",
       windowState.isMacOS && windowState.fullscreen ? "app--macos-fullscreen" : ""
     ].filter(Boolean).join(" "),
-    [appearance.canvasColor, appearance.homeAccentPreset, settings.palette, settings.reduceTransparency, systemReduceTransparency, windowState.fullscreen, windowState.isMacOS]
+    [appearance.canvasColor, appearance.homeAccentPreset, theme, settings.reduceTransparency, systemReduceTransparency, windowState.fullscreen, windowState.isMacOS]
   );
   const rootStyle = useMemo(
     () => ({

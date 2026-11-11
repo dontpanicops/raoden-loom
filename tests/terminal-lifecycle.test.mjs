@@ -192,3 +192,10 @@ function effectDependenciesContaining(source, marker) {
 
   return source.slice(dependencyStart + 4, dependencyEnd).trim();
 }
+
+test("terminal cards get the theme in effect, so followSystem rethemes xterm", async () => {
+  const canvas = await readFile(new URL("../src/renderer/src/features/workspace/WorkspaceCanvas.tsx", import.meta.url), "utf8");
+  assert.match(canvas, /const theme = useEffectiveTheme\(settings\)/);
+  assert.doesNotMatch(canvas, /palette=\{settings\.palette\}/);
+  assert.match(canvas, /<TerminalCard[\s\S]*?palette=\{theme\}/);
+});

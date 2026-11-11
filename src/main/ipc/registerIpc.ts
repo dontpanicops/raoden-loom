@@ -1,6 +1,6 @@
 import { extname, isAbsolute } from "node:path";
 import { readFile, stat } from "node:fs/promises";
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Notification, shell } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, Notification, shell } from "electron";
 import type { IpcMainEvent, IpcMainInvokeEvent, OpenDialogOptions } from "electron";
 import type {
   AppSettings,
@@ -33,7 +33,7 @@ import type { RunManager } from "../services/orchestration/manager";
 import type { WorkspaceStore } from "../services/WorkspaceStore";
 import type { CameraState } from "../../shared/contracts";
 import { PROVIDER_CLI_IDS, type ProviderCliRegistry } from "../services/providerCliRegistry";
-import { toLegacyPalette } from "../../shared/appearance";
+import { effectiveTheme, toLegacyPalette } from "../../shared/appearance";
 
 const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
 const MEDIA_MIME: Record<string, string> = {
@@ -404,6 +404,7 @@ export function registerIpc({
       : {};
     if (method === "host.getContext") {
       const plugin = plugins.list().find((candidate) => candidate.manifest.id === pluginId)!;
+      const theme = effectiveTheme(settings.get(), nativeTheme.shouldUseDarkColors);
       return {
         apiVersion: 1,
         plugin: {
@@ -414,7 +415,7 @@ export function registerIpc({
           modules: plugin.selectedModules
         },
         contribution: { id: contribution.id, kind: contribution.kind, title: contribution.title },
-        appearance: { locale: settings.get().locale, palette: toLegacyPalette(settings.get().palette), theme: settings.get().palette }
+        appearance: { locale: settings.get().locale, palette: toLegacyPalette(theme), theme }
       };
     }
     if (method === "storage.get") return plugins.storageGet(pluginId, stringValue(values.key, "key"));

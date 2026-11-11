@@ -198,9 +198,13 @@ export const AUTOPILOT_BUDGET: AutopilotBudget = { runs: 5, minutes: 240 };
 export const AUTOPILOT_PARALLEL = 2;
 export const conflictsOf = (b: AutopilotBudget): "agent" | "person" => (b.conflicts === "person" ? "person" : "agent");
 export const parallelOf = (b: AutopilotBudget): number => (Number.isInteger(b.parallel) && b.parallel! >= 1 && b.parallel! <= 4 ? b.parallel! : AUTOPILOT_PARALLEL);
-export type AutopilotStopCode = "all_done" | "others_wait" | "budget_runs" | "budget_minutes" | "run_stopped" | "run_failed" | "limit_reached"
-  | "run_paused" | "run_unreadable" | "settings_changed" | "grant_added" | "not_ready" | "take_failed" | "start_failed" | "worktree_base" | "link_gone" | "task_gone"
-  | "head_moved" | "merge_failed" | "resume_failed" | "decomposition_failed" | "base_fetch_failed" | "base_remote_mismatch";
+export const AUTOPILOT_STOP_CODES = [
+  "all_done", "others_wait", "budget_runs", "budget_minutes", "run_stopped", "run_failed",
+  "limit_reached", "run_paused", "run_unreadable", "settings_changed", "grant_added", "not_ready",
+  "take_failed", "start_failed", "worktree_base", "link_gone", "task_gone", "head_moved",
+  "merge_failed", "resume_failed", "decomposition_failed", "base_fetch_failed", "base_remote_mismatch",
+] as const;
+export type AutopilotStopCode = (typeof AUTOPILOT_STOP_CODES)[number];
 export interface AutopilotWaiting { key: string; reason: TaskReason | null; waitsFor: string[] }
 export interface AutopilotStop { code: AutopilotStopCode; detail: string | null; key: string | null; at: string; waiting?: AutopilotWaiting[] }
 export interface AutopilotState {

@@ -103,10 +103,17 @@ for (const [selector, v] of themes) {
     check(`${theme}: --on-status on ${status}`, need(v, "--on-status", theme), need(v, status, theme), TEXT);
   }
 
-  // R2: a waiting terminal's footer: --status-waiting on its 16% tint over --surface-2-b (frost is not offered until R4: its tint is tuned then)
-  if (theme !== "frost") {
+  // R2: a waiting terminal's footer: --status-waiting on its 16% tint over --surface-2-b
+  {
     const c = parseColor(need(v, "--status-waiting", theme));
     check(`${theme}: --status-waiting on its tint over --surface-2-b`, need(v, "--status-waiting", theme), `rgba(${c.r},${c.g},${c.b},0.16)`, TEXT, need(v, "--surface-2-b", theme));
+  }
+
+  // R4c: the board's chips: the status colour on its own tint over --surface-2-b
+  for (const [fg, tint, name] of [["--status-working", 0.14, "--status-working-bg"], ["--danger-fg", 0.14, "--status-failed-bg"]]) {
+    const src = fg === "--danger-fg" ? "--status-failed" : fg;
+    const c = parseColor(need(v, src, theme));
+    check(`${theme}: ${fg} on ${name} over --surface-2-b`, need(v, fg, theme), `rgba(${c.r},${c.g},${c.b},${tint})`, TEXT, need(v, "--surface-2-b", theme));
   }
 
   const termBg = need(v, "--term-bg", theme);
@@ -148,7 +155,6 @@ const glassTexts = ["--text-primary", "--text-secondary", "--text-muted", "--sta
 const compound = blocks(/^\.app--(sand|bay|paper|frost)\.app--canvas-[a-z]+$/);
 for (const [themeSel, tv] of themes) {
   const theme = themeSel.replace(".app--", "");
-  if (theme === "paper" || theme === "frost") continue; // not offered in Settings until R4; their glass over dark canvases is checked then
   for (const [canvasSel, cv] of canvases) {
     const canvas = canvasSel.replace(".app--", "");
     const own = compound.get(`${themeSel}${canvasSel}`) ?? {};

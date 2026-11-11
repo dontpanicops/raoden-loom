@@ -75,6 +75,7 @@ import {
 import { CanvasNavigationShortcutEditor } from "./CanvasNavigationShortcutEditor";
 import { AgentHooksSettings } from "./AgentHooksSettings";
 import { AboutSettings } from "./AboutSettings";
+import { useEffectiveTheme } from "./useEffectiveTheme";
 import { setCanvasLauncherItemEnabled } from "../launcher/canvasLauncher";
 import { itemLabel } from "../launcher/QuickRadialMenu";
 import { setRadialLauncherItemEnabled } from "../launcher/radialLauncher";
@@ -95,11 +96,13 @@ const SETTINGS_SECTIONS: ReadonlyArray<{
   { id: "about", icon: "info" }
 ];
 
-// Previews show the token value, not the token: the one applied to .app belongs to the current choice. R4 adds paper/frost.
-const THEME_CANVAS_PREVIEW: Partial<Record<PaletteId, string>> = { sand: "#24221E", bay: "#161B27" };
-const THEME_HOME_PREVIEW: Partial<Record<PaletteId, string[]>> = {
+// Previews show the token value, not the token: the one applied to .app belongs to the current choice.
+const THEME_CANVAS_PREVIEW: Record<PaletteId, string> = { sand: "#24221E", bay: "#161B27", paper: "#EDE9E1", frost: "#E8EDF5" };
+const THEME_HOME_PREVIEW: Record<PaletteId, string[]> = {
   sand: ["#3A3731", "#3A3731", "#3A3731", "#3A3731"],
-  bay: ["#232A3A", "#232A3A", "#232A3A", "#232A3A"]
+  bay: ["#232A3A", "#232A3A", "#232A3A", "#232A3A"],
+  paper: ["#FFFFFF", "#FFFFFF", "#FFFFFF", "#FFFFFF"],
+  frost: ["#FFFFFF", "#FFFFFF", "#FFFFFF", "#FFFFFF"]
 };
 const PASTEL_HOME_PREVIEW = ["#B8CF99", "#D8E1C5", "#9CC7DC", "#D5A2C9"];
 const DUSK_HOME_PREVIEW = ["#313D55", "#3A4258", "#2D4B62", "#4B3B5A"];
@@ -163,6 +166,7 @@ export function SettingsPanel({
   onOpenBrowser,
 }: SettingsPanelProps): React.JSX.Element {
   const locale = settings.locale;
+  const theme = useEffectiveTheme(settings);
   const appearance = resolveAppearanceSettings(settings);
   const homeLauncherProviders = resolveHomeLauncherProviders(settings);
   const homeLimitProviders = resolveHomeLimitProviders(settings);
@@ -391,11 +395,24 @@ export function SettingsPanel({
 
           {section === "appearance" && (
             <>
-              <SettingGroup label={t(locale, "palette")} description={t(locale, "paletteDescription")}>
+              <SettingGroup label={t(locale, "followSystem")} description={t(locale, "followSystemDescription")}>
                 <Segmented
-                  value={settings.palette}
-                  options={([["sand", t(locale, "themeSand")], ["bay", t(locale, "themeBay")]] as [PaletteId, string][])}
-                  onChange={(value) => void onChange({ palette: value as PaletteId })}
+                  value={settings.followSystem ? "on" : "off"}
+                  options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
+                  onChange={(value) => void onChange({ followSystem: value === "on" })}
+                />
+              </SettingGroup>
+              <SettingGroup label={t(locale, "palette")} description={settings.followSystem ? `${t(locale, "paletteBySystem")} ${t(locale, "paletteDescription")}` : t(locale, "paletteDescription")}>
+                <SwatchChoices
+                  value={settings.followSystem ? theme : settings.palette}
+                  columns={4}
+                  options={([
+                    ["sand", t(locale, "themeSand")],
+                    ["bay", t(locale, "themeBay")],
+                    ["paper", t(locale, "themePaper")],
+                    ["frost", t(locale, "themeFrost")]
+                  ] as [PaletteId, string][]).map(([id, label]) => [id, label, [THEME_CANVAS_PREVIEW[id], THEME_HOME_PREVIEW[id][0]]])}
+                  onChange={(value) => void onChange({ palette: value as PaletteId, followSystem: false })}
                 />
               </SettingGroup>
               <SettingGroup label={t(locale, "reduceTransparency")} description={t(locale, "reduceTransparencyDescription")}>
@@ -409,7 +426,7 @@ export function SettingsPanel({
                 <SwatchChoices
                   value={appearance.homeAccentPreset}
                   options={[
-                    ["theme", t(locale, "homePresetTheme"), THEME_HOME_PREVIEW[settings.palette] ?? PASTEL_HOME_PREVIEW],
+                    ["theme", t(locale, "homePresetTheme"), THEME_HOME_PREVIEW[theme] ?? PASTEL_HOME_PREVIEW],
                     ["pastel", t(locale, "homePresetPastel"), PASTEL_HOME_PREVIEW],
                     ["warm", t(locale, "homePresetWarm"), ["#D99872", "#F1D4A8", "#A9CAD6", "#D99AA6"]],
                     ["cool", t(locale, "homePresetCool"), ["#8AB7C5", "#C4DCE2", "#A9B9E3", "#C3A9D9"]],
@@ -468,7 +485,7 @@ export function SettingsPanel({
                     ["linen", t(locale, "canvasColorLinen")],
                     ["mist", t(locale, "canvasColorMist")]
                   ] as [CanvasColorId, string][]).map(([value, label]) => (
-                    [value, label, [(value === "theme" ? THEME_CANVAS_PREVIEW[settings.palette] : CANVAS_COLOR_PREVIEWS[value]) ?? "#24221E"]]
+                    [value, label, [(value === "theme" ? THEME_CANVAS_PREVIEW[theme] : CANVAS_COLOR_PREVIEWS[value]) ?? "#24221E"]]
                   ))}
                   onChange={(value) => void onChange(canvasColorPatch(value as CanvasColorId))}
                 />
