@@ -74,7 +74,8 @@ test("background plugin requests never activate the desktop window", async () =>
 test("startup window is visible immediately and failures remain visible", async () => {
   const source = await readFile(mainPath, "utf8");
 
-  assert.match(source, /show: true/);
+  // outside the dev smoke quiet mode the window is shown at creation
+  assert.match(source, /show: !quiet\(\)/);
   assert.match(source, /startupPageUrl\(\{ locale: app\.getLocale\(\), isMacOS: process\.platform === "darwin", theme: currentTheme \}\)/);
   assert.match(source, /showStartupFailure/);
   assert.doesNotMatch(source, /ready-to-show/);

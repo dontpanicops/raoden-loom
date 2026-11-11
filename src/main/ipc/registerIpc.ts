@@ -1,6 +1,7 @@
 import { extname, isAbsolute } from "node:path";
 import { readFile, stat } from "node:fs/promises";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, Notification, shell } from "electron";
+import { quietWindow } from "../quietWindow";
 import type { IpcMainEvent, IpcMainInvokeEvent, OpenDialogOptions } from "electron";
 import type {
   AppSettings,
@@ -709,9 +710,11 @@ export function registerIpc({
       const window = getMainWindow();
       if (!window || window.isDestroyed()) return;
       if (window.isMinimized()) window.restore();
-      window.show();
-      window.focus();
-      app.focus({ steal: true });
+      if (!quietWindow({ packaged: app.isPackaged, env: process.env })) {
+        window.show();
+        window.focus();
+        app.focus({ steal: true });
+      }
       window.webContents.send(IPC.notifyClick, runId);
     });
     shown.on("close", done);

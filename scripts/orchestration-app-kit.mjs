@@ -145,6 +145,8 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
       pending.set(id, (d) => (d.error ? reject(new Error(`${method}: ${d.error.message}`)) : resolve(d.result)));
       ws.send(JSON.stringify({ id, method, params }));
     });
+    // A quiet window is not the active one: the page must still believe it has the focus.
+    await call("Emulation.setFocusEmulationEnabled", { enabled: true });
     const app = {
       child,
       exited,

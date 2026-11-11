@@ -1009,3 +1009,16 @@ CanvasTTY отдельно фиксирует три факта: проверк�
   слушателя окна при медленной машине. Ранее похожий флейк W7 (2 из 29 прогонов).
 - **Что делать.** Не гонять Electron-smoke параллельно с полным `npm test` и сборкой; при падении повторить один раз.
   Если повторится без нагрузки — разбирать слушатель Esc в панели запуска.
+
+### T141. Окно smoke всплывает на рабочем столе, где работаешь (2026-11-11)
+
+- **Симптом.** Запуск Electron-smoke или скрипта кадров переключает macOS на рабочий стол с Electron и забирает фокус.
+- **Причина.** Окно создавалось с `show: true`, плюс `app.focus({ steal: true })` и `window.focus()`: приложение активируется,
+  и macOS переключает рабочий стол.
+- **Что сделано.** В dev-сборке при `CANVASTTY_SMOKE_HERMETIC=1` (его ставит `hermeticEnv()`) или `CANVASTTY_QUIET_WINDOW=1`
+  окно создаётся `show: false` и показывается `showInactive()` только после загрузки первой страницы (показ раньше активирует приложение), без `app.focus` и `window.focus()`; рендер не засыпает
+  (`backgroundThrottling: false`, переключатели `disable-backgrounding-occluded-windows` и `disable-renderer-backgrounding`).
+  CDP-клиент `orchestration-app-kit.mjs` шлёт `Emulation.setFocusEmulationEnabled`, чтобы страница считала себя в фокусе.
+  Упакованная сборка ведёт себя как раньше (`src/main/quietWindow.ts`).
+- **Что сделать один раз.** Закрепить dev-Electron за нужным столом: запустить, правый клик по значку Electron в Dock →
+  Параметры → Назначить → «Этому рабочему столу» (bundle id `com.github.Electron`, `node_modules/electron/dist/Electron.app`).
