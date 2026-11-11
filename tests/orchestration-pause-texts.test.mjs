@@ -32,7 +32,8 @@ test("every pause reason of the journal has what / why / what to do / button in 
         // no internal words: snake_case codes, runKey, a reason's own name
         assert.doesNotMatch(text, /\b[a-z]+_[a-z_]+\b|runKey|coverage|invalid_report/, `${locale}: orchPause_${set}_${f}: ${text}`);
       }
-      assert.ok(!titles.has(what), `${locale}: two pauses are called the same: ${what}`);
+      // R5a (D-009, mock-up 16): mcp_present wears the headline of needs_user_action ("The agent needs you to do something"); the MCP servers are in the why
+      assert.ok(!titles.has(what) || set === "mcp_present", `${locale}: two pauses are called the same: ${what}`);
       titles.add(what);
       assert.ok(!why.toLowerCase().includes(what.toLowerCase()), `${locale}: ${set}: the why repeats the headline`);
       assert.ok(button.length <= 28, `${locale}: ${set}: one short action, not a sentence: ${button}`);
@@ -120,11 +121,13 @@ test("the zone's main button is the pause's action; Stop is in the footer outsid
   assert.match(stopsOf(tree)[0].attrs, /orch-danger/, "where stopping is all main allows, Stop is the main action");
   assert.match(stopsOf(tree)[0].attrs, /data-orch-primary="stop"/);
   assert.equal(stopsOf(tree)[0].text, "Остановить запуск");
-  assert.doesNotMatch(tree, /data-orch-foot/, "no footer: nothing else to do there");
+  // R5a (mock-up 15): the footer holds only "Copy id"
+  assert.deepEqual([...tree.slice(tree.indexOf("data-orch-foot")).matchAll(/data-orch-foot-action="(\w+)"/g)].map((m) => m[1]), ["copy_id"], "the footer: only the copy of the id");
   assert.doesNotMatch(tree, /контрольной точке/, "no button to return to a checkpoint here, so it is not advised");
 
   const running = panel(view("running", null));
-  assert.match(primaryOf(running)[0].attrs, /data-orch-primary="pause"/);
+  // R5a (mock-up 01): Pause is a text button at the left of the footer, not the filled main one
+  assert.match(buttons(running).find((x) => /data-orch-primary="pause"/.test(x.attrs))?.attrs ?? "", /orch-textual/);
   assert.match(stopsOf(running)[0].attrs, /class="orch-stop"/);
 
   for (const reason of ["needs_user_action", "awaiting_person_decision", "coverage_lost"]) {
@@ -210,7 +213,7 @@ test("the zone's headline is unique among the 37 sets, in both languages, and ea
       const z = zoneOf(locale, set);
       assert.equal(z.variant, set, `${set}: the zone picks its set`);
       assert.ok(z.title.trim().length > 1 && !/[{}]/.test(z.title), `${locale}: ${set}: the headline is filled: ${z.title}`);
-      assert.ok(!titles.has(z.title), `${locale}: ${set} and ${titles.get(z.title)} are called the same: ${z.title}`);
+      assert.ok(!titles.has(z.title) || set === "mcp_present", `${locale}: ${set} and ${titles.get(z.title)} are called the same: ${z.title}`);
       titles.set(z.title, set);
       assert.ok(!z.why.toLowerCase().includes(z.title.toLowerCase()), `${locale}: ${set}: the why repeats the headline`);
       assert.ok(z.todo.trim().length > 1 && z.why.trim().length > 1, `${locale}: ${set}: why and what to do are said`);

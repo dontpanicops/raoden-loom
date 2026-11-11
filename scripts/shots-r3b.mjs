@@ -56,7 +56,7 @@ fs.writeFileSync(providers, JSON.stringify({
 // ---- the fixture states: the 18 of the mock-up 07, by name -> [zone-set, extra view fields]
 const permission = { requestId: "p1", role: "executor", provider: "claude", kind: "command", tool: "Bash", summary: "npm test", detail: "npm test", options: ["allow_once", "allow_run", "deny"], questions: [], askedAt: "2026-11-11T10:00:00.000Z" };
 const STATES = [
-  ["01-working", null, { running: { stage: 1, permission: null } }],
+  ["01-working", null, { running: { stage: 2, permission: null, active: { kind: "turn", purpose: "execute" } } }],
   ["02-awaiting-answer", "awaiting_answer"],
   ["03-permission", null, { running: { stage: 1, permission, pendingPermissions: 1 } }],
   ["04-plan-review", "plan_review"],
@@ -78,11 +78,17 @@ const STATES = [
 const { fixture, view } = await import(pathToFileURL(path.join(ROOT, "tests/fixtures/orchestration/zone-sets.mjs")).href);
 const { legacyView } = await import(pathToFileURL(path.join(ROOT, "src/renderer/src/features/orchestration/panelTabs.ts")).href);
 
+// the plan of two stages the run runs on (the mock-up's "stage 2 of 2" and the numbered list of the plan review)
+const PLAN_RECORDS = [{ seq: 1, ts: "2026-11-11T10:00:00.000Z", type: "plan.recorded", data: { plan: { sha256: "pp", bytes: 1 }, firstStage: 1 } },
+  { seq: 2, ts: "2026-11-11T10:05:00.000Z", type: "review.recorded", data: { stage: null, verdict: "complete", findings: null } }];
+const PLAN_TEXTS = { pp: { status: "ready", text: JSON.stringify({ stages: [{ title: "Модель заметки и хранилище", task: "t" }, { title: "API и список заметок в UI", task: "t" }] }) } };
 async function renderer() { // the built RunPanel to static markup (as tests/orchestration-action-zone-render.test.mjs does)
   const out = await requireApp("esbuild").build({
     entryPoints: [path.join(ROOT, "src/renderer/src/features/orchestration/RunPanel.tsx")], bundle: true, write: false, platform: "node", format: "cjs", jsx: "automatic", logLevel: "silent",
-    loader: { ".svg": "dataurl", ".png": "dataurl", ".ico": "dataurl", ".webp": "dataurl", ".jpg": "dataurl" },
-    plugins: [{ name: "same-react", setup(b) { b.onResolve({ filter: /^react(\/.*)?$/ }, (a) => ({ path: requireApp.resolve(a.path), external: true })); } }]
+    loader: { ".png": "dataurl", ".ico": "dataurl", ".webp": "dataurl", ".jpg": "dataurl" },
+    plugins: [{ name: "svg-base64", setup(b) { // esbuild's dataurl leaves raw quotes inside url("..."): the icons drew as squares
+      b.onLoad({ filter: /\.svg$/ }, (a) => ({ contents: `export default "data:image/svg+xml;base64,${fs.readFileSync(a.path).toString("base64")}"`, loader: "js" })); } },
+      { name: "same-react", setup(b) { b.onResolve({ filter: /^react(\/.*)?$/ }, (a) => ({ path: requireApp.resolve(a.path), external: true })); } }]
   });
   const file = D("run-panel.cjs");
   const mod = new Module(file);
@@ -95,10 +101,10 @@ async function renderer() { // the built RunPanel to static markup (as tests/orc
     const v = { ...f.view };
     if (v.progress) v.progress = { mode: "autopilot", checks: [], finish: [], ...v.progress };
     return renderToStaticMarkup(React.createElement(mod.exports.RunPanel, {
-      orch: { runs: { r: { view: v, open: true, seq: 9, tick: 0 } }, activity: { r: { entries: f.entries, gaps: [], firstId: f.entries[0]?.id ?? 0, status: "ready", resyncs: 0 } },
-        runErrors: {}, canvas: { links: [], agents: [] }, journals: { r: { records: [], next: 0, status: "ready" } }, texts: {},
+      orch: { runs: { "25931336": { view: v, open: true, seq: 9, tick: 0 } }, activity: { "25931336": { entries: f.entries, gaps: [], firstId: f.entries[0]?.id ?? 0, status: "ready", resyncs: 0 } },
+        runErrors: {}, canvas: { links: [], agents: [] }, journals: { "25931336": { records: PLAN_RECORDS, next: 1, status: "ready" } }, texts: PLAN_TEXTS,
         commands: { pending: () => [] }, catalog: { checks: [] }, loadText() {}, syncJournal() {}, retry() {}, stageTitles: () => ({}) },
-      runId: "r", locale: "ru", panel: { linkId: "L", mode: "feed", ...legacyView("overview"), role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {},
+      runId: "25931336", locale: "ru", panel: { linkId: "L", mode: "feed", ...legacyView("overview"), role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {},
       onProjectSettings: () => {}
     }));
   };

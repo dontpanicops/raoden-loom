@@ -667,6 +667,7 @@ export interface ZoneModel {
   // run's state (working, pausing, stopping, completed, failed, stopped, halted, permission)
   variant: string;
   tone: ZoneTone; // waiting: "Waiting for you" (the glow); calm: "Paused"
+  eyebrow: string; // R5a: the state's own caption of a neutral zone (Working / Completed / Failed / Stopped); "" — none
   title: string;
   why: string;
   todo: string;
@@ -707,41 +708,44 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
     const all = [z.primary, ...z.secondary, ...z.dangerous, ...z.footer].flatMap((x) => x?.commands ?? []);
     return { ...z, clarify, commands: [...new Set<AdmissionKind>([...all, ...(clarify === "collapsed" || clarify === "open" ? (["clarify"] as AdmissionKind[]) : [])])] };
   };
-  const none = { secondary: [], dangerous: [], footer: [] as ZoneButton[], primary: null, tone: "neutral" as ZoneTone, todo: "", why: "" };
+  const none = { secondary: [], dangerous: [], footer: [] as ZoneButton[], primary: null, tone: "neutral" as ZoneTone, eyebrow: "", todo: "", why: "" };
   const state = (variant: string, headline: string, extra: Partial<ZoneModel> = {}) => done({ ...none, variant, title: L(`orchHeadline_${headline}`), ...extra });
 
   if (view.newer) {
-    return done({ variant: "newer_version", tone: "calm", title: L("orchPause_newer_version_what"), why: L("orchPause_newer_version_why"), todo: L("orchPause_newer_version_do"), primary: null,
+    return done({ variant: "newer_version", tone: "calm", eyebrow: "", title: L("orchPause_newer_version_what"), why: L("orchPause_newer_version_why"), todo: L("orchPause_newer_version_do"), primary: null,
       secondary: [b("release_newer", L("orchReleaseLink"))], dangerous: [], footer: [b("copy_id", L("orchZone_copyId"))] });
   }
   if (view.halted) {
     return state("halted", "halted", { tone: "waiting", why: L("orchNext_halted"), primary: b("open_journal", L("orchZone_openJournal")) });
   }
   if (view.permission && ["preparing", "running", "pausing"].includes(status)) {
-    return state("permission", "awaiting_permission", { tone: "waiting", todo: L("orchNext_permission"), footer: [stop()] });
+    return state("permission", "awaiting_permission", { tone: "waiting", title: L("orchZone_permissionTitle").replace("{agent}", providerName(view.permission.provider)),
+      why: L("orchZone_permissionWhy"), footer: [stop()] });
   }
   const text = pauseText(locale, view, entries, onMac);
   switch (status) {
-    case "preparing": return state("working", "working", { todo: L("orchNext_watch"), footer: [stop()] });
-    case "running": return state("working", "working", { todo: L("orchNext_watch"), footer: [b("pause", L("orchPause"), ["pause_after_turn"]), stop()] });
+    case "preparing": return state("working", "working", { eyebrow: L("orchEyebrow_working"), why: L("orchZone_workingWhy"), footer: [stop()] });
+    case "running": return state("working", "working", { eyebrow: L("orchEyebrow_working"), why: L("orchZone_workingWhy"), footer: [b("pause", L("orchPause"), ["pause_after_turn"]), stop()] });
     case "pausing": return state("pausing", "stopping_after_turn", { todo: L("orchNext_keep_running"), primary: b("keep_running", L("orchKeepRunning"), ["keep_running"]), footer: [stop()] });
     case "stopping": return state("stopping", "stopping", { todo: L("orchNext_wait") });
     case "completed": {
       const key = runStatusKey(view);
       const first = changesFirst(view, entries);
       const next = b("new_goal", L("orchNewGoal"));
-      return state(key, key, { tone: "neutral", todo: nextStepText(locale, view, entries),
+      return state(key, key, { tone: "neutral", eyebrow: L("orchEyebrow_completed"), todo: nextStepText(locale, view, entries),
         primary: first ? b("open_changes", L("orchViewChanges")) : next, secondary: first ? [next] : [] });
     }
     case "stopped": case "failed": {
       const cause = viewCause(view, entries);
-      return state(status, status, { why: cause ? causeText(locale, cause) : "", primary: b("open_journal", L("orchZone_openJournal")), secondary: [b("new_goal", L("orchNewGoal"))] });
+      // R5a: the cause is the headline (the mock-up's "Claude CLI exited with code 1 on stage 2"); no cause - the state's own words
+      return state(status, status, { eyebrow: L(`orchEyebrow_${status}`), ...(cause ? { title: causeText(locale, cause) } : {}), footer: [b("copy_id", L("orchZone_copyId"))],
+        primary: b("open_journal", L("orchZone_openJournal")), secondary: [b("new_goal", L("orchNewGoal"))] });
     }
   }
   // paused
   const set = zoneSet(view, entries, onMac);
   const title = text?.what ?? L(`orchHeadline_${runHeadline(view).headline}`);
-  const base = { variant: set, tone: (text?.you === false ? "calm" : "waiting") as ZoneTone, title, why: text?.why ?? "", todo: text?.todo ?? "" };
+  const base = { variant: set, tone: (text?.you === false ? "calm" : "waiting") as ZoneTone, eyebrow: "", title, why: text?.why ?? "", todo: text?.todo ?? "" };
   const resume = (label = text?.button ?? L("orchResume")) => b("resume", label, ["resume"]);
   const step = () => b("step", L("orchStep"), ["step"]);
   const secondary: ZoneButton[] = [];
@@ -753,7 +757,7 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
   if (stopOnly) {
     primary = stop(true);
     footer = reason === "shared_git_tampered" ? [b("copy_id", L("orchZone_copyId"))] : reason === "journal_corrupt" ? [b("copy_journal", L("orchZone_copyJournal")), b("copy_id", L("orchZone_copyId"))] : [];
-    if (reason === "lead_modified_tree") secondary.push(b("open_changes", L("orchViewChanges")));
+    if (reason === "lead_modified_tree") { secondary.push(b("open_changes", L("orchViewChanges"))); footer = [b("copy_id", L("orchZone_copyId"))]; }
     if (set === "push_protected") secondary.push(b("project_settings", L("orchProfileOpen")));
     clarify = "hidden";
   } else if (STEP_ONLY.includes(reason)) {

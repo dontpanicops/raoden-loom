@@ -240,7 +240,7 @@ try {
   await app.waitFor(`${q(".orch-panel__status--paused")} && true`, "run 2 paused", 60_000);
   const reason2 = await app.ev(`${q(".orch-panel__status [data-orch-reason]")}.textContent`);
   const actions2 = await app.ev(`[...document.querySelectorAll(".orch-panel__actions button, .orch-panel__foot button")].map((b) => b.textContent)`);
-  expect(reason2.includes("план") && JSON.stringify(actions2) === JSON.stringify(["Начать работу по плану", "Открыть план", "Один шаг", "Остановить запуск"]), "plan review: paused with its reason; Resume (as «Начать работу по плану»), Open the plan, Step, Stop (footer) offered", [reason2, actions2]);
+  expect(reason2.includes("план") && JSON.stringify(actions2) === JSON.stringify(["Начать работу по плану", "Один шаг", "Остановить запуск"]) && (await app.ev(`!!${q("[data-orch-open-plan]")}`)), "plan review: paused with its reason; Resume (as «Начать работу по плану») and Step in the row, Open the plan as a text button (R5a), Stop (footer) offered", [reason2, actions2]);
   await app.waitFor(`document.querySelectorAll(".orch-plan li").length === 1`, "plan shown for review");
   // review UX-9: the plan to review is also in the pinned summary, in view without scrolling
   const openPlan = await visibleNow(app, q("[data-orch-open-plan]"));

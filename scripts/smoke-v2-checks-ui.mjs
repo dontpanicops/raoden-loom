@@ -241,7 +241,7 @@ try {
       actions: [...document.querySelectorAll(".orch-panel__actions button, .orch-panel__foot button")].map((b) => b.textContent.trim()), next: ${q("[data-orch-next]")}?.textContent ?? "" })`);
     expect(shown.item.includes("LIKE-F1") && shown.item.includes("note is not documented") && shown.buttons.join("|") === "Новый дефект|Повтор замечания 1",
       "disputed (A4): the item and its closed candidate side by side, «Новый дефект» / «Повтор замечания 1»", shown);
-    expect(!shown.actions.some((b) => /Продолжить|Шаг/.test(b)) && /Повтор/.test(shown.next), "disputed (A4): no Resume or Step; the next step says what to decide", shown);
+    expect(!shown.actions.some((b) => /Продолжить|Шаг/.test(b)) && /по умолчанию/.test(shown.next), "disputed (A4): no Resume or Step; the next step says what to decide (R5a: the mock-up's \"each item separately, no default\")", shown);
     await new Promise((r) => setTimeout(r, 1000));
     expect((await viewOf(app, runId)).reason === "awaiting_person_decision", "disputed (A4): the autopilot does not decide it", null);
     // UX audit PR 3: the run waits for the person — the Dock badge says 1 (a hermetic smoke logs it instead of setting it)

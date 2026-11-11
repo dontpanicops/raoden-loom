@@ -1629,14 +1629,21 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
   const depsText = dependenciesText(locale, activity.entries);
   // The action zone: the model says what is offered; the panel only drops what it cannot do here (no settings dialog, no new goal)
   // and puts «Take the result» first where there is one to take (one main button).
+  // R5a: the headline says who works on which stage (a working run) and that the final review accepted the goal (a completed one)
+  const finalVerdict = useMemo(() => (view?.status === "completed" && records.length ? summaryModel(view, records, { planTitles: () => null, goalCommands: null, complete: journal?.status === "ready" }).finalVerdict : null), [view, records, journal?.status]);
   const zone = useMemo(() => {
     if (!view) return null;
     const z = actionZone(locale, view, activity.entries);
+    if (z.variant === "working" && active?.kind === "turn" && active.purpose === "execute" && view.stage) {
+      const text = t(locale, planTotal ? "orchZone_workingTitle" : "orchZone_workingTitleN").replace("{who}", roleName(locale, "executor").split(" · ")[0]).replace("{n}", String(view.stage)).replace("{m}", String(planTotal));
+      z.title = text;
+    } else if (z.variant === "working" && active) z.title = active.kind === "turn" ? who.split(" · ").slice(0, 2).join(" · ") : who;
+    if (view.status === "completed" && finalVerdict === "complete" && z.variant === "completed") z.title = t(locale, "orchZone_goalAccepted");
     const can = (b: ZoneButton) => !(b.action === "project_settings" && !onProjectSettings) && !(b.action === "new_goal" && (!onNewGoal || busy));
     const takeFirst = !!take?.allowed && view.status === "completed" && z.primary !== null && can(z.primary);
     const first = z.primary && can(z.primary) ? z.primary : null;
     return { ...z, primary: takeFirst ? null : first, secondary: [...(takeFirst && first ? [first] : []), ...z.secondary.filter((b) => can(b) && b.action !== "release_newer")], dangerous: z.dangerous.filter(can), footer: z.footer.filter(can) };
-  }, [view, locale, activity.entries, onProjectSettings, onNewGoal, busy, take?.allowed]);
+  }, [view, locale, activity.entries, onProjectSettings, onNewGoal, busy, take?.allowed, active, who, planTotal, finalVerdict]);
   const zoneWho = view && ["preparing", "running", "pausing", "stopping"].includes(view.status) ? who : null;
   const zoneDisabled = (b: ZoneButton): boolean => b.action === "stop" ? false : b.action === "new_goal" ? entry.disabled
     : ["resume", "step", "pause", "keep_running"].includes(b.action) ? off(b.action as RunAction) : b.action.startsWith("recover_") ? off("recover") : false;
@@ -1702,7 +1709,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
         <>
           <ActionZone locale={locale} zone={zone!} runKey={view.runId} clarifyOff={actionEnabled("clarify", available) ? null : entry.hint ? t(locale, entry.hint) : t(locale, "orchClarify")} headline={head.headline} status={view.status} task={task ?? null} zoneRef={summary} flash={flash}
             compact={curTab !== "summary" || panel.section !== "overview"} sending={sending} disabled={zoneDisabled} onButton={onZone} confirmText={zoneConfirm}
-            resumeNext={head.next} who={zoneWho} words={(text) => <Termed locale={locale} text={text} />} clarify={{ value: clarify, onChange: setClarify, onSend: () => void send("clarify", { text: clarify.trim() }, () => setClarify("")) }}
+            resumeNext={head.next} who={zoneWho} stages={plan.map((x) => x.title)} words={(text) => <Termed locale={locale} text={text} />} clarify={{ value: clarify, onChange: setClarify, onSend: () => void send("clarify", { text: clarify.trim() }, () => setClarify("")) }}
             notices={<>
               {entry.hint && actions.some(off) && <div className="orch-hint" data-orch-platform-hint>{t(locale, entry.hint)}</div>}
               {sending && <div className="orch-hint">{t(locale, "orchSending")}</div>}
@@ -1846,7 +1853,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
                   incomplete={journal?.status !== "ready"} />}
               <Sect id="overview" title={tr(locale, "orchTab_overview")} open={opened.overview} lazy={false} onToggle={(o) => toggleSection("overview", o)} elRef={sectionEl("overview")}>
                 <section className="orch-panel__section orch-reference" data-orch-reference>
-                  {!zoneWho && <p className="orch-summary__who" data-orch-working>{who}</p>}
+                  {!zoneWho && active && <p className="orch-summary__who" data-orch-working>{who}</p>}
                   {top && progress && (
                     <dl className="orch-board" data-orch-board data-action={top.action ? "yes" : "no"}>
                       <div><dt>{t(locale, "orchRunMode")}:</dt><dd data-board="mode">{tr(locale, `orchRunMode_${progress.mode}`)}</dd></div>
