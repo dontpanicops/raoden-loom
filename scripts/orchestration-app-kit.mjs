@@ -212,11 +212,14 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
             const box = { left: sbox.left, top: sbox.top, right: sbox.right, bottom: foot && !foot.contains(el) ? Math.min(sbox.bottom, foot.getBoundingClientRect().top) : sbox.bottom };
             return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, top: r.top, bottom: r.bottom, left: r.left, right: r.right,
               panel: !!scroller, box: { left: box.left, top: box.top, right: box.right, bottom: box.bottom },
-              scene: !!el.closest(".workspace__scene"), w: innerWidth, h: innerHeight }; })()`);
+              scene: !!el.closest(".workspace__scene"), w: innerWidth, h: innerHeight,
+              // the scroller itself (a card on the canvas) is not in the window: the canvas is panned to it first, the wheel cannot reach it
+              scrOut: !!scroller && (sbox.bottom < 60 || sbox.top > innerHeight - 20 || sbox.right < 20 || sbox.left > innerWidth - 20), sx: (sbox.left + sbox.right) / 2, sy: (sbox.top + sbox.bottom) / 2 }; })()`);
           if (!r) throw new Error(`no element: ${selector}`);
-          const inside = r.top >= r.box.top + 4 && r.bottom <= r.box.bottom - 4 && r.left >= r.box.left + 4 && r.right <= r.box.right - 4;
+          const inside = r.top >= r.box.top + 2 && r.bottom <= Math.min(r.box.bottom, r.h) - 2 && r.left >= r.box.left + 2 && r.right <= r.box.right - 2;
           const free = !r.scene || (await app.ev(`(() => { const el = ${selector}; const h = document.elementFromPoint(${r.cx}, ${r.cy}); return !!h && el.contains(h); })()`));
           if (inside && free) return;
+          if (r.panel && r.scrOut && r.scene) { await app.panBy({ x: r.w / 2 - r.sx, y: r.h / 2 - r.sy }); continue; }
           if (r.panel) {
             const dy = r.top < r.box.top ? r.top - r.box.top - 40 : r.bottom - r.box.bottom + 40;
             // over the top of the panel's body, away from a scrollable text block
@@ -350,6 +353,8 @@ export async function openTab(app, key) {
   const r = await app.clickEl(q(`[data-orch-tab="${to.tab}"]`));
   if (to.mode) await app.clickEl(q(`[data-orch-mode="${to.mode}"]`));
   // a lazy section opens by its summary; a section that is already open stays open
+  // the plan and the result are drawn only after the summary's «Open» button of that document
+  if (to.section && ["plan", "result"].includes(to.section) && !(await app.ev(`!!${q(`[data-orch-section="${to.section}"]`)}`)) && (await app.ev(`!!${q(`[data-orch-open-doc="${to.section}"]`)}`))) await app.clickEl(q(`[data-orch-open-doc="${to.section}"]`));
   if (to.section) await app.ev(`(() => { const d = ${q(`[data-orch-section="${to.section}"]`)}; if (d && d.tagName === "DETAILS") d.open = true; return true; })()`);
   return r;
 }

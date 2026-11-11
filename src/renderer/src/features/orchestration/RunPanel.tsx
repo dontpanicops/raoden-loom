@@ -871,6 +871,7 @@ function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onO
   const hasReport = !!(m.stages?.some((s) => s.report) || m.lastReport);
   const hasExport = view.export !== undefined && !(view.export === null && view.status !== "completed");
   const person = personDecisionsLine(locale, view);
+  const hasPlanDoc = planShas.length > 0 || records.some((r) => r.type.startsWith("decomposition."));
   return (
     <div className="orch-summary-view" data-orch-run-summary data-outcome={outcome} data-incomplete={incomplete ? "yes" : "no"}>
       <dl className="orch-kv orch-kv--status" data-sum="outcome">
@@ -903,8 +904,8 @@ function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onO
         </Section>
       )}
 
-      {((m.stages && m.stages.length > 0) || progress?.conditions) && (
-        <Section id="stages" title={finished ? t(locale, "orchPlan") : undefined} aside={finished &&
+      {((m.stages && m.stages.length > 0) || progress?.conditions || hasPlanDoc) && ( // a split that was refused has no stages, but its reasons are in the plan document
+        <Section id="stages" title={finished || !m.stages?.length ? t(locale, "orchPlan") : undefined} aside={(finished || !m.stages?.length) &&
           <span className="orch-sum-block__aside">
             {planShas.map((sha, i) => <span key={sha} className={`orch-chip${i === planShas.length - 1 ? " orch-chip--on" : ""}`}>v{i + 1}</span>)}
             <button type="button" className="orch-textual" data-orch-open-doc="plan" onClick={() => onOpen("plan")}>{t(locale, "orchSumOpen")}</button>

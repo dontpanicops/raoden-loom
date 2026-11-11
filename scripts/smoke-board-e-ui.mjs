@@ -210,8 +210,8 @@ await scenario(3, "two refusals, split again", [
   // while the second split goes on: its panel shows the proposal
   await app.waitFor(`${q('[data-board-task="T-1"][data-board-reason="decomposing"] [data-board-split-open]')} && true`, "«Открыть разбиение» of the second split", 60_000);
   await app.clickEl(q('[data-board-task="T-1"] [data-board-split-open]'));
-  await openTab(app, "plan");
-  const proposal = await waitForValue(() => app.ev(`${q('[data-orch-section="plan"]')}?.textContent ?? null`).then((t) => (/S2 Часть S2 — зависит от: —; закрывает: R2/.test(t ?? "") ? t : null)), "the proposal on the Plan tab", 90_000).catch(() => null);
+  // the proposal is recorded while the split goes on: the plan document's button appears with it
+  const proposal = await waitForValue(async () => { await openTab(app, "plan"); return app.ev(`${q('[data-orch-section="plan"]')}?.textContent ?? null`).then((t) => (/S2 Часть S2 — зависит от: —; закрывает: R2/.test(t ?? "") ? t : null)); }, "the proposal on the Plan tab", 90_000).catch(() => null);
   ok("the Plan tab shows the proposal: title, dependencies, covered R", !!proposal, proposal);
   await app.shot("e3-split-panel-proposal");
   await app.ev(`${q(".orch-panel__close")}?.click()`);
