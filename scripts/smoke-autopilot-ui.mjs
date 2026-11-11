@@ -132,7 +132,8 @@ try {
   await app.clickEl(q('[data-orch-access="claude"] [data-orch-access-mode="full"]')); // R5f: the rights are a segment
   expect(await app.ev(`!!${q("[data-orch-full-warning]")}`), "full access shows its warning", null);
   await app.clickEl(q('[data-orch-access="claude"] [data-orch-access-mode="acceptEdits"]'));
-  const mapping = await app.ev(`${q('[data-orch-access="claude"] code')}.textContent`);
+  // R6-C: what the CLI is given is the button's tooltip, not a «Подробнее» block
+  const mapping = await app.ev(`${q('[data-orch-access="claude"] [data-orch-access-mode="acceptEdits"]')}.title`);
   expect(mapping.includes("--permission-mode acceptEdits"), "the mapping says what is passed to Claude", mapping);
   await app.shot("02-settings");
   const settingsPinned = await pinned();

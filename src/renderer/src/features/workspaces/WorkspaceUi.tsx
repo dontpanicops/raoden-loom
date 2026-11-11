@@ -377,7 +377,7 @@ export function CloseDialog({ controls, orch, locale, id, onClose, onOpenRun }: 
         <div className="orch-form__actions">
           <button type="button" className="orch-cancel" data-ws-close-cancel onClick={onClose}>{t(locale, stops ? "orchClose" : "orchCancel")}</button>
           {!stops && <button type="button" className="orch-danger" data-ws-close-stop onClick={() => void stopAll()}>{tk(locale, "wsStopAndHide")}</button>}
-          <button type="button" className="orch-primary" data-ws-close-hide autoFocus onClick={() => void hide()}>{tk(locale, stops ? "wsHideRest" : "wsHideKeep")}</button>
+          <button type="button" className="orch-primary" data-ws-close-hide autoFocus title={tk(locale, stops ? "wsHideRestHint" : "wsHideKeepHint")} onClick={() => void hide()}>{tk(locale, stops ? "wsHideRest" : "wsHideKeep")}</button>
         </div>
         {error && <div className="dialog-error" role="alert">{error}</div>}
       </div>
@@ -519,13 +519,13 @@ export function BrowserElsewhereDialog({ controls, locale }: { controls: Workspa
   if (!controls.browserElsewhere) return null;
   const w = controls.state.workspaces.find((x) => x.id === controls.browserElsewhere);
   return (
-    <Dialog label={tk(locale, "wsBrowserTitle")} onClose={controls.closeBrowserNotice} locale={locale} className="ws-dialog">
+    <Dialog label={tr(locale, "wsBrowserTitle", { name: workspaceTitle(locale, w) })} onClose={controls.closeBrowserNotice} locale={locale} className="ws-dialog">
       <div className="orch-form" data-ws-browser-elsewhere={controls.browserElsewhere}>
-        <p>{tr(locale, "wsBrowserElsewhere", { name: workspaceTitle(locale, w) })}</p>
+        <p>{tk(locale, "wsBrowserElsewhere")}</p>
         <div className="orch-form__actions">
           <button type="button" className="orch-cancel" onClick={controls.closeBrowserNotice}>{t(locale, "orchCancel")}</button>
           <button type="button" data-ws-browser-bring onClick={() => void controls.bringBrowserHere()}>{tk(locale, "wsBrowserBring")}</button>
-          <button type="button" className="orch-primary" data-ws-browser-go onClick={controls.goToBrowser}>{tr(locale, "wsOpenNamed", { name: workspaceTitle(locale, w) })}</button>
+          <button type="button" className="orch-primary" data-ws-browser-go title={tr(locale, "wsOpenNamed", { name: workspaceTitle(locale, w) })} onClick={controls.goToBrowser}>{tk(locale, "wsBrowserGoTo")}</button>
         </div>
       </div>
     </Dialog>

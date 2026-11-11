@@ -362,7 +362,9 @@ try {
   await app.type(q(".canvas-command-palette__search input"), "браузер");
   await app.clickEl(paletteItem("Открыть браузер"));
   await app.waitFor(`${q("[data-ws-browser-elsewhere]")} && true`, "browser elsewhere notice");
-  expect((await text(q("[data-ws-browser-elsewhere]"))).includes("Общий холст"), "W10: B says where the browser is", await text(q("[data-ws-browser-elsewhere]")));
+  // R6-C (mock 17): the title says where the browser is, «Перейти» names the space in its tooltip
+  const where = await app.ev(`document.getElementById(document.querySelector("[data-ws-browser-elsewhere]").closest("[role=dialog]").getAttribute("aria-labelledby")).textContent + " | " + ${q("[data-ws-browser-go]")}.title`);
+  expect(where.split(" | ").every((x) => x.includes("Общий холст")), "W10: B says where the browser is", where);
   await app.shot("06-browser-elsewhere-1280");
   await app.clickEl(q("[data-ws-browser-bring]"));
   await app.waitFor(`${q('[data-canvas-layer-id="browser"]')} && true`, "browser card in B");

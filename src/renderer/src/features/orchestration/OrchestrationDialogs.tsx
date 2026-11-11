@@ -272,7 +272,7 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
 // R5f (D-023): requirements and check commands as rows (the text stays the state, one line per row). Requirements keep an
 // always-present empty input at the end; commands add a row with the "+" button. Enter on the last row goes to / adds the
 // next one, Backspace in an empty row removes it and focuses the previous.
-function GoalRows({ text, onText, locale, attr, placeholder, label, mono = false, addLabel }: {
+export function GoalRows({ text, onText, locale, attr, placeholder, label, mono = false, addLabel }: {
   text: string; onText: (text: string) => void; locale: LocaleId; attr: string; placeholder: string; label: string; mono?: boolean; addLabel?: string;
 }): React.JSX.Element {
   const trailing = !addLabel;
