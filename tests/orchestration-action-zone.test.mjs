@@ -35,7 +35,7 @@ test("the commands of a run that works, pauses after the turn, or ends are admit
     const z = actionZone("ru", view(status, null), [], true);
     for (const kind of z.commands) assert.equal(admits(kind, ctx(status)), null, `${status}: ${kind}`);
   }
-  assert.deepEqual(actionZone("ru", view("running", null), [], true).commands, ["pause_after_turn", "stop", "clarify"]);
+  assert.deepEqual(actionZone("ru", view("running", null), [], true).commands, ["pause_after_turn", "stop"]);
 });
 
 test("no text of a pause names a tab the panel no longer has", () => {

@@ -216,7 +216,8 @@ test("the zone's headline is unique among the 37 sets, in both languages, and ea
       assert.ok(!titles.has(z.title) || set === "mcp_present", `${locale}: ${set} and ${titles.get(z.title)} are called the same: ${z.title}`);
       titles.set(z.title, set);
       assert.ok(!z.why.toLowerCase().includes(z.title.toLowerCase()), `${locale}: ${set}: the why repeats the headline`);
-      assert.ok(z.todo.trim().length > 1 && z.why.trim().length > 1, `${locale}: ${set}: why and what to do are said`);
+      // R5b (D-015): the plan under review says only why (the mock-up 04)
+      assert.ok((set === "plan_review" || z.todo.trim().length > 1) && z.why.trim().length > 1, `${locale}: ${set}: why and what to do are said`);
     }
     for (const set of [...DERIVED, "mcp_present", "mcp_unchecked", "push_protected"]) assert.ok(t(locale, `orchPause_${set}_what`), `${locale}: orchPause_${set}_what`);
   }
@@ -258,10 +259,13 @@ test("the buttons of the disputed pauses are those spec-vs-code §1.3 settled (p
   for (const workMode of ["project", "worktree"]) assert.deepEqual(actionZone("ru", { ...f.view, workMode }, [], true).dangerous, [], workMode);
   // the clarify field: hidden where main refuses it or has no use for it, off while a plan proposal waits
   const clarify = (set, extra = {}) => { const g = fixture(set); return actionZone("ru", { ...g.view, ...extra }, g.entries, g.onMac).clarify; };
-  for (const set of ["user_request", "plan_review", "limit_reached", "invalid_report"]) assert.equal(clarify(set), "collapsed", set);
+  // R5b (D-015): a suspected loop offers the main button and the clarify field, no "One step" (the mock-up 09)
+  { const g = fixture("loop_suspected"); assert.ok(!actionZone("ru", g.view, g.entries, g.onMac).secondary.some((b) => b.action === "step")); }
+  assert.equal(clarify("plan_review"), "collapsed");
+  for (const set of ["user_request", "limit_reached", "invalid_report"]) assert.equal(clarify(set), "hidden", set);
   assert.equal(clarify("loop_suspected"), "open");
   for (const set of ["awaiting_answer", "journal_corrupt", "lead_modified_tree", "push_protected", "coverage_lost", "awaiting_checks_decision", "newer_version"]) assert.equal(clarify(set), "hidden", set);
-  assert.equal(clarify("limit_reached", { proposalWaits: true }), "disabled");
+  assert.equal(clarify("plan_review", { proposalWaits: true }), "disabled");
   // a waiting plan proposal: main refuses the raise, so the zone offers Resume (it opens the proposal) and no limit field
   const waits = fixture("limit_reached");
   const lz = actionZone("ru", { ...waits.view, proposalWaits: true }, waits.entries, true);

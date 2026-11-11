@@ -3,7 +3,7 @@
 export type PanelTab = "summary" | "work" | "changes";
 export type PanelMode = "feed" | "journal" | "records";
 export type PanelSection = "plan" | "result" | "overview";
-export type PanelRole = "lead" | "executor" | "reviewer" | "check";
+export type PanelRole = "all" | "lead" | "executor" | "reviewer" | "check"; // "all": the feed of every role (R5b, the mock-up's "Все")
 // The eight keys the panel had before R3a (code, smoke scripts, tests still say them).
 export type LegacyPanelTab = "plan" | "result" | "summary" | "overview" | "activity" | "changes" | "log" | "history";
 export interface PanelTarget { tab: PanelTab; mode?: PanelMode; section?: PanelSection }

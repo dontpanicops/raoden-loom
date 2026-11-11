@@ -692,6 +692,8 @@ export function zoneSet(view: OrchestrationRunView, entries: readonly Orchestrat
   return pauseSet(reason, onMac, view.proposal?.checks.length === 0);
 }
 
+const CLARIFY_IN_ZONE: ReadonlySet<string> = new Set(["plan_review", "loop_suspected"]);
+
 export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[], onMac = orchestrationAvailableHere()): ZoneModel {
   const L = (key: string) => t(locale, key as TranslationKey);
   const b = (action: ZoneAction, label: string, commands: AdmissionKind[] = [], danger = false, after?: AdmissionKind): ZoneButton =>
@@ -704,7 +706,9 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
   // Clarify is main's own gate: a state that denies it hides it, except the one denial that passes (a waiting proposal)
   const clarifyOpen = !view.halted && !view.newer && admits("clarify", { ...ctx, proposalWaits: false }) === null;
   const done = (z: Omit<ZoneModel, "commands" | "clarify"> & { clarify?: ZoneModel["clarify"] }): ZoneModel => {
-    const clarify = z.clarify ?? (clarifyOpen ? (view.proposalWaits ? "disabled" : "collapsed") : "hidden");
+    // R5b (D-015): the field stands in the zone only where the mock-up has it: a plan under review and a suspected loop;
+    // elsewhere the command is not offered by the zone
+    const clarify = z.clarify ?? (clarifyOpen && CLARIFY_IN_ZONE.has(z.variant) ? (view.proposalWaits ? "disabled" : "collapsed") : "hidden");
     const all = [z.primary, ...z.secondary, ...z.dangerous, ...z.footer].flatMap((x) => x?.commands ?? []);
     return { ...z, clarify, commands: [...new Set<AdmissionKind>([...all, ...(clarify === "collapsed" || clarify === "open" ? (["clarify"] as AdmissionKind[]) : [])])] };
   };
@@ -745,7 +749,7 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
   // paused
   const set = zoneSet(view, entries, onMac);
   const title = text?.what ?? L(`orchHeadline_${runHeadline(view).headline}`);
-  const base = { variant: set, tone: (text?.you === false ? "calm" : "waiting") as ZoneTone, eyebrow: "", title, why: text?.why ?? "", todo: text?.todo ?? "" };
+  const base = { variant: set, tone: (text?.you === false ? "calm" : "waiting") as ZoneTone, eyebrow: "", title, why: text?.why ?? "", todo: set === "plan_review" ? "" : text?.todo ?? "" }; // plan_review: the "why" alone (the mock-up 04)
   const resume = (label = text?.button ?? L("orchResume")) => b("resume", label, ["resume"]);
   const step = () => b("step", L("orchStep"), ["step"]);
   const secondary: ZoneButton[] = [];
@@ -793,7 +797,7 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
       default:
         primary = resume();
         if (set === "prepare_failed") secondary.push(b("project_settings", L("orchProfileOpen")));
-        else if (["user_request", "step_done", "recovered", "app_closed", "loop_suspected"].includes(reason)) secondary.push(step());
+        else if (["user_request", "step_done", "recovered", "app_closed"].includes(reason)) secondary.push(step());
         else if (reason === "plan_review") secondary.push(b("open_plan", L("orchZone_openPlan")), step());
         else if (reason === "stage_done") secondary.push(step(), b("open_changes", L("orchViewChanges")));
         else if (reason === "permission_denied") secondary.push(b("project_settings", L("orchProfileOpen")));

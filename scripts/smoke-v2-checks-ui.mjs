@@ -6,7 +6,7 @@
 //            minReaderVersion 2 in its first record and no formatPreview (A4's final form);
 //   refused: the lead proposes a command that writes outside the work folder; the autopilot accepts it (it runs in the
 //            check profile, A1.1 Q2) and the sandbox refuses it — the panel says «Проверке нужно больше прав» with
-//            «Изменить команду» only (no «Запустить без песочницы» for a lead's command, owner's decision on S1-4), no
+//            «Сохранить как свою команду» only (no «Запустить без песочницы» for a lead's command, owner's decision on S1-4), no
 //            Resume; the autopilot waits; the editor holds the whole command and says it will run as the person's;
 //            saved unchanged, it runs in the person's shell and the run completes, confirmed.
 //   A2:      both plans state readiness conditions over the goal's criteria R1, R2 — the cards say «N из M условий
@@ -165,8 +165,8 @@ try {
     const panel = await app.ev(`(() => { const p = ${q("[data-orch-check-refused]")}; return { id: p.dataset.orchCheckRefused, title: p.querySelector("h4").textContent,
       buttons: [...p.querySelectorAll("button")].map((b) => b.textContent.trim()), actions: [...document.querySelectorAll(".orch-panel__actions button, .orch-panel__foot button")].map((b) => b.textContent.trim()),
       headline: document.querySelector(".orch-zone__headline")?.textContent ?? "" }; })()`);
-    expect(panel.id === "cmd-1" && panel.title === "Проверке нужно больше прав" && panel.buttons.join("|") === "Изменить команду",
-      "refused: the panel offers «Изменить команду» only — no «Запустить без песочницы»", panel);
+    expect(panel.id === "cmd-1" && panel.title === "Проверке нужно больше прав" && panel.buttons.join("|") === "Сохранить как свою команду",
+      "refused: the panel offers «Сохранить как свою команду» only — no «Запустить без песочницы»", panel);
     expect(!panel.actions.some((b) => /Продолжить|Шаг/.test(b)) && /не хватило прав/.test(panel.headline), "refused: no Resume or Step, the headline says so", panel);
     expect(!fs.existsSync(outside), "refused: nothing was written outside the work folder", null);
     const runId = (await runs(app))[0].runId;
@@ -174,8 +174,7 @@ try {
     const still = await app.ev(`window.canvasTTY.orchestration.get(${JSON.stringify(runId)}).then((r) => r.value.view.reason)`);
     expect(still === "check_needs_permissions", "refused: the autopilot waits for the person", still);
     await app.shot("v2-03-check-needs-permissions");
-    await app.clickEl(q("[data-orch-check-edit-open]"));
-    await app.waitFor(`${q("[data-orch-check-refused-line]")} && true`, "the editor");
+    await app.waitFor(`${q("[data-orch-check-refused-line]")} && true`, "the editor (open at once: R5b)");
     const editor = await app.ev(`(() => { const e = ${q("[data-orch-check-refused-line]")}; return { value: e.value, hint: e.parentElement.querySelector("small").textContent }; })()`);
     expect(editor.value === `test -f src/note.mjs && touch ${outside}` && editor.hint === "Команду предложил лид. После сохранения она будет выполняться как ваша — без песочницы.",
       "refused: the editor holds the whole command and says it runs as the person's", editor);

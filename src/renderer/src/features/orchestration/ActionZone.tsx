@@ -117,7 +117,7 @@ export function ActionZone(p: ActionZoneProps): React.JSX.Element {
   const clarifyBox = zone.clarify === "hidden" ? null : (
     <div className="orch-zone__clarify" data-orch-clarify={zone.clarify}>
       {!clarifyShown
-        ? <button type="button" className="orch-textual" disabled={clarifyOff} title={p.clarifyOff ?? undefined} aria-describedby={clarifyOff ? reasonId : undefined} aria-expanded={false} data-orch-clarify-open onClick={() => setClarifyOpen(true)}>{tr(locale, "orchClarify")}</button>
+        ? <button type="button" className="orch-textual" disabled={clarifyOff} title={p.clarifyOff ?? undefined} aria-describedby={clarifyOff ? reasonId : undefined} aria-expanded={false} data-orch-clarify-open onClick={() => setClarifyOpen(true)}>{tr(locale, zone.variant === "plan_review" ? "orchZone_clarifyTask" : "orchClarify")}</button>
         : <label className="orch-zone__clarify-label">{tr(locale, "orchZone_clarifyLabel")}
           <textarea rows={3} value={p.clarify.value} placeholder={tr(locale, "orchClarifyPlaceholder")} onChange={(e) => p.clarify.onChange(e.target.value)} />
         </label>}

@@ -164,7 +164,7 @@ try {
 
   // ---------- 4. the run ends while its activity is watched ----------
   await app.clickEl(cardSel(leadA.agentId, ".agent-card__open"));
-  await app.waitFor(`${q(".orch-panel")}?.dataset.orchPanelTab === "summary"`, "a running run opens at the summary");
+  await app.waitFor(`${q(".orch-panel")}?.dataset.orchPanelTab === "work"`, "a running run opens on Work (R5b)");
   await openTab(app, "activity");
   await app.waitFor(`${q("[data-orch-feed]")} && true`, "activity feed");
   hold("codex", false);

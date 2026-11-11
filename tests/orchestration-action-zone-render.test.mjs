@@ -108,13 +108,14 @@ test("dangerous buttons are outlined and ask first; the outcome reset only in a 
 
 test("the clarify field is what the model says: closed, open, off with its reason, hidden", async () => {
   const panel = await panelOf();
-  assert.match(panel("user_request"), /data-orch-clarify="collapsed"/);
-  assert.doesNotMatch(panel("user_request"), /<textarea/);
+  // R5b (D-015): the field stands in the zone only for a plan under review and a suspected loop
+  assert.match(panel("plan_review"), /data-orch-clarify="collapsed"[\s\S]*Уточнить задачу/);
+  assert.doesNotMatch(panel("plan_review"), /<textarea/);
   assert.match(panel("loop_suspected"), /data-orch-clarify="open"[\s\S]*<textarea/);
-  const off = panel("limit_reached", { extra: { proposalWaits: true } });
+  const off = panel("plan_review", { extra: { proposalWaits: true } });
   assert.match(off, /data-orch-clarify="disabled"/);
   assert.match(off, /data-orch-proposal-waits/);
-  for (const set of ["awaiting_answer", "journal_corrupt", "push_protected", "lead_modified_tree"]) assert.doesNotMatch(panel(set), /data-orch-clarify/, set);
+  for (const set of ["user_request", "limit_reached", "awaiting_answer", "journal_corrupt", "push_protected", "lead_modified_tree"]) assert.doesNotMatch(panel(set), /data-orch-clarify/, set);
   assert.doesNotMatch(panel("user_request"), /class="orch-panel__section"[^>]*>\s*<h4>Уточнить/, "no clarify under the summary");
 });
 

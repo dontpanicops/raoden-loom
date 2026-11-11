@@ -101,16 +101,22 @@ async function renderer() { // the built RunPanel to static markup (as tests/orc
     const v = { ...f.view };
     if (v.progress) v.progress = { mode: "autopilot", checks: [], finish: [], ...v.progress };
     return renderToStaticMarkup(React.createElement(mod.exports.RunPanel, {
-      orch: { runs: { "25931336": { view: v, open: true, seq: 9, tick: 0 } }, activity: { "25931336": { entries: f.entries, gaps: [], firstId: f.entries[0]?.id ?? 0, status: "ready", resyncs: 0 } },
-        runErrors: {}, canvas: { links: [], agents: [] }, journals: { "25931336": { records: PLAN_RECORDS, next: 1, status: "ready" } }, texts: PLAN_TEXTS,
+      orch: { runs: { "25931336": { view: v, open: true, seq: 9, tick: 0 }, ...(f.live ? { "7c41e09a": { view: { ...v, runId: "7c41e09a", status: "paused" }, open: true, seq: 1, tick: 0 }, b2e0f115: { view: { ...v, runId: "b2e0f115", status: "completed" }, open: true, seq: 1, tick: 0 } } : {}) }, activity: { "25931336": { entries: f.entries, gaps: [], firstId: f.entries[0]?.id ?? 0, status: "ready", resyncs: 0 } },
+        runErrors: {}, canvas: { links: [{ linkId: "L", fromAgentId: "a1", toAgentId: "a2", createdAt: "2026-11-11T10:00:00.000Z", runIds: ["25931336"] }],
+          agents: [{ agentId: "a1", provider: "codex", role: "lead", project: "/work/project-b" }, { agentId: "a2", provider: "claude", role: "executor", project: "/work/project-b" }] }, journals: { "25931336": { records: PLAN_RECORDS, next: 1, status: "ready" } }, texts: PLAN_TEXTS,
         commands: { pending: () => [] }, catalog: { checks: [] }, loadText() {}, syncJournal() {}, retry() {}, stageTitles: () => ({}) },
-      runId: "25931336", locale: "ru", panel: { linkId: "L", mode: "feed", ...legacyView("overview"), role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {},
+      runId: "25931336", locale: "ru", liveRunIds: f.live ? ["25931336", "7c41e09a", "b2e0f115"] : undefined, panel: { linkId: "L", mode: "feed", ...(f.work ? { tab: "work", role: "all" } : legacyView("overview")), role: f.work ? "all" : "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {},
       onProjectSettings: () => {}
     }));
   };
 }
 const cssFile = () => { const dir = path.join(ROOT, "out/renderer/assets"); return path.join(dir, fs.readdirSync(dir).find((f) => /^index-.*\.css$/.test(f))); };
-const fixtureOf = ([, set, o]) => {
+// the mock-up opens a run that works (and most pauses) on "Work" and the checks / finish / refused ones on "Summary"
+const SUMMARY_STATES = ["05-checks-decision", "06-checks-none", "12-finish-confirmation", "13-finish-unconfirmed", "14-check-needs-permissions", "17-completed", "11-coverage-lost"];
+const TURN = (id, kind, text) => ({ id, ts: "2026-11-11T07:31:0" + id + ".000Z", turnId: "t1", role: "executor", provider: "claude", kind, text });
+const WORKING_ENTRIES = [TURN(1, "thinking", ""), TURN(2, "tool_started", "Edit src/api/notes.ts"), TURN(3, "tool_started", "Bash npm test")];
+const fixtureOf = (state) => { const f = fixtureOf0(state); return SUMMARY_STATES.includes(state[0]) ? f : { ...f, work: true, live: state[0] === "01-working", entries: state[0] === "01-working" ? WORKING_ENTRIES : f.entries }; };
+const fixtureOf0 = ([, set, o]) => {
   if (set === "awaiting_answer") return { view: view("paused", "awaiting_answer", { stage: 1, permission: { ...permission, kind: "question", tool: "AskUserQuestion", summary: "Где хранить заметки?", detail: null, options: [],
     questions: [{ id: "q1", question: "Где хранить заметки: в SQLite (~/.loom/notes.db) или JSON-файлами в папке проекта?", options: [], multiple: false, other: true }] } }), entries: [], onMac: true };
   if (set === "awaiting_person_decision") return { view: view("paused", set, { stage: 1, decisions: { runKey: "k".repeat(64), tree: "t".repeat(40), findings: true,

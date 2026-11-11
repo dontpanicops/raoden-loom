@@ -1081,7 +1081,11 @@ button { border: 0; }
 .agent-card__body button, .agent-link__chip button, .orch-panel button, .orch-form button { padding: .4em .8em; border-radius: 8px; color: var(--text-primary); background: var(--surface-2-b); font-weight: 800; cursor: pointer; }
 .agent-card__body button:disabled, .orch-panel button:disabled, .orch-form button:disabled { opacity: .5; cursor: default; }
 .agent-card button.agent-card__connect { color: var(--on-status); background: var(--status-waiting); }
-.agent-card button.agent-card__danger, .orch-panel button.orch-danger { color: var(--danger-text); background: var(--danger); }
+.agent-card button.agent-card__danger { color: var(--danger-text); background: var(--danger); }
+/* R5b (P-01): in the panel a danger button is outlined like Stop; the fill stays only on the zone's main button where Stop is all main allows (D-002) */
+.orch-panel button.orch-danger { color: var(--danger-fg); background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger-fg) 65%, transparent); }
+.orch-panel .orch-zone__actions button.orch-danger { color: var(--danger-text); background: var(--danger); box-shadow: none; }
+.orch-panel .orch-permission button.orch-danger { color: var(--text-primary); box-shadow: none; font-weight: 600; } /* "Decline" of the mock-up is a plain text button */
 .orch-panel button.orch-primary, .orch-form button.orch-primary { color: var(--accent-text); background: var(--accent); }
 /* UX audit (PR 1): Stop beside a pause's main action is secondary — outlined, last in the row */
 .orch-panel button.orch-stop { color: var(--danger-fg); background: transparent; box-shadow: inset 0 0 0 2px var(--danger-fg); }
@@ -1147,10 +1151,22 @@ button { border: 0; }
 .orch-limits label { min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; overflow-wrap: anywhere; }
 .orch-form__actions { display: flex; justify-content: flex-end; gap: 8px; }
 .orch-hint { opacity: .7; font-size: 12px; }
+/* R5b (P-02): a warning inside the panel is a quiet plate with a ring in the failed tone, never a solid red fill */
+.orch-note { margin: 0; padding: 8px 10px; border-radius: 10px; }
+.orch-note--warn { color: var(--danger-fg); background: var(--status-failed-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-failed) 55%, transparent); }
+/* a short table of facts (commit / push / QA): a label at the left, the value in mono at the right */
+.orch-table { width: 100%; margin: 0; padding: 0; list-style: none; border-radius: 10px; background: var(--surface-sunken); }
+.orch-table > li { padding: 8px 12px; display: flex; justify-content: space-between; gap: 12px; }
+.orch-table > li + li { border-top: 1px solid var(--border-strong); }
+.orch-table > li > span:last-child { font-family: var(--font-mono); text-align: right; }
 .orch-panel { position: absolute; right: 16px; top: 16px; bottom: 16px; z-index: 510; width: min(calc(400px * var(--ui-scale, 1)), calc(100% - 32px)); display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-xl); color: var(--text-primary); background: var(--surface-3-solid); box-shadow: var(--elev-4); font-size: calc(13px * var(--ui-scale, 1)); }
-.orch-panel__header { padding: 12px 12px 12px 16px; display: flex; align-items: center; gap: 10px; background: var(--surface-sunken); }
-.orch-panel__header code { opacity: .6; }
-.orch-panel__close { margin-left: auto; width: 30px; height: 30px; display: grid; place-items: center; padding: 0 !important; }
+/* R5b (P-07, P-16): the header is the panel's own colour (no band): the title with the project, the pair of agents in mono under it, the icons without a frame */
+.orch-panel__header { padding: 16px 12px 6px 16px; display: flex; align-items: flex-start; gap: 4px; }
+.orch-panel__title { min-width: 0; margin-right: auto; display: flex; flex-direction: column; gap: 2px; }
+.orch-panel__title strong { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.orch-panel__header code { color: var(--text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.orch-panel .orch-panel__close, .orch-panel .orch-panel__expand { width: 30px; height: 30px; display: grid; place-items: center; padding: 0; color: var(--text-secondary); background: transparent; box-shadow: none; }
+.orch-panel .orch-panel__close:hover, .orch-panel .orch-panel__expand:hover { color: var(--text-primary); background: var(--surface-sunken); }
 .orch-panel__body { min-height: 0; flex: 1; overflow: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
 .orch-panel__empty { padding: 16px; opacity: .7; }
 .orch-panel__actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -1164,7 +1180,8 @@ button { border: 0; }
 .orch-checks__passed { color: var(--status-working); }
 .orch-checks__failed { color: var(--danger-fg); }
 .orch-history { padding-left: 0; list-style: none; font-size: 12px; }
-.orch-history time { opacity: .55; font-family: var(--font-mono); }
+.orch-history li { padding: 6px 10px; border-radius: 8px; background: var(--surface-sunken); }
+.orch-history time, .orch-history__kind { color: var(--text-secondary); font-family: var(--font-mono); }
 .orch-details { margin: 4px 0 2px; }
 .orch-details__toggle { padding: .2em .6em !important; font-size: 11px; }
 .orch-details__body { margin-top: 4px; padding: 8px 10px; border-radius: 8px; background: var(--surface-sunken); }
@@ -1175,9 +1192,12 @@ button { border: 0; }
 .orch-panel__unknown { padding: 8px 10px; border-radius: 10px; color: var(--status-waiting); background: var(--status-waiting-bg); }
 /* R3b: the action zone, always above the tabs (what happened, why, what to do, one main button); on short windows its body scrolls
    and the button row stays pinned at its foot. The panel is level 3 itself: no backdrop-filter inside it. */
-.orch-zone { --zone-bg: var(--surface-sunken); --zone-solid: linear-gradient(var(--zone-bg), var(--zone-bg)), var(--surface-3-solid); --zone-tint: linear-gradient(color-mix(in srgb, var(--status-waiting) 22%, transparent), color-mix(in srgb, var(--status-waiting) 22%, transparent)), var(--zone-solid); flex: 0 0 auto; max-height: 62vh; overflow: auto; margin: 12px 12px 0; padding: 12px; display: flex; flex-direction: column; gap: 8px; border-radius: 12px; background: var(--zone-bg); box-shadow: 0 0 0 1px var(--border-strong); outline: none; transition: box-shadow .25s; }
+.orch-zone { --zone-bg: var(--surface-sunken); --zone-solid: linear-gradient(var(--zone-bg), var(--zone-bg)), var(--surface-3-solid); --zone-tint: var(--zone-solid); flex: 0 0 auto; max-height: 62vh; overflow: auto; margin: 12px 12px 0; padding: 12px; display: flex; flex-direction: column; gap: 8px; border-radius: 12px; background: var(--zone-bg); box-shadow: 0 0 0 1px var(--border-strong); outline: none; transition: box-shadow .25s; }
 .orch-zone--working .orch-zone__label { color: var(--status-working); }
 .orch-zone--waiting { --zone-bg: color-mix(in srgb, var(--status-waiting) 10%, var(--surface-sunken)); background: var(--zone-bg); box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-waiting) 70%, transparent), 0 0 14px color-mix(in srgb, var(--status-waiting) 28%, transparent); }
+/* R5b (P-16): on paper the zone is almost the panel's own colour with a thin ring */
+.app--paper .orch-zone { --zone-bg: color-mix(in srgb, var(--surface-sunken) 55%, transparent); }
+.app--paper .orch-zone--waiting { --zone-bg: color-mix(in srgb, var(--status-waiting) 6%, var(--surface-sunken)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-waiting) 60%, transparent); }
 .orch-zone--calm { box-shadow: 0 0 0 1px var(--border-strong); }
 .orch-zone--failed, .orch-zone--halted, .orch-zone--needs_setup { box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-failed) 55%, transparent); }
 .orch-zone--failed .orch-zone__label, .orch-zone--halted .orch-zone__label, .orch-zone--needs_setup .orch-zone__label { color: var(--danger-fg); }
@@ -1214,10 +1234,16 @@ button { border: 0; }
 .orch-confirm { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 10px; background: var(--status-failed-bg); }
 .orch-confirm__row { display: flex; flex-wrap: wrap; gap: 8px; }
 /* the footer under the tabs, outside the scroll: pause after the turn, Stop (outlined), copy buttons */
-.orch-panel__foot { flex: 0 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border-strong); background: var(--surface-sunken); }
+.orch-panel__foot { flex: 0 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border-strong); background: transparent; }
 .orch-panel__foot [data-orch-foot-action="pause"], .orch-panel__foot [data-orch-foot-action="copy_id"] { margin-right: auto; }
-.orch-question { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 10px; background: color-mix(in srgb, var(--status-waiting) 22%, transparent); }
-.orch-question h4 { margin: 0; font-size: 10px; letter-spacing: .11em; text-transform: uppercase; }
+.orch-question { display: flex; flex-direction: column; gap: 8px; }
+/* inside the zone the plates are the items (a command list, a field): one sunken tone, no ring on a ring */
+.orch-zone .orch-item { box-shadow: none; }
+.orch-zone [data-orch-checks-list] { padding: 10px 12px; gap: 8px; border-radius: 10px; background: var(--surface-sunken); }
+.orch-zone [data-orch-checks-list] .orch-item { padding: 0; background: none; }
+.orch-question h4 { margin: 0; color: var(--text-secondary); font-size: 12px; font-weight: 500; }
+/* the zone's headline already names the form's subject: its own title stays for screen readers */
+.orch-zone .orch-form-card > h4 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .orch-question button { align-self: flex-start; }
 /* R4.1: a decision form reads top down — the question (its title), what it is about (items), the choices, one pinned row of buttons.
    Items are sunken plates; choices are equal segments (no default to press) or cards that carry their consequence. Narrow panel and
@@ -1244,8 +1270,11 @@ button { border: 0; }
 .orch-form__foot { align-items: center; }
 .orch-form__foot .orch-confirm { flex: 1 1 100%; }
 .orch-form-card :is(textarea, select) { max-width: 100%; box-sizing: border-box; }
-.orch-permission { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 10px; background: color-mix(in srgb, var(--status-waiting) 22%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-waiting) 70%, transparent), 0 0 12px color-mix(in srgb, var(--status-waiting) 24%, transparent); }
-.orch-permission h4 { margin: 0; font-size: 10px; letter-spacing: .11em; text-transform: uppercase; }
+/* R5b (P-04): a block inside the zone is flat — no ring, no glow (the zone has them), a sunken plate, commands in mono */
+.orch-permission { display: flex; flex-direction: column; gap: 8px; }
+.orch-permission h4 { margin: 0; color: var(--text-secondary); font-size: 12px; font-weight: 500; }
+.orch-permission__cmd { padding: 10px 12px; border-radius: 8px; background: var(--surface-sunken); font: 12px/1.5 var(--font-mono); }
+.orch-permission__cmd b { font-weight: 500; }
 .orch-permission p { margin: 0; overflow-wrap: anywhere; }
 .orch-permission pre { max-height: 180px; margin: 4px 0 0; overflow: auto; white-space: pre-wrap; font-size: 12px; }
 .orch-permission__q { margin: 0; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--border-strong); border-radius: 8px; }
@@ -1256,14 +1285,15 @@ button { border: 0; }
 .orch-diffs summary { cursor: pointer; opacity: .8; }
 .orch-diffs ul { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
 .orch-workmode label { align-items: flex-start; }
-.orch-tabs, .orch-roles { flex: 0 0 auto; margin: 10px 12px 0; display: flex; flex-wrap: wrap; gap: 4px; }
-.orch-panel .orch-tabs button, .orch-panel .orch-roles button { padding: .35em .7em; background: transparent; box-shadow: inset 0 0 0 1px var(--focus); color: inherit; }
-.orch-panel .orch-tabs button.orch-tabs__on, .orch-panel .orch-roles button.orch-roles__on { color: var(--text-primary); background: var(--surface-2-b); }
+.orch-tabs { flex: 0 0 auto; margin: 10px 12px 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.orch-panel .orch-tabs button { padding: .35em .7em; background: transparent; box-shadow: inset 0 0 0 1px var(--focus); color: inherit; }
+.orch-panel .orch-tabs button.orch-tabs__on { color: var(--text-primary); background: var(--surface-2-b); }
 /* R3a: the three tabs and the work modes are a segment (the redesign's .seg-wrap); the role filter keeps its pills */
 .orch-seg { flex: 0 0 auto; margin: 10px 12px 0; padding: 3px; display: flex; flex-wrap: nowrap; gap: 2px; border-radius: 9px; background: var(--surface-sunken); }
 .orch-panel .orch-seg button { flex: 1; min-width: 0; padding: .3em .6em; border-radius: 7px; box-shadow: none; background: transparent; color: var(--text-secondary); font-weight: 500; white-space: nowrap; }
 .orch-panel .orch-seg button.orch-tabs__on { color: var(--text-primary); background: var(--surface-2); box-shadow: var(--edge), var(--elev-1); font-weight: 600; }
-.orch-runs { flex: 0 0 auto; margin: 8px 12px 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.orch-runs { flex: 0 0 auto; margin: 6px 12px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.orch-runs__count { margin-left: 6px; color: var(--text-secondary); font-size: 12px; }
 .orch-panel .orch-runs button { padding: .2em .6em; display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--border-strong); background: transparent; color: var(--text-secondary); font: 500 11px var(--font-mono); }
 .orch-panel .orch-runs button[aria-pressed="true"] { color: var(--text-primary); background: var(--surface-2-b); box-shadow: inset 0 0 0 1px var(--focus); }
 .orch-runs i { width: 8px; height: 8px; border-radius: 50%; background: var(--status-idle); }
@@ -1289,6 +1319,12 @@ button { border: 0; }
 .orch-feed__list { min-height: 120px; flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
 .orch-feed__item { padding: 3px 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; border-bottom: 1px solid var(--border-strong); }
 .orch-feed__item time { opacity: .55; font-family: var(--font-mono); }
+/* R5b (P-15): one turn is a card (who and when, then its lines); the time of a line stays as its tooltip-less row order */
+.orch-turn { border-radius: 10px; background: var(--surface-sunken); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.orch-turn__head { padding: 8px 12px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border-strong); }
+.orch-turn__head time { color: var(--text-secondary); font-family: var(--font-mono); font-size: 11px; }
+.orch-turn .orch-feed__item { padding: 4px 12px; grid-template-columns: minmax(0, 1fr); border-bottom: 0; }
+.orch-turn .orch-feed__item time { display: none; }
 .orch-feed__text { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .orch-feed__item details, .orch-feed__gap { grid-column: 1 / -1; }
 .orch-feed__item pre { max-height: 220px; margin: 4px 0 0; padding: 6px 8px; overflow: auto; border-radius: 8px; background: var(--surface-sunken); white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.45 var(--font-mono); }
@@ -1332,7 +1368,7 @@ button { border: 0; }
 .orch-zone:has(.orch-permission) { max-height: 80vh; } /* a waiting request needs its buttons in view */
 .orch-permission--plan .orch-permission__plan { max-height: 160px; }
 /* the decision buttons stay in view while a long request scrolls in the summary (1280×800 and smaller) */
-.orch-permission > .orch-panel__actions { position: sticky; bottom: 0; z-index: 1; margin: 0 -10px; padding: 8px 10px; background: color-mix(in srgb, var(--status-waiting) 22%, var(--surface-sunken)); }
+.orch-permission > .orch-panel__actions { position: sticky; bottom: 0; z-index: 1; margin: 0; padding: 8px 0; background: var(--zone-solid); }
 .orch-zone--compact:not(:has(.orch-permission, [data-orch-form], [data-orch-limit])) { max-height: 30vh; }
 .orch-board__full dd { color: var(--danger-fg); font-weight: 800; }
 .orch-board__terminal dd { color: var(--status-waiting); font-weight: 800; }
@@ -1421,8 +1457,6 @@ button { border: 0; }
 /* The run panel: wider for the summary, expandable to the window. */
 .orch-panel--wide { width: min(calc(760px * var(--ui-scale, 1)), calc(100% - 32px)); }
 .orch-panel--full { left: 16px; width: auto; }
-.orch-panel__expand { margin-left: auto; width: 30px; height: 30px; display: grid; place-items: center; padding: 0 !important; }
-.orch-panel__expand + .orch-panel__close { margin-left: 0; }
 .orch-ended { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--focus) 26%, var(--surface-2)); font-weight: 700; }
 .orch-src { margin-left: .6em; padding: .1em .5em; border-radius: 99px; font-size: 10px; font-weight: 800; letter-spacing: 0; text-transform: none; }
 .orch-src--journal { color: var(--status-working); background: var(--status-working-bg); }

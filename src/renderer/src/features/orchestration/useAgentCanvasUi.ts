@@ -132,7 +132,9 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
       setGoalLinkId(null);
       focusCount.current += 1;
       const focus = focusCount.current;
-      setPanel((cur) => ({ linkId, tab: "summary", mode: "feed", section: status && TERMINAL_STATUSES.includes(status) ? undefined : "overview", role: cur?.linkId === linkId ? cur.role : "executor", focus }));
+      // R5b: a run that goes on opens on "Work" (the mock-up 01); a finished one on the summary
+      const active = !!status && !TERMINAL_STATUSES.includes(status);
+      setPanel((cur) => ({ linkId, tab: active ? "work" : "summary", mode: "feed", section: undefined, role: cur?.linkId === linkId ? cur.role : "executor", focus }));
     },
     // A run by id, with or without its link; the same view arguments as openPanel (a bare string stays a legacy key).
     openRunById: (runId: string, arg?: PanelViewArg) => {
@@ -146,7 +148,7 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
       const dflt = !status || TERMINAL_STATUSES.includes(status) ? undefined : "overview";
       // a run of a link is the link's picked run (chip and panel agree); only a run without its link is held by the panel
       if (linkId) setPickedRuns((p) => ({ ...p, [linkId]: pickOf(linkId, runId) }));
-      setPanel({ linkId, ...(linkId ? {} : { runId }), ...target(v, null, dflt), role: v.role ?? "executor", focus });
+      setPanel({ linkId, ...(linkId ? {} : { runId }), ...target(dflt && !v.tab && !v.section ? { ...v, tab: "work" } : v, null, dflt), role: v.role ?? "executor", focus });
     },
     closePanel: () => setPanel(null),
     // The native browser view composites above the DOM; it hides while one of these is open.
