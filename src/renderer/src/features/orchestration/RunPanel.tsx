@@ -2031,8 +2031,11 @@ function Form({ title, hint, attrs, children }: { title: string; hint?: string; 
   const id = useId(), hintId = `${id}-hint`;
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const at = document.activeElement;
-    if (at && at !== document.body && !box.current?.contains(at) && /^(INPUT|TEXTAREA|SELECT)$/.test(at.tagName)) return; // the person is typing elsewhere
+    // take the focus only from nowhere or from the panel itself, never from the person's work elsewhere (a terminal, a tab,
+    // another field) and never from a field they are typing in
+    const at = document.activeElement as HTMLElement | null;
+    const editing = !!at && (/^(INPUT|TEXTAREA|SELECT)$/.test(at.tagName) || at.isContentEditable);
+    if (at && at !== document.body && (!box.current?.closest("aside")?.contains(at) || editing)) return;
     box.current?.querySelector<HTMLElement>(FIRST_CHOICE)?.focus({ preventScroll: true });
   }, []);
   return (
