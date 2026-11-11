@@ -16,6 +16,10 @@ const OUT = path.resolve(arg("out"));
 fs.mkdirSync(OUT, { recursive: true });
 const BEFORE = process.argv.includes("--before");
 const ONLY = arg("only");
+// R4.1: --forms draws only the states with a decision form, in the themes of --themes (default sand,bay), each also at --ui-scale 1.25
+const FORMS = process.argv.includes("--forms");
+const THEMES = (arg("themes") ?? "sand,bay").split(",");
+const FORM_STATES = arg("states")?.split(",") ?? ["05-checks-decision", "06-checks-none", "07-limit-reached", "10-person-decision", "11-coverage-lost", "12-finish-confirmation", "14-check-needs-permissions"];
 
 const { TMP, D, project, script } = workspace("cto-r3bshots-");
 const PORT = 9500 + Math.floor(Math.random() * 250);
@@ -108,7 +112,9 @@ const fixtureOf = ([, set, o]) => {
     conditions: [{ id: "C2", text: "Интерфейс читаем при масштабе 1.25", stage: 1 }], proposal: null } }), entries: [], onMac: true };
   if (set === "coverage_lost") return { view: view("paused", set, { stage: 1, decisions: { runKey: "k".repeat(64), tree: "t".repeat(40), disputed: [], conditions: [], findings: false,
     proposal: { proposalTurnId: "t1", stages: [{ stage: 1, title: "Заметка", conditions: ["C1"] }], dropped: [{ id: "C2", text: "Работает без сети", covers: ["R2"], why: "лид счёл условие избыточным" }],
-      dropRequirements: [], uncovered: ["R2"], findings: [] } } }), entries: [], onMac: true };
+      dropRequirements: [], uncovered: ["R2"], findings: [{ id: "F2", condition: "C2", problem: "Нет теста на удаление заметки" }] } } }), entries: [], onMac: true };
+  if (set === "awaiting_finish_confirmation") return { ...fixture(set), view: { ...fixture(set).view, confirm: { tree: "t".repeat(40), commit: "c0ffee1234567890".repeat(2).slice(0, 40), push: true, qa: true } } };
+  if (set === "check_needs_permissions") return { ...fixture(set), view: { ...fixture(set).view, refused: { checkId: "c1", command: "npm test -- --runInBand && curl http://localhost:3000/health" } } };
   if (set) return fixture(set === "finish_unconfirmed" ? "awaiting_finish_confirmation" : set);
   if (o.running) return { view: view("running", null, o.running), entries: [], onMac: true };
   if (o.completed) return { view: view("completed", null, { stage: 1, completion: { kind: "confirmed" } }), entries: [], onMac: true };
@@ -117,7 +123,7 @@ const fixtureOf = ([, set, o]) => {
 
 const combos = BEFORE ? [{ name: "before", patch: { palette: "sand", canvasColor: "theme" } }]
   : ["sand", "bay"].map((t) => ({ name: t, patch: { palette: t, canvasColor: "theme" } }));
-const laptop = (app) => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+const laptop = (app) => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: Number(arg("height") ?? 900), deviceScaleFactor: 1, mobile: false });
 let app;
 try {
   app = await launch({ userData: D("user-data"), providers, port: PORT, shots: OUT });
@@ -171,15 +177,15 @@ try {
       await sleep(900);
       await shot(`${theme}${scale === 1 ? "" : "-scale125"}`, `fx-${name}`);
     };
-    const todo = BEFORE ? STATES.filter((s) => ["02-awaiting-answer", "07-limit-reached", "10-person-decision", "17-completed"].includes(s[0])) : STATES;
-    for (const theme of BEFORE ? ["sand"] : ["sand", "bay"]) {
+    const todo = FORMS ? STATES.filter((s) => FORM_STATES.includes(s[0])) : BEFORE ? STATES.filter((s) => ["02-awaiting-answer", "07-limit-reached", "10-person-decision", "17-completed"].includes(s[0])) : STATES;
+    for (const theme of BEFORE ? ["sand"] : THEMES) {
       for (const s of todo) {
         let html;
         try { html = render(fixtureOf(s)); } catch (e) { console.error(`[shots-r3b] ${s[0]} not drawn: ${e.message}`); continue; }
         await draw(s[0], html, theme === "sand" && BEFORE ? "sand" : theme, 1);
       }
     }
-    if (!BEFORE) for (const name of ["07-limit-reached", "10-person-decision", "11-coverage-lost", "05-checks-decision"]) {
+    if (!BEFORE) for (const name of FORMS ? FORM_STATES : ["07-limit-reached", "10-person-decision", "11-coverage-lost", "05-checks-decision"]) {
       const s = STATES.find((x) => x[0] === name);
       await draw(name, render(fixtureOf(s)), "sand", 1.25);
     }

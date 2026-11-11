@@ -2,7 +2,7 @@
 // words, who works on which stage, why it is paused, the next step, the question with its answer field and the commands
 // this state allows — and below it tabs: overview, the live activity of one participant, changes, the technical log,
 // the journal's history. Nothing is shown as done before main answers.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { LocaleId } from "../../../../shared/contracts";
 import type {
   OrchestrationActivityEntry,
@@ -813,6 +813,8 @@ type GoalJson = { text?: unknown; criteria?: unknown; commands?: unknown };
 function parseGoal(text: string): GoalJson | null {
   try { const v = JSON.parse(text) as unknown; return v && typeof v === "object" ? v as GoalJson : null; } catch { return null; }
 }
+// R4.1: what takes focus when a decision form appears: its first field or choice
+const FIRST_CHOICE = "input:not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled)";
 const fill = (s: string, vars: Record<string, string | number>): string => Object.entries(vars).reduce((a, [k, v]) => a.replaceAll(`{${k}}`, String(v)), s);
 
 function RunSummary({ orch, runId, view, records, locale, changedFiles, gaps, incomplete, onFinding }: {
@@ -1513,6 +1515,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
   }, [takeable, runId, revision]);
   const summary = useRef<HTMLElement>(null);
   const answerBox = useRef<HTMLTextAreaElement>(null);
+  const answerId = useId();
   const [flash, setFlash] = useState(false);
 
   useEffect(() => {
@@ -1526,7 +1529,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
   // answer field first when a question waits. Nothing else is scrolled: the reader's place in a tab stays.
   // biome-ignore lint/correctness/useExhaustiveDependencies: panel.focus is the trigger: every open focuses the summary
   useEffect(() => {
-    (answerBox.current ?? summary.current)?.focus({ preventScroll: true });
+    (answerBox.current ?? summary.current?.querySelector<HTMLElement>(`[data-orch-form] :is(${FIRST_CHOICE})`) ?? summary.current)?.focus({ preventScroll: true });
     summary.current?.scrollIntoView({ block: "nearest" });
     setFlash(true);
     const id = window.setTimeout(() => setFlash(false), 1200);
@@ -1736,13 +1739,15 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
                 onDecide={(decision, extra) => void send("permission", { requestId: view.permission!.requestId, decision, ...extra })} />
             )}
             {has("answer") && d.question && (
-              <div className="orch-question" data-orch-question data-orch-form>
-                <h4>{t(locale, "orchQuestion")}</h4>
-                <p className="orch-panel__text">{questionText ?? t(locale, "orchLoading")}</p>
-                <textarea ref={answerBox} rows={3} value={answer} placeholder={t(locale, "orchAnswerPlaceholder")} onChange={(e) => setAnswer(e.target.value)} />
-                <button type="button" className="orch-primary" data-orch-primary="answer" disabled={sending || !answer.trim() || off("answer")}
-                  onClick={() => void send("answer", { questionId: d.question!.questionId, text: answer.trim() }, () => setAnswer(""))}>{t(locale, "orchAnswer")}</button>
-              </div>
+              <section className="orch-question orch-form-card" aria-labelledby={`${answerId}-q`} data-orch-question data-orch-form>
+                <h4 id={`${answerId}-q`}>{t(locale, "orchQuestion")}</h4>
+                <p className="orch-panel__text" id={`${answerId}-t`}>{questionText ?? t(locale, "orchLoading")}</p>
+                <textarea ref={answerBox} rows={3} value={answer} placeholder={t(locale, "orchAnswerPlaceholder")} aria-labelledby={`${answerId}-t`} onChange={(e) => setAnswer(e.target.value)} />
+                <div className="orch-panel__actions orch-form__foot" data-orch-form-foot>
+                  <button type="button" className="orch-primary" data-orch-primary="answer" disabled={sending || !answer.trim() || off("answer")}
+                    onClick={() => void send("answer", { questionId: d.question!.questionId, text: answer.trim() }, () => setAnswer(""))}>{t(locale, "orchAnswer")}</button>
+                </div>
+              </section>
             )}
             {has("checks_decide") && view.proposal && (
               <ChecksDecision key={view.revision} locale={locale} proposal={view.proposal} sending={sending || off("checks_decide")}
@@ -2019,6 +2024,27 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
     </aside>
   );
 }
+// R4.1: the shell of a decision form — a titled group (the question the person answers, then its context, then the
+// choices), the first choice takes focus when the form appears, and the form ends in one pinned row (FormFoot).
+type FormAttrs = Record<string, string | boolean>;
+function Form({ title, hint, attrs, children }: { title: string; hint?: string; attrs: FormAttrs; children: React.ReactNode }): React.JSX.Element {
+  const id = useId(), hintId = `${id}-hint`;
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const at = document.activeElement;
+    if (at && at !== document.body && !box.current?.contains(at) && /^(INPUT|TEXTAREA|SELECT)$/.test(at.tagName)) return; // the person is typing elsewhere
+    box.current?.querySelector<HTMLElement>(FIRST_CHOICE)?.focus({ preventScroll: true });
+  }, []);
+  return (
+    <section ref={box} className="orch-question orch-form-card" aria-labelledby={id} aria-describedby={hint ? hintId : undefined} data-orch-form {...attrs}>
+      <h4 id={id}>{title}</h4>
+      {hint && <p className="orch-hint" id={hintId}>{hint}</p>}
+      {children}
+    </section>
+  );
+}
+const FormFoot = ({ children }: { children: React.ReactNode }): React.JSX.Element => <div className="orch-panel__actions orch-form__foot" data-orch-form-foot>{children}</div>;
+
 // Journal v2 (journal-v2-format.md §2.4): the lead's proposed check commands — «Принять» as they are, or «Изменить»
 // to the person's own lines. Nothing runs before the decision; it is made once.
 function ChecksDecision({ locale, proposal, sending, onDecide }: {
@@ -2028,32 +2054,32 @@ function ChecksDecision({ locale, proposal, sending, onDecide }: {
   const [editing, setEditing] = useState(none);
   const [text, setText] = useState(proposal.checks.map((c) => c.command).join("\n"));
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const editId = useId();
   return (
-    <div className="orch-question" data-orch-checks-proposal data-orch-form>
-      <h4>{t(locale, "orchChecksProposalTitle")}</h4>
+    <Form title={t(locale, "orchChecksProposalTitle")} attrs={{ "data-orch-checks-proposal": true }}>
       {none
         ? <>
           <p className="orch-panel__text" data-orch-checks-none>{t(locale, "orchChecksProposalNone")}: {proposal.none}</p>
           <p className="orch-hint">{t(locale, "orchChecksProposalNoneHint")}</p>
         </>
-        : <ol data-orch-checks-list>{proposal.checks.map((c) => (
-          <li key={c.id}><code>{c.command}</code> — {c.why}{c.source.length > 0 && <small> ({t(locale, "orchChecksSource")}: {c.source.join(", ")})</small>}</li>
+        : <ol className="orch-items" data-orch-checks-list>{proposal.checks.map((c) => (
+          <li key={c.id} className="orch-item"><code>{c.command}</code><span className="orch-hint">{c.why}{c.source.length > 0 && <small> ({t(locale, "orchChecksSource")}: {c.source.join(", ")})</small>}</span></li>
         ))}</ol>}
       {editing && (
         <label className="orch-field">
-          <textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} data-orch-checks-edit />
-          <small className="orch-hint">{t(locale, "orchChecksEditHint")}</small>
+          <textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} data-orch-checks-edit aria-describedby={editId} />
+          <small className="orch-hint" id={editId}>{t(locale, "orchChecksEditHint")}</small>
         </label>
       )}
-      <div className="orch-panel__row">
+      <FormFoot>
         {/* none proposed: «Save commands» is the main button (off while the list is empty); going on without checks is dangerous and asks first */}
         {!editing && <button type="button" className="orch-primary" disabled={sending} data-orch-primary="checks_accept" data-orch-checks-accept onClick={() => onDecide(null)}>{t(locale, "orchZone_acceptChecks")}</button>}
         {!editing && <button type="button" disabled={sending} data-orch-checks-edit-open onClick={() => setEditing(true)}>{t(locale, "orchChecksEdit")}</button>}
         {editing && <button type="button" className="orch-primary" disabled={sending || lines.length === 0 || lines.length > 16} data-orch-primary="checks_edit" data-orch-checks-save onClick={() => onDecide(lines)}>{t(locale, "orchChecksSave")}</button>}
         {none && <DangerConfirm locale={locale} label={t(locale, "orchChecksNoChecks")} text={t(locale, "orchZone_confirmNoChecks")} disabled={sending}
           attr={{ "data-orch-checks-accept": true }} onConfirm={() => onDecide(null)} />}
-      </div>
-    </div>
+      </FormFoot>
+    </Form>
   );
 }
 
@@ -2064,26 +2090,26 @@ function CheckRefused({ locale, refused, sending, onAmend }: {
 }): React.JSX.Element {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(refused.command);
+  const editId = useId();
   return (
-    <div className="orch-question" data-orch-check-refused={refused.checkId} data-orch-form>
-      <h4>{t(locale, "orchCheckRefusedTitle")}</h4>
-      <p><code>{refused.command}</code></p>
-      <p className="orch-hint">{t(locale, "orchCheckRefusedText")}</p>
+    <Form title={t(locale, "orchCheckRefusedTitle")} hint={t(locale, "orchCheckRefusedText")} attrs={{ "data-orch-check-refused": refused.checkId }}>
+      <p className="orch-item"><code>{refused.command}</code></p>
       {/* the whole command, never shortened; saving it unchanged is the person's decision too (S1-4) */}
       {editing && <label className="orch-field">
-        <textarea rows={Math.min(8, refused.command.split("\n").length + 2)} value={text} onChange={(e) => setText(e.target.value)} data-orch-check-refused-line />
-        <small className="orch-hint">{t(locale, "orchCheckRefusedEditHint")}</small>
+        <textarea rows={Math.min(8, refused.command.split("\n").length + 2)} value={text} onChange={(e) => setText(e.target.value)} data-orch-check-refused-line aria-describedby={editId} />
+        <small className="orch-hint" id={editId}>{t(locale, "orchCheckRefusedEditHint")}</small>
       </label>}
-      <div className="orch-panel__row">
-        {!editing && <button type="button" className="orch-primary" disabled={sending} data-orch-check-edit-open onClick={() => setEditing(true)}>{t(locale, "orchCheckRefusedEdit")}</button>}
-        {editing && <button type="button" className="orch-primary" disabled={sending || text.trim() === ""} data-orch-check-edit-save onClick={() => onAmend(text.trim())}>{t(locale, "orchCheckRefusedSave")}</button>}
-      </div>
-    </div>
+      <FormFoot>
+        {!editing && <button type="button" className="orch-primary" disabled={sending} data-orch-primary="check_amend" data-orch-check-edit-open onClick={() => setEditing(true)}>{t(locale, "orchCheckRefusedEdit")}</button>}
+        {editing && <button type="button" className="orch-primary" disabled={sending || text.trim() === ""} data-orch-primary="check_amend" data-orch-check-edit-save onClick={() => onAmend(text.trim())}>{t(locale, "orchCheckRefusedSave")}</button>}
+      </FormFoot>
+    </Form>
   );
 }
 
 // Journal v2 (§2.1): push and QA of a run without checks — every step the goal asked for decided at once, for the tree
 // and commit shown; each is decided on its own (owner's decision 5i §7 p. 3), with a warning for QA of an unpushed commit.
+// Each choice is a card: its name and what it means for the work.
 function FinishConfirm({ locale, confirm, sending, onConfirm }: {
   locale: LocaleId; confirm: NonNullable<OrchestrationRunView["confirm"]>; sending: boolean;
   onConfirm(push: "confirm" | "decline" | null, qa: "confirm" | "decline" | null): void;
@@ -2094,42 +2120,47 @@ function FinishConfirm({ locale, confirm, sending, onConfirm }: {
   const choice = (step: "push" | "qa", value: "confirm" | "decline" | null, set: (v: "confirm" | "decline") => void) => (
     <fieldset className="orch-field orch-finish-group" data-orch-finish-step={step}>
       <legend>{t(locale, step === "push" ? "orchFinishGroup_push" : "orchFinishGroup_qa")}</legend>
-      {(["confirm", "decline"] as const).map((v) => (
-        <label key={v} className="orch-check">
-          <input type="radio" name={`orch-finish-${step}`} checked={value === v} onChange={() => set(v)} data-orch-finish-choice={`${step}:${v}`} />
-          <span>{t(locale, step === "push" ? (v === "confirm" ? "orchFinishConfirmPush" : "orchFinishDeclinePush") : v === "confirm" ? "orchFinishConfirmQa" : "orchFinishDeclineQa")}</span>
-        </label>
-      ))}
+      <div className="orch-cards">
+        {(["confirm", "decline"] as const).map((v) => (
+          <label key={v} className="orch-check orch-card">
+            <input type="radio" name={`orch-finish-${step}`} checked={value === v} onChange={() => set(v)} data-orch-finish-choice={`${step}:${v}`} />
+            <span className="orch-card__name">{t(locale, step === "push" ? (v === "confirm" ? "orchFinishConfirmPush" : "orchFinishDeclinePush") : v === "confirm" ? "orchFinishConfirmQa" : "orchFinishDeclineQa")}</span>
+            <small className="orch-card__effect">{t(locale, `orchFinishEffect_${step}_${v}` as TranslationKey)}</small>
+          </label>
+        ))}
+      </div>
     </fieldset>
   );
   return (
-    <div className="orch-question" data-orch-finish-confirm data-orch-form>
-      <h4>{t(locale, "orchFinishConfirmTitle")}</h4>
+    <Form title={t(locale, "orchFinishConfirmTitle")} attrs={{ "data-orch-finish-confirm": true }}>
       <p className="dialog-error" data-orch-finish-no-checks>{t(locale, "orchFinishConfirmNoChecks")}</p>
       {confirm.commit && <p className="orch-hint">commit <code>{confirm.commit.slice(0, 12)}</code></p>}
       {confirm.push && confirm.qa && <p className="orch-hint" data-orch-finish-independent>{t(locale, "orchFinishIndependent")}</p>}
       {confirm.push && choice("push", push, setPush)}
       {confirm.qa && choice("qa", qa, setQa)}
       {qa === "confirm" && push === "decline" && <p className="dialog-error" data-orch-qa-unpushed>{t(locale, "orchFinishConfirmQaUnpushed")}</p>}
-      <button type="button" className="orch-primary" disabled={sending || !ready} data-orch-finish-submit
-        onClick={() => onConfirm(confirm.push ? push : null, confirm.qa ? qa : null)}>{t(locale, "orchFinishConfirmSubmit")}</button>
-    </div>
+      <FormFoot>
+        <button type="button" className="orch-primary" disabled={sending || !ready} data-orch-primary="finish_confirm" data-orch-finish-submit
+          onClick={() => onConfirm(confirm.push ? push : null, confirm.qa ? qa : null)}>{t(locale, "orchFinishConfirmSubmit")}</button>
+      </FormFoot>
+    </Form>
   );
 }
 
 // A4 (5h §3.5, §4; journal-v2-format.md §2.9): the person's decision on awaiting_person_decision — a disputed item (both
 // texts and paths: a new defect or a repeat of a closed candidate) and a person condition (met / not met). Each about
-// the state shown (runKey); the run goes on by itself after it.
+// the state shown (runKey); the run goes on by itself after it. A choice sends its decision at once (one command per
+// item), so the choices are equal buttons: there is no default to press, and so no main button.
 function PersonDecide({ locale, d, sending, onDecide }: {
   locale: LocaleId; d: OrchestrationDecisions; sending: boolean; onDecide(person: Omit<OrchestrationPersonDecide, "kind">): void;
 }): React.JSX.Element {
+  const uid = useId();
   return (
-    <div className="orch-question" data-orch-person-decide data-orch-form>
-      <h4>{t(locale, "orchPersonTitle")}</h4>
-      {d.disputed.map((x) => (
-        <div key={`${x.reviewTurnId}:${x.index}`} data-orch-disputed={`${x.reviewTurnId}:${x.index}`}>
-          <p>{t(locale, "orchDisputedItem")}</p>
-          <p className="orch-hint" data-orch-disputed-consequence>{t(locale, "orchDisputedConsequence")}</p>
+    <Form title={t(locale, "orchPersonTitle")} attrs={{ "data-orch-person-decide": true }}>
+      {d.disputed.map((x, i) => (
+        <section key={`${x.reviewTurnId}:${x.index}`} className="orch-item" aria-labelledby={`${uid}-d${i}`} aria-describedby={`${uid}-c${i}`} data-orch-disputed={`${x.reviewTurnId}:${x.index}`}>
+          <p className="orch-item__ask" id={`${uid}-d${i}`}>{t(locale, "orchDisputedItem")}</p>
+          <p className="orch-hint" id={`${uid}-c${i}`} data-orch-disputed-consequence>{t(locale, "orchDisputedConsequence")}</p>
           <div className="orch-seen">
             <div data-orch-disputed-now>
               <p className="orch-panel__text"><b>{t(locale, "orchDisputedNow")}</b> {x.problem}</p>
@@ -2148,8 +2179,8 @@ function PersonDecide({ locale, d, sending, onDecide }: {
             })}
           </div>
           <p className="orch-hint" data-orch-disputed-how>{t(locale, "orchDisputedHow")}</p>
-          <div className="orch-panel__actions">
-            <button type="button" className="orch-primary" disabled={sending} data-orch-disputed-new
+          <div className="orch-panel__actions orch-choices">
+            <button type="button" disabled={sending} data-orch-disputed-new
               onClick={() => onDecide({ subject: "disputed", target: { reviewTurnId: x.reviewTurnId, index: x.index }, decision: "new", finding: null, runKey: d.runKey })}>
               {t(locale, "orchDisputedNew")}</button>
             {x.candidates.map((c) => (
@@ -2158,20 +2189,20 @@ function PersonDecide({ locale, d, sending, onDecide }: {
                 {fill(t(locale, "orchDisputedRepeat"), { n: idNumber(c.id) })}</button>
             ))}
           </div>
-        </div>
+        </section>
       ))}
       {d.conditions.map((c) => (
-        <div key={c.id} data-orch-person-condition={c.id}>
-          <p><b title={c.id}>{fill(t(locale, "orchPersonCondition"), { n: idNumber(c.id) })}</b>: {c.text}</p>
-          <div className="orch-panel__actions">
-            <button type="button" className="orch-primary" disabled={sending} data-orch-person-met
+        <section key={c.id} className="orch-item" aria-labelledby={`${uid}-k${c.id}`} data-orch-person-condition={c.id}>
+          <p className="orch-item__ask" id={`${uid}-k${c.id}`}><b title={c.id}>{fill(t(locale, "orchPersonCondition"), { n: idNumber(c.id) })}</b>: {c.text}</p>
+          <div className="orch-panel__actions orch-choices">
+            <button type="button" disabled={sending} data-orch-person-met
               onClick={() => onDecide({ subject: "condition", target: c.id, decision: "met", finding: null, runKey: d.runKey })}>{t(locale, "orchPersonMet")}</button>
             <button type="button" disabled={sending} data-orch-person-not-met
               onClick={() => onDecide({ subject: "condition", target: c.id, decision: "not_met", finding: null, runKey: d.runKey })}>{t(locale, "orchPersonNotMet")}</button>
           </div>
-        </div>
+        </section>
       ))}
-    </div>
+    </Form>
   );
 }
 
@@ -2185,22 +2216,22 @@ function PlanProposal({ locale, d, sending, onDecide }: {
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [note, setNote] = useState("");
   const ready = p.findings.every((f) => choices[f.id]);
+  const waitId = useId();
   const choiceOf = (id: string): OrchestrationPlanChoice => {
     const v = choices[id];
     return v === "close" || v === "to_wish" ? { id, choice: v, stage: null, condition: null } : { id, choice: "move", stage: Number(v.slice(6)), condition: null };
   };
   return (
-    <div className="orch-question" data-orch-plan-proposal={p.proposalTurnId} data-orch-form>
+    <Form title={t(locale, "orchProposalTitle")} attrs={{ "data-orch-plan-proposal": p.proposalTurnId }}>
       {/* UX audit PR 2: what the decision is about stays in view while its choices scroll */}
       <div className="orch-proposal__head" data-orch-proposal-head>
-        <h4>{t(locale, "orchProposalTitle")}</h4>
-        <ul>
+        <ul className="orch-items">
           {p.dropped.map((x) => (
-            <li key={x.id} data-orch-proposal-drop={x.id}><b title={x.id}>{fill(t(locale, "orchProposalCondition"), { n: idNumber(x.id) })}</b>: {x.text}
+            <li key={x.id} className="orch-item" data-orch-proposal-drop={x.id}><b title={x.id}>{fill(t(locale, "orchProposalCondition"), { n: idNumber(x.id) })}</b>: {x.text}
               {x.covers.length > 0 && <span className="orch-hint"> · {x.covers.join(", ")}</span>}<br /><span className="orch-hint">{fill(t(locale, "orchProposalWhy"), { why: x.why })}</span></li>
           ))}
           {p.dropRequirements.map((x) => (
-            <li key={x.id} data-orch-proposal-drop={x.id}><b title={x.id}>{fill(t(locale, "orchProposalRequirement"), { n: idNumber(x.id) })}</b>: {x.text}
+            <li key={x.id} className="orch-item" data-orch-proposal-drop={x.id}><b title={x.id}>{fill(t(locale, "orchProposalRequirement"), { n: idNumber(x.id) })}</b>: {x.text}
               <br /><span className="orch-hint">{fill(t(locale, "orchProposalWhy"), { why: x.why })}</span></li>
           ))}
         </ul>
@@ -2210,7 +2241,7 @@ function PlanProposal({ locale, d, sending, onDecide }: {
       {p.findings.length > 0 && <>
         <p><b>{t(locale, "orchProposalFindings")}</b></p>
         {p.findings.map((f) => (
-          <label key={f.id} className="orch-field" data-orch-proposal-finding={f.id}>
+          <label key={f.id} className="orch-field orch-item" data-orch-proposal-finding={f.id}>
             <span><IdLabel locale={locale} id={f.id} /> (<IdLabel locale={locale} id={f.condition} plain />): {f.problem}</span>
             <select value={choices[f.id] ?? ""} onChange={(e) => setChoices((c) => ({ ...c, [f.id]: e.target.value }))}>
               <option value="" disabled>{t(locale, "orchProposalChoose")}</option>
@@ -2223,16 +2254,18 @@ function PlanProposal({ locale, d, sending, onDecide }: {
       </>}
       {/* UX audit: the safe choice first and main — the plan in force stays; accepting drops what is no longer checked.
           Both in one row, so neither scrolls under the pinned subject while the other is in view (PR 2) */}
-      <textarea rows={2} value={note} placeholder={t(locale, "orchProposalNote")} onChange={(e) => setNote(e.target.value)} data-orch-proposal-note />
+      <textarea rows={2} value={note} placeholder={t(locale, "orchProposalNote")} aria-label={t(locale, "orchProposalNote")} onChange={(e) => setNote(e.target.value)} data-orch-proposal-note />
       <p className="orch-hint">{t(locale, "orchProposalKeeps")}</p>
       <p className="orch-hint orch-hint--warn" data-orch-proposal-accept-warn>{t(locale, "orchProposalAcceptWarn")}</p>
-      <div className="orch-panel__actions">
+      {!ready && <p className="orch-hint" id={waitId} data-orch-proposal-pick>{t(locale, "orchProposalPickFirst")}</p>}
+      <FormFoot>
         <button type="button" className="orch-primary" disabled={sending} data-orch-primary="plan_return" data-orch-proposal-return
           onClick={() => onDecide({ proposalTurnId: p.proposalTurnId, decision: "return", choices: [], note: note.trim() || null, runKey: d.runKey })}>
           {t(locale, "orchProposalReturn")}</button>
-        <DangerConfirm locale={locale} label={t(locale, "orchProposalAcceptDrop")} text={t(locale, "orchProposalAcceptWarn")} disabled={sending || !ready} attr={{ "data-orch-proposal-accept": true }}
+        <DangerConfirm locale={locale} label={t(locale, "orchProposalAcceptDrop")} text={t(locale, "orchProposalAcceptWarn")} disabled={sending || !ready}
+          attr={{ "data-orch-proposal-accept": true, ...(ready ? {} : { "aria-describedby": waitId }) }}
           onConfirm={() => onDecide({ proposalTurnId: p.proposalTurnId, decision: "accept", choices: p.findings.map((f) => choiceOf(f.id)), note: null, runKey: d.runKey })} />
-      </div>
-    </div>
+      </FormFoot>
+    </Form>
   );
 }
