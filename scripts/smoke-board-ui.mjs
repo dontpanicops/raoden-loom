@@ -90,12 +90,12 @@ async function newTask({ title, text, criteria, after = [] }) {
 }
 async function startFromBoard(key, commands, shot) {
   await app.clickEl(`${q(task(key))}.querySelector("[data-board-start]")`);
-  await app.waitFor(`${q(".orch-dialog textarea")} && true`, "goal dialog");
+  await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
   await app.waitFor(`${q("[data-orch-profile]")} && ${q("[data-orch-profile]")}.dataset.orchProfile !== "loading"`, "project settings", 20_000);
   if (shot) { await app.ev(`${q(".orch-dialog")}.scrollTop = 0`); await app.shot(shot); }
   const filled = await app.ev(`({ task: ${q("[data-goal-task]")}?.dataset.goalTask ?? null, text: document.querySelectorAll(".orch-dialog textarea")[0].value,
-    criteria: document.querySelectorAll(".orch-dialog textarea")[1].value })`);
-  await app.type(q("[data-orch-commands]"), commands.join("\n"));
+    criteria: [...document.querySelectorAll("[data-orch-requirements] input")].map((i) => i.value).filter(Boolean).join("\\n") })`);
+  await app.fillRows(q("[data-orch-commands]"), commands);
   const mode = await app.ev(`${q("[data-orch-workmode]")}?.dataset.orchWorkmode`);
   if (mode !== "project") {
     await app.ev(`${q(".orch-dialog .orch-advanced")}.open = true`);

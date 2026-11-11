@@ -14,7 +14,7 @@ import { ProjectSettings } from "./ProjectSettings";
 import { NO_MODELS, RoleModelsField } from "./RoleModels";
 import { profileGoal } from "../../../../shared/taskBoard";
 import { Differences, RunPanel, Termed } from "./RunPanel";
-import { accessProblemText, commandLike, dirtyInPlace, failingOnSource, liveRuns, shownRunId } from "./runModel";
+import { accessProblemText, commandLike, dirtyInPlace, failingOnSource, goalLines, goalRows, liveRuns, shownRunId } from "./runModel";
 import type { AgentCanvasUi } from "./useAgentCanvasUi";
 import { outcomeText, type Orchestration } from "./useOrchestration";
 
@@ -268,6 +268,55 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
 }
 
 // The project profile of a link's lead project (stage 13): loaded when the dialog opens, saved from the settings.
+// R5f (D-023): requirements and check commands as rows (the text stays the state, one line per row). Requirements keep an
+// always-present empty input at the end; commands add a row with the "+" button. Enter on the last row goes to / adds the
+// next one, Backspace in an empty row removes it and focuses the previous.
+function GoalRows({ text, onText, locale, attr, placeholder, mono = false, addLabel }: {
+  text: string; onText: (text: string) => void; locale: LocaleId; attr: string; placeholder: string; mono?: boolean; addLabel?: string;
+}): React.JSX.Element {
+  const trailing = !addLabel;
+  const stored = goalRows(text, trailing);
+  const rows = trailing ? [...stored, ""] : stored;
+  const root = useRef<HTMLDivElement>(null);
+  const focusAt = useRef<number | null>(null);
+  const focus = (i: number) => root.current?.querySelectorAll<HTMLInputElement>("[data-orch-row] input")[i]?.focus();
+  useEffect(() => {
+    if (focusAt.current === null) return;
+    focus(focusAt.current);
+    focusAt.current = null;
+  });
+  const put = (next: string[], focus?: number) => { focusAt.current = focus ?? null; onText(next.join("\n")); };
+  const onKey = (event: React.KeyboardEvent<HTMLInputElement>, i: number) => {
+    if (event.key === "Enter") {
+      event.preventDefault(); // Enter is a row's end, not the form's submit
+      if (!rows[i]?.trim()) return;
+      if (i < rows.length - 1) focus(i + 1); // the trailing input or the next row
+      else put([...stored, ""], i + 1);
+    } else if (event.key === "Backspace" && rows[i] === "" && rows.length > 1 && !(trailing && i === rows.length - 1 && stored.length === 0)) {
+      event.preventDefault();
+      if (trailing && i === rows.length - 1) { focus(i - 1); return; }
+      put(stored.filter((_, k) => k !== i), Math.max(0, i - 1));
+    }
+  };
+  return (
+    <div className="orch-rows" {...{ [attr]: "" }} ref={root}>
+      {rows.map((row, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional; the trailing input keeps its element (and focus) when it becomes a row
+        <div className="orch-rows__row" key={i} data-orch-row>
+          <input type="text" value={row} spellCheck={false} placeholder={i === rows.length - 1 && (trailing || !row) ? placeholder : undefined}
+            className={mono ? "orch-rows__mono" : undefined} onKeyDown={(e) => onKey(e, i)}
+            onChange={(e) => { const next = [...stored]; next[i] = e.target.value; put(next); }} />
+          {(i < stored.length) && (
+            <button type="button" className="orch-rows__x" aria-label={t(locale, "orchGoalRowRemove")}
+              onClick={() => put(stored.filter((_, k) => k !== i), Math.max(0, i - 1))}>×</button>
+          )}
+        </div>
+      ))}
+      {addLabel && <button type="button" className="orch-rows__add" data-orch-add onClick={() => put([...stored, ""], stored.length)}>+ {addLabel}</button>}
+    </div>
+  );
+}
+
 function useProfile(linkId: string | undefined) {
   const [state, setState] = useState<{ kind: "loading" } | { kind: "error"; code: string } | { kind: "ready"; info: OrchestrationProfileInfo }>({ kind: "loading" });
   const [attempt, setAttempt] = useState(0);
@@ -339,7 +388,7 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
   }, [info]);
   if (!link || !lead) return null;
 
-  const commands = commandsText.split("\n").map((c) => c.trim()).filter(Boolean);
+  const commands = goalLines(commandsText);
   const canFinish = workMode !== "copy";
   // push and QA deliver this run's commit: ticking either takes the commit with it
   const chosen = canFinish ? { commit: finish.commit || finish.push || finish.qa, push: finish.push && !!info?.profile.finish.push, qa: finish.qa && !!info?.profile.finish.qa } : null;
@@ -348,7 +397,7 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
   const asked: OrchestrationGoalInput = {
     ...(optionalChecks ? { models } : {}),
     text: text.trim(),
-    criteria: criteria.split("\n").map((c) => c.trim()).filter(Boolean),
+    criteria: goalLines(criteria),
     checks: [], commands, workMode, mode,
     reviewPlan: mode === "steps" || reviewPlan,
     language: locale === "ru" ? "ru" : "en", // the agents write what the person reads in the interface's language
@@ -445,9 +494,9 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
           <span>{t(locale, "orchGoalTask")}</span>
           <textarea autoFocus rows={3} value={text} placeholder={t(locale, "orchGoalTaskPlaceholder")} onChange={(e) => setText(e.target.value)} />
         </label>
-        <label className="orch-field">
+        <div className="orch-field">
           <span>{t(locale, "orchGoalCriteria")}</span>
-          <textarea rows={3} value={criteria} placeholder={t(locale, "orchGoalCriteriaPlaceholder")} onChange={(e) => setCriteria(e.target.value)} />
+          <GoalRows text={criteria} onText={setCriteria} locale={locale} attr="data-orch-requirements" placeholder={t(locale, "orchGoalAddRequirement")} />
           {criteria.split("\n").some(commandLike) && (
             <small className="orch-hint orch-hint--warn" data-orch-req-command>
               {t(locale, "orchGoalReqLooksLikeCommand")}{" "}
@@ -459,15 +508,15 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
               }}>{t(locale, "orchGoalReqMove")}</button>
             </small>
           )}
-        </label>
-        <label className="orch-field">
+        </div>
+        <div className="orch-field">
           <span>{t(locale, "orchGoalCommands")}</span>
-          <textarea rows={2} value={commandsText} spellCheck={false} data-orch-commands placeholder={t(locale, "orchGoalCommandsPlaceholder")}
-            onChange={(e) => { edited.current = true; setCommandsText(e.target.value); }} />
+          <GoalRows text={commandsText} onText={(v) => { edited.current = true; setCommandsText(v); }} locale={locale} attr="data-orch-commands" mono
+            placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
           <small className="orch-hint">{t(locale, "orchGoalCommandsHint")}{commandsText.trim() && !edited.current ? ` ${t(locale, "orchGoalCommandsFilled")}` : ""}</small>
           {optionalChecks && <small className="orch-hint" data-orch-commands-optional>{t(locale, "orchCommandsOptional")}</small>}
           <small className="orch-hint" data-orch-commands-vs-req>{t(locale, "orchGoalCommandsVsReq")}</small>
-        </label>
+        </div>
         <div className="orch-goal__how">
           <fieldset className="orch-field orch-runmode" data-orch-runmode={mode}>
             <legend>{t(locale, "orchRunMode")}</legend>
@@ -499,7 +548,7 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
           accessOverride={accessOverride} onAccessOverride={setAccessOverride} onBlocker={setBlockedBy} onWorkMode={setWorkMode} onFailing={setFailing} checkSlot={footSlot}
           onFix={(target) => {
             if (target === "settings") { setSettingsOpen(true); return; }
-            const field = document.querySelector<HTMLTextAreaElement>(".orch-dialog [data-orch-commands]");
+            const field = document.querySelector<HTMLInputElement>(".orch-dialog [data-orch-commands] input");
             const fold = field?.closest("details");
             if (fold) fold.open = true;
             field?.scrollIntoView({ block: "center" });

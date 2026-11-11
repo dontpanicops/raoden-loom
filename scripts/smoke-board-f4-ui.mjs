@@ -224,9 +224,9 @@ async function openPanel(key) {
 const readyItem = (id) => app.ev(`(() => { const el = ${q(`[data-ready-id="${id}"]`)}; return el ? { level: el.dataset.readyLevel, text: el.textContent } : null; })()`);
 async function goalDialogReadiness(ms = 45_000) {
   await app.clickEl(byText(`[data-agent-link-id="${linkId}"] button`, "Новая цель"));
-  await app.waitFor(`${q(".orch-dialog textarea")} && true`, "goal dialog");
+  await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
   await app.type(`document.querySelectorAll(".orch-dialog textarea")[0]`, "a free run");
-  await app.type(`document.querySelectorAll(".orch-dialog textarea")[1]`, "free.txt says done");
+  await app.fillRows(q("[data-orch-requirements]"), "free.txt says done".split("\n"));
   await app.waitFor(`["ready", "confirm", "blocked", "error"].includes(${q("[data-orch-readiness]")}?.dataset.orchReadiness)`, "readiness", ms);
 }
 

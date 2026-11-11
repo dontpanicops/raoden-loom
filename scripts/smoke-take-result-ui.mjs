@@ -158,9 +158,9 @@ try {
   fs.appendFileSync(path.join(gamma, "README.md"), "\nmy edit\n");
   fs.writeFileSync(path.join(gamma, "draft.txt"), "draft\n");
   await app.clickEl(byText(`[data-agent-link-id="${linkC}"] button`, "Новая цель"));
-  await app.waitFor(`${q(".orch-dialog textarea")} && true`, "goal dialog");
+  await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
   await app.type(`document.querySelectorAll(".orch-dialog textarea")[0]`, "Добавить заметку");
-  await app.type(`document.querySelectorAll(".orch-dialog textarea")[1]`, "node --test passes");
+  await app.fillRows(q("[data-orch-requirements]"), "node --test passes".split("\n"));
   await app.waitFor(`!!${q("[data-orch-dirty]")}`, "the uncommitted-changes warning", 30_000);
   const dirty = await app.ev(`${q("[data-orch-dirty]")}.textContent`);
   expect(/незакоммиченные изменения \(2\)/.test(dirty) && /Безопаснее — отдельная копия/.test(dirty), "the warning with the number of changes", dirty);
@@ -177,12 +177,12 @@ try {
   const linkD = await pair(delta);
   const profD = await api(`o.profile(${JSON.stringify(linkD)})`).then((v) => v.profile);
   await app.clickEl(byText(`[data-agent-link-id="${linkD}"] button`, "Новая цель"));
-  await app.waitFor(`${q(".orch-dialog textarea")} && true`, "goal dialog D");
+  await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog D");
   await app.waitFor(`${q("[data-orch-profile]")}?.dataset.orchProfile !== "loading"`, "project settings D", 20_000);
   await app.type(`document.querySelectorAll(".orch-dialog textarea")[0]`, "Добавить заметку");
-  await app.type(`document.querySelectorAll(".orch-dialog textarea")[1]`, "node --test passes");
+  await app.fillRows(q("[data-orch-requirements]"), "node --test passes".split("\n"));
   const failing = "node -e \"console.error('lint: 3 problems'); process.exit(1)\"";
-  await app.type(q("[data-orch-commands]"), `node --test\n${failing}`);
+  await app.fillRows(q("[data-orch-commands]"), (`node --test\n${failing}`).split("\n"));
   await app.waitFor(`["ready", "confirm", "blocked"].includes(${q("[data-orch-readiness]")}?.dataset.orchReadiness)`, "light readiness", 30_000);
   await app.clickEl(q("[data-orch-check-now]"));
   await app.waitFor(`${q("[data-orch-readiness]")}?.dataset.orchChecked === "full"`, "check now", 120_000);

@@ -99,8 +99,8 @@ try {
     let models = null;
     await startGoal(app, ids.link, {
       onDialog: async () => {
-        await app.type(q("[data-orch-commands]"), "");
-        dialog = await app.ev(`({ hint: !!${q("[data-orch-commands-optional]")}, value: ${q("[data-orch-commands]")}.value })`);
+        await app.fillRows(q("[data-orch-commands]"), []);
+        dialog = await app.ev(`({ hint: !!${q("[data-orch-commands-optional]")}, value: [...${q("[data-orch-commands]")}.querySelectorAll("input")].map((i) => i.value).join("\\n") })`);
         await app.shot("v2-01-dialog-empty-commands");
         // the model of each role (journal v2): Codex's list from model/list (no hidden one), Claude's aliases and «Другая»
         await app.waitFor(`${q('[data-orch-codex-models="ok"]')} && true`, "the Codex model list");
@@ -160,7 +160,7 @@ try {
   const outside = D("outside-marker");
   await scenario("refused", 9900 + Math.floor(Math.random() * 90), { MOCK_CHECKS: "proposed", MOCK_CHECK_COMMAND: `test -f src/note.mjs && touch ${outside}` },
     [change("src/note.mjs exists", ["R1"]), byCheck("the proposed check passes", ["R2"], "cmd-1")], async (app, ids) => {
-    await startGoal(app, ids.link, { onDialog: () => app.type(q("[data-orch-commands]"), "") });
+    await startGoal(app, ids.link, { onDialog: () => app.fillRows(q("[data-orch-commands]"), []) });
     await app.waitFor(`${q("[data-orch-check-refused]")} && true`, "«Проверке нужно больше прав»", 120_000);
     const panel = await app.ev(`(() => { const p = ${q("[data-orch-check-refused]")}; return { id: p.dataset.orchCheckRefused, title: p.querySelector("h4").textContent,
       buttons: [...p.querySelectorAll("button")].map((b) => b.textContent.trim()), actions: [...document.querySelectorAll(".orch-panel__actions button, .orch-panel__foot button")].map((b) => b.textContent.trim()),
@@ -197,7 +197,7 @@ try {
   // =============== A3: findings of the reviewer ===============
   const C = [change("src/note.mjs exists", ["R1", "R2"])];
   await scenario("findings", 9700 + Math.floor(Math.random() * 90), { MOCK_CHECKS: "none" }, C, async (app, ids) => {
-    await startGoal(app, ids.link, { onDialog: () => app.type(q("[data-orch-commands]"), "") });
+    await startGoal(app, ids.link, { onDialog: () => app.fillRows(q("[data-orch-commands]"), []) });
     const runId = (await runs(app))[0].runId;
     await app.waitFor(`window.canvasTTY.orchestration.get(${JSON.stringify(runId)}).then((r) => r.value.view.status === "completed")`, "completed", 120_000);
     const cardLines = await app.ev(`[...document.querySelectorAll("[data-agent-findings]")].map((e) => e.textContent)`);
@@ -233,7 +233,7 @@ try {
 
   // a disputed item: the panel shows both findings; «Повтор F1» — refused (F1's files did not change), the run completes
   await scenario("disputed", 9600 + Math.floor(Math.random() * 90), { MOCK_CHECKS: "none" }, C, async (app, ids) => {
-    await startGoal(app, ids.link, { onDialog: () => app.type(q("[data-orch-commands]"), "") });
+    await startGoal(app, ids.link, { onDialog: () => app.fillRows(q("[data-orch-commands]"), []) });
     const runId = (await runs(app))[0].runId;
     await app.waitFor(`${q("[data-orch-person-decide]")} && true`, "the disputed item", 120_000);
     const shown = await app.ev(`({ item: ${q("[data-orch-disputed]")}.textContent, buttons: [...document.querySelectorAll("[data-orch-person-decide] button")].map((b) => b.textContent.trim()),
@@ -268,7 +268,7 @@ try {
   // a blocking finding made a wish on the pause of the rounds limit (one round per stage), from the result's «Замечания»
   await scenario("downgrade", 9500 + Math.floor(Math.random() * 90), { MOCK_CHECKS: "none" }, C, async (app, ids) => {
     await startGoal(app, ids.link, { onDialog: async () => {
-      await app.type(q("[data-orch-commands]"), "");
+      await app.fillRows(q("[data-orch-commands]"), []);
       await app.ev(`${q(".orch-dialog .orch-advanced")}.open = true`);
       await app.type(`document.querySelectorAll(".orch-dialog .orch-limits input[type=number]")[1]`, "1");
     } });
@@ -334,7 +334,7 @@ try {
   // a plan proposal dropping C2 and R2, accepted in the panel
   const C12 = [change("src/note.mjs exists", ["R1"]), change("node --test passes", ["R2"])];
   await scenario("drop", 9400 + Math.floor(Math.random() * 90), { MOCK_CHECKS: "none" }, C12, async (app, ids) => {
-    await startGoal(app, ids.link, { onDialog: () => app.type(q("[data-orch-commands]"), "") });
+    await startGoal(app, ids.link, { onDialog: () => app.fillRows(q("[data-orch-commands]"), []) });
     const runId = (await runs(app))[0].runId;
     await app.waitFor(`${q("[data-orch-plan-proposal]")} && true`, "the proposal", 120_000);
     const shown = await app.ev(`({ drops: [...document.querySelectorAll("[data-orch-proposal-drop]")].map((e) => e.dataset.orchProposalDrop + ":" + e.textContent.includes("WHY-")),
@@ -380,7 +380,7 @@ try {
         qa: { environment: "qa", command: ${JSON.stringify(`echo run >> ${qaLog}`)}, verify: "true" } } }); })()`);
     expect(saved?.ok === true, "finish (A4): push and QA set up for the project", saved);
     await startGoal(app, ids.link, { onDialog: async () => {
-      await app.type(q("[data-orch-commands]"), "");
+      await app.fillRows(q("[data-orch-commands]"), []);
       await app.ev(`${q(".orch-dialog .orch-advanced")}.open = true`);
       await app.clickEl(q('[data-finish-option="push"] input'));
       await app.clickEl(q('[data-finish-option="qa"] input'));
