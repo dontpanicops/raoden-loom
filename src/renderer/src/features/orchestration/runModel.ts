@@ -1190,3 +1190,11 @@ export function dirtyInPlace(workMode: string, items: readonly OrchestrationRead
 }
 export const failingOnSource = (items: readonly OrchestrationReadinessItem[]): string[] =>
   items.filter((i) => /^source_\d+$/.test(i.id) && i.facts?.result === "failed").map((i) => String(i.facts?.command ?? "")).filter(Boolean);
+
+// The goal dialog keeps requirements and check commands as lines of one text; what is sent is the trimmed non-empty lines.
+export const goalLines = (text: string): string[] => text.split("\n").map((l) => l.trim()).filter(Boolean);
+// The rows an editor shows for that text; with `trailing` the last empty row is left to the always-present empty input.
+export function goalRows(text: string, trailing: boolean): string[] {
+  const rows = text === "" ? (trailing ? [] : [""]) : text.split("\n");
+  return trailing && rows.at(-1) === "" ? rows.slice(0, -1) : rows;
+}

@@ -67,11 +67,11 @@ const items = () => app.ev(`[...document.querySelectorAll(".orch-dialog [data-re
 const by = async () => Object.fromEntries((await items()).map((i) => [i.id, i]));
 async function openGoal(linkId, commands, workMode) {
   await app.clickEl(byText(`[data-agent-link-id="${linkId}"] button`, "Новая цель"));
-  await app.waitFor(`${q(".orch-dialog textarea")} && true`, "goal dialog");
+  await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
   await app.waitFor(`${q("[data-orch-profile]")}?.dataset.orchProfile !== "loading"`, "project settings", 20_000);
   await app.type(`document.querySelectorAll(".orch-dialog textarea")[0]`, "Добавить заметку");
-  await app.type(`document.querySelectorAll(".orch-dialog textarea")[1]`, "Заметка добавлена");
-  await app.type(q("[data-orch-commands]"), commands);
+  await app.fillRows(q("[data-orch-requirements]"), "Заметка добавлена".split("\n"));
+  await app.fillRows(q("[data-orch-commands]"), (commands).split("\n"));
   if (workMode !== "project") {
     await app.ev(`${q(".orch-dialog .orch-advanced")}.open = true`);
     await app.clickEl(q(`[data-orch-workmode] input[value="${workMode}"]`));
@@ -143,14 +143,14 @@ try {
   await app.shot("02-check-commands-fail-on-source");
   await app.clickEl(q('[data-ready-id="source_1"] [data-orch-fix="commands"]'));
   await sleep(300);
-  expect(await app.ev(`document.activeElement === ${q("[data-orch-commands]")}`), "«Fix» on a failing command focuses the check commands", null);
+  expect(await app.ev(`${q("[data-orch-commands]")}.contains(document.activeElement)`), "«Fix» on a failing command focuses the check commands", null);
   await closeDialog();
 
   // 3. the project folder: nothing runs in it before the start
   const marker = path.join(passing, "ran-before-start.txt");
   await app.clickEl(byText(`[data-agent-link-id="${linkOk}"] button`, "Новая цель"));
-  await app.waitFor(`${q(".orch-dialog textarea")} && true`, "goal dialog");
-  await app.type(q("[data-orch-commands]"), `touch ${marker}`);
+  await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
+  await app.fillRows(q("[data-orch-commands]"), (`touch ${marker}`).split("\n"));
   // a new project's dialog starts in a separate copy (PR 5): the project folder chosen for this goal
   await app.ev(`${q(".orch-dialog .orch-advanced")}.open = true`);
   await app.clickEl(q('[data-orch-workmode] input[value="project"]'));

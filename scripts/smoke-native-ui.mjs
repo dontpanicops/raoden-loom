@@ -114,11 +114,11 @@ try {
   // ---------- 2. Laravel readiness: facts only, nothing started ----------
   const L = await pair(laravel);
   await app.clickEl(byText(`[data-agent-link-id="${L.link.linkId}"] button`, "Новая цель"));
-  await app.waitFor(`${q(".orch-dialog textarea")} && true`, "goal dialog");
+  await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
   await app.type(`document.querySelectorAll(".orch-dialog textarea")[0]`, "Добавить страницу /health");
-  await app.type(`document.querySelectorAll(".orch-dialog textarea")[1]`, "GET /health отвечает 200\nphp artisan test проходит");
+  await app.fillRows(q("[data-orch-requirements]"), "GET /health отвечает 200\nphp artisan test проходит".split("\n"));
   await app.waitFor(`["ready", "confirm", "blocked", "error"].includes(${q("[data-orch-readiness]")}?.dataset.orchReadiness)`, "readiness", 20_000);
-  await app.waitFor(`${q("[data-orch-commands]")}.value === "php artisan test"`, "suggested command", 10_000);
+  await app.waitFor(`${q("[data-orch-commands]")}.querySelector("input")?.value === "php artisan test"`, "suggested command", 10_000);
   const stack = await readyItem("stack"), vendor = await readyItem("laravel"), cmd = await readyItem("command_1"), wd = await readyItem("workdir");
   expect(stack?.level === "ok" && /Laravel/i.test(stack.text), "readiness: the stack is Laravel", stack);
   // stage 13: the suggested project settings prepare vendor/ automatically (composer install), so it is not a warning

@@ -290,11 +290,11 @@ try {
     await scene("goal", async () => {
       await app.reveal(card(lead.agentId)); await fit();
       await app.clickEl(byText(`[data-agent-link-id="${linkId}"] button`, "Новая цель"));
-      await app.waitFor(`${q(".orch-dialog textarea")} && true`, "goal dialog");
+      await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
       await app.waitFor(`${q("[data-orch-profile]")}?.dataset.orchProfile !== "loading"`, "profile", 20_000);
       await app.type(`document.querySelectorAll(".orch-dialog textarea")[0]`, "Добавить заметки к задачам доски: создание, список и удаление. Хранить локально.");
-      await app.type(`document.querySelectorAll(".orch-dialog textarea")[1]`, "Без новых зависимостей\nТесты на пустой список заметок");
-      await app.type(q("[data-orch-commands]"), "node --test\nnpm run lint");
+      await app.fillRows(q("[data-orch-requirements]"), "Без новых зависимостей\nТесты на пустой список заметок".split("\n"));
+      await app.fillRows(q("[data-orch-commands]"), ("node --test\nnpm run lint").split("\n"));
       await sleep(2500);
       await shot("goal-dialog");
       const ps = await app.ev(`(() => { const b = [...document.querySelectorAll(".orch-dialog button")].find((e) => /Настройки проекта/.test(e.textContent)); if (!b) return false; b.scrollIntoView(); b.click(); return true; })()`);

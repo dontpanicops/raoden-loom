@@ -109,7 +109,7 @@ try {
   // ---------- 1. the goal dialog and the project settings ----------
   await app.clickEl(byText(`[data-agent-link-id="${link.linkId}"] button`, "Новая цель"));
   await app.waitFor(`${q("[data-orch-profile]")}?.dataset.orchProfile === "suggested"`, "suggested settings", 20_000);
-  expect(await app.ev(`${q("[data-orch-commands]")}.value`) === "php artisan test", "the check command comes from the suggested settings", await app.ev(`${q("[data-orch-commands]")}.value`));
+  expect((await app.rowValues(q("[data-orch-commands]"))).join("\n") === "php artisan test", "the check command comes from the suggested settings", await app.rowValues(q("[data-orch-commands]")));
   expect(await app.ev(`${q("[data-orch-runmode]")}.dataset.orchRunmode`) === "autopilot", "autopilot is the default mode", null);
   await app.shot("01-goal-dialog");
   // UX audit PR 2: Start / Save pinned at the dialog's bottom, in view without scrolling; the dialog's controls are light
@@ -176,7 +176,7 @@ try {
 
   // readiness: prepared, not "go to a terminal"
   await app.type(`document.querySelectorAll(".orch-dialog textarea")[0]`, "Починить /health: тест должен проходить");
-  await app.type(`document.querySelectorAll(".orch-dialog textarea")[1]`, "php artisan test проходит");
+  await app.fillRows(q("[data-orch-requirements]"), "php artisan test проходит".split("\n"));
   await app.waitFor(`["ready", "confirm", "blocked", "error"].includes(${q("[data-orch-readiness]")}?.dataset.orchReadiness)`, "readiness", 20_000);
   const prep = await readyItem("prepare"), vendor = await readyItem("laravel"), testdb = await readyItem("testdb");
   expect(prep?.level === "info" && prep.text.includes("composer install"), "readiness: the preparation is automatic", prep);

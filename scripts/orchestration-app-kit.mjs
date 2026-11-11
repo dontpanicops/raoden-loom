@@ -299,6 +299,20 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
           Object.getOwnPropertyDescriptor(proto, "value").set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event("input", { bubbles: true })); })()`);
         await sleep(60);
       },
+      // R5f: the goal dialog's requirement / command rows (`selector` is the container, data-orch-requirements or
+      // data-orch-commands). Fills the rows with `lines` in order (a "+" button adds a row, the requirements' last empty
+      // input grows by itself) and empties the rows that are left over.
+      async fillRows(selector, lines) {
+        const rows = () => app.ev(`[...${selector}.querySelectorAll("[data-orch-row] input")].length`);
+        for (let i = 0; i < lines.length; i++) {
+          if (i >= await rows()) { await app.ev(`${selector}.querySelector("[data-orch-add]")?.click()`); await sleep(60); }
+          await app.type(`${selector}.querySelectorAll("[data-orch-row] input")[${i}]`, lines[i]);
+        }
+        const n = await rows();
+        for (let i = Math.max(lines.length, 0); i < n; i++) await app.type(`${selector}.querySelectorAll("[data-orch-row] input")[${i}]`, "");
+      },
+      // The non-empty rows of a container, trimmed — what the dialog sends.
+      rowValues: (selector) => app.ev(`[...${selector}.querySelectorAll("[data-orch-row] input")].map((i) => i.value.trim()).filter(Boolean)`),
       // A screenshot answers within SHOT_TIMEOUT_MS or is asked once more; then the step fails by name, it never
       // waits for the run's time limit.
       async shot(name) {
@@ -393,12 +407,12 @@ export async function createAgent(app, label, projectDir) {
 // the dialog's default for a new project — the smokes keep what they were written for unless they ask.
 export async function startGoal(app, linkId, { reviewPlan = false, task = "add a file src/note.mjs", criteria = "src/note.mjs exists\nnode --test passes", commands, workMode, onDialog, acknowledge = true } = {}) {
   await app.clickEl(byText(`[data-agent-link-id="${linkId}"] button`, "Новая цель"));
-  await app.waitFor(`${q(".orch-dialog textarea")} && true`, "goal dialog");
+  await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
   await app.type(`document.querySelectorAll(".orch-dialog textarea")[0]`, task);
-  await app.type(`document.querySelectorAll(".orch-dialog textarea")[1]`, criteria);
+  await app.fillRows(q("[data-orch-requirements]"), criteria.split("\n"));
   // stage 13: the dialog starts from the project settings; they are loaded before anything is changed
   await app.waitFor(`${q("[data-orch-profile]")} && ${q("[data-orch-profile]")}.dataset.orchProfile !== "loading"`, "project settings", 20_000);
-  if (commands) await app.type(q("[data-orch-commands]"), commands.join("\n"));
+  if (commands) await app.fillRows(q("[data-orch-commands]"), commands);
   const mode = workMode ?? "project";
   const switching = mode !== await app.ev(`${q("[data-orch-workmode]")}?.dataset.orchWorkmode`);
   if (switching || reviewPlan) await app.ev(`${q(".orch-dialog .orch-advanced")}.open = true`);

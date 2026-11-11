@@ -1993,3 +1993,14 @@ button { border: 0; }
 .ws-list li > button { flex: 0 0 auto; padding: .25em .8em; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text-primary); background: transparent; font-weight: 600; cursor: pointer; }
 .orch-dialog--pinned .orch-advanced > * + * { margin-top: 16px; }
 .orch-dialog--pinned .orch-advanced > summary + * { margin-top: 12px; }
+
+/* R5f goal rows: requirements and check commands as rows (D-023) */
+.orch-rows { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.orch-rows .orch-rows__row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.orch-rows .orch-rows__row input { flex: 1 1 auto; min-width: 0; }
+.orch-field .orch-rows .orch-rows__mono { font-family: var(--font-mono); font-size: 13px; }
+.orch-rows button.orch-rows__x, .orch-rows button.orch-rows__add { flex: 0 0 auto; border: 0; background: transparent; box-shadow: none; color: var(--text-secondary); font: inherit; cursor: pointer; border-radius: var(--radius-sm); }
+.orch-rows button.orch-rows__x { min-width: var(--control-h-m); min-height: var(--control-h-m); font-size: 16px; line-height: 1; }
+.orch-rows button.orch-rows__add { align-self: flex-start; min-height: var(--control-h-m); padding: 0 8px; }
+.orch-rows button.orch-rows__x:hover, .orch-rows button.orch-rows__add:hover { background: transparent; color: var(--text-primary); }
+.orch-rows button.orch-rows__x:focus-visible, .orch-rows button.orch-rows__add:focus-visible { outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 30%, transparent); }

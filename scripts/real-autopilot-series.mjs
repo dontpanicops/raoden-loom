@@ -762,7 +762,7 @@ async function runScenario(name) {
     for (const f of s.finish ?? []) if (!(await app.ev(`${q(`[data-finish-option="${f}"] input`)}.checked`))) await app.clickEl(q(`[data-finish-option="${f}"] input`));
     sc.finishChosen = await app.ev(`[...document.querySelectorAll("[data-finish-option] input")].map((i) => i.checked)`);
     sc.goalRights = await app.ev(`${q("[data-orch-rights]")}?.textContent ?? null`);
-    const cmds = await app.ev(`${q("[data-orch-commands]")}.value`);
+    const cmds = (await app.rowValues(q("[data-orch-commands]"))).join("\n");
     sc.checkCommands = cmds;
     if (cmds.trim() !== s.check) halt(`${name}: suggested check is ${JSON.stringify(cmds)}, expected ${s.check}`);
     await app.waitFor(`["ready", "confirm", "blocked", "error"].includes(${q("[data-orch-readiness]")}?.dataset.orchReadiness)`, "readiness", 30_000);
