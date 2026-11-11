@@ -3,7 +3,7 @@
 // Needs `npm run build` first. Usage: node scripts/shots-r4.mjs --out <dir> [--only <substring of the frame name>]
 import fs from "node:fs";
 import path from "node:path";
-import { FIXTURES, NODE, byText, canvasState, card, createAgent, launch, q, sleep, startGoal, waitForValue, workspace, JOURNAL_V2 } from "./orchestration-app-kit.mjs";
+import { FIXTURES, NODE, launch, q, sleep, workspace, JOURNAL_V2 } from "./orchestration-app-kit.mjs";
 
 const arg = (name) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : null; };
 const OUT = path.resolve(arg("out") ?? "r4-shots");
@@ -12,7 +12,7 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const { TMP, D, project, script } = workspace("cto-r4shots-");
 const PORT = 9500 + Math.floor(Math.random() * 250);
-const node = project("node-app");
+const _node = project("node-app");
 const termDir = fs.realpathSync(fs.mkdtempSync("/private/tmp/r4-term-"));
 fs.writeFileSync(path.join(termDir, "README.md"), "demo\n");
 
