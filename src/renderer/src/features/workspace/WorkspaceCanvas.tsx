@@ -43,9 +43,10 @@ import { NotifyBanner, useRunNotifications } from "../orchestration/useRunNotifi
 import { PluginCanvasCard } from "../plugins/PluginCanvasCard";
 import { TerminalCard } from "../terminal/TerminalCard";
 import { CanvasCommandPalette } from "./CanvasCommandPalette";
+import { OPEN_PALETTE_EVENT } from "../../components/TitleBar";
 import { CanvasContextMenu } from "./CanvasContextMenu";
 import { OnboardingCard } from "../onboarding/OnboardingCard";
-import { onboardingPlacement } from "../onboarding/onboardingSteps";
+import { onboardingPlacement, type OnboardingPlace } from "../onboarding/onboardingSteps";
 import { CanvasMinimap } from "./CanvasMinimap";
 import { CanvasRegionCard } from "./CanvasRegionCard";
 import { CanvasRegionMenu } from "./CanvasRegionMenu";
@@ -346,6 +347,11 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
   const [contextMenu, setContextMenu] = useState<CanvasMenuState | null>(null);
   const [regionEditor, setRegionEditor] = useState<RegionEditorState | null>(null);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  useEffect(() => {
+    const open = (): void => setCommandPaletteOpen(true);
+    window.addEventListener(OPEN_PALETTE_EVENT, open);
+    return () => window.removeEventListener(OPEN_PALETTE_EVENT, open);
+  }, []);
   const [radialLauncher, setRadialLauncher] = useState<{
     anchor: Point;
     pointerAnchor: Point;
@@ -481,7 +487,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     size: homeGridPixelSize(settings.homeGridSize)
   }), [settings.homeGridSize]);
   // The first-run card clears the HOME tiles on screen: plain arithmetic from the layout and the camera (no DOM measuring per camera frame)
-  const [onboardingPlace, setOnboardingPlace] = useState<{ left: number; top: number } | null>(null);
+  const [onboardingPlace, setOnboardingPlace] = useState<OnboardingPlace | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: camera and home settings are the triggers: the tiles' screen rects move with them
   useLayoutEffect(() => {
     const view = viewport.current;
@@ -493,9 +499,9 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
       right: camera.x + w(Math.max(...settings.homeLayout.map((p) => (p.column + p.columnSpan) * HOME_GRID_COLUMN_STEP - HOME_GRID_GAP))),
       bottom: camera.y + w(Math.max(...settings.homeLayout.map((p) => (p.row + p.rowSpan) * HOME_GRID_ROW_STEP - HOME_GRID_GAP)))
     };
-    const next = onboardingPlacement(home, { width: view.clientWidth, height: view.clientHeight });
-    setOnboardingPlace((prev) => (prev?.left === next?.left && prev?.top === next?.top ? prev : next));
-  }, [camera.x, camera.y, camera.zoom, settings.homeGridSize, settings.homeLayout, settings.onboardingDismissed]);
+    const next = onboardingPlacement(home, { width: view.clientWidth, height: view.clientHeight }, settings.uiScale);
+    setOnboardingPlace((prev) => (prev && next && prev.left === next.left && prev.top === next.top && prev.width === next.width && prev.maxHeight === next.maxHeight ? prev : next));
+  }, [camera.x, camera.y, camera.zoom, settings.homeGridSize, settings.homeLayout, settings.onboardingDismissed, settings.uiScale]);
 
   const selectMarquee = useCallback((bounds: SessionBounds | null): void => {
     if (bounds === null) {
@@ -1330,7 +1336,8 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
       <div className="canvas-overlays" ref={overlays}>
         {/* first: the corner slots below paint over it */}
         <OnboardingCard locale={settings.locale} dismissed={settings.onboardingDismissed} hasTerminal={sessions.some((s) => s.provider === "terminal")}
-          linked={orch.canvas.links.length > 0} place={onboardingPlace} onNewTerminal={() => onOpenTerminal()} onDismiss={onDismissOnboarding} />
+          linked={orch.canvas.links.length > 0} place={onboardingPlace}
+          wheelKey={settings.canvasWheelCaptureMode === "key" && settings.canvasWheelOverride !== null ? displayCanvasNavigationBinding(settings.canvasWheelOverride, window.canvasTTY.window.isMacOS) : null} onNewTerminal={() => onOpenTerminal()} onDismiss={onDismissOnboarding} />
         <div className="canvas-overlay-slot canvas-overlay-slot--top-center">
           <WorkspaceBar controls={workspace} counts={counts} locale={settings.locale} onDialog={openWsDialog}
             board={{ shown: !!boardPlace, toggle: () => showBoardRef.current(workspace.activeId) }} />
@@ -1348,21 +1355,15 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
               <div className="canvas-controls surface-3" data-interactive="true">
                 <button type="button" onClick={onGoHome} title={t(settings.locale, "home")}><UiIcon name="home" size={17} /></button>
                 <button type="button" onClick={() => wheelNavigation.zoomBy(0.82)} title={t(settings.locale, "zoomOut")}><UiIcon name="zoom-out" size={17} /></button>
+                <span className="canvas-controls__zoom" aria-live="off">{Math.round(camera.zoom * 100)}%</span>
                 <button type="button" onClick={() => wheelNavigation.zoomBy(1.22)} title={t(settings.locale, "zoomIn")}><UiIcon name="zoom-in" size={17} /></button>
               </div>
             )}
             {settings.showShortcutHints && settings.shortcutHintsPlacement === placement && (
               <aside className="shortcut-hints surface-3" aria-label={t(settings.locale, "keyboardShortcuts")}>
-                <div><kbd>{settings.shortcuts.home}</kbd><span>{t(settings.locale, "homeShortcut")}</span></div>
-                <div><kbd>{settings.shortcuts.renameWindow}</kbd><span>{t(settings.locale, "renameWindow")}</span></div>
-                {settings.canvasWheelCaptureMode === "key" && settings.canvasWheelOverride !== null && (
-                  <div><kbd>{displayCanvasNavigationBinding(settings.canvasWheelOverride, window.canvasTTY.window.isMacOS)}</kbd>
-                    <span>{t(settings.locale, "canvasWheelOverrideHint")}</span></div>
-                )}
-                {settings.canvasNavigationOverride !== null && (
-                  <div><kbd>{displayCanvasNavigationBinding(settings.canvasNavigationOverride, window.canvasTTY.window.isMacOS)}</kbd>
-                    <span>{t(settings.locale, "canvasNavigationOverrideHint")}</span></div>
-                )}
+                <div><kbd>{settings.shortcuts.home}</kbd><span>{t(settings.locale, "hintHome")}</span></div>
+                <div><kbd>{settings.shortcuts.renameWindow}</kbd><span>{t(settings.locale, "hintRename")}</span></div>
+                <div><kbd>{window.canvasTTY.window.isMacOS ? "\u2318K" : "Ctrl+K"}</kbd><span>{t(settings.locale, "hintPalette")}</span></div>
               </aside>
             )}
           </div>

@@ -45,8 +45,8 @@ test("R2 cards: level 2 and opaque, one 44px header, waiting ring, no backdrop-f
 
 test("the first-run card is placed clear of HOME: right of it, else below it, else not shown", () => {
   const home = { left: 193, top: 118, right: 980, bottom: 585 };
-  assert.deepEqual(onboardingPlacement(home, { width: 1440, height: 856 }), { left: 1004, top: 200 });
-  assert.deepEqual(onboardingPlacement(home, { width: 1200, height: 1100 }), { left: 193, top: 609 });
+  assert.deepEqual(onboardingPlacement(home, { width: 1440, height: 856 }), { left: 1004, top: 200, width: 418, maxHeight: 638, guide: { left: 193, top: 609 } });
+  assert.deepEqual(onboardingPlacement(home, { width: 1200, height: 1100 }), { left: 193, top: 609, width: 560, maxHeight: 473, guide: null });
   assert.equal(onboardingPlacement(home, { width: 1000, height: 700 }), null);
   assert.equal(onboardingPlacement({ ...home, left: -50, right: 737 }, { width: 1440, height: 856 }), null); // HOME not wholly in sight
 });
