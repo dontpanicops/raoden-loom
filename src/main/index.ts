@@ -58,6 +58,7 @@ import type { RunManager } from "./services/orchestration/manager";
 import { JOURNAL_V2_BY_DEFAULT } from "./services/orchestration/journal";
 import { runOrchestrationIpcSmoke } from "./services/orchestration/ipcSmoke";
 import { startupPageUrl } from "./startupPage";
+import { quietWindow } from "./quietWindow";
 import { earlyTheme, effectiveTheme, windowBackground } from "../shared/appearance";
 import type { AppSettings, PaletteId } from "../shared/contracts";
 import { mainWindowChromeOptions } from "./windowChrome";
@@ -112,7 +113,7 @@ async function showCompanionBrowser():Promise<{title:string;url:string}> {
   const window = mainWindow;
   if (!window || window.isDestroyed() || window.webContents.isDestroyed() || !browserService) throw new Error("Window unavailable");
   if (browserRequests.size) throw new Error("Browser is opening");
-  window.show(); window.focus();
+  if (quiet()) showQuietly(window); else { window.show(); window.focus(); }
   await new Promise<void>((resolve,reject) => {
     const id=randomUUID(), timer=setTimeout(()=>{browserRequests.delete(id);reject(new Error("Browser display timeout"));},12000);
     browserRequests.set(id,{resolve,reject,timer});window.webContents.send(IPC.evenG2BrowserRequest,id);
@@ -179,14 +180,15 @@ async function createWindow(): Promise<BrowserWindow> {
     height: 900,
     minWidth: 920,
     minHeight: 620,
-    show: true,
+    show: !quiet(),
     ...mainWindowChromeOptions(),
     backgroundColor: windowBackground(currentTheme),
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: true,
+      ...(quiet() ? { backgroundThrottling: false } : {})
     }
   });
   mainWindow = window;
@@ -228,6 +230,7 @@ async function createWindow(): Promise<BrowserWindow> {
     if (!shellWindowGone(window)) throw error;
     console.warn("CanvasTTY startup page load stopped: its window is gone, the application is closing.", error);
   }
+  if (quiet() && !shellWindowGone(window)) showQuietly(window);
   return window;
 }
 
@@ -543,6 +546,16 @@ async function loadApplication(window: BrowserWindow): Promise<void> {
 function developmentEnv(name: string): string | undefined {
   return app.isPackaged ? undefined : process.env[name];
 }
+const quiet = (): boolean => quietWindow({ packaged: app.isPackaged, env: process.env });
+// Quiet mode: a window ordered front before its first page has loaded activates the app on macOS (with the Dock desktop
+// assignment that switches the desktop); after the load showInactive() leaves the app inactive.
+const showQuietly = (window: BrowserWindow): void => { window.showInactive(); };
+const revealWindow = (window: BrowserWindow): void => { if (quiet()) showQuietly(window); else window.show(); };
+// Before ready: an unfocused window on another desktop must keep rendering.
+if (quiet()) {
+  app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
+  app.commandLine.appendSwitch("disable-renderer-backgrounding");
+}
 
 // A smoke run of the development build (scripts/smoke-watchdog.mjs sets it; a packaged build ignores it): provider
 // CLIs are looked up in PATH only, and no provider is polled for its limits, so no CLI installed on the machine runs.
@@ -702,7 +715,7 @@ async function showStartupFailure(window: BrowserWindow, error: unknown): Promis
     // this very load would otherwise log a failure the user never saw, which is
     // the same false signal as the dialog it replaced.
     console.error("CanvasTTY startup failed.", error);
-    window.show();
+    revealWindow(window);
   } catch {
     // The window went away while the failure page was loading: there is nobody
     // left to read the dialog, so it must not become the last thing on screen.
@@ -759,6 +772,7 @@ if (hasSingleInstanceLock) {
     }
     if (window.isMinimized()) window.restore();
     // macOS leaves a background app behind the active one on focus() alone.
+    if (quiet()) { showQuietly(window); return; }
     if (process.platform === "darwin") app.focus({ steal: true });
     window.show();
     window.focus();
