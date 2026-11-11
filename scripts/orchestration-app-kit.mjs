@@ -148,8 +148,9 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
       pending.set(id, (d) => (d.error ? reject(new Error(`${method}: ${d.error.message}`)) : resolve(d.result)));
       ws.send(JSON.stringify({ id, method, params }));
     });
-    // A quiet window is not the active one: the page must still believe it has the focus.
-    await call("Emulation.setFocusEmulationEnabled", { enabled: true });
+    // A quiet window is not the active one: the page must still believe it has the focus. A smoke that opts out of the
+    // quiet window (CANVASTTY_QUIET_WINDOW=0) checks an ordinary window, where focus emulation would keep it "visible".
+    if (env.CANVASTTY_QUIET_WINDOW !== "0") await call("Emulation.setFocusEmulationEnabled", { enabled: true });
     const app = {
       child,
       exited,
