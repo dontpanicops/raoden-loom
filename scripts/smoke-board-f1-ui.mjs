@@ -70,7 +70,7 @@ const report = () => app.ev(`(() => { const el = ${q("[data-board-import-report]
   created: [...el.querySelectorAll("[data-board-import-created]")].map((x) => x.dataset.boardImportCreated),
   unchanged: [...el.querySelectorAll("[data-board-import-unchanged]")].map((x) => x.dataset.boardImportUnchanged),
   refused: [...el.querySelectorAll("[data-board-import-refused]")].map((x) => [x.dataset.boardImportRefused, x.textContent]) }; })()`);
-const closeReport = async () => { await app.clickEl(q(".launch-dialog__close")); await app.waitFor(`!${q("[data-board-import-report]")}`, "the report window closed"); };
+const closeReport = async () => { await app.clickEl(q("[data-board-import-close]")); await app.waitFor(`!${q("[data-board-import-report]")}`, "the report window closed"); };
 // a screenshot is evidence, not a check: one that does not come back is named in the log, the steps go on
 const shot = (name) => app.shot(`f1-${name}`).catch((e) => console.log(`[smoke] screenshot ${name}: ${String(e?.message ?? e)}`));
 
@@ -200,6 +200,7 @@ try {
   ok("f1.s12 checked: X1 and X2 to be created", e1.tasks.join() === "X1,X2", e1);
   put("g.json", file([row("X1")]));
   await rowIs("g.json", "checked");
+  await app.ev(`${q(inboxRow("g.json"))}.scrollIntoView({ block: "nearest" })`); // R4c: the inbox list is a scroller of 40% of the card
   await app.clickEl(`${q(inboxRow("g.json"))}.querySelector("[data-board-inbox-import]")`);
   await waitForValue(async () => (await report())?.status === "imported", "g.json imported");
   await closeReport();

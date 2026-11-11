@@ -119,6 +119,15 @@ try {
   expect(await app.ev(`${q("[data-orch-ready-summary]")}.dataset.orchReadySummary`) !== "blocked", "all ok: the summary does not block", null);
   await scrollToCheck();
   await app.shot("01-check-all-ok");
+  // R4c (Н8): the goal dialog is one vertical flow — nothing wider than the dialog at --ui-scale 1 and 1.25 (advanced part open)
+  await app.ev(`${q(".orch-dialog .orch-advanced")}.open = true`);
+  for (const uiScale of [1, 1.25]) {
+    await app.ev(`window.canvasTTY.settings.update({ uiScale: ${uiScale} }).then(() => true)`);
+    await sleep(400);
+    const w = await app.ev(`(() => { const d = ${q(".orch-dialog")}; return { scrollWidth: d.scrollWidth, clientWidth: d.clientWidth }; })()`);
+    expect(w.scrollWidth <= w.clientWidth, `goal dialog: no horizontal overflow at --ui-scale ${uiScale}`, w);
+  }
+  await app.ev(`window.canvasTTY.settings.update({ uiScale: 1 }).then(() => true)`);
   await closeDialog();
 
   // 2. a command already failing on the source
