@@ -659,6 +659,8 @@ function PermissionBlock({ locale, request, more, sending, onDecide }: {
     <div className="orch-permission" data-orch-permission={request.kind} data-request-id={request.requestId}>
       {head}
       <p className="orch-permission__cmd"><b>{request.tool}</b>{request.summary ? <> · <code>{request.summary}</code></> : null}</p>
+      {/* D-022: the person must be able to see what they allow — the full request stays one click away */}
+      {request.detail && <details><summary>{t(locale, "orchPermDetail")}</summary><pre>{request.detail}</pre></details>}
       <div className="orch-panel__actions">
         {request.options.map((o) => (
           <button key={o} type="button" data-decision={o} className={o === "deny" ? "orch-danger" : o === "allow_once" ? "orch-primary" : undefined}
@@ -667,6 +669,8 @@ function PermissionBlock({ locale, request, more, sending, onDecide }: {
           </button>
         ))}
       </div>
+      {request.options.includes("allow_readonly_run") && <p className="orch-hint" data-orch-readonly-hint>{t(locale, "orchPermReadOnlyHint")}</p>}
+      {request.alwaysAsk && <p className="orch-hint" data-orch-always-ask>{t(locale, "orchPermAlwaysAsk")}</p>}
       {foot}
     </div>
   );
@@ -1521,7 +1525,10 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
     for (const [i, person] of list.entries()) {
       const fresh = i === 0 ? view : await api().get(view!.runId).then((r) => (r.ok ? r.value.view : null)).catch(() => null);
       if (!fresh) return;
-      if (!(await deliver(orch.commands.request(fresh.runId, fresh.revision, commandOf("person_decide", { person: { ...person, runKey: fresh.decisions?.runKey ?? person.runKey } }))))) return;
+      // the decisions the person saw (their runKey), never a newer set the run moved to meanwhile: main refuses a stale
+      // key, and the first refusal stops the rest
+      if (fresh.decisions && fresh.decisions.runKey !== person.runKey) return;
+      if (!(await deliver(orch.commands.request(fresh.runId, fresh.revision, commandOf("person_decide", { person }))))) return;
     }
   };
   const unknown = runId ? orch.commands.pending(runId) : [];
