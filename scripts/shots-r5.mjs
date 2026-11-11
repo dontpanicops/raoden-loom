@@ -147,7 +147,7 @@ try {
       await shot("firstrun");
     });
   }
-  fs.renameSync(path.join(cliBin, "claude.off"), path.join(cliBin, "claude"));
+  if (fs.existsSync(path.join(cliBin, "claude.off"))) fs.renameSync(path.join(cliBin, "claude.off"), path.join(cliBin, "claude"));
 
   // ---- world: terminal with a link in its output, note, two agents with a link
   await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ palette: "sand", onboardingDismissed: true, lastDirectory: termDir, persistStickyNotes: true,
@@ -279,7 +279,8 @@ try {
     await scene("overlay-region-menu", async () => {
       await app.key("Home", "Home", 36); await sleep(900);
       await app.waitFor(`${q("[data-canvas-region-id]")} && true`, "the region", 10_000);
-      const reg = await app.ev(`(() => { const b = document.querySelector(".canvas-region__title").getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; })()`);
+      // the HOME zone lies over the left part of the region (its title): the right-click is made on the region's free edge at the right, beyond HOME
+      const reg = await app.ev(`(() => { const b = document.querySelector("[data-canvas-region-id]").getBoundingClientRect(); return { x: Math.min(b.right, innerWidth) - 30, y: b.top + 10 }; })()`);
       await app.click(reg.x, reg.y, "right");
       await app.waitFor(`${q(".canvas-menu")} && true`, "the region's menu", 10_000); await sleep(400);
       await shot("canvas-region-menu"); await esc();
