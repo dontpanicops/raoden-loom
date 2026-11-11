@@ -595,15 +595,15 @@ async function projectSettings(name, s, sc) {
   await app.clickEl(q("[data-orch-open-settings]"));
   await app.waitFor(`${q("[data-orch-settings]")} && true`, "settings");
   if (s.access) {
-    await app.waitFor(`document.querySelectorAll('[data-orch-access="claude"] option').length > 1`, "the CLI's own modes", 30_000);
+    await app.waitFor(`document.querySelectorAll('[data-orch-access="claude"] [data-orch-access-mode]').length > 1`, "the CLI's own modes", 30_000);
     for (const [cli, mode] of Object.entries(s.access)) {
-      const offered = await app.ev(`[...document.querySelectorAll('[data-orch-access="${cli}"] option')].map((o) => o.value)`);
+      const offered = await app.ev(`[...document.querySelectorAll('[data-orch-access="${cli}"] [data-orch-access-mode]')].map((o) => o.dataset.orchAccessMode)`);
       if (!offered.includes(mode)) halt(`${name}: ${cli} does not offer ${mode} (${offered})`);
-      await setValue(q(`[data-orch-access="${cli}"] select`), mode);
+      await app.clickEl(q(`[data-orch-access="${cli}"] [data-orch-access-mode="${mode}"]`)); // R5f: a segment
     }
     sc.accessMapping = await app.ev(`[...document.querySelectorAll("[data-orch-access] code")].map((c) => c.textContent)`);
   }
-  if (s.workMode === "worktree") await app.clickEl(`document.querySelectorAll("[data-orch-settings-workmode] input")[1]`);
+  if (s.workMode === "worktree") await app.clickEl(q(`[data-orch-settings-workmode-to="worktree"]`));
   if (s.finish) {
     await app.ev(`${q("[data-orch-advanced]")}.open = true`);
     await setValue(q("[data-orch-settings-remote]"), "origin");
@@ -762,7 +762,7 @@ async function runScenario(name) {
     for (const f of s.finish ?? []) if (!(await app.ev(`${q(`[data-finish-option="${f}"] input`)}.checked`))) await app.clickEl(q(`[data-finish-option="${f}"] input`));
     sc.finishChosen = await app.ev(`[...document.querySelectorAll("[data-finish-option] input")].map((i) => i.checked)`);
     sc.goalRights = await app.ev(`${q("[data-orch-rights]")}?.textContent ?? null`);
-    const cmds = await app.ev(`${q("[data-orch-commands]")}.value`);
+    const cmds = (await app.rowValues(q("[data-orch-commands]"))).join("\n");
     sc.checkCommands = cmds;
     if (cmds.trim() !== s.check) halt(`${name}: suggested check is ${JSON.stringify(cmds)}, expected ${s.check}`);
     await app.waitFor(`["ready", "confirm", "blocked", "error"].includes(${q("[data-orch-readiness]")}?.dataset.orchReadiness)`, "readiness", 30_000);

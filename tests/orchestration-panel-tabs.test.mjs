@@ -92,17 +92,14 @@ test("the panel draws exactly three tabs (two for a newer version's run), each o
     const html = render({ ...v, mode: v.mode ?? "feed" });
     assert.equal(selected(html), v.tab, k);
     if (v.mode) assert.match(html, new RegExp(`data-orch-mode="${v.mode}"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-orch-mode="${v.mode}"`), k);
-    if (v.section) assert.match(html, new RegExp(`data-orch-section="${v.section}"`), k);
+    if (v.section && v.section !== "overview") assert.match(html, new RegExp(`data-orch-section="${v.section}"`), k); // D-018: the overview is the summary itself
   }
 });
 
-test("the summary holds the overview, plan and result sections; the plan and the result read nothing until opened", { timeout: 120_000 }, async () => {
+test("the summary draws its blocks; the plan and the result are documents drawn (and read) only when opened", { timeout: 120_000 }, async () => {
   const render = await loadRunPanel();
   const closed = render({ tab: "summary", mode: "feed" });
-  assert.deepEqual(attr(closed, "data-orch-section"), ["overview", "plan", "result"]);
-  assert.match(closed, /data-orch-facts/);
-  assert.match(closed, /data-orch-participants/);
-  assert.match(closed, /data-orch-proof="active"/, "the proof line opens the facts");
+  assert.deepEqual(attr(closed, "data-orch-section"), [], "no document section until one is opened");
   assert.doesNotMatch(closed, /data-run-doc=/, "closed: no document drawn");
   assert.match(render({ tab: "summary", mode: "feed", section: "plan" }, { view: { status: "paused" } }), /<details[^>]*data-orch-section="plan"[^>]*open/);
   // with a journal that has a plan and a result: closed draws no document and reads nothing, open draws it
@@ -111,7 +108,9 @@ test("the summary holds the overview, plan and result sections; the plan and the
   const calls = [];
   const spy = { loadText: (...a) => calls.push(a), readCreatedFile: (...a) => calls.push(a) };
   const withDocs = render({ tab: "summary", mode: "feed" }, { records, view: { status: "completed" }, ...spy });
-  assert.deepEqual(attr(withDocs, "data-orch-section"), ["overview", "plan", "result"]);
+  assert.deepEqual(attr(withDocs, "data-orch-section"), []);
+  assert.match(withDocs, /data-orch-facts/);
+  assert.match(withDocs, /data-orch-participants/);
   assert.doesNotMatch(withDocs, /data-run-doc=/, "closed with a journal: no document drawn");
   assert.equal(calls.length, 0, "closed: nothing read");
   const openPlan = render({ tab: "summary", mode: "feed", section: "plan" }, { records, view: { status: "completed" }, ...spy });
@@ -126,7 +125,7 @@ test("the work tab: three modes, the role filter on the feed and the journal onl
     const html = render({ tab: "work", mode, role: "lead" });
     assert.deepEqual(attr(html, "data-orch-mode").filter((m, i, a) => a.indexOf(m) === i), ["feed", "journal", "records"]);
     assert.match(html, new RegExp(`data-orch-body="work" data-orch-mode="${mode}"`));
-    assert.equal(/data-orch-role=/.test(html), mode !== "records", mode);
+    assert.equal(/data-orch-role=/.test(html), true, mode); // R5h-A (mock-up 20): the role filter is on «Записи» too
   }
   assert.doesNotMatch(render({ tab: "summary", mode: "feed" }), /data-orch-mode=/);
 });

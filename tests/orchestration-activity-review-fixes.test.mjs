@@ -167,10 +167,10 @@ test("R3 rendered: a paused run shows the lead's open remarks and question; clos
     [sha("x")]: ready(JSON.stringify(["OLD_REMARK_CLOSED"])), [sha("y")]: ready(JSON.stringify(["OPEN_REMARK_API"])),
     [sha("b")]: ready(JSON.stringify({ verdict: "question", findings: ["OPEN_REMARK_API"], question: "Какой формат?" })), [sha("q")]: ready("Какой формат ответа нужен?") };
   const html = render(props({ records, texts, v: view({ reason: "awaiting_answer" }) }).p);
-  const remarks = html.slice(html.indexOf('data-sum="remarks"'), html.indexOf('data-sum="where"'));
+  const remarks = html.slice(html.indexOf('data-sum="remarks"'));
   const open = remarks.slice(0, remarks.indexOf("data-sum-review-history"));
   assert.match(open, /OPEN_REMARK_API/);
-  assert.match(open, /Какой формат ответа нужен\?/);
+  assert.match(html, /data-sum-question[^>]*>[\s\S]*Какой формат ответа нужен\?/, "the lead's open question is a row of the plan block");
   assert.doesNotMatch(open, /OLD_REMARK_CLOSED/, "a remark closed by the stage's acceptance is not shown as open");
   assert.match(remarks, /data-review-state="closed"[\s\S]*OLD_REMARK_CLOSED/);
   assert.match(html, /Последнее ревью лида — Этап 2: Этап Б; финального ревью ещё нет/);
@@ -181,10 +181,7 @@ test("R2 rendered: a required command never started is listed with zero attempts
   const records = [rec("check.started", { checkRunId: "c", checkId: "cmd-1" }), rec("check.finished", { checkRunId: "c", status: "passed" })];
   const v = view({ status: "stopped", reason: "user_request", progress: { finish: [], checks: [{ id: "cmd-1", title: "npm run lint", status: "passed", class: null }, { id: "cmd-2", title: "npm test", status: "not_run", class: null }] } });
   const html = render(props({ records, v }).p);
-  assert.match(html, /Обязательные команды проверки: 1 из 2 прошли/);
-  assert.match(html, /data-check-id="cmd-2" data-check-status="not_run" data-check-runs="0"><code>npm test<\/code> — ещё не запускалась · попыток: 0/);
-  const old = render(props({ records, v: view({ status: "stopped" }) }).p);
-  assert.match(old, /Полный перечень обязательных команд неизвестен/);
+  assert.match(html, /data-sum-check-count[^>]*>1 из 2</, "D-018: the row of the checks counts them; the per-command list is the journal's");
 });
 
 test("R4 rendered: a journal error keeps what was read, says it is incomplete, retries from where it stopped", () => {
@@ -195,23 +192,15 @@ test("R4 rendered: a journal error keeps what was read, says it is incomplete, r
   assert.match(html, /data-sum-journal-error/);
   assert.match(html, /журнал загружен не полностью/);
   assert.match(html, /Повторить/);
-  assert.match(html, /Цель/, "what was read is kept");
-  assert.match(html, /Не загружено: журнал прочитан не полностью/, "absence in the unread part is not 'not specified'");
   assert.doesNotMatch(html.slice(html.indexOf("data-orch-run-summary")), /data-sum-missing/);
   assert.ok(!calls.some(([k]) => k === "syncJournal" || k === "retry"), "rendering starts nothing by itself");
 });
 
-test("R4 rendered: a failed run state is an error with retry; a failed report text too", () => {
+test("R4 rendered: a failed run state is an error with retry (a report text that fails is read again in the opened result)", () => {
   const html = render(props({ runs: {}, runErrors: { r: true } }).p);
   assert.match(html, /Не удалось загрузить состояние запуска/);
   assert.match(html, /Повторить/);
   assert.doesNotMatch(html, /Загрузка/);
-  seq = 0;
-  const records = [rec("orch.turn", { turnId: "f", purpose: "final_review", stage: null }), rec("turn.finished", { turnId: "f", outcome: "completed", report: { ref: ref("f") } }),
-    rec("review.recorded", { turnId: "f", stage: null, verdict: "complete", findings: ref("h") })];
-  const text = render(props({ records, v: view({ status: "completed", reason: null }), texts: { [sha("f")]: { status: "error" }, [sha("h")]: ready("[]") } }).p);
-  const lead = text.slice(text.indexOf('data-sum="lead"'), text.indexOf('data-sum="checks"'));
-  assert.match(lead, /data-sum-failed[^>]*>Не удалось загрузить <button[^>]*>Повторить/);
 });
 
 // ---------- re-review: an incomplete journal concludes nothing; a final review belongs to its plan ----------
@@ -248,21 +237,16 @@ test("re-review 1: a completed run read in part is 'details not loaded', never a
     const html = render(p);
     assert.match(html, /Запуск завершён\. Подробности результата ещё не загружены\./, status);
     for (const wrong of ["не подтвердило достижение цели", "финального ревью ещё нет", "не выполнен", "лид не принял", "попыток: 1<"]) assert.ok(!html.includes(wrong), `${status}: ${wrong}`);
-    assert.match(html, /состояние не загружено/);
     assert.match(html, /В прочитанной части журнала: 0 из 1 приняты лидом; журнал загружен не полностью/);
-    assert.match(html, /попыток: не меньше 1/);
-    assert.match(html, /Последнее прочитанное ревью лида — Этап 1: Этап А; дальнейшая часть журнала не загружена/);
-    assert.match(html, /актуальность не подтверждена/);
-    assert.match(html, /Обязательные команды проверки: 1 из 1 прошли/, "main's own check state is not hidden");
+    assert.match(html, /data-sum-check-count[^>]*>1 из 1</, "main's own check state is not hidden");
     assert.equal(/data-sum-journal-error/.test(html), status === "error");
     assert.equal(/data-sum-journal-loading/.test(html), status === "loading");
     assert.ok(!calls.some(([k]) => k === "syncJournal" || k === "retry"), "rendering starts nothing");
   }
   // after the rest is read (a retry): the real result, nothing partial left
   const html = render(props({ records: completedJournal(), v: completedView, texts: completedTexts() }).p);
-  assert.match(html, /Лид принял цель этого запуска финальным ревью/);
-  assert.match(html, /1 из 1 приняты лидом/);
-  assert.match(html, /попыток: 2</);
+  assert.match(html, /data-sum-outcome="completed"[^>]*>принято</);
+  assert.match(html, /data-sum-stage-count[^>]*>1 из 1</);
   assert.doesNotMatch(html, /не загружено|не меньше|актуальность не подтверждена/);
   const open = html.slice(html.indexOf('data-sum="remarks"'), html.indexOf("data-sum-review-history"));
   assert.match(open, /FINAL_REMARK/);
@@ -313,16 +297,14 @@ test("re-review 2 rendered: the old plan's final review, report and next step ar
     [sha("5")]: ready(JSON.stringify({ summary: "STAGE1_DONE", done: true })), [sha("6")]: ready(JSON.stringify({ summary: "STAGE2_WORK", done: true }))
   };
   const html = render(props({ records: finalReplanJournal(), texts, v: view({ stage: 2 }) }).p);
-  const lead = html.slice(html.indexOf('data-sum="lead"'), html.indexOf('data-sum="checks"'));
+  const lead = html.slice(html.indexOf('data-sum-current-review'), html.indexOf("</p>", html.indexOf('data-sum-current-review')));
   assert.match(lead, /Последнее ревью лида — Этап 2: Новый этап; финального ревью ещё нет/);
   assert.doesNotMatch(lead, /replan|OLD_FINAL/i);
-  const remarks = html.slice(html.indexOf('data-sum="remarks"'), html.indexOf('data-sum="where"'));
+  const remarks = html.slice(html.indexOf('data-sum="remarks"'));
   const open = remarks.slice(0, remarks.indexOf("data-sum-review-history"));
   assert.match(open, /CURRENT_STAGE2_FIX/);
   assert.doesNotMatch(open, /OLD_FINAL_REPLAN/);
   assert.match(remarks, /Финальное ревью · план v1 · нужен новый план — <i>заменено новым планом<\/i>[\s\S]*OLD_FINAL_REPLAN/);
-  const next = html.slice(html.indexOf('data-sum="next"'));
-  assert.doesNotMatch(next, /OLD_NEXT_STEP/);
-  assert.match(html, /STAGE2_WORK/);
+  assert.doesNotMatch(html, /OLD_NEXT_STEP/);
   assert.doesNotMatch(html.slice(html.indexOf('data-sum="outcome"'), html.indexOf('data-sum="stages"')), /Лид принял цель/);
 });

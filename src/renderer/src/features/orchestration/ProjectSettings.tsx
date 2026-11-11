@@ -81,6 +81,17 @@ export function EnvironmentCheck({ locale, linkId }: { locale: LocaleId; linkId:
   );
 }
 
+// R5f (mock-up 15): a section of the settings is a card with its title (a component of its own: a card made inside the form would remount its fields on every key)
+function Card({ title, hint, children, ...rest }: { title: string; hint?: string; children: React.ReactNode } & Record<string, unknown>): React.JSX.Element {
+  return (
+    <section className="orch-card2" {...rest}>
+      <h3>{title}</h3>
+      {hint && <p className="orch-hint">{hint}</p>}
+      {children}
+    </section>
+  );
+}
+
 export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check }: {
   locale: LocaleId; linkId: string; info: OrchestrationProfileInfo; onSaved(profile: OrchestrationProjectProfile): void; onCancel(): void;
   // «Проверить сейчас» on these settings as they are being edited (the commands, the work place, the rights)
@@ -147,17 +158,24 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
     else setError(outcomeText(locale, outcome) ?? t(locale, "orchError_generic"));
   };
 
+  // R5f (mock-up 15): the rights of a CLI are a segment of the modes it offers (the same state the select held)
   const accessSelect = (provider: "claude" | "codex") => {
     const options = (caps ?? info.capabilities)[provider];
     const current = p.access[provider];
     const all = options.some((o) => o.mode === current) ? options : [...options, { mode: current, mapping: "" }];
     const mapping = current === "terminal" ? null : all.find((o) => o.mode === current)?.mapping ?? "";
     return (
-      <label className="orch-field" data-orch-access={provider}>
-        <span>{provider === "claude" ? "Claude" : "Codex"}</span>
-        <select value={current} onChange={(e) => set({ access: { ...p.access, [provider]: e.target.value } })}>
-          {all.map((o) => <option key={o.mode} value={o.mode}>{tr(locale, `orchAccess_${o.mode}`)}</option>)}
-        </select>
+      <div className="orch-access" data-orch-access={provider}>
+        <div className="orch-access__row">
+          <span className="orch-access__name">{provider === "claude" ? "Claude" : "Codex"}</span>
+          {/* biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box */}
+          <div className="orch-seg2 orch-seg2--wrap" role="group" aria-label={provider === "claude" ? "Claude" : "Codex"} data-orch-access-value={current}>
+            {all.map((o) => (
+              <button key={o.mode} type="button" aria-pressed={current === o.mode} className={current === o.mode ? "orch-seg2__on" : undefined} data-orch-access-mode={o.mode}
+                onClick={() => set({ access: { ...p.access, [provider]: o.mode } })}>{tr(locale, `orchAccess_${o.mode}`)}</button>
+            ))}
+          </div>
+        </div>
         {/* the CLI's own flags are a detail: folded under «Подробнее» */}
         <details className="orch-hint" data-orch-access-details>
           <summary>{t(locale, "orchMore")}</summary>
@@ -166,183 +184,188 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
         {current === "workspace" && <small className="orch-hint">{t(locale, "orchAccessWorkspaceHint")}</small>}
         {current === "terminal" && <small className="orch-hint orch-hint--warn" data-orch-terminal-warning>{t(locale, "orchAccessTerminalWarn")}</small>}
         {current === "full" && <small className="dialog-error" data-orch-full-warning>{t(locale, "orchAccessFullWarn")}</small>}
-      </label>
+      </div>
     );
   };
 
   return (
     <form className="orch-form orch-settings" data-orch-settings onSubmit={(e) => { e.preventDefault(); void save(); }}>
-      <p className="orch-hint">{t(locale, "orchSettingsIntro")}</p>
-      <fieldset className="orch-field orch-workmode" data-orch-settings-workmode={p.workMode}>
-        <legend>{t(locale, "orchWorkMode")}</legend>
-        {(["copy", "worktree", "project"] as const).map((m) => (
-          <label key={m} className="orch-check">
-            <input type="radio" name="orch-settings-workmode" checked={p.workMode === m} onChange={() => set({ workMode: m })} />
-            <span><b><Termed locale={locale} text={tr(locale, `orchWorkMode_${m}`)} /></b> — <Termed locale={locale} text={tr(locale, `orchWorkMode_${m}Hint`)} /></span>
-          </label>
-        ))}
-      </fieldset>
-      <label className="orch-field">
-        <span>{t(locale, "orchSettingsChecks")}</span>
-        <textarea rows={2} spellCheck={false} value={checks} data-orch-settings-checks onChange={(e) => setChecks(e.target.value)} />
-      </label>
-      <label className="orch-check">
-        <input type="checkbox" checked={p.prepare.auto} data-orch-settings-prepare onChange={(e) => set({ prepare: { ...p.prepare, auto: e.target.checked } })} />
-        <span>{t(locale, "orchSettingsPrepareAuto")}</span>
-      </label>
-      {/* the commands themselves under «More» (UX audit PR 2: technical details folded) */}
-      {info.facts.needed.length ? <details className="orch-hint" data-orch-needed><summary>{t(locale, "orchSettingsNeeded")} {info.facts.needed.length} · {t(locale, "orchMore")}</summary>{info.facts.needed.join(" · ")}</details>
-        : <p className="orch-hint" data-orch-needed>{t(locale, "orchSettingsNothingNeeded")}</p>}
-      <fieldset className="orch-field">
-        <legend>{t(locale, "orchSettingsAccess")}</legend>
-        <p className="orch-hint">{t(locale, "orchSettingsAccessHint")}</p>
-        {accessSelect("claude")}
-        {accessSelect("codex")}
-        {toTerminal && (
-          <label className="orch-check" data-orch-terminal-confirm>
-            <input type="checkbox" checked={confirmTerminal} onChange={(e) => setConfirmTerminal(e.target.checked)} />
-            <span>{t(locale, "orchAccessTerminalConfirm")}</span>
-          </label>
-        )}
-      </fieldset>
-      {/* journal v2: a role's model is recorded in the goal only there */}
-      {info.optionalChecks && (
-        <RoleModelsField locale={locale} linkId={linkId} value={p.models ?? NO_MODELS} hint={t(locale, "orchModelsSettingsHint")} onChange={(models) => set({ models })} />
-      )}
-
-      <details className="orch-advanced" data-orch-advanced>
-        <summary>{t(locale, "orchAdvanced")}</summary>
-        <label className="orch-field">
-          <span>{t(locale, "orchSettingsPrepareSteps")}</span>
-          <textarea rows={3} spellCheck={false} value={steps} data-orch-settings-steps onChange={(e) => setSteps(e.target.value)} />
-        </label>
-        <label className="orch-check">
-          <input type="checkbox" checked={p.env.direnv} onChange={(e) => set({ env: { direnv: e.target.checked } })} />
-          <span>{t(locale, "orchSettingsDirenv")}</span>
-        </label>
-        <fieldset className="orch-field" data-orch-settings-finish>
-          <legend>{t(locale, "orchSettingsFinish")}</legend>
-          <label className="orch-check">
-            <input type="checkbox" checked={p.finish.commit} onChange={(e) => finish({ commit: e.target.checked, ...(e.target.checked ? {} : { push: null }) })} />
-            <span>{t(locale, "orchSettingsCommitDefault")}</span>
-          </label>
-          <label className="orch-field">
-            <span>{t(locale, "orchSettingsPush")}</span>
-            <span className="orch-field__row">
-              <select value={p.finish.push?.remote ?? ""} data-orch-settings-remote
-                onChange={(e) => finish(e.target.value ? { commit: true, push: { remote: e.target.value, branch: p.finish.push?.branch ?? "", remoteUrl: null } } : { push: null })}>
-                <option value="">{t(locale, "orchSettingsPushNone")}</option>
-                {info.facts.remotes.map((r) => <option key={r.name} value={r.name}>{r.name} — {r.url}</option>)}
-              </select>
-              {p.finish.push && (
-                <input value={p.finish.push.branch} placeholder={t(locale, "orchSettingsPushBranch")} data-orch-settings-branch
-                  onChange={(e) => finish({ push: { ...p.finish.push!, branch: e.target.value } })} />
-              )}
-            </span>
-          </label>
-          <label className="orch-field"><span>{t(locale, "orchSettingsQa")}: {t(locale, "orchSettingsQaEnv")}</span>
-            <input value={qa.environment} data-orch-settings-qa-env onChange={(e) => setQa({ environment: e.target.value })} /></label>
-          <label className="orch-field"><span>{t(locale, "orchSettingsQaCommand")}</span>
-            <input value={qa.command} spellCheck={false} data-orch-settings-qa-command onChange={(e) => setQa({ command: e.target.value })} /></label>
-          <label className="orch-field"><span>{t(locale, "orchSettingsQaVerify")}</span>
-            <input value={qa.verify} spellCheck={false} data-orch-settings-qa-verify onChange={(e) => setQa({ verify: e.target.value })} /></label>
-          <label className="orch-check" data-orch-settings-qa-reports>
-            <input type="checkbox" checked={!!qa.reportsVersion} onChange={(e) => setQa({ reportsVersion: e.target.checked })} />
-            <span>{t(locale, "orchSettingsQaReportsVersion")}</span>
-          </label>
-          {qa.verify.trim() && !qa.reportsVersion && <small className="orch-hint" data-orch-qa-unverified>{t(locale, "orchSettingsQaUnverified")}</small>}
-          <small className="orch-hint">{t(locale, "orchSettingsQaHint")} {t(locale, "orchSettingsQaNeedsCommit")}</small>
-        </fieldset>
-        {/* F3 (stage-f-external-projects.md §10): the board's tasks in a worktree — the branch name, the remote base; main
-            refuses them in another mode (work_mode_not_worktree, remote_base_mode) and reads the remote's address */}
-        <fieldset className="orch-field" data-orch-settings-branches>
-          <label className="orch-field">
-            <span>{t(locale, "projBranchTemplate")}</span>
-            <input value={p.branchTemplate ?? ""} spellCheck={false} placeholder="{ref}" data-orch-settings-branch-template
-              onChange={(e) => setP((cur) => { const { branchTemplate: _was, ...rest } = cur; return e.target.value ? { ...rest, branchTemplate: e.target.value } : rest; })} />
-            <small className="orch-hint">{t(locale, "projBranchTemplateHint")}</small>
-          </label>
-          <label className="orch-field">
-            <span>{t(locale, "projRunBase")}</span>
-            <span className="orch-field__row">
-              <select value={p.runBase?.remote ?? ""} data-orch-settings-run-base-remote
-                onChange={(e) => setP((cur) => { const { runBase: _was, ...rest } = cur; return e.target.value ? { ...rest, runBase: { remote: e.target.value, branch: cur.runBase?.branch ?? "", remoteUrl: null } } : rest; })}>
-                <option value="">{t(locale, "projRunBaseNone")}</option>
-                {info.facts.remotes.map((r) => <option key={r.name} value={r.name}>{r.name} — {r.url}</option>)}
-              </select>
-              {p.runBase && (
-                <input value={p.runBase.branch} placeholder={t(locale, "projRunBaseBranch")} data-orch-settings-run-base-branch
-                  onChange={(e) => set({ runBase: { ...p.runBase!, branch: e.target.value } })} />
-              )}
-            </span>
-            {p.runBase?.remoteUrl && <small className="orch-hint" data-orch-settings-run-base-url>{t(locale, "projRunBaseUrl")}: <code>{p.runBase.remoteUrl}</code></small>}
-          </label>
-        </fieldset>
-        {/* F4 (§10): «The autopilot pushes» — off by default; the confirmation shows the remote, its address and the options as they are */}
-        <fieldset className="orch-field" data-orch-settings-run-push>
-          <label className="orch-check">
-            <input type="checkbox" checked={!!p.runPush?.enabled} data-orch-settings-run-push-enabled
-              onChange={(e) => set({ runPush: { remote: info.facts.remotes[0]?.name ?? "origin", remoteUrl: null, options: [], protected: [], confirmedAt: null, ...p.runPush, enabled: e.target.checked } })} />
-            <span>{t(locale, "projRunPush")}</span>
-          </label>
-          <small className="orch-hint">{t(locale, "projRunPushHint")}</small>
-          {p.runPush && (
-            <>
-              <select value={p.runPush.remote} data-orch-settings-run-push-remote onChange={(e) => set({ runPush: { ...p.runPush!, remote: e.target.value } })}>
-                {[...new Set([p.runPush.remote, ...info.facts.remotes.map((r) => r.name)])].map((name) => <option key={name} value={name}>{name}</option>)}
-              </select>
-              <label className="orch-field">
-                <span>{t(locale, "projRunPushOptions")}</span>
-                <textarea rows={3} value={pushOptions} spellCheck={false} data-orch-settings-run-push-options onChange={(e) => setPushOptions(e.target.value)} />
+      <div className="orch-form__body">
+        <div className="orch-settings__grid" data-orch-advanced>
+          <Card title={t(locale, "orchSettingsAccess")} hint={t(locale, "orchSettingsAccessHint")}>
+            {accessSelect("claude")}
+            {accessSelect("codex")}
+            {toTerminal && (
+              <label className="orch-check" data-orch-terminal-confirm>
+                <input type="checkbox" checked={confirmTerminal} onChange={(e) => setConfirmTerminal(e.target.checked)} />
+                <span>{t(locale, "orchAccessTerminalConfirm")}</span>
               </label>
-              <label className="orch-field">
-                <span>{t(locale, "projRunPushProtected")}</span>
-                <textarea rows={2} value={pushProtected} spellCheck={false} data-orch-settings-run-push-protected onChange={(e) => setPushProtected(e.target.value)} />
-              </label>
-            </>
+            )}
+          </Card>
+          {/* journal v2: a role's model is recorded in the goal only there */}
+          {info.optionalChecks && (
+            <Card title={t(locale, "projCardModels")}>
+              <RoleModelsField bare locale={locale} linkId={linkId} value={p.models ?? NO_MODELS} hint={t(locale, "orchModelsSettingsHint")} onChange={(models) => set({ models })} />
+            </Card>
           )}
-          {pushAsks && (
-            <label className="orch-check" data-orch-push-confirm>
-              <input type="checkbox" checked={confirmPush} disabled={pushUrl === null} onChange={(e) => setConfirmPush(e.target.checked)} />
-              <span>{t(locale, "projRunPushConfirm").replace("{remote}", () => p.runPush!.remote).replace("{url}", () => pushUrl ?? t(locale, "projRunPushUrlUnread")).replace("{options}", () => lines(pushOptions).join(" ") || "—")}</span>
+          <Card title={t(locale, "projCardPrepare")}>
+            <label className="orch-field">
+              <span>{t(locale, "orchSettingsPrepareSteps")}</span>
+              <textarea rows={3} spellCheck={false} value={steps} data-orch-settings-steps onChange={(e) => setSteps(e.target.value)} />
             </label>
-          )}
-        </fieldset>
-        {/* F4 (§10, T-9, T-14): the review export of a board task's run, and the runs without MCP */}
-        <fieldset className="orch-field" data-orch-settings-f4>
-          <label className="orch-check">
-            <input type="checkbox" checked={p.reviewExport === true} data-orch-settings-review-export
-              onChange={(e) => set({ reviewExport: e.target.checked ? true : undefined })} />
-            <span>{t(locale, "projReviewExport")}</span>
-          </label>
-          <small className="orch-hint">{t(locale, "projReviewExportHint")}</small>
-          <label className="orch-check">
-            <input type="checkbox" checked={p.runMcp === false} data-orch-settings-run-mcp
-              onChange={(e) => set({ runMcp: e.target.checked ? false : undefined })} />
-            <span>{t(locale, "projRunMcp")}</span>
-          </label>
-          <small className="orch-hint">{t(locale, "projRunMcpHint")}</small>
-        </fieldset>
-        <fieldset className="orch-field" data-orch-settings-grants>
-          <legend>{t(locale, "orchSettingsGrants")}</legend>
-          {p.grants.length === 0 ? <p className="orch-hint">{t(locale, "orchSettingsGrantsNone")}</p> : (
-            <ul>{p.grants.map((g) => (
-              <li key={g.id} data-grant={g.id}>
-                {g.provider === "codex" ? "Codex" : "Claude"} · {g.tool}: <code>{g.summary}</code>{" "}
-                <button type="button" onClick={() => set({ grants: p.grants.filter((x) => x.id !== g.id) })}>{t(locale, "orchSettingsGrantRemove")}</button>
-              </li>
-            ))}</ul>
-          )}
-        </fieldset>
-        <EnvironmentCheck locale={locale} linkId={linkId} />
-      </details>
-
-      {check?.({ checks: checks.split("\n").map((c) => c.trim()).filter(Boolean), workMode: p.workMode, access: p.access })}
+            <label className="orch-check">
+              <input type="checkbox" checked={p.prepare.auto} data-orch-settings-prepare onChange={(e) => set({ prepare: { ...p.prepare, auto: e.target.checked } })} />
+              <span>{t(locale, "orchSettingsPrepareAuto")}</span>
+            </label>
+            <label className="orch-check">
+              <input type="checkbox" checked={p.env.direnv} onChange={(e) => set({ env: { direnv: e.target.checked } })} />
+              <span>{t(locale, "orchSettingsDirenv")}</span>
+            </label>
+            {/* the commands themselves under «More» (UX audit PR 2: technical details folded) */}
+            {info.facts.needed.length ? <details className="orch-hint" data-orch-needed><summary>{t(locale, "orchSettingsNeeded")} {info.facts.needed.length} · {t(locale, "orchMore")}</summary>{info.facts.needed.join(" · ")}</details>
+              : <p className="orch-hint" data-orch-needed>{t(locale, "orchSettingsNothingNeeded")}</p>}
+          </Card>
+          <Card title={t(locale, "projCardChecks")}>
+            <label className="orch-field">
+              <span>{t(locale, "orchSettingsChecks")}</span>
+              <textarea rows={2} spellCheck={false} value={checks} data-orch-settings-checks onChange={(e) => setChecks(e.target.value)} />
+            </label>
+            {check?.({ checks: checks.split("\n").map((c) => c.trim()).filter(Boolean), workMode: p.workMode, access: p.access })}
+          </Card>
+          {/* F3 (stage-f-external-projects.md §10): the board's tasks in a worktree — the branch name, the remote base; main
+              refuses them in another mode (work_mode_not_worktree, remote_base_mode) and reads the remote's address.
+              F4 (§10): «The autopilot pushes» — off by default; the confirmation shows the remote, its address and the options as they are */}
+          <Card title={t(locale, "projCardPush")} data-orch-settings-branches>
+            <label className="orch-field">
+              <span>{t(locale, "projBranchTemplate")}</span>
+              <input value={p.branchTemplate ?? ""} spellCheck={false} placeholder="{ref}" data-orch-settings-branch-template
+                onChange={(e) => setP((cur) => { const { branchTemplate: _was, ...rest } = cur; return e.target.value ? { ...rest, branchTemplate: e.target.value } : rest; })} />
+              <small className="orch-hint">{t(locale, "projBranchTemplateHint")}</small>
+            </label>
+            <label className="orch-field">
+              <span>{t(locale, "projRunBase")}</span>
+              <span className="orch-field__row">
+                <select value={p.runBase?.remote ?? ""} data-orch-settings-run-base-remote
+                  onChange={(e) => setP((cur) => { const { runBase: _was, ...rest } = cur; return e.target.value ? { ...rest, runBase: { remote: e.target.value, branch: cur.runBase?.branch ?? "", remoteUrl: null } } : rest; })}>
+                  <option value="">{t(locale, "projRunBaseNone")}</option>
+                  {info.facts.remotes.map((r) => <option key={r.name} value={r.name}>{r.name} — {r.url}</option>)}
+                </select>
+                {p.runBase && (
+                  <input value={p.runBase.branch} placeholder={t(locale, "projRunBaseBranch")} data-orch-settings-run-base-branch
+                    onChange={(e) => set({ runBase: { ...p.runBase!, branch: e.target.value } })} />
+                )}
+              </span>
+              {p.runBase?.remoteUrl && <small className="orch-hint" data-orch-settings-run-base-url>{t(locale, "projRunBaseUrl")}: <code>{p.runBase.remoteUrl}</code></small>}
+            </label>
+            <div className="orch-field" data-orch-settings-run-push>
+              <label className="orch-check">
+                <input type="checkbox" checked={!!p.runPush?.enabled} data-orch-settings-run-push-enabled
+                  onChange={(e) => set({ runPush: { remote: info.facts.remotes[0]?.name ?? "origin", remoteUrl: null, options: [], protected: [], confirmedAt: null, ...p.runPush, enabled: e.target.checked } })} />
+                <span>{t(locale, "projRunPush")}</span>
+              </label>
+              <small className="orch-hint">{t(locale, "projRunPushHint")}</small>
+              {p.runPush && (
+                <>
+                  <select value={p.runPush.remote} data-orch-settings-run-push-remote onChange={(e) => set({ runPush: { ...p.runPush!, remote: e.target.value } })}>
+                    {[...new Set([p.runPush.remote, ...info.facts.remotes.map((r) => r.name)])].map((name) => <option key={name} value={name}>{name}</option>)}
+                  </select>
+                  <label className="orch-field">
+                    <span>{t(locale, "projRunPushOptions")}</span>
+                    <textarea rows={3} value={pushOptions} spellCheck={false} data-orch-settings-run-push-options onChange={(e) => setPushOptions(e.target.value)} />
+                  </label>
+                  <label className="orch-field">
+                    <span>{t(locale, "projRunPushProtected")}</span>
+                    <textarea rows={2} value={pushProtected} spellCheck={false} data-orch-settings-run-push-protected onChange={(e) => setPushProtected(e.target.value)} />
+                  </label>
+                </>
+              )}
+              {pushAsks && (
+                <label className="orch-check" data-orch-push-confirm>
+                  <input type="checkbox" checked={confirmPush} disabled={pushUrl === null} onChange={(e) => setConfirmPush(e.target.checked)} />
+                  <span>{t(locale, "projRunPushConfirm").replace("{remote}", () => p.runPush!.remote).replace("{url}", () => pushUrl ?? t(locale, "projRunPushUrlUnread")).replace("{options}", () => lines(pushOptions).join(" ") || "—")}</span>
+                </label>
+              )}
+            </div>
+          </Card>
+          <div className="orch-settings__stack">
+          {/* F4 (§10, T-9, T-14): the review export of a board task's run, and the runs without MCP */}
+          <Card title={t(locale, "projCardReview")} data-orch-settings-f4>
+            <label className="orch-check">
+              <input type="checkbox" checked={p.reviewExport === true} data-orch-settings-review-export
+                onChange={(e) => set({ reviewExport: e.target.checked ? true : undefined })} />
+              <span>{t(locale, "projReviewExport")}</span>
+            </label>
+            <small className="orch-hint">{t(locale, "projReviewExportHint")}</small>
+          </Card>
+          <Card title={t(locale, "projCardMcp")}>
+            <label className="orch-check">
+              <input type="checkbox" checked={p.runMcp === false} data-orch-settings-run-mcp
+                onChange={(e) => set({ runMcp: e.target.checked ? false : undefined })} />
+              <span>{t(locale, "projRunMcp")}</span>
+            </label>
+            <small className="orch-hint">{t(locale, "projRunMcpHint")}</small>
+            <EnvironmentCheck locale={locale} linkId={linkId} />
+          </Card>
+          </div>
+          <Card title={t(locale, "orchWorkMode")} data-orch-settings-workmode={p.workMode}>
+            {/* biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box */}
+            <div className="orch-seg2" role="group" aria-label={t(locale, "orchWorkMode")}>
+              {(["copy", "worktree", "project"] as const).map((m) => (
+                <button key={m} type="button" aria-pressed={p.workMode === m} className={p.workMode === m ? "orch-seg2__on" : undefined} data-orch-settings-workmode-to={m}
+                  onClick={() => set({ workMode: m })}>{tr(locale, `orchWorkMode_${m}`)}</button>
+              ))}
+            </div>
+            <p className="orch-hint"><Termed locale={locale} text={tr(locale, `orchWorkMode_${p.workMode}Hint`)} /></p>
+          </Card>
+          <Card title={t(locale, "orchSettingsFinish")} data-orch-settings-finish>
+            <label className="orch-check">
+              <input type="checkbox" checked={p.finish.commit} onChange={(e) => finish({ commit: e.target.checked, ...(e.target.checked ? {} : { push: null }) })} />
+              <span>{t(locale, "orchSettingsCommitDefault")}</span>
+            </label>
+            <label className="orch-field">
+              <span>{t(locale, "orchSettingsPush")}</span>
+              <span className="orch-field__row">
+                <select value={p.finish.push?.remote ?? ""} data-orch-settings-remote
+                  onChange={(e) => finish(e.target.value ? { commit: true, push: { remote: e.target.value, branch: p.finish.push?.branch ?? "", remoteUrl: null } } : { push: null })}>
+                  <option value="">{t(locale, "orchSettingsPushNone")}</option>
+                  {info.facts.remotes.map((r) => <option key={r.name} value={r.name}>{r.name} — {r.url}</option>)}
+                </select>
+                {p.finish.push && (
+                  <input value={p.finish.push.branch} placeholder={t(locale, "orchSettingsPushBranch")} data-orch-settings-branch
+                    onChange={(e) => finish({ push: { ...p.finish.push!, branch: e.target.value } })} />
+                )}
+              </span>
+            </label>
+            <label className="orch-field"><span>{t(locale, "orchSettingsQa")}: {t(locale, "orchSettingsQaEnv")}</span>
+              <input value={qa.environment} data-orch-settings-qa-env onChange={(e) => setQa({ environment: e.target.value })} /></label>
+            <label className="orch-field"><span>{t(locale, "orchSettingsQaCommand")}</span>
+              <input value={qa.command} spellCheck={false} data-orch-settings-qa-command onChange={(e) => setQa({ command: e.target.value })} /></label>
+            <label className="orch-field"><span>{t(locale, "orchSettingsQaVerify")}</span>
+              <input value={qa.verify} spellCheck={false} data-orch-settings-qa-verify onChange={(e) => setQa({ verify: e.target.value })} /></label>
+            <label className="orch-check" data-orch-settings-qa-reports>
+              <input type="checkbox" checked={!!qa.reportsVersion} onChange={(e) => setQa({ reportsVersion: e.target.checked })} />
+              <span>{t(locale, "orchSettingsQaReportsVersion")}</span>
+            </label>
+            {qa.verify.trim() && !qa.reportsVersion && <small className="orch-hint" data-orch-qa-unverified>{t(locale, "orchSettingsQaUnverified")}</small>}
+            <small className="orch-hint">{t(locale, "orchSettingsQaHint")} {t(locale, "orchSettingsQaNeedsCommit")}</small>
+          </Card>
+          <Card title={t(locale, "orchSettingsGrants")} data-orch-settings-grants>
+            {p.grants.length === 0 ? <p className="orch-hint">{t(locale, "orchSettingsGrantsNone")}</p> : (
+              <ul>{p.grants.map((g) => (
+                <li key={g.id} data-grant={g.id}>
+                  {g.provider === "codex" ? "Codex" : "Claude"} · {g.tool}: <code>{g.summary}</code>{" "}
+                  <button type="button" onClick={() => set({ grants: p.grants.filter((x) => x.id !== g.id) })}>{t(locale, "orchSettingsGrantRemove")}</button>
+                </li>
+              ))}</ul>
+            )}
+          </Card>
+        </div>
+      </div>
       <div className="orch-form__actions">
+        {error && <span className="dialog-error orch-form__why" role="alert">{error}</span>}
         <button type="button" className="orch-cancel" onClick={onCancel}>{t(locale, "orchCancel")}</button>
         <button type="submit" className="orch-primary" disabled={busy}>{busy ? t(locale, "orchSending") : t(locale, "orchSettingsSave")}</button>
       </div>
-      {error && <div className="dialog-error" role="alert">{error}</div>}
     </form>
   );
 }

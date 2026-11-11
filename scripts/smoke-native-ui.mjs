@@ -114,11 +114,11 @@ try {
   // ---------- 2. Laravel readiness: facts only, nothing started ----------
   const L = await pair(laravel);
   await app.clickEl(byText(`[data-agent-link-id="${L.link.linkId}"] button`, "Новая цель"));
-  await app.waitFor(`${q(".orch-dialog textarea")} && true`, "goal dialog");
+  await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
   await app.type(`document.querySelectorAll(".orch-dialog textarea")[0]`, "Добавить страницу /health");
-  await app.type(`document.querySelectorAll(".orch-dialog textarea")[1]`, "GET /health отвечает 200\nphp artisan test проходит");
+  await app.fillRows(q("[data-orch-requirements]"), "GET /health отвечает 200\nphp artisan test проходит".split("\n"));
   await app.waitFor(`["ready", "confirm", "blocked", "error"].includes(${q("[data-orch-readiness]")}?.dataset.orchReadiness)`, "readiness", 20_000);
-  await app.waitFor(`${q("[data-orch-commands]")}.value === "php artisan test"`, "suggested command", 10_000);
+  await app.waitFor(`${q("[data-orch-commands]")}.querySelector("input")?.value === "php artisan test"`, "suggested command", 10_000);
   const stack = await readyItem("stack"), vendor = await readyItem("laravel"), cmd = await readyItem("command_1"), wd = await readyItem("workdir");
   expect(stack?.level === "ok" && /Laravel/i.test(stack.text), "readiness: the stack is Laravel", stack);
   // stage 13: the suggested project settings prepare vendor/ automatically (composer install), so it is not a warning
@@ -145,9 +145,6 @@ try {
   const N = await pair(node);
   await startGoal(app, N.link.linkId, { task: "Добавить src/note.mjs", criteria: "src/note.mjs есть\nnode --test проходит", commands: ["node --test"],
     onDialog: async () => { await app.waitFor(`${q("[data-orch-readiness]")} && true`, "readiness"); await app.shot("03-goal-dialog"); } });
-  await app.waitFor(`${q("[data-orch-where]")} && true`, "the panel's work folder"); // under load the panel renders after the start
-  const where = await app.ev(`(() => { const el = ${q("[data-orch-where]")}; return el && { mode: el.dataset.orchWhere, text: el.textContent }; })()`);
-  expect(where?.mode === "project" && where.text.includes(node), "the panel says: in the project folder, with its path", where);
   await app.waitFor(`${q("[data-orch-permission]")} && true`, "permission prompt", 60_000);
   const perm = await app.ev(`${q("[data-orch-permission]")}.textContent`);
   expect(perm.includes("Bash") && perm.includes("node --test"), "the executor's Bash prompt is in the panel with its command", perm);
@@ -170,11 +167,15 @@ try {
   expect(fs.readFileSync(path.join(node, "src", "note.mjs"), "utf8").includes("note"), "the executor wrote into the project folder", null);
   expect(fs.readFileSync(path.join(node, "README.md"), "utf8") === "the user's uncommitted work\n", "the user's uncommitted work is kept", null);
   expect(git(node, "rev-parse", "--abbrev-ref", "HEAD").trim() === "main", "the user's branch is untouched", null);
+  await openTab(app, "summary");
+  await app.waitFor(`${q("[data-orch-where]")} && true`, "the panel's work folder"); // D-018: «Где изменения» is a fact of the finished run (mock-ups 13, 17)
+  const where = await app.ev(`(() => { const el = ${q("[data-orch-where]")}; return el && { mode: el.dataset.orchWhere, text: el.textContent }; })()`);
+  expect(where?.mode === "project" && where.text.includes(node), "the panel says: in the project folder, with its path", where);
   await app.shot("06-completed");
   await openTab(app, "activity");
   await app.waitFor(`document.querySelectorAll("[data-activity-kind]").length > 3`, "feed", 10_000);
   await app.shot("07-activity");
-  await app.clickEl(`document.querySelectorAll(".orch-roles button")[1]`);
+  await app.clickEl(`document.querySelector('.orch-roles [data-orch-role="executor"]')`);
   await sleep(300);
   await app.shot("08-activity-executor");
   await openTab(app, "changes");

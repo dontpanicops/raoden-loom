@@ -233,11 +233,11 @@ test("the run panel says which step failed and why: the board, the next step, th
   }));
   const text = (html) => html.replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&gt;/g, ">");
   const overview = render("ru", "overview");
-  assert.match(text(overview), /Подготовка среды:не удалась — шаг «echo .* exit 1»: код выхода 1: npm error code E404 Показать вывод/);
+  assert.match(text(overview), /Подготовка среды не удалась.*шаг «echo .* exit 1»: код выхода 1: npm error code E404 Показать вывод/);
   assert.match(overview, /data-prepare-output-toggle/);
-  assert.match(text(overview), /Дальше: проверьте шаг «echo .* exit 1»: устраните причину сбоя и нажмите «Продолжить»/);
+  assert.match(text(overview), /Проверьте шаг «echo .* exit 1»: устраните причину сбоя и нажмите «Продолжить»/);
   assert.doesNotMatch(text(overview), /прочтите, что именно нужно, в ленте/);
-  assert.match(text(render("en", "overview")), /Next: check the step “echo .* exit 1”: fix the cause and press Continue/);
+  assert.match(text(render("en", "overview")), /Check the step “echo .* exit 1”: fix the cause and press Continue/);
   const feed = text(render("ru", "activity", "check"));
   assert.match(feed, /Подготовка среды: не удалась — шаг «echo .* exit 1»: код выхода 1: npm error code E404/);
   const hist = text(render("ru", "history"));

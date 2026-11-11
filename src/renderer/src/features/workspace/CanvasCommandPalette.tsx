@@ -29,6 +29,10 @@ interface CanvasCommandPaletteProps {
   onCreateOrchestrationAgent(provider: "codex" | "claude"): void;
   onOpenBrowser(): void;
   onOpenSettings(): void;
+  onGoHome(): void;
+  homeShortcut: string;
+  // "Getting started" (mock 10): brings the first-run card back; D-016
+  onShowGettingStarted(): void;
   // Project workspaces: one command per open workspace, in the switcher's order (⌘1…⌘9 on macOS).
   workspaces?: readonly { id: string; title: string }[];
   onSwitchWorkspace?(id: string): void;
@@ -43,9 +47,17 @@ type CommandItem = {
   searchDetail: string;
   icon?: UiIconName;
   provider?: ProviderId;
+  status?: SessionSnapshot["status"];
   shortcut?: string;
   disabledHint?: string; // shown, not run (orchestration where it is unavailable)
   run(): void;
+};
+
+// the chip next to a session in the palette (mock 10); a quiet session has none
+const STATUS_CHIP: Partial<Record<SessionSnapshot["status"], { tone: "working" | "failed" | "done"; label: "statusWorking" | "statusFailed" | "statusDone" }>> = {
+  working: { tone: "working", label: "statusWorking" },
+  failed: { tone: "failed", label: "statusFailed" },
+  done: { tone: "done", label: "statusDone" }
 };
 
 export function CanvasCommandPalette({
@@ -59,6 +71,9 @@ export function CanvasCommandPalette({
   onCreateOrchestrationAgent,
   onOpenBrowser,
   onOpenSettings,
+  onGoHome,
+  homeShortcut,
+  onShowGettingStarted,
   workspaces = [],
   onSwitchWorkspace,
   onClose
@@ -74,6 +89,7 @@ export function CanvasCommandPalette({
       label: session.title,
       searchDetail: PROVIDERS[session.provider].label,
       provider: session.provider,
+      status: session.status,
       run: () => onFocusSession(session)
     })),
     ...workspaces.map((w, i) => ({
@@ -109,7 +125,7 @@ export function CanvasCommandPalette({
       group: "actions" as const,
       kind: "provider" as const,
       label: provider === "terminal"
-        ? PROVIDERS[provider].label
+        ? t(locale, "paletteNewTerminal")
         : `${t(locale, "canvasMenuLaunchAgent")} · ${PROVIDERS[provider].label}`,
       searchDetail: `${t(locale, "canvasMenuLaunchAgent")} ${PROVIDERS[provider].label}`,
       provider,
@@ -135,6 +151,25 @@ export function CanvasCommandPalette({
       run: onOpenBrowser
     },
     {
+      id: "go:home",
+      group: "actions",
+      kind: "action",
+      label: t(locale, "paletteGoHome"),
+      searchDetail: t(locale, "canvasMenuActions"),
+      icon: "home",
+      shortcut: homeShortcut,
+      run: onGoHome
+    },
+    {
+      id: "open:getting-started",
+      group: "actions",
+      kind: "action",
+      label: t(locale, "paletteGettingStarted"),
+      searchDetail: t(locale, "canvasMenuActions"),
+      icon: "info",
+      run: onShowGettingStarted
+    },
+    {
       id: "open:settings",
       group: "actions",
       kind: "action",
@@ -144,7 +179,7 @@ export function CanvasCommandPalette({
       shortcut: window.canvasTTY.window.isMacOS ? "⌘," : "Ctrl+,",
       run: onOpenSettings
     }
-  ], [launcherItems, locale, onCreateNote, onCreateOrchestrationAgent, onCreateRegion, onFocusSession, onLaunch, onOpenBrowser, onOpenSettings, onSwitchWorkspace, sessions, workspaces]);
+  ], [homeShortcut, launcherItems, locale, onCreateNote, onCreateOrchestrationAgent, onCreateRegion, onFocusSession, onGoHome, onLaunch, onOpenBrowser, onOpenSettings, onShowGettingStarted, onSwitchWorkspace, sessions, workspaces]);
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase(locale);
     // the arrow keys walk the rows in the order they are shown: waiting, sessions, actions
@@ -182,16 +217,21 @@ export function CanvasCommandPalette({
     };
 
     if (command.kind === "session" && command.provider) {
+      const waiting = command.group === "waiting";
+      const chip = !waiting && command.status ? STATUS_CHIP[command.status] : undefined;
       return (
         <CanvasMenuRow
           {...sharedProps}
           indent
-          right={<CanvasMenuSub>{t(locale, "canvasMenuFocus")}</CanvasMenuSub>}
+          right={waiting
+            ? <CanvasMenuKbd>↵</CanvasMenuKbd>
+            : chip && <span className={`canvas-palette__chip canvas-palette__chip--${chip.tone}`}>{t(locale, chip.label)}</span>}
           key={command.id}
         >
           <span className="canvas-menu__provider">
             <ProviderIcon provider={command.provider} size="small" />
-            {PROVIDERS[command.provider].label.toLocaleLowerCase(locale)} · {command.label}
+            {command.label}
+            {waiting && <span className="canvas-palette__detail">{PROVIDERS[command.provider].label} · {t(locale, "statusNeedsApproval")}</span>}
           </span>
         </CanvasMenuRow>
       );
@@ -267,7 +307,7 @@ export function CanvasCommandPalette({
             aria-label={t(locale, "commandPalettePlaceholder")}
             onChange={(event) => setQuery(event.currentTarget.value)}
           />
-          <CanvasMenuKbd>Esc</CanvasMenuKbd>
+          <kbd className="canvas-palette__esc">esc</kbd>
         </label>
         <div className="canvas-command-palette__results" role="listbox">
           {filtered.length === 0 && (
@@ -294,9 +334,8 @@ export function CanvasCommandPalette({
           )}
         </div>
         <footer className="canvas-command-palette__footer">
-          <span>{t(locale, "canvasMenuChoose")}</span>
-          <span>{t(locale, "canvasMenuExecute")}</span>
-          <span>{t(locale, "canvasMenuSharedModel")}</span>
+          <span>{t(locale, "paletteFooterChoose")}</span>
+          <span>{t(locale, "paletteFooterOpen")}</span>
         </footer>
       </section>
     </div>

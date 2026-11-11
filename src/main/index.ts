@@ -397,7 +397,7 @@ async function initializeServices(): Promise<void> {
   await terminalManager.restorePersistedSessions();
   // every load of LimitsService is gated by its CLI being available: none is, so nothing is spawned or fetched
   if (hermeticSmoke()) console.log("[smoke] limits: no provider is polled (CANVASTTY_SMOKE_HERMETIC)");
-  limitsService = new LimitsService(hermeticSmoke() ? createProviderCliRegistry({ pathOnly: true, environment: {} }) : providerClis, app.getVersion());
+  limitsService = new LimitsService(hermeticSmoke() ? createProviderCliRegistry({ pathOnly: true, environment: { PATH: developmentEnv("CANVASTTY_SMOKE_CLI_DIR") ?? "" } }) : providerClis, app.getVersion());
   evenG2 = new EvenG2Controller({
     userDataPath, terminals: terminalManager,
     localDiscovery: process.platform === "darwin",
@@ -441,7 +441,7 @@ async function initializeServices(): Promise<void> {
     settings,
     terminals: terminalManager,
     limits: limitsService,
-    newProviderClis: () => (hermeticSmoke() ? createProviderCliRegistry({ pathOnly: true, environment: {} }) : buildProviderCliRegistry()),
+    newProviderClis: () => (hermeticSmoke() ? createProviderCliRegistry({ pathOnly: true, environment: { PATH: developmentEnv("CANVASTTY_SMOKE_CLI_DIR") ?? "" } }) : buildProviderCliRegistry()),
     plugins: pluginManager,
     pluginMedia: pluginMediaService,
     pluginSecrets: pluginSecretsService,
@@ -689,6 +689,8 @@ function buildProviderCliRegistry(): ProviderCliRegistry {
   if (hermeticSmoke()) console.log("[smoke] provider CLIs: PATH only, no standard folders (CANVASTTY_SMOKE_HERMETIC)");
   return createProviderCliRegistry({
     ...(hermeticSmoke() ? { pathOnly: true } : {}),
+    // a folder of fake CLIs a frame script puts first (the same one newProviderClis reads); unset: nothing changes
+    ...(hermeticSmoke() && developmentEnv("CANVASTTY_SMOKE_CLI_DIR") ? { environment: { PATH: `${developmentEnv("CANVASTTY_SMOKE_CLI_DIR")}:${process.env.PATH ?? ""}` } } : {}),
     ...(smokeOverrides ? { overrides: smokeOverrides } : {}),
     ...(resolutionSmoke && process.env.CANVASTTY_CLI_RESOLUTION_SMOKE_ROOT
       ? { platformRoot: process.env.CANVASTTY_CLI_RESOLUTION_SMOKE_ROOT }

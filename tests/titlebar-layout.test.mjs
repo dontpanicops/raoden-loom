@@ -21,12 +21,10 @@ test("viewport-bound overlays and camera sizing share the titlebar boundary", as
   assert.match(app, /document\.querySelector<HTMLElement>\("\.app__content"\)/);
   assert.match(startupPage, /--titlebar-height: \$\{titlebarHeight\}px;/);
   assert.match(startupPage, /grid-template-rows: var\(--titlebar-height\) 1fr;/);
-  assert.match(titleBar, /import appManifest from "\.\.\/\.\.\/\.\.\/\.\.\/package\.json";/);
-  assert.match(titleBar, /import\.meta\.env\.DEV \? "DEV" : "RELEASE"/);
-  assert.match(titleBar, /`\$\{BUILD_CHANNEL\} v\$\{appManifest\.version\}`/);
+  assert.doesNotMatch(titleBar, /appManifest|BUILD_LABEL/, "the build badge moved to About");
+  assert.match(titleBar, /OPEN_PALETTE_EVENT/);
   assert.match(styles, /\.app \{ --titlebar-height: var\(--header-h\);/);
   assert.match(titleBar, /titlebar surface-3/);
   assert.match(startupPage, /const titlebarHeight = 44;/);
-  assert.match(styles, /\.titlebar__build--dev \{/);
-  assert.match(styles, /\.titlebar__build--release \{/);
+  assert.match(styles, /\.titlebar__palette \{/);
 });

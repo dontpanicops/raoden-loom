@@ -16,6 +16,8 @@ import browserIcon from "../assets/icons/lucide/globe.svg";
 import bringToFrontIcon from "../assets/icons/lucide/bring-to-front.svg";
 import homeIcon from "../assets/icons/lucide/house.svg";
 import imagePlusIcon from "../assets/icons/lucide/image-plus.svg";
+import inboxIcon from "../assets/icons/lucide/inbox.svg";
+import kanbanIcon from "../assets/icons/lucide/square-kanban.svg";
 import infoIcon from "../assets/icons/lucide/info.svg";
 import bellIcon from "../assets/icons/lucide/bell.svg";
 import maximizeIcon from "../assets/icons/lucide/square.svg";
@@ -39,6 +41,8 @@ export type UiIconName =
   | "sliders-horizontal"
   | "blocks"
   | "info"
+  | "inbox"
+  | "kanban"
   | "bell"
   | "home"
   | "zoom-in"
@@ -84,6 +88,8 @@ const ICONS: Record<UiIconName, string> = {
   "sliders-horizontal": slidersHorizontalIcon,
   blocks: blocksIcon,
   info: infoIcon,
+  inbox: inboxIcon,
+  kanban: kanbanIcon,
   bell: bellIcon,
   home: homeIcon,
   "zoom-in": zoomInIcon,

@@ -7,4 +7,5 @@ test("quiet window only in a development build with a smoke variable", () => {
   assert.equal(quietWindow({ packaged: false, env: {} }), false);
   assert.equal(quietWindow({ packaged: false, env: { CANVASTTY_SMOKE_HERMETIC: "1" } }), true);
   assert.equal(quietWindow({ packaged: false, env: { CANVASTTY_QUIET_WINDOW: "1" } }), true);
+  assert.equal(quietWindow({ packaged: false, env: { CANVASTTY_SMOKE_HERMETIC: "1", CANVASTTY_QUIET_WINDOW: "0" } }), false);
 });

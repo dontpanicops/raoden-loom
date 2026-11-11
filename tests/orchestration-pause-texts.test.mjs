@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire, Module } from "node:module";
 import { test } from "node:test";
 import { PAUSED_REASONS_V2 } from "../src/main/services/orchestration/journal.ts";
-import { PAUSES, actionZone, admits, availableActions, pauseLabel, pauseText, primaryAction } from "../src/renderer/src/features/orchestration/runModel.ts";
+import { PAUSES, openingTab, actionZone, admits, availableActions, pauseLabel, pauseText, primaryAction } from "../src/renderer/src/features/orchestration/runModel.ts";
 import { runStatus } from "../src/renderer/src/features/orchestration/runStatus.ts";
 import { t } from "../src/renderer/src/lib/i18n.ts";
 import { legacyView } from "../src/renderer/src/features/orchestration/panelTabs.ts";
@@ -32,7 +32,8 @@ test("every pause reason of the journal has what / why / what to do / button in 
         // no internal words: snake_case codes, runKey, a reason's own name
         assert.doesNotMatch(text, /\b[a-z]+_[a-z_]+\b|runKey|coverage|invalid_report/, `${locale}: orchPause_${set}_${f}: ${text}`);
       }
-      assert.ok(!titles.has(what), `${locale}: two pauses are called the same: ${what}`);
+      // R5a (D-009, mock-up 16): mcp_present wears the headline of needs_user_action ("The agent needs you to do something"); the MCP servers are in the why
+      assert.ok(!titles.has(what) || set === "mcp_present", `${locale}: two pauses are called the same: ${what}`);
       titles.add(what);
       assert.ok(!why.toLowerCase().includes(what.toLowerCase()), `${locale}: ${set}: the why repeats the headline`);
       assert.ok(button.length <= 28, `${locale}: ${set}: one short action, not a sentence: ${button}`);
@@ -113,18 +114,20 @@ test("the zone's main button is the pause's action; Stop is in the footer outsid
 
   const limit = panel(view("paused", "limit_reached"));
   assert.match(primaryOf(limit)[0].attrs, /data-orch-primary="raise_limit"/);
-  assert.match(limit, /Новое значение/, "the limit's field says what it is");
+  assert.match(limit, /новое значение/, "the limit's field says what it is");
 
   const tree = panel(view("paused", "lead_modified_tree"));
   assert.equal(stopsOf(tree).length, 1, "Stop once: the main button, not the footer");
   assert.match(stopsOf(tree)[0].attrs, /orch-danger/, "where stopping is all main allows, Stop is the main action");
   assert.match(stopsOf(tree)[0].attrs, /data-orch-primary="stop"/);
   assert.equal(stopsOf(tree)[0].text, "Остановить запуск");
-  assert.doesNotMatch(tree, /data-orch-foot/, "no footer: nothing else to do there");
+  // R5a (mock-up 15): the footer holds only "Copy id"
+  assert.deepEqual([...tree.slice(tree.indexOf("data-orch-foot")).matchAll(/data-orch-foot-action="(\w+)"/g)].map((m) => m[1]), ["copy_id"], "the footer: only the copy of the id");
   assert.doesNotMatch(tree, /контрольной точке/, "no button to return to a checkpoint here, so it is not advised");
 
   const running = panel(view("running", null));
-  assert.match(primaryOf(running)[0].attrs, /data-orch-primary="pause"/);
+  // R5a (mock-up 01): Pause is a text button at the left of the footer, not the filled main one
+  assert.match(buttons(running).find((x) => /data-orch-primary="pause"/.test(x.attrs))?.attrs ?? "", /orch-textual/);
   assert.match(stopsOf(running)[0].attrs, /class="orch-stop"/);
 
   for (const reason of ["needs_user_action", "awaiting_person_decision", "coverage_lost"]) {
@@ -168,7 +171,7 @@ test("a plan proposal that drops criteria: «Вернуть лиду» is the ma
   assert.doesNotMatch(acc.attrs, /orch-primary/);
   assert.equal(acc.text, "Принять снятие");
   assert.ok(html.indexOf("data-orch-proposal-return") < html.indexOf("data-orch-proposal-accept=\"true\""), "the safe choice first");
-  assert.match(html, /перестанут проверяться/);
+  // D-018 (mock-up 11): the warning is what «Принять снятие» asks when pressed, not a line of the form
 });
 
 test("an unavailable sandbox on macOS is a failed self-test with what to do — never «run on macOS»; elsewhere the platform has none", () => {
@@ -210,10 +213,11 @@ test("the zone's headline is unique among the 37 sets, in both languages, and ea
       const z = zoneOf(locale, set);
       assert.equal(z.variant, set, `${set}: the zone picks its set`);
       assert.ok(z.title.trim().length > 1 && !/[{}]/.test(z.title), `${locale}: ${set}: the headline is filled: ${z.title}`);
-      assert.ok(!titles.has(z.title), `${locale}: ${set} and ${titles.get(z.title)} are called the same: ${z.title}`);
+      assert.ok(!titles.has(z.title) || set === "mcp_present", `${locale}: ${set} and ${titles.get(z.title)} are called the same: ${z.title}`);
       titles.set(z.title, set);
       assert.ok(!z.why.toLowerCase().includes(z.title.toLowerCase()), `${locale}: ${set}: the why repeats the headline`);
-      assert.ok(z.todo.trim().length > 1 && z.why.trim().length > 1, `${locale}: ${set}: why and what to do are said`);
+      // R5b (D-015, D-017): the plan under review and the checks' forms say only why (the mock-ups 04, 05, 06)
+      assert.ok((["plan_review", "awaiting_checks_decision", "awaiting_checks_none", "loop_suspected", "awaiting_answer", "awaiting_finish_confirmation", "check_needs_permissions", "limit_reached"].includes(set) || z.todo.trim().length > 1) && z.why.trim().length > 1, `${locale}: ${set}: why and what to do are said`);
     }
     for (const set of [...DERIVED, "mcp_present", "mcp_unchecked", "push_protected"]) assert.ok(t(locale, `orchPause_${set}_what`), `${locale}: orchPause_${set}_what`);
   }
@@ -255,10 +259,14 @@ test("the buttons of the disputed pauses are those spec-vs-code §1.3 settled (p
   for (const workMode of ["project", "worktree"]) assert.deepEqual(actionZone("ru", { ...f.view, workMode }, [], true).dangerous, [], workMode);
   // the clarify field: hidden where main refuses it or has no use for it, off while a plan proposal waits
   const clarify = (set, extra = {}) => { const g = fixture(set); return actionZone("ru", { ...g.view, ...extra }, g.entries, g.onMac).clarify; };
-  for (const set of ["user_request", "plan_review", "limit_reached", "invalid_report"]) assert.equal(clarify(set), "collapsed", set);
+  // R5b (D-015): a suspected loop offers the main button and the clarify field, no "One step" (the mock-up 09)
+  { const g = fixture("loop_suspected"); assert.ok(!actionZone("ru", g.view, g.entries, g.onMac).secondary.some((b) => b.action === "step")); }
+  assert.equal(clarify("plan_review"), "collapsed");
+  // D-017 (mock-up 13): the field stands wherever main takes clarify
+  for (const set of ["user_request", "limit_reached", "invalid_report"]) assert.equal(clarify(set), "collapsed", set);
   assert.equal(clarify("loop_suspected"), "open");
-  for (const set of ["awaiting_answer", "journal_corrupt", "lead_modified_tree", "push_protected", "coverage_lost", "awaiting_checks_decision", "newer_version"]) assert.equal(clarify(set), "hidden", set);
-  assert.equal(clarify("limit_reached", { proposalWaits: true }), "disabled");
+  for (const set of ["awaiting_answer", "journal_corrupt", "lead_modified_tree", "push_protected", "coverage_lost", "awaiting_checks_decision", "awaiting_finish_confirmation", "check_needs_permissions", "awaiting_person_decision", "newer_version"]) assert.equal(clarify(set), "hidden", set);
+  assert.equal(clarify("plan_review", { proposalWaits: true }), "disabled");
   // a waiting plan proposal: main refuses the raise, so the zone offers Resume (it opens the proposal) and no limit field
   const waits = fixture("limit_reached");
   const lz = actionZone("ru", { ...waits.view, proposalWaits: true }, waits.entries, true);
@@ -283,4 +291,18 @@ test("states without a pause: working, stopping, ended, halted, a permission", (
   assert.equal(z("failed").primary.action, "open_journal");
   assert.equal(z("running", { halted: true }).variant, "halted");
   assert.equal(z("running", { permission: { role: "lead" } }).variant, "permission");
+});
+
+test("D-017: the panel opens on the tab the mock-ups show for the run's state", () => {
+  const tab = (status, reason) => openingTab({ status, reason });
+  for (const r of ["awaiting_checks_decision", "awaiting_finish_confirmation", "check_needs_permissions", "plan_review", "awaiting_person_decision"]) assert.equal(tab("paused", r), "summary", r);
+  for (const r of ["outcome_unknown", "lead_modified_tree"]) assert.equal(tab("paused", r), "changes", r);
+  assert.equal(tab("paused", "limit_reached"), "work");
+  assert.equal(tab("running"), "work");
+  for (const s of ["completed", "failed", "stopped"]) assert.equal(tab(s), "summary", s);
+  // a plan request has its own decision: no clarify field
+  const f = fixture("user_request");
+  const view = { ...f.view, status: "running", reason: null, permission: { requestId: "q", role: "lead", provider: "codex", kind: "plan", tool: "", summary: "", detail: null, options: [], questions: [], askedAt: "" } };
+  assert.equal(actionZone("ru", view, [], true).clarify, "hidden");
+  assert.equal(actionZone("ru", { ...view, permission: { ...view.permission, kind: "command" } }, [], true).clarify, "collapsed");
 });

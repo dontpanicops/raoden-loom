@@ -215,7 +215,7 @@ const scenarios = {
       res.layout = layout;
       await gesture(app, res, ids);
     })])),
-  ...Object.fromEntries([["S5a-zoom-in-pan", 2, "3"], ["S5b-zoom-out-pan", 2, "2"]].map(([name, times, nth]) => [name, () => withApp(name, {}, async (app, res) => {
+  ...Object.fromEntries([["S5a-zoom-in-pan", 2, "4"], ["S5b-zoom-out-pan", 2, "2"]].map(([name, times, nth]) => [name, () => withApp(name, {}, async (app, res) => {
     await app.panBy({ x: -140, y: 90 });
     for (let i = 0; i < times; i++) await app.clickEl(q(`.canvas-controls button:nth-child(${nth})`));
     const ids = await twoCards(app, repoLikeProj);

@@ -106,7 +106,9 @@ try {
   app = await launch({ userData: D("user-data"), providers, port: PORT, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh" } });
   await size(1280, 800);
   await app.waitFor(`${q("[data-activity-load]")}?.dataset.activityLoad === "ready"`, "widget loaded");
-  expect((await text(q(".usage-list .home-empty"))) === "Сейчас нет активных сессий", "empty only once every source answered", await text(q(".usage-list .home-empty")));
+  // R5c: the empty tile is a note ("Пока нет сессий…"); it is the same state, said once every source answered
+  const emptyNote = "Пока нет сессий. Открытые терминалы и агенты появятся здесь со статусом.";
+  expect((await text(q(".usage-list .home-tile__note"))) === emptyNote, "empty only once every source answered", await text(q(".usage-list .home-tile__note")));
 
   // cards and links through the same IPC the dialogs use; the gesture itself is covered by smoke-orchestration-ui
   const bounds = (x, y) => ({ position: { x, y }, size: { width: 300, height: 222 } });
@@ -125,7 +127,7 @@ try {
 
   // ---------- 1. no terminal, two projects: both runs, one row each ----------
   await app.waitFor(`${row(runA)} && ${row(runB)} && ${row(runB)}.dataset.runState === "waiting_user"`, "both runs in the widget", 20_000);
-  expect(!(await app.ev(`!!${q(".usage-list .home-empty")}`)), "no terminal, orchestration working: the widget is not empty", null);
+  expect(!(await app.ev(`!!${q(".usage-list .home-tile__note")}`)), "no terminal, orchestration working: the widget is not empty", null);
   expect(["working", "starting"].includes(await app.ev(`${row(runA)}.dataset.runState`)), "A: working while B waits for an answer", await app.ev(`${row(runA)}.dataset.runState`));
   expect((await text(row(runB, "[data-activity-extra]"))) === "Агент задал вопрос", "B: the reason it waits", await text(row(runB, "[data-activity-extra]")));
   expect((await text(row(runA))).includes("alpha-project") && (await text(row(runA))).includes("Оркестрация"), "A: project and kind named", await text(row(runA)));
@@ -138,7 +140,7 @@ try {
 
   // ---------- 2. a terminal next to the runs ----------
   await app.ev(`window.canvasTTY.terminal.create({ provider: "terminal", profile: "normal", cwd: ${JSON.stringify(projectA)}, position: { x: 1500, y: 1400 } }).then(() => true)`);
-  await app.waitFor(`[...document.querySelectorAll(".usage-list .activity-kind")].some((e) => e.textContent === "Терминал")`, "terminal row");
+  await app.waitFor(`document.querySelectorAll(".usage-list .usage-row").length > 0`, "terminal row"); // R5c: a terminal is a session row (name and status), no kind label
   expect(await app.ev(`document.querySelectorAll("[data-activity-run]").length`) === 2, "the terminal and both runs are listed together", null);
   await size(1440, 900);
   await app.reveal(q("[data-activity-load]"));
@@ -164,7 +166,7 @@ try {
 
   // ---------- 4. the run ends while its activity is watched ----------
   await app.clickEl(cardSel(leadA.agentId, ".agent-card__open"));
-  await app.waitFor(`${q(".orch-panel")}?.dataset.orchPanelTab === "summary"`, "a running run opens at the summary");
+  await app.waitFor(`${q(".orch-panel")}?.dataset.orchPanelTab === "work"`, "a running run opens on Work (R5b)");
   await openTab(app, "activity");
   await app.waitFor(`${q("[data-orch-feed]")} && true`, "activity feed");
   hold("codex", false);
@@ -181,17 +183,16 @@ try {
   // v1: the lead's remarks of its final review; v2: the reviewer's findings (the final review's remarks as wishes)
   await app.waitFor(`${q("[data-orch-run-summary]")} && ${q(V2 ? "[data-finding]" : '[data-sum="remarks"] [data-sum-findings]')} && true`, "summary loaded", 20_000);
   const sum = await app.ev(`${q("[data-orch-run-summary]")}.innerText`);
-  expect((await text(q("[data-sum-outcome]"))).includes(V2 ? "Проверяющий подтвердил цель финальным ревью" : "Лид принял цель этого запуска"), "outcome: the goal of this run", await text(q("[data-sum-outcome]")));
-  expect(!!(await text(q("[data-sum-scope]"))), "completed is said to be about this run, not the project", null);
-  expect((await text(q("[data-sum-stage-count]"))) === (V2 ? "1 из 1 приняты" : "1 из 1 приняты лидом"), "stages counted apart", await text(q("[data-sum-stage-count]")));
-  expect((await text(q("[data-sum-check-count]"))).startsWith("Обязательные команды проверки: 1 из 1 прошли"), "check commands counted apart, never as tests", await text(q("[data-sum-check-count]")));
-  expect(!!(await text(q("[data-sum-tests]"))), "the test count is not claimed", null);
+  // D-018 (mock-ups 13, 17): the summary's rows say «Финальное ревью — принято», «Этапы — 1 из 1», «Проверки — 1 из 1»; no scope or tests lines
+  expect((await text(q("[data-sum-outcome]"))) === "принято", "outcome: the final review accepted the goal", await text(q("[data-sum-outcome]")));
+  expect((await text(q("[data-sum-stage-count]"))) === "1 из 1", "stages counted apart", await text(q("[data-sum-stage-count]")));
+  expect((await text(q("[data-sum-check-count]"))) === "1 из 1", "check commands counted apart, never as tests", await text(q("[data-sum-check-count]")));
   const remaining = await app.ev(V2 ? `[...document.querySelectorAll("[data-finding]")].map((e) => e.dataset.findingSeverity + ":" + e.dataset.findingStatus)` : `[...document.querySelectorAll('[data-sum-findings] li')].map(() => "remark")`);
   expect(remaining.length === FINDINGS.length && (!V2 || remaining.every((x) => x === "wish:open")), "the remaining remarks listed (v2: the reviewer's open wishes)", remaining);
-  expect(sum.includes("Полный MVP не завершён"), "the lead's own words about what is left are shown", null);
-  expect((await app.ev(`${q('[data-sum="next"]')}.innerText`)).includes("Не указано"), "no next step in the report: not specified, not invented", await app.ev(`${q('[data-sum="next"]')}.innerText`));
-  expect(sum.includes("Добавлен src/note.mjs"), "what the executor did (its claim)", null);
-  expect(await app.ev(`!!${q('[data-src="journal"]')} && !!${q('[data-src="agent"]')}`), "confirmed facts and agents' claims are marked apart", null);
+  // the agents' own words are the opened «Результат» document's (the summary offers it: «Открыть»)
+  const body = await app.ev(`${q(".orch-panel__body")}.innerText`);
+  expect(body.includes("Полный MVP не завершён"), "the lead's own words about what is left are shown", null);
+  expect(body.includes("Добавлен src/note.mjs"), "what the executor did (its claim)", null);
   expect(!/[{}]"|"\w+":/.test(sum), "no raw JSON in the summary", sum.slice(0, 300));
   expect((await app.ev(`${q('[data-sum="finish"]')}.innerText`)).includes("не запрошено"), "commit/push/QA: their real state", await app.ev(`${q('[data-sum="finish"]')}.innerText`));
   expect(await app.ev(`(() => { const v = ${q(".orch-panel__body")}; return v.scrollWidth <= v.clientWidth + 1; })()`), "1280×800: long titles wrap, no sideways scroll", null);
@@ -251,10 +252,8 @@ try {
   await app.waitFor(`${q("[data-sum-outcome]")}?.dataset.sumOutcome === "stopped"`, "B's summary: stopped", 20_000);
   expect((await text(q("[data-sum-outcome]"))).includes("цель не достигнута"), "a stopped run is not a success", await text(q("[data-sum-outcome]")));
   // R2: both required commands are listed, neither started
-  expect((await text(q("[data-sum-check-count]")))?.startsWith("Обязательные команды проверки: 2, ещё не запускались"), "R2: the required commands not started are counted", await text(q("[data-sum-check-count]")));
-  expect(await app.ev(`[...document.querySelectorAll("[data-check-id]")].map((l) => l.dataset.checkStatus + ":" + l.dataset.checkRuns).join(",")`) === "not_run:0,not_run:0", "R2: each never started, zero attempts",
-    await app.ev(`[...document.querySelectorAll("[data-check-id]")].map((l) => l.textContent).join(" | ")`));
-  await app.reveal(q('[data-sum="checks"]'));
+  expect((await text(q("[data-sum-check-count]")))=== "ещё не запускались", "R2: the required commands not started are counted (D-018: one row)", await text(q("[data-sum-check-count]")));
+  await app.reveal(q('[data-sum="outcome"]'));
   await app.shot("09-summary-stopped-checks-not-run");
   await app.clickEl(q(".orch-panel__close"));
   await app.reveal(cardSel(leadA.agentId));
@@ -329,14 +328,17 @@ try {
     await reload();
     await app.reveal(cardSel(leadA.agentId));
     await app.clickEl(cardSel(leadA.agentId, ".agent-card__open"));
-    await app.waitFor(`${q(`[data-sum="${textSection}"] [data-sum-failed]`)} && true`, "A: the text fails to load", 20_000);
-    await app.reveal(q(`[data-sum="${textSection}"]`));
+    // D-018: the executor's report is the opened «Результат» document's; the remarks of v1 stay in the summary
+    if (V2) await app.clickEl(q('[data-orch-open-doc="result"]'));
+    await app.waitFor(V2 ? `${q('[data-run-doc="result"]')}?.textContent.includes("не удалось прочитать")` : `${q(`[data-sum="${textSection}"] [data-sum-failed]`)} && true`, "A: the text fails to load", 20_000);
+    await (V2 ? app.ev(`${q('[data-run-doc="result"]')}.scrollIntoView({ block: "start" })`) : app.reveal(q(`[data-sum="${textSection}"]`)));
     await app.shot("14-load-error-text");
   } finally {
     for (const f of locked.slice(1)) fs.chmodSync(f, 0o644);
   }
-  await app.clickEl(q(`[data-sum="${textSection}"] [data-sum-failed] button`));
-  await app.waitFor(V2 ? `!${q('[data-sum="executor"] [data-sum-failed]')} && ${q('[data-sum="executor"]')}.innerText.includes("Добавлен src/note.mjs")`
+  if (V2) { await reload(); await app.reveal(cardSel(leadA.agentId)); await app.clickEl(cardSel(leadA.agentId, ".agent-card__open")); await app.clickEl(q('[data-orch-open-doc="result"]')); } // no inline retry in the document (D-018): the files are back, the page reads them anew
+  else await app.clickEl(q(`[data-sum="${textSection}"] [data-sum-failed] button`));
+  await app.waitFor(V2 ? `${q('[data-run-doc="result"]')}?.innerText.includes("Добавлен src/note.mjs")`
     : `document.querySelectorAll('[data-sum="remarks"] [data-sum-findings] li').length === ${FINDINGS.length}`, "A: the text after the retry", 20_000);
   expect(true, "R4: a report text that failed loads on its own retry", null);
   await app.shot("15-after-retry-text");

@@ -80,9 +80,11 @@ test("the form pauses have one main button (the model's, which the form draws); 
   }
   const person = panel("awaiting_person_decision", { extra: { decisions: { runKey: "k".repeat(64), conditions: [], findings: false, proposal: null,
     disputed: [{ reviewTurnId: "t1", index: 0, problem: "P", evidence: null, paths: [], candidates: [] }] } } });
-  // R4.1: a choice sends its decision at once and "no default" is the rule, so the person form has equal choices and no main button
-  assert.equal(buttons(person).filter((b) => /orch-primary/.test(b.attrs)).length, 0, "a person decision: no default to press");
-  assert.match(person, /class="orch-panel__actions orch-choices"/);
+  // D-018 (mock-up 10): "no default" is still the rule — equal segment choices, none pressed — and the form's one main button sends them all, off until each item has one
+  assert.equal(buttons(person).filter((b) => /orch-primary/.test(b.attrs)).length, 1, "a person decision: one main button");
+  assert.match(buttons(person).find((b) => /data-orch-person-submit/.test(b.attrs)).attrs, /disabled/, "off until every item has a choice");
+  assert.equal(buttons(person).filter((b) => /aria-pressed="true"/.test(b.attrs)).length, 0, "no choice is pressed for the person");
+  assert.match(person, /class="orch-seg orch-seg--field"/);
   const stopRow = ["push_protected", "lead_modified_tree"].map((set) => buttons(zoneOf(panel(set))).filter((b) => /data-orch-stop/.test(b.attrs)).length);
   assert.deepEqual(stopRow, [1, 1], "Stop in the zone row carries data-orch-stop");
   const newer = panel("newer_version", { extra: { newer: { chain: "ok", goal: null, compatible: true, fallback: null, version: 2 } } });
@@ -97,7 +99,7 @@ test("dangerous buttons are outlined and ask first; the outcome reset only in a 
   const none = panel("awaiting_checks_none");
   const accept = buttons(none).find((b) => /data-orch-checks-accept/.test(b.attrs));
   assert.equal(accept.text, "Продолжить без проверок");
-  assert.match(accept.attrs, /class="orch-stop"/);
+  assert.match(accept.attrs, /class="orch-textual"/, "mock-up 06: a grey text; the question it asks stays");
   const save = buttons(none).find((b) => /data-orch-checks-save/.test(b.attrs));
   assert.match(save.attrs, /disabled/, "no commands, nothing to save");
   assert.match(save.attrs, /orch-primary/);
@@ -108,13 +110,15 @@ test("dangerous buttons are outlined and ask first; the outcome reset only in a 
 
 test("the clarify field is what the model says: closed, open, off with its reason, hidden", async () => {
   const panel = await panelOf();
-  assert.match(panel("user_request"), /data-orch-clarify="collapsed"/);
-  assert.doesNotMatch(panel("user_request"), /<textarea/);
+  // R5b (D-017): the field stands in the zone wherever main takes clarify; the pauses with a decision of their own hide it
+  assert.match(panel("plan_review"), /data-orch-clarify="collapsed"[\s\S]*Уточнить задачу/);
+  assert.doesNotMatch(panel("plan_review"), /<textarea/);
   assert.match(panel("loop_suspected"), /data-orch-clarify="open"[\s\S]*<textarea/);
-  const off = panel("limit_reached", { extra: { proposalWaits: true } });
+  const off = panel("plan_review", { extra: { proposalWaits: true } });
   assert.match(off, /data-orch-clarify="disabled"/);
   assert.match(off, /data-orch-proposal-waits/);
-  for (const set of ["awaiting_answer", "journal_corrupt", "push_protected", "lead_modified_tree"]) assert.doesNotMatch(panel(set), /data-orch-clarify/, set);
+  for (const set of ["user_request", "limit_reached"]) assert.match(panel(set), /data-orch-clarify="collapsed"[\s\S]*>Уточнить</, set);
+  for (const set of ["awaiting_answer", "journal_corrupt", "push_protected", "lead_modified_tree", "awaiting_checks_decision", "awaiting_finish_confirmation", "check_needs_permissions", "awaiting_person_decision", "coverage_lost"]) assert.doesNotMatch(panel(set), /data-orch-clarify/, set);
   assert.doesNotMatch(panel("user_request"), /class="orch-panel__section"[^>]*>\s*<h4>Уточнить/, "no clarify under the summary");
 });
 
@@ -125,7 +129,7 @@ test("the limit field shows the current value; the reference facts left the zone
   assert.match(html, /data-orch-limit-value/);
   const running = panel({ view: view("running", null, { progress: { mode: "autopilot", finish: [], checks: [], prepare: null, completion: null, checksFrom: null, access: null, models: null } }), entries: [], onMac: true });
   assert.ok(running.indexOf("data-orch-working") < running.indexOf('id="orch-tabpanel"'), "a working run says who works in the zone");
-  assert.ok(running.indexOf("data-orch-board") > running.indexOf('id="orch-tabpanel"'), "the board is in the summary, below");
+  assert.ok(!running.includes("data-orch-board"), "D-018: no board; the summary draws the blocks of the mock-ups");
   assert.match(footOf(running), /data-orch-primary="pause"/);
 });
 
@@ -136,7 +140,7 @@ test("a lost connection is a neutral banner with Repeat; a refusal of main is it
   assert.match(html, /Повторить/);
   assert.doesNotMatch(html, /dialog-error/, "no red before main answered");
   const src = (await import("node:fs")).readFileSync(path.join(HERE, "..", "src/renderer/src/features/orchestration/RunPanel.tsx"), "utf8");
-  assert.match(src, /outcome\.kind === "transport"\) return setOffline\(true\)/);
+  assert.match(src, /outcome\.kind === "transport"\) \{ setOffline\(true\)/);
   assert.match(src, /data-orch-refused/);
 });
 
@@ -172,7 +176,6 @@ test("R4.1: every decision form is a labelled group with exactly one main button
     assert.ok(form.indexOf("data-orch-form-foot") > 0 && form.indexOf("data-orch-primary") > form.indexOf("data-orch-form-foot"), `${set}: the main button is in the pinned row`);
   }
   assert.match(forms.awaiting_finish_confirmation, /<fieldset[^>]*data-orch-finish-step="push"[^>]*><legend>/);
-  assert.equal([...forms.awaiting_finish_confirmation.matchAll(/orch-card__effect/g)].length, 4, "every choice says what follows");
-  assert.match(forms.coverage_lost, /data-orch-proposal-pick/, "why Accept dropping is off");
-  assert.match(forms.coverage_lost, /data-orch-proposal-accept="true"[^>]*aria-describedby=/);
+  assert.equal([...forms.awaiting_finish_confirmation.matchAll(/data-orch-finish-choice=/g)].length, 4, "mock-up 12: Do it / Skip for each of the two steps");
+  assert.match(forms.coverage_lost, /data-orch-proposal-accept-open/, "mock-up 11: «Принять снятие...» asks for a choice for each finding first");
 });

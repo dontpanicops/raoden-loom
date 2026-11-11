@@ -8,6 +8,8 @@ export interface ToastAction {
 export interface ToastItem {
   id: number;
   kind: ToastKind;
+  /** Bold first line (mock 10); the message is then the second one. */
+  title?: string;
   message: string;
   action?: ToastAction;
 }

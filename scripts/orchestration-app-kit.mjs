@@ -90,6 +90,9 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
   // the new app cannot bind it and the page list below comes from the other.
   if (await fetchFn(`http://127.0.0.1:${port}/json/version`).then(() => true, () => false)) throw new Error(`port ${port} is taken by another DevTools server`);
   step(`launch ${userData}`);
+  // the first-run card and its key guide float over the canvas where a board's dialog opens (since R5c): a smoke is not about them
+  fs.mkdirSync(userData, { recursive: true });
+  if (!fs.existsSync(path.join(userData, "settings.json"))) fs.writeFileSync(path.join(userData, "settings.json"), JSON.stringify({ onboardingDismissed: true, useScrollWheelToZoom: false }));
   const extra = { ...(providers ? { CANVASTTY_ORCHESTRATION_TEST_PROVIDERS: providers } : {}), ...env };
   const flags = [...new Set([...PAINTED, ...switches])];
   console.log("occluded-window throttling disabled for smoke");
@@ -145,8 +148,9 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
       pending.set(id, (d) => (d.error ? reject(new Error(`${method}: ${d.error.message}`)) : resolve(d.result)));
       ws.send(JSON.stringify({ id, method, params }));
     });
-    // A quiet window is not the active one: the page must still believe it has the focus.
-    await call("Emulation.setFocusEmulationEnabled", { enabled: true });
+    // A quiet window is not the active one: the page must still believe it has the focus. A smoke that opts out of the
+    // quiet window (CANVASTTY_QUIET_WINDOW=0) checks an ordinary window, where focus emulation would keep it "visible".
+    if (env.CANVASTTY_QUIET_WINDOW !== "0") await call("Emulation.setFocusEmulationEnabled", { enabled: true });
     const app = {
       child,
       exited,
@@ -201,19 +205,24 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
       },
       async reveal(selector) {
         for (let i = 0; i < 30; i++) {
-          const r = await app.ev(`(() => { const el = ${selector}; if (!el) return null; const r = el.getBoundingClientRect();
-            const scroller = el.closest(".orch-zone, .orch-panel__body, .orch-dialog"); // the panel's body or a dialog taller than the window
+          const r = await app.ev(`(() => { const el = ${selector}; if (!el) return null;
+            if (el.closest(".usage-list")) el.scrollIntoView({ block: "nearest" }); // HOME's session tile scrolls on its own
+            const r = el.getBoundingClientRect();
+            const scroller = el.closest(".orch-zone, .orch-panel__body, .orch-form__body, .board-card__list, .orch-dialog"); // the panel's body, the scrolling body of a dialog with a pinned header and foot (R5f), or a dialog taller than the window
             const sbox = scroller?.getBoundingClientRect() ?? { left: 0, top: 40, right: innerWidth, bottom: innerHeight };
             // a dialog's pinned bottom (Start / Save) covers what scrolls under it: the visible part ends above it
             const foot = scroller?.matches(".orch-dialog") ? scroller.querySelector(".orch-form__actions") : null;
             const box = { left: sbox.left, top: sbox.top, right: sbox.right, bottom: foot && !foot.contains(el) ? Math.min(sbox.bottom, foot.getBoundingClientRect().top) : sbox.bottom };
             return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, top: r.top, bottom: r.bottom, left: r.left, right: r.right,
               panel: !!scroller, box: { left: box.left, top: box.top, right: box.right, bottom: box.bottom },
-              scene: !!el.closest(".workspace__scene"), w: innerWidth, h: innerHeight }; })()`);
+              scene: !!el.closest(".workspace__scene"), w: innerWidth, h: innerHeight,
+              // the scroller itself (a card on the canvas) is not in the window: the canvas is panned to it first, the wheel cannot reach it
+              scrOut: !!scroller && (sbox.bottom < 60 || sbox.top > innerHeight - 20 || sbox.right < 20 || sbox.left > innerWidth - 20), sx: (sbox.left + sbox.right) / 2, sy: (sbox.top + sbox.bottom) / 2 }; })()`);
           if (!r) throw new Error(`no element: ${selector}`);
-          const inside = r.top >= r.box.top + 4 && r.bottom <= r.box.bottom - 4 && r.left >= r.box.left + 4 && r.right <= r.box.right - 4;
+          const inside = r.top >= r.box.top + 2 && r.bottom <= Math.min(r.box.bottom, r.h) - 2 && r.left >= r.box.left + 2 && r.right <= r.box.right - 2;
           const free = !r.scene || (await app.ev(`(() => { const el = ${selector}; const h = document.elementFromPoint(${r.cx}, ${r.cy}); return !!h && el.contains(h); })()`));
           if (inside && free) return;
+          if (r.panel && r.scrOut && r.scene) { await app.panBy({ x: r.w / 2 - r.sx, y: r.h / 2 - r.sy }); continue; }
           if (r.panel) {
             const dy = r.top < r.box.top ? r.top - r.box.top - 40 : r.bottom - r.box.bottom + 40;
             // over the top of the panel's body, away from a scrollable text block
@@ -224,7 +233,7 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
           if (!r.scene) throw new Error(`outside the window: ${selector}`);
           await app.panBy({ x: r.w / 2 - r.cx, y: r.h / 2 - r.cy });
         }
-        throw new Error(`could not bring into view: ${selector} ${JSON.stringify(await app.ev(`(() => { const el = ${selector}; const b = el.closest(".orch-panel__body"); const r = el.getBoundingClientRect(); return { r: r.toJSON(), st: b?.scrollTop, sh: b?.scrollHeight, ch: b?.clientHeight, br: b?.getBoundingClientRect().toJSON() }; })()`))}`);
+        throw new Error(`could not bring into view: ${selector} ${JSON.stringify(await app.ev(`(() => { const el = ${selector}; const b = el.closest(".orch-panel__body"); const r = el.getBoundingClientRect(); return { r: r.toJSON(), st: b?.scrollTop, sh: b?.scrollHeight, ch: b?.clientHeight, br: b?.getBoundingClientRect().toJSON(), at: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.outerHTML.slice(0, 160), win: [innerWidth, innerHeight] }; })()`))}`);
       },
       // Empty canvas at (x, y): the workspace itself, not a card, HOME, a menu, a dialog, the panel or an overlay.
       isEmpty: (x, y) => app.ev(`(() => { const el = document.elementFromPoint(${x}, ${y}); return !!el && !!el.closest(".workspace")
@@ -293,6 +302,20 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
           Object.getOwnPropertyDescriptor(proto, "value").set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event("input", { bubbles: true })); })()`);
         await sleep(60);
       },
+      // R5f: the goal dialog's requirement / command rows (`selector` is the container, data-orch-requirements or
+      // data-orch-commands). Fills the rows with `lines` in order (a "+" button adds a row, the requirements' last empty
+      // input grows by itself) and empties the rows that are left over.
+      async fillRows(selector, lines) {
+        const rows = () => app.ev(`[...${selector}.querySelectorAll("[data-orch-row] input")].length`);
+        for (let i = 0; i < lines.length; i++) {
+          if (i >= await rows()) { await app.ev(`${selector}.querySelector("[data-orch-add]")?.click()`); await sleep(60); }
+          await app.type(`${selector}.querySelectorAll("[data-orch-row] input")[${i}]`, lines[i]);
+        }
+        const n = await rows();
+        for (let i = Math.max(lines.length, 0); i < n; i++) await app.type(`${selector}.querySelectorAll("[data-orch-row] input")[${i}]`, "");
+      },
+      // The non-empty rows of a container, trimmed — what the dialog sends.
+      rowValues: (selector) => app.ev(`[...${selector}.querySelectorAll("[data-orch-row] input")].map((i) => i.value.trim()).filter(Boolean)`),
       // A screenshot answers within SHOT_TIMEOUT_MS or is asked once more; then the step fails by name, it never
       // waits for the run's time limit.
       async shot(name) {
@@ -347,6 +370,8 @@ export async function openTab(app, key) {
   const r = await app.clickEl(q(`[data-orch-tab="${to.tab}"]`));
   if (to.mode) await app.clickEl(q(`[data-orch-mode="${to.mode}"]`));
   // a lazy section opens by its summary; a section that is already open stays open
+  // the plan and the result are drawn only after the summary's «Open» button of that document
+  if (to.section && ["plan", "result"].includes(to.section) && !(await app.ev(`!!${q(`[data-orch-section="${to.section}"]`)}`)) && (await app.ev(`!!${q(`[data-orch-open-doc="${to.section}"]`)}`))) await app.clickEl(q(`[data-orch-open-doc="${to.section}"]`));
   if (to.section) await app.ev(`(() => { const d = ${q(`[data-orch-section="${to.section}"]`)}; if (d && d.tagName === "DETAILS") d.open = true; return true; })()`);
   return r;
 }
@@ -385,12 +410,12 @@ export async function createAgent(app, label, projectDir) {
 // the dialog's default for a new project — the smokes keep what they were written for unless they ask.
 export async function startGoal(app, linkId, { reviewPlan = false, task = "add a file src/note.mjs", criteria = "src/note.mjs exists\nnode --test passes", commands, workMode, onDialog, acknowledge = true } = {}) {
   await app.clickEl(byText(`[data-agent-link-id="${linkId}"] button`, "Новая цель"));
-  await app.waitFor(`${q(".orch-dialog textarea")} && true`, "goal dialog");
+  await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
   await app.type(`document.querySelectorAll(".orch-dialog textarea")[0]`, task);
-  await app.type(`document.querySelectorAll(".orch-dialog textarea")[1]`, criteria);
+  await app.fillRows(q("[data-orch-requirements]"), criteria.split("\n"));
   // stage 13: the dialog starts from the project settings; they are loaded before anything is changed
   await app.waitFor(`${q("[data-orch-profile]")} && ${q("[data-orch-profile]")}.dataset.orchProfile !== "loading"`, "project settings", 20_000);
-  if (commands) await app.type(q("[data-orch-commands]"), commands.join("\n"));
+  if (commands) await app.fillRows(q("[data-orch-commands]"), commands);
   const mode = workMode ?? "project";
   const switching = mode !== await app.ev(`${q("[data-orch-workmode]")}?.dataset.orchWorkmode`);
   if (switching || reviewPlan) await app.ev(`${q(".orch-dialog .orch-advanced")}.open = true`);

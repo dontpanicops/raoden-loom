@@ -109,13 +109,13 @@ try {
   // ---------- 1. the goal dialog and the project settings ----------
   await app.clickEl(byText(`[data-agent-link-id="${link.linkId}"] button`, "Новая цель"));
   await app.waitFor(`${q("[data-orch-profile]")}?.dataset.orchProfile === "suggested"`, "suggested settings", 20_000);
-  expect(await app.ev(`${q("[data-orch-commands]")}.value`) === "php artisan test", "the check command comes from the suggested settings", await app.ev(`${q("[data-orch-commands]")}.value`));
+  expect((await app.rowValues(q("[data-orch-commands]"))).join("\n") === "php artisan test", "the check command comes from the suggested settings", await app.rowValues(q("[data-orch-commands]")));
   expect(await app.ev(`${q("[data-orch-runmode]")}.dataset.orchRunmode`) === "autopilot", "autopilot is the default mode", null);
   await app.shot("01-goal-dialog");
   // UX audit PR 2: Start / Save pinned at the dialog's bottom, in view without scrolling; the dialog's controls are light
   const pinned = () => app.ev(`(() => { const d = [...document.querySelectorAll(".orch-dialog")].at(-1); const a = d.querySelector(".orch-form__actions");
-    const b = a.querySelector('button[type="submit"]'); const r = b.getBoundingClientRect(), dr = d.getBoundingClientRect();
-    return { sticky: getComputedStyle(a).position, visible: r.top >= dr.top && r.bottom <= dr.bottom + 1, scrolls: d.scrollHeight > d.clientHeight, scheme: getComputedStyle(d).colorScheme, appScheme: getComputedStyle(document.body).colorScheme }; })()`);
+    const b = a.querySelector('button[type="submit"]'); const r = b.getBoundingClientRect(), dr = d.getBoundingClientRect(); const body = d.querySelector(".orch-form__body");
+    return { sticky: getComputedStyle(body).overflowY === "auto" ? "sticky" : "no", visible: r.top >= dr.top && r.bottom <= dr.bottom + 1, scrolls: body.scrollHeight > body.clientHeight, scheme: getComputedStyle(d).colorScheme, appScheme: getComputedStyle(document.body).colorScheme }; })()`);
   const goalPinned = await pinned();
   expect(goalPinned.sticky === "sticky" && goalPinned.visible && goalPinned.scrolls && goalPinned.scheme === goalPinned.appScheme, "goal dialog (R1, Н10: native controls follow the theme): «Старт» pinned and in view while the dialog scrolls", goalPinned);
   await app.clickEl(q("[data-orch-open-settings]"));
@@ -123,15 +123,15 @@ try {
   const needed = await app.ev(`${q("[data-orch-needed]")}.textContent`);
   expect(needed.includes("composer install") && needed.includes("key:generate"), "settings: what is missing now is listed", needed);
   // more than the suggested mode and "terminal": the modes read from the CLI's --help have arrived
-  await app.waitFor(`document.querySelectorAll('[data-orch-access="claude"] option').length > 2`, "the CLI's own modes", 20_000);
-  const claudeModes = await app.ev(`[...document.querySelectorAll('[data-orch-access="claude"] option')].map((o) => o.value)`);
+  await app.waitFor(`document.querySelectorAll('[data-orch-access="claude"] [data-orch-access-mode]').length > 2`, "the CLI's own modes", 20_000);
+  const claudeModes = await app.ev(`[...document.querySelectorAll('[data-orch-access="claude"] [data-orch-access-mode]')].map((o) => o.dataset.orchAccessMode)`);
   expect(JSON.stringify(claudeModes) === JSON.stringify(["terminal", "workspace", "acceptEdits", "auto", "full"]), "settings: Claude modes from the installed CLI's --help", claudeModes);
   // the stage A gate: a new project starts in the work folder for both CLIs
-  const suggested = await app.ev(`["claude", "codex"].map((p) => document.querySelector(\`[data-orch-access="\${p}"] select\`).value)`);
+  const suggested = await app.ev(`["claude", "codex"].map((p) => document.querySelector(\`[data-orch-access="\${p}"] [data-orch-access-value]\`).dataset.orchAccessValue)`);
   expect(JSON.stringify(suggested) === JSON.stringify(["workspace", "workspace"]), "settings: a new project suggests «Рабочая папка» for both CLIs", suggested);
-  await setValue(q('[data-orch-access="claude"] select'), "full");
+  await app.clickEl(q('[data-orch-access="claude"] [data-orch-access-mode="full"]')); // R5f: the rights are a segment
   expect(await app.ev(`!!${q("[data-orch-full-warning]")}`), "full access shows its warning", null);
-  await setValue(q('[data-orch-access="claude"] select'), "acceptEdits");
+  await app.clickEl(q('[data-orch-access="claude"] [data-orch-access-mode="acceptEdits"]'));
   const mapping = await app.ev(`${q('[data-orch-access="claude"] code')}.textContent`);
   expect(mapping.includes("--permission-mode acceptEdits"), "the mapping says what is passed to Claude", mapping);
   await app.shot("02-settings");
@@ -159,9 +159,9 @@ try {
   await app.shot("03-environment-probe");
   // a new project starts in a separate copy (PR 5); this one works in the project folder, where commit and QA are offered
   expect(await app.ev(`${q("[data-orch-settings-workmode]")}.dataset.orchSettingsWorkmode`) === "copy", "settings: a new project's work place is a separate copy", null);
-  await app.clickEl(`document.querySelectorAll("[data-orch-settings-workmode] input")[2]`);
+  await app.clickEl(q(`[data-orch-settings-workmode-to="project"]`));
   // «Как в моём терминале» for Codex: shown with its warning, saved only once the warning is confirmed
-  await setValue(q('[data-orch-access="codex"] select'), "terminal");
+  await app.clickEl(q('[data-orch-access="codex"] [data-orch-access-mode="terminal"]'));
   expect(await app.ev(`!!${q("[data-orch-terminal-warning]")} && !!${q("[data-orch-terminal-confirm]")}`), "terminal mode shows its warning and a confirmation", null);
   await app.clickEl(q(".orch-settings button[type=submit]"));
   await app.waitFor(`${q(".orch-settings .dialog-error")} && true`, "terminal mode refused without the confirmation", 10_000);
@@ -176,7 +176,7 @@ try {
 
   // readiness: prepared, not "go to a terminal"
   await app.type(`document.querySelectorAll(".orch-dialog textarea")[0]`, "Починить /health: тест должен проходить");
-  await app.type(`document.querySelectorAll(".orch-dialog textarea")[1]`, "php artisan test проходит");
+  await app.fillRows(q("[data-orch-requirements]"), "php artisan test проходит".split("\n"));
   await app.waitFor(`["ready", "confirm", "blocked", "error"].includes(${q("[data-orch-readiness]")}?.dataset.orchReadiness)`, "readiness", 20_000);
   const prep = await readyItem("prepare"), vendor = await readyItem("laravel"), testdb = await readyItem("testdb");
   expect(prep?.level === "info" && prep.text.includes("composer install"), "readiness: the preparation is automatic", prep);
@@ -208,12 +208,6 @@ try {
   await app.clickEl(byText(`[data-agent-link-id="${link.linkId}"] button`, "Наблюдать"));
   await app.waitFor(`${q("[data-orch-permission]")} && true`, "panel again", 10_000);
   expect((await visibleNow(app, q(`[data-orch-permission] [data-decision="allow_project"]`))).ok, "reopened by Observe: the permission's buttons are in view", await visibleNow(app, q(`[data-orch-permission] [data-decision="allow_project"]`)));
-  await openTab(app, "overview");
-  expect((await app.ev(`${q("[data-board=access]")}?.textContent ?? ""`)).includes("Правки файлов без вопросов"), "the board shows the run's rights", null);
-  expect(await app.ev(`!!${q("[data-board=access]")}?.closest(".orch-board__terminal")`), "the board shows «Как в моём терминале» in the warning colour", null);
-  // v2: the reviewer is a participant too, a new session of the lead's CLI with its mode
-  const badges = await app.ev(`[...document.querySelectorAll("[data-participant] [data-participant-access]")].map((e) => [e.closest("[data-participant]").dataset.participant, e.dataset.participantAccess])`);
-  expect(JSON.stringify(badges) === JSON.stringify([["lead", "terminal"], ["executor", "acceptEdits"], ...(V2 ? [["reviewer", "terminal"]] : [])]), "each participant's card shows its CLI's mode", badges);
   await app.clickEl(q(`[data-orch-permission] [data-decision="allow_project"]`));
 
   await app.waitFor(`${q('[data-orch-permission="elicitation"]')} && true`, "MCP form", 30_000);
@@ -249,38 +243,36 @@ try {
   expect(qa?.status === "done" && fs.readFileSync(deployed, "utf8").trim() === commit?.commit, "QA got the commit and its verification passed", qa);
   const changes = await app.ev(`window.canvasTTY.orchestration.changes(${JSON.stringify(v.runId)})`);
   expect(changes.ok && changes.value.files.map((f) => f.path).join() === "app.php", "the changes against the start list the fix", changes);
+  await openTab(app, "summary");
+  // D-018: the rights are on the participants' rows of the summary (mock-up 13), no board
+  expect((await app.ev(`${q('[data-participant="executor"] [data-participant-access]')}?.textContent ?? ""`)).includes("Правки файлов без вопросов"), "the participants show the run's rights", null);
+  // v2: the reviewer is a participant too, a new session of the lead's CLI with its mode
+  const badges = await app.ev(`[...document.querySelectorAll("[data-participant] [data-participant-access]")].map((e) => [e.closest("[data-participant]").dataset.participant, e.dataset.participantAccess])`);
+  expect(JSON.stringify(badges) === JSON.stringify([["lead", "terminal"], ["executor", "acceptEdits"], ...(V2 ? [["reviewer", "terminal"]] : [])]), "each participant's card shows its CLI's mode", badges);
   await sleep(800);
   expect((await app.ev(`${q('[data-fact="changes"]')}.textContent`)).includes("да"), "the result says there are changes", await app.ev(`${q('[data-fact="changes"]')}.textContent`));
-  await app.ev(`${q("[data-orch-board]")}?.scrollIntoView({ block: "start" })`);
-  await app.shot("08-completed-board");
-  // UX audit Н9: what the run spent — model calls per role, the tokens each CLI reported, the turns and the time
-  const cost = await app.ev(`Object.fromEntries(["calls", "tokens", "turns-used", "elapsed"].map((k) => [k, document.querySelector('[data-board="' + k + '"]')?.textContent ?? null]))`);
-  expect(/Лид [1-9]/.test(cost.calls ?? "") && /Исполнитель [1-9]/.test(cost.calls ?? ""), "the board: model calls per role", cost);
-  expect(/Лид: [\d,]+/.test(cost.tokens ?? "") && /Исполнитель: [\d,]+/.test(cost.tokens ?? "") && !/\$|USD/.test(cost.tokens ?? ""), "the board: tokens per role as the CLIs reported them, no money", cost);
-  expect(/^\d+ из \d+$/.test(cost["turns-used"] ?? "") && / из /.test(cost.elapsed ?? ""), "the board: turns and time against the limits", cost);
-  expect(/вызовов моделей: \d+, токенов: [\d,]/.test(await app.ev(`${q('[data-board="cost-total"]')}?.textContent ?? ""`)), "the board: what the run spent in all, on one line", null);
-  await app.ev(`${q("[data-orch-cost-roles]")}.open = true`);
+  await app.ev(`${q("[data-orch-limits]")}?.scrollIntoView({ block: "start" })`);
+  await app.shot("08-completed-limits");
+  // UX audit Н9: what the run spent — D-018: one row of the «Время, лимиты, окружение» block (the roles' split is the journal's)
+  expect(/вызовов моделей: \d+, токенов: [\d,]/.test(await app.ev(`${q('[data-board="cost-total"]')}?.textContent ?? ""`)), "the summary: what the run spent in all, on one line", null);
   expect(/Вызовы этого агента: \d+ · токенов:/.test(await app.ev(`${q("[data-agent-cost]")}?.textContent ?? ""`)), "the cards: calls and tokens of their agent", await app.ev(`${q("[data-agent-cost]")}?.textContent ?? ""`));
-  await app.ev(`${q('[data-board="calls"]')}?.scrollIntoView({ block: "center" })`);
-  await sleep(200);
-  await app.shot("08b-board-cost");
   await app.ev(`${q("[data-orch-finish]")}.scrollIntoView({ block: "center" })`);
   await sleep(200);
   await app.shot("09-result");
   // review 2: the version is confirmed only because the verification reported the observed commit and it matched
   expect(qa?.version === "confirmed" && qa?.observed === commit?.commit, "QA: the observed version is the expected commit", qa);
   const qaLine = await app.ev(`${q('[data-finish-step="qa"]')}?.textContent ?? ""`);
-  expect(qaLine.includes("подтверждена ожидаемая версия") && qaLine.includes(commit.commit.slice(0, 12)) && (await app.ev(`${q('[data-finish-step="qa"]')}.dataset.finishStatus`)) === "qa_confirmed",
+  expect(qaLine.includes("подтверждена ожидаемая версия") && qaLine.includes(commit.commit.slice(0, 7)) && (await app.ev(`${q('[data-finish-step="qa"]')}.dataset.finishStatus`)) === "qa_confirmed",
     "the result says the expected version is confirmed on QA and shows the observed commit", qaLine);
-  await app.ev(`${q("[data-orch-env-session]")}.scrollIntoView({ block: "center" })`);
+  await app.ev(`${q("[data-orch-limits]")}.scrollIntoView({ block: "center" })`);
   await sleep(200);
-  expect((await app.ev(`${q("[data-orch-env-session]")}.textContent`)).includes("mock-mcp (connected)"), "the run shows what the CLIs reported they loaded", null);
+  expect((await app.ev(`[...document.querySelectorAll("[data-env-provider]")].map((e) => e.textContent).join(" ")`)).includes("mock-mcp (connected)"), "the run shows what the CLIs reported they loaded", null);
   await app.shot("10-session-environment");
   await openTab(app, "activity");
-  await app.clickEl(`document.querySelectorAll(".orch-roles button")[1]`);
+  await app.clickEl(`document.querySelector('.orch-roles [data-orch-role="executor"]')`);
   await app.waitFor(`document.querySelectorAll('[data-activity-kind="subagent"]').length > 0`, "sub-agent in the feed", 10_000);
   await app.shot("11-activity-executor");
-  await app.clickEl(`document.querySelectorAll(".orch-roles button")[2]`);
+  await app.clickEl(`document.querySelector('.orch-roles [data-orch-role="check"]')`);
   await app.waitFor(`document.querySelectorAll('[data-activity-kind="prepare_finished"]').length > 0 && document.querySelectorAll('[data-activity-kind="external_action"]').length > 0`, "prepare and finish in the feed", 10_000);
   await app.shot("12-activity-canvastty");
 

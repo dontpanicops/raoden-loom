@@ -2,6 +2,7 @@ import { EvenG2Controls } from "./EvenG2Controls";
 import { NOTIFY_UNAVAILABLE_KEY } from "../orchestration/notify";
 import { useEffect, useState } from "react";
 import type {
+  AgentProviderId,
   AppSettings,
   NotificationSettings,
   BrowserActivityEvent,
@@ -48,6 +49,7 @@ import {
   defaultCanvasWheelBinding
 } from "../../../../shared/canvasNavigation";
 import { ProviderIcon } from "../../components/ProviderIcon";
+import { Switch } from "../../components/Switch";
 import { UiIcon, type UiIconName } from "../../components/UiIcon";
 import {
   CanvasMenuDivider,
@@ -65,6 +67,7 @@ import {
 } from "../../lib/providers";
 import { shortcutFromKeyboardEvent, shortcutFromPointerEvent } from "../../lib/shortcuts";
 import { t, type TranslationKey } from "../../lib/i18n";
+import { installUrl } from "../onboarding/OnboardingCard";
 import { PluginSettingsSection } from "../plugins/PluginSettingsSection";
 import { HomeAppearanceSettings } from "../home/HomeAppearanceSettings";
 import {
@@ -98,14 +101,12 @@ const SETTINGS_SECTIONS: ReadonlyArray<{
 
 // Previews show the token value, not the token: the one applied to .app belongs to the current choice.
 const THEME_CANVAS_PREVIEW: Record<PaletteId, string> = { sand: "#24221E", bay: "#161B27", paper: "#EDE9E1", frost: "#E8EDF5" };
-const THEME_HOME_PREVIEW: Record<PaletteId, string[]> = {
-  sand: ["#3A3731", "#3A3731", "#3A3731", "#3A3731"],
-  bay: ["#232A3A", "#232A3A", "#232A3A", "#232A3A"],
-  paper: ["#FFFFFF", "#FFFFFF", "#FFFFFF", "#FFFFFF"],
-  frost: ["#FFFFFF", "#FFFFFF", "#FFFFFF", "#FFFFFF"]
+const THEME_TILE_PREVIEW: Record<PaletteId, { tile: string; card: string; dot: string; text: string }> = {
+  sand: { tile: "#24221E", card: "#3A3731", dot: "#F0B84A", text: "#F2EEE6" },
+  bay: { tile: "#161B27", card: "#232A3A", dot: "#5B9BFF", text: "#EEF2FA" },
+  paper: { tile: "#EDE9E1", card: "#FFFFFF", dot: "#A0600A", text: "#2A2823" },
+  frost: { tile: "#E8EDF5", card: "#FFFFFF", dot: "#2A6FE0", text: "#1E2633" }
 };
-const PASTEL_HOME_PREVIEW = ["#B8CF99", "#D8E1C5", "#9CC7DC", "#D5A2C9"];
-const DUSK_HOME_PREVIEW = ["#313D55", "#3A4258", "#2D4B62", "#4B3B5A"];
 
 const CANVAS_COLOR_PREVIEWS: Partial<Record<CanvasColorId, string>> = {
   stone: "#B3B0A8",
@@ -299,6 +300,10 @@ export function SettingsPanel({
     && settings.canvasNavigationOverride !== null
     && settings.canvasWheelOverride === settings.canvasNavigationOverride;
 
+  const sw = (label: string, description: string | undefined, checked: boolean, change: (next: boolean) => void): React.JSX.Element => (
+    <SettingSwitch label={label} description={description} checked={checked} onChange={change} />
+  );
+
   return (
     <div className={`settings-backdrop ${open ? "settings-backdrop--open" : ""}`} onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
@@ -311,16 +316,12 @@ export function SettingsPanel({
         aria-hidden={!open}
       >
         <div className="settings-panel__sidebar">
-          <header className="settings-panel__brand">
-            <span className="settings-panel__brand-icon"><UiIcon name="settings" size="1.05em" /></span>
-            <h2>{t(locale, "settings")}</h2>
-          </header>
           <nav className="settings-tabs" role="tablist" aria-label={t(locale, "settingsSections")}>
             {SETTINGS_SECTIONS.map(({ id, icon }) => (
               <button
                 id={`settings-tab-${id}`}
                 key={id}
-                className={section === id ? "settings-tabs__button settings-tabs__button--active" : "settings-tabs__button"}
+                className={`${section === id ? "settings-tabs__button settings-tabs__button--active" : "settings-tabs__button"}${id === "about" ? " settings-tabs__button--about" : ""}`}
                 type="button"
                 role="tab"
                 aria-controls={`settings-panel-${id}`}
@@ -337,10 +338,7 @@ export function SettingsPanel({
 
         <div className="settings-panel__main">
           <header className="settings-panel__header">
-            <div>
-              <span>{t(locale, "settings")}</span>
-              <h2>{t(locale, section)}</h2>
-            </div>
+            <h2>{t(locale, section)}</h2>
             <button
               className="settings-panel__close"
               type="button"
@@ -364,30 +362,12 @@ export function SettingsPanel({
                   onChange={(value) => void onChange({ locale: value as LocaleId })}
                 />
               </SettingGroup>
-              <SettingGroup
-                label={t(locale, "terminalSessionRestore")}
-                description={t(locale, "terminalSessionRestoreDescription")}
-              >
-                <Segmented
-                  value={settings.restoreTerminalSessions ? "save" : "discard"}
-                  options={[["discard", t(locale, "doNotSave")], ["save", t(locale, "saveAndContinue")]]}
-                  onChange={(value) => void onChange({ restoreTerminalSessions: value === "save" })}
-                />
-              </SettingGroup>
-              <SettingGroup label={t(locale, "persistCanvasRegions")}>
-                <Segmented
-                  value={settings.persistCanvasRegions ? "save" : "discard"}
-                  options={[["discard", t(locale, "doNotSave")], ["save", t(locale, "saveAndContinue")]]}
-                  onChange={(value) => void onChange({ persistCanvasRegions: value === "save" })}
-                />
-              </SettingGroup>
-              <SettingGroup label={t(locale, "persistStickyNotes")}>
-                <Segmented
-                  value={settings.persistStickyNotes ? "save" : "discard"}
-                  options={[["discard", t(locale, "doNotSave")], ["save", t(locale, "saveAndContinue")]]}
-                  onChange={(value) => void onChange({ persistStickyNotes: value === "save" })}
-                />
-              </SettingGroup>
+              {sw(t(locale, "terminalSessionRestore"), t(locale, "terminalSessionRestoreDescription"), settings.restoreTerminalSessions,
+                (next) => void onChange({ restoreTerminalSessions: next }))}
+              {sw(t(locale, "persistCanvasRegions"), undefined, settings.persistCanvasRegions,
+                (next) => void onChange({ persistCanvasRegions: next }))}
+              {sw(t(locale, "persistStickyNotes"), undefined, settings.persistStickyNotes,
+                (next) => void onChange({ persistStickyNotes: next }))}
             </>
           )}
 
@@ -395,50 +375,85 @@ export function SettingsPanel({
 
           {section === "appearance" && (
             <>
-              <SettingGroup label={t(locale, "followSystem")} description={t(locale, "followSystemDescription")}>
-                <Segmented
-                  value={settings.followSystem ? "on" : "off"}
-                  options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
-                  onChange={(value) => void onChange({ followSystem: value === "on" })}
-                />
-              </SettingGroup>
               <SettingGroup label={t(locale, "palette")} description={settings.followSystem ? `${t(locale, "paletteBySystem")} ${t(locale, "paletteDescription")}` : t(locale, "paletteDescription")}>
-                <SwatchChoices
+                <ThemeChoices
+                  label={t(locale, "palette")}
                   value={settings.followSystem ? theme : settings.palette}
-                  columns={4}
                   options={([
                     ["sand", t(locale, "themeSand")],
                     ["bay", t(locale, "themeBay")],
                     ["paper", t(locale, "themePaper")],
                     ["frost", t(locale, "themeFrost")]
-                  ] as [PaletteId, string][]).map(([id, label]) => [id, label, [THEME_CANVAS_PREVIEW[id], THEME_HOME_PREVIEW[id][0]]])}
-                  onChange={(value) => void onChange({ palette: value as PaletteId, followSystem: false })}
+                  ] as [PaletteId, string][])}
+                  onChange={(value) => void onChange({ palette: value, followSystem: false })}
                 />
               </SettingGroup>
-              <SettingGroup label={t(locale, "reduceTransparency")} description={t(locale, "reduceTransparencyDescription")}>
+              {sw(t(locale, "followSystem"), t(locale, "followSystemDescription"), settings.followSystem,
+                (next) => void onChange({ followSystem: next }))}
+              <SettingGroup label={t(locale, "uiScale")} description={t(locale, "uiScaleDescription")}>
+                <label className="ui-scale-setting">
+                  <span>{UI_SCALE_MIN.toFixed(2)}</span>
+                  <input
+                    type="range"
+                    min={UI_SCALE_MIN}
+                    max={UI_SCALE_MAX}
+                    step={UI_SCALE_STEP}
+                    value={settings.uiScale}
+                    onChange={(event) => void onChange({ uiScale: Number(event.currentTarget.value) })}
+                  />
+                  <span>{UI_SCALE_MAX.toFixed(2)}</span>
+                  <output>{settings.uiScale.toFixed(2)}×</output>
+                </label>
+              </SettingGroup>
+              <SettingGroup label={t(locale, "canvasColor")} description={t(locale, "canvasColorDescription")}>
+                <ColorDots
+                  label={t(locale, "canvasColor")}
+                  value={appearance.canvasColor}
+                  options={([
+                    ["theme", t(locale, "canvasColorTheme")],
+                    ["stone", t(locale, "canvasColorStone")],
+                    ["lilac", t(locale, "lilac")],
+                    ["night", t(locale, "night")],
+                    ["graphite", t(locale, "canvasColorGraphite")],
+                    ["linen", t(locale, "canvasColorLinen")],
+                    ["mist", t(locale, "canvasColorMist")]
+                  ] as [CanvasColorId, string][]).map(([value, label]) => (
+                    [value, label, (value === "theme" ? THEME_CANVAS_PREVIEW[theme] : CANVAS_COLOR_PREVIEWS[value]) ?? "#24221E"]
+                  ))}
+                  onChange={(value) => void onChange(canvasColorPatch(value as CanvasColorId))}
+                />
+              </SettingGroup>
+              <SettingGroup label={t(locale, "canvasPattern")}>
                 <Segmented
-                  value={settings.reduceTransparency ? "on" : "off"}
-                  options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
-                  onChange={(value) => void onChange({ reduceTransparency: value === "on" })}
+                  value={settings.pattern}
+                  options={([
+                    ["dots", t(locale, "dots")],
+                    ["grid", t(locale, "grid")],
+                    ["diagonal", t(locale, "patternDiagonal")],
+                    ["rings", t(locale, "rings")],
+                    ["waves", t(locale, "waves")],
+                    ["none", t(locale, "patternNone")]
+                  ] as [CanvasPatternId, string][])}
+                  onChange={(value) => void onChange({ pattern: value as CanvasPatternId })}
                 />
               </SettingGroup>
               <SettingGroup label={t(locale, "homeColors")} description={t(locale, "homeColorsDescription")}>
-                <SwatchChoices
+                <Segmented
                   value={appearance.homeAccentPreset}
-                  options={[
-                    ["theme", t(locale, "homePresetTheme"), THEME_HOME_PREVIEW[theme] ?? PASTEL_HOME_PREVIEW],
-                    ["pastel", t(locale, "homePresetPastel"), PASTEL_HOME_PREVIEW],
-                    ["warm", t(locale, "homePresetWarm"), ["#D99872", "#F1D4A8", "#A9CAD6", "#D99AA6"]],
-                    ["cool", t(locale, "homePresetCool"), ["#8AB7C5", "#C4DCE2", "#A9B9E3", "#C3A9D9"]],
-                    ["mono", t(locale, "homePresetMono"), ["#89919E", "#D8DCE1", "#AAB2BE", "#C3C7CE"]],
-                    ["dusk", t(locale, "homePresetDusk"), DUSK_HOME_PREVIEW],
-                    ["custom", t(locale, "homePresetCustom"), Object.values(appearance.homeAccentColors)]
-                  ]}
+                  options={([
+                    ["theme", t(locale, "homePresetTheme")],
+                    ["pastel", t(locale, "homePresetPastel")],
+                    ["warm", t(locale, "homePresetWarm")],
+                    ["cool", t(locale, "homePresetCool")],
+                    ["mono", t(locale, "homePresetMono")],
+                    ["dusk", t(locale, "homePresetDusk")],
+                    ["custom", t(locale, "homePresetCustom")]
+                  ] as [HomeAccentPresetId, string][])}
                   onChange={(value) => void onChange(homeAccentPresetPatch(value as HomeAccentPresetId))}
                 />
               </SettingGroup>
               {appearance.homeAccentPreset === "custom" && (
-                <SettingGroup label={t(locale, "homeCustomColors")}>
+                <SettingGroup layout="stacked" label={t(locale, "homeCustomColors")}>
                   <div className="color-editor">
                     {([
                       ["clock", t(locale, "homeColorClock")],
@@ -459,65 +474,20 @@ export function SettingsPanel({
                   </div>
                 </SettingGroup>
               )}
-              <SettingGroup
-                label={t(locale, "sessionRowColors")}
-                description={t(locale, "sessionRowColorsDescription")}
-              >
+              <SettingGroup label={t(locale, "sessionRowColors")}>
                 <Segmented
                   value={settings.sessionRowColorMode}
                   options={([
-                    ["status", t(locale, "sessionRowColorsByStatus")],
-                    ["monochrome", t(locale, "sessionRowColorsMonochrome")]
+                    ["monochrome", t(locale, "sessionRowColorsMonochrome")],
+                    ["status", t(locale, "sessionRowColorsByStatus")]
                   ] as [SessionRowColorMode, string][])}
                   onChange={(value) => void onChange({ sessionRowColorMode: value as SessionRowColorMode })}
                 />
               </SettingGroup>
-              <SettingGroup label={t(locale, "canvasColor")}>
-                <SwatchChoices
-                  value={appearance.canvasColor}
-                  columns={4}
-                  options={([
-                    ["theme", t(locale, "canvasColorTheme")],
-                    ["stone", t(locale, "canvasColorStone")],
-                    ["lilac", t(locale, "lilac")],
-                    ["night", t(locale, "night")],
-                    ["graphite", t(locale, "canvasColorGraphite")],
-                    ["linen", t(locale, "canvasColorLinen")],
-                    ["mist", t(locale, "canvasColorMist")]
-                  ] as [CanvasColorId, string][]).map(([value, label]) => (
-                    [value, label, [(value === "theme" ? THEME_CANVAS_PREVIEW[theme] : CANVAS_COLOR_PREVIEWS[value]) ?? "#24221E"]]
-                  ))}
-                  onChange={(value) => void onChange(canvasColorPatch(value as CanvasColorId))}
-                />
-              </SettingGroup>
-              <SettingGroup label={t(locale, "canvasPattern")}>
-                <Segmented
-                  value={settings.pattern}
-                  options={(["dots", "grid", "waves", "diagonal", "rings", "none"] as CanvasPatternId[]).map((value) => [value, t(locale, value)])}
-                  wrap
-                  onChange={(value) => void onChange({ pattern: value as CanvasPatternId })}
-                />
-              </SettingGroup>
-              <SettingGroup label={t(locale, "uiScale")} description={t(locale, "uiScaleDescription")}>
-                <label className="ui-scale-setting">
-                  <input
-                    type="range"
-                    min={UI_SCALE_MIN}
-                    max={UI_SCALE_MAX}
-                    step={UI_SCALE_STEP}
-                    value={settings.uiScale}
-                    onChange={(event) => void onChange({ uiScale: Number(event.currentTarget.value) })}
-                  />
-                  <output>{settings.uiScale.toFixed(2)}×</output>
-                </label>
-              </SettingGroup>
-              <SettingGroup label={t(locale, "shortcutHints")}>
-                <Segmented
-                  value={settings.showShortcutHints ? "on" : "off"}
-                  options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
-                  onChange={(value) => void onChange({ showShortcutHints: value === "on" })}
-                />
-              </SettingGroup>
+              {sw(t(locale, "reduceTransparency"), t(locale, "reduceTransparencyDescription"), settings.reduceTransparency,
+                (next) => void onChange({ reduceTransparency: next }))}
+              {sw(t(locale, "shortcutHints"), undefined, settings.showShortcutHints,
+                (next) => void onChange({ showShortcutHints: next }))}
               <SettingGroup label={t(locale, "minimapPlacement")}>
                 <PlacementChoices
                   value={settings.minimapPlacement}
@@ -558,6 +528,19 @@ export function SettingsPanel({
                 onChange={onChange}
                 onSetPluginHookEnabled={onSetPluginHookEnabled}
               />
+              <AgentProviderTable
+                locale={locale}
+                homeLauncherProviders={homeLauncherProviders}
+                homeLimitProviders={homeLimitProviders}
+                onHome={(provider, enabled) => void onChange({
+                  homeLauncherProviders: setHomeLauncherProviderEnabled(homeLauncherProviders, provider, enabled)
+                })}
+                onLimits={(provider, enabled) => void onChange({
+                  homeLimitProviders: setHomeLimitProviderEnabled(homeLimitProviders, provider, enabled)
+                })}
+              />
+              {sw(t(locale, "quickLauncher"), t(locale, "quickLauncherDescription"), settings.radialLauncherEnabled,
+                (next) => void onChange({ radialLauncherEnabled: next }))}
               <SettingGroup
                 layout="stacked"
                 label={t(locale, "canvasLauncherItems")}
@@ -593,16 +576,8 @@ export function SettingsPanel({
                   >{t(locale, "resetCanvasLauncher")}</CanvasMenuRow>
                 </div>
               </SettingGroup>
-              <SettingGroup
-                layout="stacked"
-                label={t(locale, "quickLauncher")}
-                description={t(locale, "quickLauncherDescription")}
-              >
-                <Segmented
-                  value={settings.radialLauncherEnabled ? "on" : "off"}
-                  options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
-                  onChange={(value) => void onChange({ radialLauncherEnabled: value === "on" })}
-                />
+              {settings.radialLauncherEnabled && (
+              <section className="setting-group setting-group--field setting-group--stacked">
                 <div className="canvas-menu canvas-launcher-settings-menu">
                   <CanvasMenuLabel>{t(locale, "quickLauncherCount").replace("{count}", String(settings.radialLauncherItems.length))}</CanvasMenuLabel>
                   {RADIAL_LAUNCHER_ITEMS.map((item: RadialLauncherItemId) => {
@@ -632,87 +607,116 @@ export function SettingsPanel({
                     onClick={() => void onChange({ radialLauncherItems: [...DEFAULT_RADIAL_LAUNCHER_ITEMS] })}
                   >{t(locale, "useDefaults")}</CanvasMenuRow>
                 </div>
-              </SettingGroup>
-              <SettingGroup
-                layout="stacked"
-                label={t(locale, "homeLauncherAgents")}
-                description={t(locale, "homeLauncherAgentsDescription")}
-              >
-                <div className="agent-launcher-settings">
-                  {AGENT_PROVIDERS.map((provider) => {
-                    const enabled = homeLauncherProviders.includes(provider);
-                    return (
-                      <div className="agent-launcher-settings__row" key={provider}>
-                        <span className="agent-launcher-settings__identity">
-                          <ProviderIcon provider={provider} size="small" />
-                          <strong>{PROVIDERS[provider].label}</strong>
-                        </span>
-                        <Segmented
-                          value={enabled ? "on" : "off"}
-                          options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
-                          onChange={(value) => void onChange({
-                            homeLauncherProviders: setHomeLauncherProviderEnabled(
-                              homeLauncherProviders,
-                              provider,
-                              value === "on"
-                            )
-                          })}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </SettingGroup>
-              <SettingGroup
-                layout="stacked"
-                label={t(locale, "homeLimitProviders")}
-                description={t(locale, "homeLimitProvidersDescription")}
-              >
-                <div className="agent-launcher-settings">
-                  {LIMIT_PROVIDERS.map((provider: LimitProviderId) => {
-                    const enabled = homeLimitProviders.includes(provider);
-                    return (
-                      <div className="agent-launcher-settings__row" key={provider}>
-                        <span className="agent-launcher-settings__identity">
-                          <ProviderIcon provider={provider} size="small" />
-                          <strong>{PROVIDERS[provider].limitsLabel ?? PROVIDERS[provider].label}</strong>
-                        </span>
-                        <Segmented
-                          value={enabled ? "on" : "off"}
-                          options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
-                          onChange={(value) => void onChange({
-                            homeLimitProviders: setHomeLimitProviderEnabled(
-                              homeLimitProviders,
-                              provider,
-                              value === "on"
-                            )
-                          })}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </SettingGroup>
+              </section>
+              )}
             </>
           )}
 
           {section === "controls" && (
             <>
-              <EvenG2Controls locale={locale} />
               <SettingGroup label={t(locale, "focusActivation")}>
                 <Segmented
                   value={settings.focusActivation}
-                  options={(["off", "single", "double"] as FocusActivation[]).map((value) => [value, t(locale, value)])}
+                  options={([
+                    ["off", t(locale, "focusActivationOff")],
+                    ["single", t(locale, "focusActivationSingle")],
+                    ["double", t(locale, "focusActivationDouble")]
+                  ] as [FocusActivation, string][])}
                   onChange={(value) => void onChange({ focusActivation: value as FocusActivation })}
                 />
               </SettingGroup>
-              <SettingGroup label={t(locale, "hoverFocus")} description={t(locale, "hoverFocusDescription")}>
+              <SettingGroup
+                label={t(locale, "canvasWheelCapture")}
+                description={t(locale, "canvasWheelCaptureDescription")}
+              >
                 <Segmented
-                  value={settings.hoverFocus ? "on" : "off"}
-                  options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
-                  onChange={(value) => void onChange({ hoverFocus: value === "on" })}
+                  value={settings.canvasWheelCaptureMode}
+                  options={[
+                    ["off", t(locale, "wheelCaptureOff")],
+                    ["always", t(locale, "wheelCaptureAlways")],
+                    ["key", t(locale, "wheelCaptureKey")]
+                  ]}
+                  onChange={(value) => changeCanvasWheelCaptureMode(value as CanvasWheelCaptureMode)}
                 />
               </SettingGroup>
+              {settings.canvasWheelCaptureMode === "key" && (
+                <section className="setting-group setting-group--field setting-group--stacked">
+                  <CanvasNavigationShortcutEditor
+                    open={open}
+                    locale={locale}
+                    label={t(locale, "canvasWheelOverride")}
+                    binding={settings.canvasWheelOverride}
+                    actionShortcuts={Object.values(settings.shortcuts)}
+                    allowDisable={false}
+                    onCaptureStart={() => {
+                      setCapturing(null);
+                      setShortcutError(null);
+                    }}
+                    onChange={(canvasWheelOverride) => onChange({ canvasWheelOverride })}
+                  />
+                  {canvasOverrideBindingsMatch && (
+                    <p className="shortcut-editor__warning">{t(locale, "canvasOverrideBindingsMatch")}</p>
+                  )}
+                </section>
+              )}
+              {sw(t(locale, "snapToGrid"), undefined, settings.snapToGrid,
+                (next) => void onChange({ snapToGrid: next }))}
+              <section className="setting-group setting-group--stacked shortcut-block">
+                <h3 className="setting-subhead">{t(locale, "keyboardShortcuts")}</h3>
+                <ShortcutRow
+                  locale={locale}
+                  label={t(locale, "homeShortcut")}
+                  value={settings.shortcuts.home}
+                  capturing={capturing === "home"}
+                  onStart={() => {
+                    setShortcutError(null);
+                    setCapturing("home");
+                  }}
+                  onCancel={() => {
+                    setShortcutError(null);
+                    setCapturing(null);
+                  }}
+                  onKeyDown={(event) => captureShortcut("home", event)}
+                  onPointerDown={(event) => capturePointerShortcut("home", event)}
+                />
+                {shortcutError && capturing === "home" && (
+                  <p className="shortcut-editor__error" role="alert">{shortcutError}</p>
+                )}
+                <ShortcutRow
+                  locale={locale}
+                  label={t(locale, "renameWindow")}
+                  value={settings.shortcuts.renameWindow}
+                  capturing={capturing === "renameWindow"}
+                  onStart={() => {
+                    setShortcutError(null);
+                    setCapturing("renameWindow");
+                  }}
+                  onCancel={() => {
+                    setShortcutError(null);
+                    setCapturing(null);
+                  }}
+                  onKeyDown={(event) => captureShortcut("renameWindow", event)}
+                  onPointerDown={(event) => capturePointerShortcut("renameWindow", event)}
+                />
+                {shortcutError && capturing === "renameWindow" && (
+                  <p className="shortcut-editor__error" role="alert">{shortcutError}</p>
+                )}
+                <CanvasNavigationShortcutEditor
+                  open={open}
+                  locale={locale}
+                  label={t(locale, "canvasNavigationOverrideHint")}
+                  binding={settings.canvasNavigationOverride}
+                  actionShortcuts={Object.values(settings.shortcuts)}
+                  allowDisable
+                  onCaptureStart={() => {
+                    setCapturing(null);
+                    setShortcutError(null);
+                  }}
+                  onChange={(canvasNavigationOverride) => onChange({ canvasNavigationOverride })}
+                />
+              </section>
+              {sw(t(locale, "hoverFocus"), t(locale, "hoverFocusDescription"), settings.hoverFocus,
+                (next) => void onChange({ hoverFocus: next }))}
               {settings.hoverFocus && (
                 <SettingGroup label={t(locale, "hoverFocusSpeed")}>
                   <Segmented
@@ -722,13 +726,6 @@ export function SettingsPanel({
                   />
                 </SettingGroup>
               )}
-              <SettingGroup label={t(locale, "snapToGrid")}>
-                <Segmented
-                  value={settings.snapToGrid ? "on" : "off"}
-                  options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
-                  onChange={(value) => void onChange({ snapToGrid: value === "on" })}
-                />
-              </SettingGroup>
               <SettingGroup
                 label={t(locale, "minimapInteractionMode")}
                 description={t(locale, "minimapInteractionModeDescription")}
@@ -744,13 +741,8 @@ export function SettingsPanel({
                   })}
                 />
               </SettingGroup>
-              <SettingGroup label={t(locale, "edgePan")} description={t(locale, "edgePanDescription")}>
-                <Segmented
-                  value={settings.edgePan ? "on" : "off"}
-                  options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
-                  onChange={(value) => void onChange({ edgePan: value === "on" })}
-                />
-              </SettingGroup>
+              {sw(t(locale, "edgePan"), t(locale, "edgePanDescription"), settings.edgePan,
+                (next) => void onChange({ edgePan: next }))}
               <SettingGroup label={t(locale, "edgePanSpeed")}>
                 <Segmented
                   value={settings.edgePanSpeed}
@@ -765,62 +757,8 @@ export function SettingsPanel({
                   onChange={(value) => void onChange({ zoomSensitivity: value as ZoomSensitivity })}
                 />
               </SettingGroup>
-              <SettingGroup
-                label={t(locale, "useScrollWheelToZoom")}
-                description={t(locale, "useScrollWheelToZoomDescription")}
-              >
-                <Segmented
-                  value={settings.useScrollWheelToZoom ? "on" : "off"}
-                  options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
-                  onChange={(value) => void onChange({ useScrollWheelToZoom: value === "on" })}
-                />
-              </SettingGroup>
-              <SettingGroup
-                label={t(locale, "canvasWheelCapture")}
-                description={t(locale, "canvasWheelCaptureDescription")}
-              >
-                <Segmented
-                  value={settings.canvasWheelCaptureMode}
-                  options={[["off", "Off"], ["always", "On"], ["key", "Key"]]}
-                  onChange={(value) => changeCanvasWheelCaptureMode(value as CanvasWheelCaptureMode)}
-                />
-                {settings.canvasWheelCaptureMode === "key" && (
-                  <CanvasNavigationShortcutEditor
-                    open={open}
-                    locale={locale}
-                    label={t(locale, "canvasWheelOverride")}
-                    binding={settings.canvasWheelOverride}
-                    actionShortcuts={Object.values(settings.shortcuts)}
-                    allowDisable={false}
-                    onCaptureStart={() => {
-                      setCapturing(null);
-                      setShortcutError(null);
-                    }}
-                    onChange={(canvasWheelOverride) => onChange({ canvasWheelOverride })}
-                  />
-                )}
-                {canvasOverrideBindingsMatch && (
-                  <p className="shortcut-editor__warning">{t(locale, "canvasOverrideBindingsMatch")}</p>
-                )}
-              </SettingGroup>
-              <SettingGroup
-                label={t(locale, "canvasNavigationOverride")}
-                description={t(locale, "canvasNavigationOverrideDescription")}
-              >
-                <CanvasNavigationShortcutEditor
-                  open={open}
-                  locale={locale}
-                  label={t(locale, "canvasNavigationOverride")}
-                  binding={settings.canvasNavigationOverride}
-                  actionShortcuts={Object.values(settings.shortcuts)}
-                  allowDisable
-                  onCaptureStart={() => {
-                    setCapturing(null);
-                    setShortcutError(null);
-                  }}
-                  onChange={(canvasNavigationOverride) => onChange({ canvasNavigationOverride })}
-                />
-              </SettingGroup>
+              {sw(t(locale, "useScrollWheelToZoom"), t(locale, "useScrollWheelToZoomDescription"), settings.useScrollWheelToZoom,
+                (next) => void onChange({ useScrollWheelToZoom: next }))}
               <SettingGroup label={t(locale, "terminalWheelDirection")}>
                 <Segmented
                   value={settings.invertTerminalWheel ? "inverted" : "normal"}
@@ -835,77 +773,26 @@ export function SettingsPanel({
                   onChange={(value) => void onChange({ invertCanvasWheel: value === "inverted" })}
                 />
               </SettingGroup>
-              <SettingGroup label={t(locale, "homeShortcut")} description={t(locale, "homeShortcutDescription")}>
-                <ShortcutRow
-                  label={t(locale, "shortcutBinding")}
-                  value={settings.shortcuts.home}
-                  capturing={capturing === "home"}
-                  onStart={() => {
-                    setShortcutError(null);
-                    setCapturing("home");
-                  }}
-                  onKeyDown={(event) => captureShortcut("home", event)}
-                  onPointerDown={(event) => capturePointerShortcut("home", event)}
-                />
-                {shortcutError && capturing === "home" && (
-                  <p className="shortcut-editor__error" role="alert">{shortcutError}</p>
-                )}
-              </SettingGroup>
-              <SettingGroup label={t(locale, "renameWindow")} description={t(locale, "renameWindowDescription")}>
-                <ShortcutRow
-                  label={t(locale, "shortcutBinding")}
-                  value={settings.shortcuts.renameWindow}
-                  capturing={capturing === "renameWindow"}
-                  onStart={() => {
-                    setShortcutError(null);
-                    setCapturing("renameWindow");
-                  }}
-                  onKeyDown={(event) => captureShortcut("renameWindow", event)}
-                  onPointerDown={(event) => capturePointerShortcut("renameWindow", event)}
-                />
-                {shortcutError && capturing === "renameWindow" && (
-                  <p className="shortcut-editor__error" role="alert">{shortcutError}</p>
-                )}
-              </SettingGroup>
+              {/* D-012: Even G2 is not in the mock-up; it stays here as a collapsible block at the bottom */}
+              <details className="settings-fold" data-even-g2-fold>
+                <summary>Even G2</summary>
+                <EvenG2Controls locale={locale} />
+              </details>
             </>
           )}
 
           {section === "browser" && (
             <>
-              <SettingGroup
-                label={t(locale, "browserAgentAccess")}
-                description={t(locale, "browserAgentAccessDescription")}
-              >
-                <Segmented
-                  value={settings.browserAgentAccess ? "on" : "off"}
-                  options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
-                  onChange={(value) => void onChange({ browserAgentAccess: value === "on" })}
-                />
-              </SettingGroup>
-              <SettingGroup
-                label={t(locale, "browserAgentPresence")}
-                description={t(locale, "browserAgentPresenceDescription")}
-              >
-                <Segmented
-                  value={settings.browserShowAgentPresence ? "on" : "off"}
-                  options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
-                  onChange={(value) => void onChange({ browserShowAgentPresence: value === "on" })}
-                />
-              </SettingGroup>
-              <SettingGroup
-                label={t(locale, "browserRestoreTabs")}
-                description={t(locale, "browserRestoreTabsDescription")}
-              >
-                <Segmented
-                  value={settings.browserRestoreTabs ? "on" : "off"}
-                  options={[["on", t(locale, "on")], ["off", t(locale, "off")]]}
-                  onChange={(value) => void onChange({ browserRestoreTabs: value === "on" })}
-                />
-              </SettingGroup>
-              <SettingGroup label={t(locale, "browserDownloads")}>
+              {sw(t(locale, "browserAgentAccess"), t(locale, "browserAgentAccessDescription"), settings.browserAgentAccess,
+                (next) => void onChange({ browserAgentAccess: next }))}
+              {sw(t(locale, "browserAgentPresence"), t(locale, "browserAgentPresenceDescription"), settings.browserShowAgentPresence,
+                (next) => void onChange({ browserShowAgentPresence: next }))}
+              {sw(t(locale, "browserRestoreTabs"), t(locale, "browserRestoreTabsDescription"), settings.browserRestoreTabs,
+                (next) => void onChange({ browserRestoreTabs: next }))}
+              <SettingGroup layout="stacked" label={t(locale, "browserDownloads")}>
                 <BrowserDownloadList downloads={browser.downloads} locale={locale} />
               </SettingGroup>
-              <SettingGroup label={t(locale, "browserActivity")}>
+              <SettingGroup layout="stacked" label={t(locale, "browserActivity")}>
                 <BrowserActivityList activity={activity} state={activityState} locale={locale} />
               </SettingGroup>
               <SettingGroup
@@ -1114,35 +1001,47 @@ function activityOperationLabel(locale: LocaleId, operation: BrowserCommandType)
 }
 
 function ShortcutRow({
+  locale,
   label,
   value,
   capturing,
   onStart,
+  onCancel,
   onKeyDown,
   onPointerDown
 }: {
+  locale: LocaleId;
   label: string;
   value: string;
   capturing: boolean;
   onStart(): void;
+  onCancel(): void;
   onKeyDown(event: React.KeyboardEvent<HTMLButtonElement>): void;
   onPointerDown(event: React.PointerEvent<HTMLButtonElement>): void;
 }): React.JSX.Element {
   return (
     <div className="shortcut-editor__row">
       <span>{label}</span>
-      <button
-        className={capturing ? "shortcut-editor__key shortcut-editor__key--capturing" : "shortcut-editor__key"}
-        type="button"
-        data-shortcut-capture="true"
-        onClick={onStart}
-        onPointerDown={(event) => {
-          if (capturing) onPointerDown(event);
-        }}
-        onKeyDown={(event) => {
-          if (capturing) onKeyDown(event);
-        }}
-      >{capturing ? "…" : value}</button>
+      <div className="shortcut-editor__actions">
+        <button
+          className={capturing ? "shortcut-editor__key shortcut-editor__key--capturing" : "shortcut-editor__key"}
+          type="button"
+          data-shortcut-capture="true"
+          onClick={onStart}
+          onPointerDown={(event) => {
+            if (capturing) onPointerDown(event);
+          }}
+          onKeyDown={(event) => {
+            if (capturing) onKeyDown(event);
+          }}
+        >{capturing ? t(locale, "shortcutPress") : value}</button>
+        <button
+          className="shortcut-editor__edit"
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={capturing ? onCancel : onStart}
+        >{capturing ? t(locale, "cancel") : t(locale, "shortcutEdit")}</button>
+      </div>
     </div>
   );
 }
@@ -1176,34 +1075,179 @@ function PlacementChoices({
   );
 }
 
-// Orchestration notifications (UX audit PR 3): each event on its own switch, and how to allow them in macOS.
+// Orchestration notifications (UX audit PR 3): the switches for what is shown, the ticks for which events are reported.
 function NotificationSettingsGroup({ settings, onChange }: { settings: AppSettings; onChange(patch: Partial<AppSettings>): Promise<void> }): React.JSX.Element {
   const locale = settings.locale;
   const [unavailable, setUnavailable] = useState(false);
   useEffect(() => { try { setUnavailable(localStorage.getItem(NOTIFY_UNAVAILABLE_KEY) === "1"); } catch { /* no storage: nothing to say */ } }, []);
-  const rows: [keyof NotificationSettings, TranslationKey, TranslationKey][] = [
-    ["waiting", "notifyWaiting", "notifyWaitingDescription"], ["completed", "notifyCompleted", "notifyCompletedDescription"],
-    ["failed", "notifyFailed", "notifyFailedDescription"], ["dockBadge", "notifyDockBadge", "notifyDockBadgeDescription"],
-    ["bounce", "notifyBounce", "notifyBounceDescription"], ["board", "notifyBoard", "notifyBoardDescription"],
+  const set = (key: keyof NotificationSettings, value: boolean): void => void onChange({ notifications: { ...settings.notifications, [key]: value } });
+  const switches: [keyof NotificationSettings, TranslationKey, TranslationKey][] = [
+    ["dockBadge", "notifyDockBadge", "notifyDockBadgeDescription"], ["bounce", "notifyBounce", "notifyBounceDescription"],
+    ["board", "notifyBoard", "notifyBoardDescription"],
     // C4: under «board», shown while it is on
     ...(settings.notifications.board ? [["boardHead", "notifyBoardHead", "notifyBoardHeadDescription"] as [keyof NotificationSettings, TranslationKey, TranslationKey]] : [])
   ];
+  const events: [keyof NotificationSettings, TranslationKey][] = [["waiting", "notifyWaiting"], ["failed", "notifyFailed"], ["completed", "notifyCompleted"]];
   return (
     <>
-      <p className="setting-group__description" data-notify-intro>{t(locale, "notifyIntro")}</p>
       {unavailable && <p className="setting-group__description notify-unavailable" role="status" data-notify-unavailable>{t(locale, "notifyUnavailable")}</p>}
-      {rows.map(([key, label, description]) => (
-        <SettingGroup key={key} label={t(locale, label)} description={t(locale, description)}>
-          <Segmented
-            value={settings.notifications[key] ? "on" : "off"}
-            options={[["off", t(locale, "notifyOff")], ["on", t(locale, "notifyOn")]]}
-            onChange={(value) => void onChange({ notifications: { ...settings.notifications, [key]: value === "on" } })}
-          />
-        </SettingGroup>
+      {switches.map(([key, label, description]) => (
+        <SettingSwitch key={key} label={t(locale, label)} description={t(locale, description)}
+          checked={settings.notifications[key]} onChange={(next) => set(key, next)} />
       ))}
-      <p className="setting-group__description" data-notify-system-hint>{t(locale, "notifySystemHint")}</p>
-      <p className="setting-group__description" data-notify-badge-hint>{t(locale, "notifyBadgeHint")}</p>
+      <section className="setting-group setting-group--field">
+        <div className="setting-group__copy"><h3>{t(locale, "notifyReportAbout")}</h3></div>
+        <div className="setting-group__control notify-events">
+          {events.map(([key, label]) => (
+            <label className="notify-events__item" key={key}>
+              <input type="checkbox" checked={settings.notifications[key]} onChange={(event) => set(key, event.currentTarget.checked)} />
+              <span>{t(locale, label)}</span>
+            </label>
+          ))}
+        </div>
+      </section>
+      <p className="setting-group__description setting-group__footnote" data-notify-intro>{t(locale, "notifyIntro")}</p>
+      <p className="setting-group__description setting-group__footnote" data-notify-system-hint>{t(locale, "notifySystemHint")}</p>
+      <p className="setting-group__description setting-group__footnote" data-notify-badge-hint>{t(locale, "notifyBadgeHint")}</p>
     </>
+  );
+}
+
+function SettingSwitch({
+  label,
+  description,
+  checked,
+  onChange
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange(checked: boolean): void;
+}): React.JSX.Element {
+  return (
+    <SettingGroup label={label} description={description} layout="switch">
+      <Switch checked={checked} label={label} onChange={onChange} />
+    </SettingGroup>
+  );
+}
+
+function ThemeChoices({
+  label,
+  value,
+  options,
+  onChange
+}: {
+  label: string;
+  value: PaletteId;
+  options: [PaletteId, string][];
+  onChange(value: PaletteId): void;
+}): React.JSX.Element {
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box
+    <div className="theme-choices" role="group" aria-label={label}>
+      {options.map(([id, label]) => (
+        <button
+          className={value === id ? "theme-choice theme-choice--active" : "theme-choice"}
+          type="button"
+          key={id}
+          aria-pressed={value === id}
+          style={{ background: THEME_TILE_PREVIEW[id].tile, color: THEME_TILE_PREVIEW[id].text }}
+          onClick={() => onChange(id)}
+        >
+          <span className="theme-choice__preview" aria-hidden="true" >
+            <i style={{ background: THEME_TILE_PREVIEW[id].card }} />
+            <b style={{ background: THEME_TILE_PREVIEW[id].dot }} />
+          </span>
+          <span>{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ColorDots({
+  label,
+  value,
+  options,
+  onChange
+}: {
+  label: string;
+  value: string;
+  options: [string, string, string][];
+  onChange(value: string): void;
+}): React.JSX.Element {
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box
+    <div className="color-dots" role="group" aria-label={label}>
+      {options.map(([optionValue, label, color]) => (
+        <button
+          className={`color-dot${optionValue === "theme" ? " color-dot--theme" : ""}${value === optionValue ? " color-dot--active" : ""}`}
+          type="button"
+          key={optionValue}
+          aria-pressed={value === optionValue}
+          aria-label={label}
+          title={label}
+          style={optionValue === "theme" ? undefined : { background: color }}
+          onClick={() => onChange(optionValue)}
+        />
+      ))}
+    </div>
+  );
+}
+
+// «Agents»: one row per provider: is its CLI found, is it in the HOME dock, are its limits shown.
+function AgentProviderTable({
+  locale,
+  homeLauncherProviders,
+  homeLimitProviders,
+  onHome,
+  onLimits
+}: {
+  locale: LocaleId;
+  homeLauncherProviders: AgentProviderId[];
+  homeLimitProviders: LimitProviderId[];
+  onHome(provider: AgentProviderId, enabled: boolean): void;
+  onLimits(provider: LimitProviderId, enabled: boolean): void;
+}): React.JSX.Element {
+  const [found, setFound] = useState<AgentProviderId[] | null>(null);
+  const [failed, setFailed] = useState(false); // a failed lookup is not «CLI not found»: the cell stays empty
+  useEffect(() => {
+    let active = true;
+    window.canvasTTY.providers.available().then((list: AgentProviderId[]) => { if (active) setFound(list); }).catch(() => { if (active) setFailed(true); });
+    return () => { active = false; };
+  }, []);
+  const install = (): void => void window.canvasTTY.external.openUrl(installUrl(locale));
+  return (
+    <table className="agent-table" aria-busy={found === null && !failed}>
+      <thead>
+        <tr>
+          <th scope="col">{t(locale, "agentTableProvider")}</th>
+          <th scope="col">{t(locale, "agentTableCli")}</th>
+          <th scope="col">{t(locale, "agentTableDock")}</th>
+          <th scope="col">{t(locale, "agentTableLimits")}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {AGENT_PROVIDERS.map((provider) => {
+          const label = PROVIDERS[provider].label;
+          const limited = (LIMIT_PROVIDERS as AgentProviderId[]).includes(provider);
+          return (
+            <tr key={provider} data-provider={provider}>
+              <th scope="row"><span className="agent-table__identity"><ProviderIcon provider={provider} size="small" />{label}</span></th>
+              <td className="agent-table__cli">
+                {found === null ? null : found.includes(provider)
+                  ? <span className="agent-table__found"><UiIcon name="done" size="1em" />{t(locale, "cliFound")}</span>
+                  : <><span>{t(locale, "cliMissing")}</span><button type="button" className="agent-table__install" onClick={install}>{t(locale, "howToInstall")}</button></>}
+              </td>
+              <td><Switch checked={homeLauncherProviders.includes(provider)} label={`${t(locale, "agentTableDock")}: ${label}`} onChange={(next) => onHome(provider, next)} /></td>
+              <td>{limited
+                ? <Switch checked={homeLimitProviders.includes(provider as LimitProviderId)} label={`${t(locale, "agentTableLimits")}: ${label}`} onChange={(next) => onLimits(provider as LimitProviderId, next)} />
+                : <span className="agent-table__none" aria-hidden="true">—</span>}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
@@ -1215,11 +1259,11 @@ function SettingGroup({
 }: {
   label: string;
   description?: string;
-  layout?: "field" | "stacked";
+  layout?: "field" | "stacked" | "switch";
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <section className={`setting-group setting-group--field${layout === "stacked" ? " setting-group--stacked" : ""}`}>
+    <section className={`setting-group setting-group--field${layout === "stacked" ? " setting-group--stacked" : ""}${layout === "switch" ? " setting-group--switch" : ""}`}>
       <div className="setting-group__copy">
         <h3>{label}</h3>
         {description && <p className="setting-group__description">{description}</p>}
@@ -1249,39 +1293,6 @@ function Segmented({
           key={optionValue}
           onClick={() => onChange(optionValue)}
         >{label}</button>
-      ))}
-    </div>
-  );
-}
-
-function SwatchChoices({
-  value,
-  options,
-  columns = 5,
-  onChange
-}: {
-  value: string;
-  options: [string, string, string[]][];
-  columns?: 4 | 5;
-  onChange(value: string): void;
-}): React.JSX.Element {
-  return (
-    <div className={`swatch-choices ${columns === 4 ? "swatch-choices--four" : ""}`}>
-      {options.map(([optionValue, label, colors]) => (
-        <button
-          className={value === optionValue ? "swatch-choice swatch-choice--active" : "swatch-choice"}
-          type="button"
-          key={optionValue}
-          aria-pressed={value === optionValue}
-          onClick={() => onChange(optionValue)}
-        >
-          <span className="swatch-choice__preview" aria-hidden="true">
-            {colors.map((color, index) => (
-              <i key={`${color}-${index}`} style={{ background: color }} />
-            ))}
-          </span>
-          <span>{label}</span>
-        </button>
       ))}
     </div>
   );

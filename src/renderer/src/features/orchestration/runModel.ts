@@ -25,6 +25,15 @@ import { STEP_ONLY, STOP_ONLY, RESUMABLE, admits, type AdmissionKind } from "../
 export { admits, RESUMABLE, STEP_ONLY, STOP_ONLY, type AdmissionKind };
 export const ACTIVE_STATUSES = ["preparing", "running", "pausing", "paused", "stopping"];
 export const TERMINAL_STATUSES = ["stopped", "completed", "failed"];
+// R5b (D-017): the tab a run opens on, as the mock-ups have it: a finished run and the decisions of the checks and the
+// finish, the plan to review and the person's decisions (D-018) on the summary, the pauses about the tree on the changes, the work on "Work"
+const SUMMARY_PAUSES = ["awaiting_checks_decision", "awaiting_finish_confirmation", "check_needs_permissions", "plan_review", "awaiting_person_decision"];
+const CHANGES_PAUSES = ["outcome_unknown", "lead_modified_tree"];
+export function openingTab(view: { status: string; reason?: string | null } | undefined): "summary" | "work" | "changes" {
+  if (!view || TERMINAL_STATUSES.includes(view.status)) return "summary";
+  if (view.status !== "paused") return "work";
+  return SUMMARY_PAUSES.includes(view.reason ?? "") ? "summary" : CHANGES_PAUSES.includes(view.reason ?? "") ? "changes" : "work";
+}
 
 // C1 (stage-c-parallel.md §6.2): a link may run several tasks at once. Its live runs (at most the last four), the one
 // shown — the picked one while it is the link's, else the latest that goes on, else the latest. Chip and panel use the same.
@@ -200,6 +209,18 @@ export function historyLines(records: readonly OrchestrationHistoryRecord[]): Hi
     }
   }
   return out;
+}
+
+// R5h-A (mock-up 20): the role a history line belongs to, for the role filter of «Записи»; a status, a limit, a recovery or the
+// preparation belongs to the run itself and is shown under every role, as the feed shows the status
+export function lineRole(l: HistoryLine): "lead" | "executor" | "check" | "run" {
+  switch (l.kind) {
+    case "report": return "executor";
+    case "turn": case "turn_failed": return l.parts.purpose === "execute" ? "executor" : "lead";
+    case "check": return "check";
+    case "status": case "recovered": case "limit": case "prepare_started": case "prepare_finished": return "run";
+    default: return "lead";
+  }
 }
 
 // How a loaded text is shown: findings as a list, a report by its summary and the rest, check output as it is.
@@ -667,6 +688,7 @@ export interface ZoneModel {
   // run's state (working, pausing, stopping, completed, failed, stopped, halted, permission)
   variant: string;
   tone: ZoneTone; // waiting: "Waiting for you" (the glow); calm: "Paused"
+  eyebrow: string; // R5a: the state's own caption of a neutral zone (Working / Completed / Failed / Stopped); "" — none
   title: string;
   why: string;
   todo: string;
@@ -675,6 +697,7 @@ export interface ZoneModel {
   dangerous: ZoneButton[]; // outlined in the danger colour, each asks for a confirmation
   clarify: "hidden" | "collapsed" | "open" | "disabled"; // disabled: a waiting plan proposal is the person's first
   footer: ZoneButton[]; // under the tabs, outside the scroll: pause after the turn, Stop, copy id / journal
+  detail?: string; // a failed run: the last error the activity quotes (mock-up 18)
   commands: AdmissionKind[]; // every command the zone can send, for the test against admits()
 }
 
@@ -703,45 +726,53 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
   // Clarify is main's own gate: a state that denies it hides it, except the one denial that passes (a waiting proposal)
   const clarifyOpen = !view.halted && !view.newer && admits("clarify", { ...ctx, proposalWaits: false }) === null;
   const done = (z: Omit<ZoneModel, "commands" | "clarify"> & { clarify?: ZoneModel["clarify"] }): ZoneModel => {
+    // R5b (D-017, mock-up 13): the field stands in the zone wherever main takes clarify; the pauses with a decision of their own hide it
     const clarify = z.clarify ?? (clarifyOpen ? (view.proposalWaits ? "disabled" : "collapsed") : "hidden");
     const all = [z.primary, ...z.secondary, ...z.dangerous, ...z.footer].flatMap((x) => x?.commands ?? []);
     return { ...z, clarify, commands: [...new Set<AdmissionKind>([...all, ...(clarify === "collapsed" || clarify === "open" ? (["clarify"] as AdmissionKind[]) : [])])] };
   };
-  const none = { secondary: [], dangerous: [], footer: [] as ZoneButton[], primary: null, tone: "neutral" as ZoneTone, todo: "", why: "" };
+  const none = { secondary: [], dangerous: [], footer: [] as ZoneButton[], primary: null, tone: "neutral" as ZoneTone, eyebrow: "", todo: "", why: "" };
   const state = (variant: string, headline: string, extra: Partial<ZoneModel> = {}) => done({ ...none, variant, title: L(`orchHeadline_${headline}`), ...extra });
 
   if (view.newer) {
-    return done({ variant: "newer_version", tone: "calm", title: L("orchPause_newer_version_what"), why: L("orchPause_newer_version_why"), todo: L("orchPause_newer_version_do"), primary: null,
+    return done({ variant: "newer_version", tone: "calm", eyebrow: "", title: L("orchPause_newer_version_what"), why: L("orchPause_newer_version_why"), todo: L("orchPause_newer_version_do"), primary: null,
       secondary: [b("release_newer", L("orchReleaseLink"))], dangerous: [], footer: [b("copy_id", L("orchZone_copyId"))] });
   }
   if (view.halted) {
     return state("halted", "halted", { tone: "waiting", why: L("orchNext_halted"), primary: b("open_journal", L("orchZone_openJournal")) });
   }
   if (view.permission && ["preparing", "running", "pausing"].includes(status)) {
-    return state("permission", "awaiting_permission", { tone: "waiting", todo: L("orchNext_permission"), footer: [stop()] });
+    return state("permission", "awaiting_permission", { ...(view.permission.kind === "plan" ? { clarify: "hidden" as const } : {}), tone: "waiting", title: L("orchZone_permissionTitle").replace("{agent}", providerName(view.permission.provider)),
+      why: L("orchZone_permissionWhy"), footer: [stop()] });
   }
   const text = pauseText(locale, view, entries, onMac);
   switch (status) {
-    case "preparing": return state("working", "working", { todo: L("orchNext_watch"), footer: [stop()] });
-    case "running": return state("working", "working", { todo: L("orchNext_watch"), footer: [b("pause", L("orchPause"), ["pause_after_turn"]), stop()] });
+    case "preparing": return state("working", "working", { eyebrow: L("orchEyebrow_working"), why: L("orchZone_workingWhy"), footer: [stop()] });
+    case "running": return state("working", "working", { eyebrow: L("orchEyebrow_working"), why: L("orchZone_workingWhy"), footer: [b("pause", L("orchPause"), ["pause_after_turn"]), stop()] });
     case "pausing": return state("pausing", "stopping_after_turn", { todo: L("orchNext_keep_running"), primary: b("keep_running", L("orchKeepRunning"), ["keep_running"]), footer: [stop()] });
     case "stopping": return state("stopping", "stopping", { todo: L("orchNext_wait") });
     case "completed": {
       const key = runStatusKey(view);
       const first = changesFirst(view, entries);
       const next = b("new_goal", L("orchNewGoal"));
-      return state(key, key, { tone: "neutral", todo: nextStepText(locale, view, entries),
+      return state(key, key, { tone: "neutral", eyebrow: L("orchEyebrow_completed"), todo: nextStepText(locale, view, entries),
         primary: first ? b("open_changes", L("orchViewChanges")) : next, secondary: first ? [next] : [] });
     }
     case "stopped": case "failed": {
       const cause = viewCause(view, entries);
-      return state(status, status, { why: cause ? causeText(locale, cause) : "", primary: b("open_journal", L("orchZone_openJournal")), secondary: [b("new_goal", L("orchNewGoal"))] });
+      const lastError = [...entries].reverse().find((e) => e.kind === "error" && e.text)?.text.slice(0, 600) ?? null;
+      // R5h-A (mock-up 18): a CLI that exited with a code — said with the code and the stage, as the activity recorded them
+      const exit = status === "failed" ? [...entries].reverse().find((e) => e.kind === "process_exited" && typeof e.detail?.code === "number" && e.detail.code !== 0) : undefined;
+      const exitTitle = exit?.provider ? L(view.stage !== null && view.stage !== undefined ? "orchFailedExit" : "orchFailedExitNoStage").replace("{agent}", providerName(exit.provider)).replace("{code}", String(exit.detail?.code)).replace("{n}", String(view.stage)) : null;
+      // R5a: the cause is the headline (the mock-up's "Claude CLI exited with code 1 on stage 2"); no cause - the state's own words
+      return state(status, status, { eyebrow: L(`orchEyebrow_${status}`), ...(exitTitle ? { title: exitTitle } : cause ? { title: causeText(locale, cause) } : {}), ...(status === "failed" && lastError ? { detail: lastError } : {}), footer: [b("copy_id", L("orchZone_copyId"))],
+        primary: b("open_journal", L("orchZone_openJournal")), secondary: [b("new_goal", L("orchNewGoal"))] });
     }
   }
   // paused
   const set = zoneSet(view, entries, onMac);
   const title = text?.what ?? L(`orchHeadline_${runHeadline(view).headline}`);
-  const base = { variant: set, tone: (text?.you === false ? "calm" : "waiting") as ZoneTone, title, why: text?.why ?? "", todo: text?.todo ?? "" };
+  const base = { variant: set, tone: (text?.you === false ? "calm" : "waiting") as ZoneTone, eyebrow: "", title, why: (set === "limit_reached" && view.progress?.budget?.reached ? L(`orchPause_limit_reached_why_${view.progress.budget.reached}` as TranslationKey) : text?.why) ?? "", todo: ["plan_review", "awaiting_checks_decision", "awaiting_checks_none", "loop_suspected", "awaiting_answer", "awaiting_finish_confirmation", "check_needs_permissions", "limit_reached"].includes(set) ? "" : text?.todo ?? "" }; // the "why" alone (mock-ups 02, 04, 05, 06, 07, 09, 12, 14)
   const resume = (label = text?.button ?? L("orchResume")) => b("resume", label, ["resume"]);
   const step = () => b("step", L("orchStep"), ["step"]);
   const secondary: ZoneButton[] = [];
@@ -753,7 +784,7 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
   if (stopOnly) {
     primary = stop(true);
     footer = reason === "shared_git_tampered" ? [b("copy_id", L("orchZone_copyId"))] : reason === "journal_corrupt" ? [b("copy_journal", L("orchZone_copyJournal")), b("copy_id", L("orchZone_copyId"))] : [];
-    if (reason === "lead_modified_tree") secondary.push(b("open_changes", L("orchViewChanges")));
+    if (reason === "lead_modified_tree") { secondary.push(b("open_changes", L("orchViewChanges"))); footer = [b("copy_id", L("orchZone_copyId"))]; }
     if (set === "push_protected") secondary.push(b("project_settings", L("orchProfileOpen")));
     clarify = "hidden";
   } else if (STEP_ONLY.includes(reason)) {
@@ -771,6 +802,7 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
         if (view.workMode === "copy") dangerous.push(b("recover_reset", L("orchRecoverReset"), ["recover", "recover.reset"], true));
         break;
       case "awaiting_checks_decision":
+        clarify = "hidden";
         if (set === "awaiting_checks_none") {
           primary = b("checks_edit", L("orchChecksSave"), ["checks.decide"]);
           dangerous.push(b("checks_accept", L("orchChecksNoChecks"), ["checks.decide"], true));
@@ -779,17 +811,18 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
           secondary.push(b("checks_edit", L("orchChecksEdit"), ["checks.decide"]));
         }
         break;
-      case "awaiting_finish_confirmation": primary = b("finish_confirm", L("orchZone_sendDecisions"), ["finish.confirm"]); break;
-      case "check_needs_permissions": primary = b("check_amend", L("orchZone_saveOwn"), ["check.amend"]); break;
-      case "awaiting_person_decision": primary = b("person_decide", L("orchZone_sendDecisions"), ["person.decide"]); break;
+      case "awaiting_finish_confirmation": clarify = "hidden"; primary = b("finish_confirm", L("orchZone_sendDecisions"), ["finish.confirm"]); break;
+      case "check_needs_permissions": clarify = "hidden"; primary = b("check_amend", L("orchZone_saveOwn"), ["check.amend"]); break;
+      case "awaiting_person_decision": clarify = "hidden"; primary = b("person_decide", L("orchZone_sendDecisions"), ["person.decide"]); break;
       case "coverage_lost":
+        clarify = "hidden";
         primary = b("plan_return", L("orchProposalReturn"), ["plan.decide"]);
         dangerous.push(b("plan_accept", L("orchProposalAcceptDrop"), ["plan.decide"], true));
         break;
       default:
         primary = resume();
         if (set === "prepare_failed") secondary.push(b("project_settings", L("orchProfileOpen")));
-        else if (["user_request", "step_done", "recovered", "app_closed", "loop_suspected"].includes(reason)) secondary.push(step());
+        else if (["user_request", "step_done", "recovered", "app_closed"].includes(reason)) secondary.push(step());
         else if (reason === "plan_review") secondary.push(b("open_plan", L("orchZone_openPlan")), step());
         else if (reason === "stage_done") secondary.push(step(), b("open_changes", L("orchViewChanges")));
         else if (reason === "permission_denied") secondary.push(b("project_settings", L("orchProfileOpen")));
@@ -1093,7 +1126,7 @@ export function costOf(view: OrchestrationRunView, entries: readonly Orchestrati
 // person types (minutes for the run's time). used null: no single number (rounds are counted per stage).
 export const LIMIT_KINDS: readonly OrchestrationLimitKind[] = ["turns", "runMs", "replans", "roundsPerStage"];
 export interface LimitRow { kind: OrchestrationLimitKind; now: number; used: number | null; reached: boolean }
-export function limitRows(cost: Cost, budget: NonNullable<NonNullable<OrchestrationRunView["progress"]>["budget"]>): LimitRow[] {
+export function limitRows(cost: Cost, budget: NonNullable<NonNullable<OrchestrationRunView["progress"]>["budget"]>, rounds: number | null = null): LimitRow[] {
   const minutes = (ms: number) => Math.round(ms / 60_000);
   return LIMIT_KINDS.map((kind) => ({
     kind, reached: cost.reached === kind,
@@ -1101,7 +1134,7 @@ export function limitRows(cost: Cost, budget: NonNullable<NonNullable<Orchestrat
     used: kind === "turns" ? budget.used.turns : kind === "replans" ? budget.used.replans
       : kind === "runMs" ? (cost.elapsedMs === null ? null : Math.ceil(cost.elapsedMs / 60_000))
         // rounds are counted per stage: known only for the stage that reached its limit
-        : cost.reached === "roundsPerStage" ? budget.limits.roundsPerStage : null
+        : cost.reached === "roundsPerStage" ? budget.limits.roundsPerStage : rounds
   }));
 }
 
@@ -1172,3 +1205,11 @@ export function dirtyInPlace(workMode: string, items: readonly OrchestrationRead
 }
 export const failingOnSource = (items: readonly OrchestrationReadinessItem[]): string[] =>
   items.filter((i) => /^source_\d+$/.test(i.id) && i.facts?.result === "failed").map((i) => String(i.facts?.command ?? "")).filter(Boolean);
+
+// The goal dialog keeps requirements and check commands as lines of one text; what is sent is the trimmed non-empty lines.
+export const goalLines = (text: string): string[] => text.split("\n").map((l) => l.trim()).filter(Boolean);
+// The rows an editor shows for that text; with `trailing` the last empty row is left to the always-present empty input.
+export function goalRows(text: string, trailing: boolean): string[] {
+  const rows = text === "" ? (trailing ? [] : [""]) : text.split("\n");
+  return trailing && rows.at(-1) === "" ? rows.slice(0, -1) : rows;
+}

@@ -32,13 +32,22 @@ export function chipCenter(from: Rect, to: Rect, cards: readonly Rect[], size: {
 // R2: the chip sits ON the curve, at the first of t = 0.5, 0.42, 0.58, ... that covers no card (Н14). With the link selected
 // t=0.5 is the bend handle's: skipped. No free t: along the normal from the middle in big steps, else the middle.
 const CHIP_T = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74];
-export function chipOnCurve(g: LinkGeometry, cards: readonly Rect[], size: { width: number; height: number }, selected = false): Point {
+// pair: the two linked cards. When the gap between them is too narrow for the chip (the chip is wider than it), it goes
+// above the pair, 18px over the higher card's top edge, else under it (mock-up 19), not far off along the normal.
+export function chipOnCurve(g: LinkGeometry, cards: readonly Rect[], size: { width: number; height: number }, selected = false, pair?: readonly [Rect, Rect]): Point {
   const free = (c: Point) => !cards.some((r) => overlaps(around(c, size.width, size.height), r));
   for (const t of selected ? CHIP_T.slice(1) : CHIP_T) {
     const c = curvePoint(g, t);
     if (free(c)) return c;
   }
   const { mid, normal } = g;
+  if (pair) {
+    const x = (Math.min(pair[0].x, pair[1].x) + Math.max(pair[0].x + pair[0].width, pair[1].x + pair[1].width)) / 2;
+    const above = { x, y: Math.min(pair[0].y, pair[1].y) - 18 - size.height / 2 };
+    if (free(above)) return above;
+    const below = { x, y: Math.max(pair[0].y + pair[0].height, pair[1].y + pair[1].height) + 18 + size.height / 2 };
+    if (free(below)) return below;
+  }
   const step = Math.abs(normal.x) * size.width / 2 + Math.abs(normal.y) * size.height / 2 + GAP + 6;
   const at = (k: number): Point => ({ x: mid.x + normal.x * step * k, y: mid.y + normal.y * step * k });
   for (const k of [3, -3, 5, -5, 8, -8]) if (free(at(k))) return at(k);

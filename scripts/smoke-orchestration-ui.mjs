@@ -167,7 +167,7 @@ try {
   // v1: the lead's final verdict; v2 has none (the reviewer marks requirements): the result line itself
   await app.waitFor(`${q(V2 ? '[data-orch-proof]' : "[data-orch-result]")} && true`, "final verdict shown", 10_000);
   const run1 = link.runIds[0] ?? (await canvasState(app)).links[0].runIds[0];
-  expect(await app.ev(`document.querySelectorAll(".orch-checks li").length > 0 && document.querySelectorAll(".orch-plan li").length === 1`), "completed: plan and check results in the overview", null);
+  expect(await app.ev(`!!document.querySelector("[data-sum-check-count]") && document.querySelectorAll("[data-stage-n]").length === 1`), "completed: plan stages and check results in the summary", null);
   await openTab(app, "history");
   await app.waitFor(`document.querySelectorAll(".orch-history li").length > 3`, "history tab");
   expect(true, "completed: the history is in its tab", null);
@@ -198,19 +198,24 @@ try {
     const findingsShown = await app.ev(`[...${li("review", "нужны исправления")}.querySelectorAll(".orch-details__body li")].map((x) => x.textContent)`);
     expect(JSON.stringify(findingsShown) === JSON.stringify(FINDINGS), "the lead's findings open as a list", findingsShown);
   }
-  const firstReport = `[...document.querySelectorAll('.orch-history li[data-history-kind="report"]')].at(-1)`;
+  const firstReport = `document.querySelector('.orch-history li[data-history-kind="report"]')`; // R5h-A: the records are in the order they happened
   await app.clickEl(`${firstReport}.querySelector(".orch-details__toggle")`);
   await app.waitFor(`${firstReport}.querySelector(".orch-details__body li")?.textContent === "note and extra test added"`, "executor report shown");
+  const bodyBox = await app.ev(`(() => { const r = ${q(".orch-panel__body")}.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 20 }; })()`);
+  await app.call("Input.dispatchMouseEvent", { type: "mouseWheel", x: bodyBox.x, y: bodyBox.y, deltaX: 0, deltaY: 300 }); // R5h-A: the records are in order, the report is no longer at the bottom: scroll by the wheel itself
+  await sleep(300);
   const scrolled = await app.ev(`${q(".orch-panel__body")}.scrollTop`);
   expect(scrolled > 0, "the run panel scrolls with the mouse wheel (the canvas does not take the wheel over it)", scrolled);
   expect(true, "the executor's report opens with its summary", null);
-  await openTab(app, "result");
+  await openTab(app, "summary");
+  await app.clickEl(q('[data-orch-open-doc="result"]'));
   await app.waitFor(`${q('[data-run-doc="result"]')}?.textContent.includes("extra test fixed")`, "result tab shows what was done");
   expect(true, "completed: the result tab shows what the executor did", null);
   await app.clickEl(q("[data-run-doc-copy]"));
   const copied = await app.ev("window.canvasTTY.clipboard.readText()");
   expect(typeof copied === "string" && copied.startsWith("# "), "the result is copied as markdown", copied?.slice(0, 80));
-  await openTab(app, "plan");
+  await openTab(app, "summary");
+  await app.clickEl(q('[data-orch-open-doc="plan"]'));
   await app.waitFor(`${q('[data-run-doc="plan"]')}?.textContent.includes("Заметка")`, "plan tab shows the stage");
   expect(true, "completed: the plan tab shows the stage", null);
   // «To the canvas»: a snapshot note, marked as a copy; «Open current» leads back to the run's plan tab
@@ -240,8 +245,8 @@ try {
   await app.waitFor(`${q(".orch-panel__status--paused")} && true`, "run 2 paused", 60_000);
   const reason2 = await app.ev(`${q(".orch-panel__status [data-orch-reason]")}.textContent`);
   const actions2 = await app.ev(`[...document.querySelectorAll(".orch-panel__actions button, .orch-panel__foot button")].map((b) => b.textContent)`);
-  expect(reason2.includes("план") && JSON.stringify(actions2) === JSON.stringify(["Начать работу по плану", "Открыть план", "Один шаг", "Остановить запуск"]), "plan review: paused with its reason; Resume (as «Начать работу по плану»), Open the plan, Step, Stop (footer) offered", [reason2, actions2]);
-  await app.waitFor(`document.querySelectorAll(".orch-plan li").length === 1`, "plan shown for review");
+  expect(reason2.includes("план") && JSON.stringify(actions2) === JSON.stringify(["Начать работу по плану", "Один шаг", "Остановить запуск"]) && (await app.ev(`!!${q("[data-orch-open-plan]")}`)), "plan review: paused with its reason; Resume (as «Начать работу по плану») and Step in the row, Open the plan as a text button (R5a), Stop (footer) offered", [reason2, actions2]);
+  await app.waitFor(`document.querySelectorAll("[data-stage-n]").length === 1`, "plan shown for review");
   // review UX-9: the plan to review is also in the pinned summary, in view without scrolling
   const openPlan = await visibleNow(app, q("[data-orch-open-plan]"));
   expect(openPlan.ok, "plan review: «Open the plan» is in the summary, in view", openPlan);
@@ -280,7 +285,7 @@ try {
   const termSpot = await app.freeRect(80, 80) ?? (await app.panBy({ x: -400, y: 0 }), await app.freeRect(80, 80));
   if (!termSpot) throw new Error("no empty canvas for the terminal");
   await app.click(termSpot.x + 20, termSpot.y + 20, "right");
-  await app.clickEl(byText(".canvas-menu [role=menuitem]", "Запустить агента"));
+  await app.clickEl(byText(".canvas-menu [role=menuitem]", "Запустить"));
   await app.waitFor(`[...document.querySelectorAll(".canvas-menu__submenu [role=menuitem]")].find((el) => /Terminal|Терминал/.test(el.textContent)) && true`, "terminal row");
   await app.clickEl(`[...document.querySelectorAll(".canvas-menu__submenu [role=menuitem]")].find((el) => /Terminal|Терминал/.test(el.textContent))`);
   await app.waitFor(`document.querySelectorAll(".terminal-card").length === 1`, "terminal card", 20_000);

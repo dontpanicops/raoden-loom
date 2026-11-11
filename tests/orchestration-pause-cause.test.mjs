@@ -85,7 +85,7 @@ test("a Codex usage limit: the same reason and headline in the panel, the activi
   assert.match(overview, new RegExp(`data-orch-reason="?[^>]*>${REASON}<`), "run panel: overview");
   assert.match(text(overview), new RegExp(HEADLINE));
   const summary = text(panel("summary"));
-  assert.match(summary, new RegExp(`${t(LOCALE, "orchSum_reason")}: ${REASON}`), "run panel: summary");
+  assert.match(summary, new RegExp(REASON), "run panel: summary (the zone says the cause; the old «Причина:» row is gone since R5b)");
   assert.match(text(panel("activity")), new RegExp(`${t(LOCALE, "orchAct_status")}: ${LABEL}`), "run panel: feed");
   assert.match(text(panel("history")), new RegExp(`: ${LABEL}`), "run panel: history");
   for (const [where, html] of [["overview", overview], ["summary", summary], ["activity", panel("activity")], ["history", panel("history")]]) {

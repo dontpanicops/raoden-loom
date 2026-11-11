@@ -45,8 +45,19 @@ test("R2 cards: level 2 and opaque, one 44px header, waiting ring, no backdrop-f
 
 test("the first-run card is placed clear of HOME: right of it, else below it, else not shown", () => {
   const home = { left: 193, top: 118, right: 980, bottom: 585 };
-  assert.deepEqual(onboardingPlacement(home, { width: 1440, height: 856 }), { left: 1004, top: 200 });
-  assert.deepEqual(onboardingPlacement(home, { width: 1200, height: 1100 }), { left: 193, top: 609 });
+  assert.deepEqual(onboardingPlacement(home, { width: 1440, height: 856 }), { left: 1004, top: 200, width: 418, maxHeight: 638, guide: { left: 193, top: 609 } });
+  assert.deepEqual(onboardingPlacement(home, { width: 1200, height: 1100 }), { left: 193, top: 609, width: 560, maxHeight: 473, guide: null });
   assert.equal(onboardingPlacement(home, { width: 1000, height: 700 }), null);
   assert.equal(onboardingPlacement({ ...home, left: -50, right: 737 }, { width: 1440, height: 856 }), null); // HOME not wholly in sight
+});
+
+test("R5d: terminal footer texts per the mock-up; a narrow gap puts the link chip above the pair", async () => {
+  const i18n = readFileSync(new URL("../src/renderer/src/lib/i18n.ts", import.meta.url), "utf8");
+  for (const line of ['statusExitedCode: "Вышел · код {code}"', 'statusFailedCode: "Упал · код {code}"', 'statusNeedsApprovalCard: "Ждёт одобрения · ответ в терминале"', 'statusIdle: "Свободен"', 'statusNeedsApproval: "Ждёт ввода"']) assert.ok(i18n.includes(line), line);
+  const { chipOnCurve } = await import("../src/renderer/src/features/orchestration/linkChip.ts");
+  const { linkGeometry } = await import("../src/renderer/src/features/orchestration/linkCurve.ts");
+  const a = { x: 0, y: 0, width: 300, height: 222 };
+  const b = { x: 360, y: 140, width: 300, height: 222 };
+  const at = chipOnCurve(linkGeometry({ x: 300, y: 111 }, { x: 360, y: 251 }), [a, b], { width: 400, height: 26 }, false, [a, b]);
+  assert.ok(at.y + 13 <= -17, "above the higher card, 18px clear");
 });

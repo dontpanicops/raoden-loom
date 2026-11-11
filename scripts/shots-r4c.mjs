@@ -88,20 +88,28 @@ try {
     await app.clickEl(q("[data-board-import-close]"));
     await frame(`${theme}-board`, ["[data-board]"]);
     await app.clickEl(q("[data-board-autopilot-start]"));
-    await frame(`${theme}-board-autopilot-form`, ["[data-board]"]);
+    await frame(`${theme}-board-autopilot-form`, ["[data-board]", ".board-asides"]);
     for (const uiScale of [1, 1.25]) {
       await settle({ palette: theme, uiScale });
       await app.clickEl(`[...document.querySelectorAll('[data-agent-link-id="${linkId}"] button')].find((b) => /Новая цель/.test(b.textContent))`);
-      await app.waitFor(`${q(".orch-dialog textarea")} && true`, "goal dialog");
+      await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
       await app.waitFor(`${q("[data-orch-profile]")}?.dataset.orchProfile !== "loading"`, "profile", 20_000);
       await app.type(`document.querySelectorAll(".orch-dialog textarea")[0]`, "Добавить заметки к задачам доски: создание, список и удаление. Хранить локально.");
-      await app.type(`document.querySelectorAll(".orch-dialog textarea")[1]`, "Без новых зависимостей\nТесты на пустой список заметок");
-      await app.type(q("[data-orch-commands]"), "node --test\nnpm run lint");
+      await app.fillRows(q("[data-orch-requirements]"), "Без новых зависимостей\nТесты на пустой список заметок".split("\n"));
+      await app.fillRows(q("[data-orch-commands]"), ("node --test\nnpm run lint").split("\n"));
       await sleep(1500);
       await frame(`${theme}-goal-dialog-${uiScale}`, [".orch-dialog"]);
       await app.ev(`${q(".orch-dialog .orch-advanced")}.open = true`);
+      await app.ev(`(() => { const b = document.querySelector(".orch-dialog .orch-form__body"); b.scrollTop = b.scrollHeight; return true; })()`); // R5f: the body scrolls under the pinned header and foot
       await sleep(300);
       await frame(`${theme}-goal-dialog-${uiScale}-advanced`, [".orch-dialog"]);
+      // R5f: the project settings, opened from the goal dialog (two columns of cards; no horizontal overflow at 1.25)
+      await app.ev(`document.querySelector(".orch-dialog [data-orch-open-settings]").click()`);
+      await app.waitFor(`${q("[data-orch-settings]")} && true`, "project settings");
+      await sleep(1500);
+      await frame(`${theme}-project-settings-${uiScale}`, [".orch-dialog"]);
+      const over = await app.ev(`(() => { const d = document.querySelector(".orch-dialog"); return { dialog: d.scrollWidth - d.clientWidth, body: (() => { const b = d.querySelector(".orch-form__body"); return b.scrollWidth - b.clientWidth; })() }; })()`);
+      console.log(`[r4c] project settings ${theme} ${uiScale}: horizontal overflow ${JSON.stringify(over)}`);
     }
   }
   console.log(`frames in ${OUT}`);

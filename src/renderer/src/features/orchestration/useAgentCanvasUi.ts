@@ -4,9 +4,10 @@ import type { OrchestrationBaseRef } from "../../../../shared/orchestration";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { LocaleId, Point } from "../../../../shared/contracts";
 import type { OrchestrationAgentLink, OrchestrationProviderKind } from "../../../../shared/orchestration";
+import { t } from "../../lib/i18n";
 import { AGENT_CARD_SIZE } from "./agentCardGeometry";
 import { linkTrace } from "./linkTrace";
-import { createIdKeeper, shownRunId, TERMINAL_STATUSES, type PickedRun } from "./runModel";
+import { createIdKeeper, openingTab, shownRunId, TERMINAL_STATUSES, type PickedRun } from "./runModel";
 import { outcomeText, type Orchestration } from "./useOrchestration";
 
 import { panelView, type PanelMode, type PanelRole, type PanelSection, type PanelTab, type PanelView, type PanelViewArg } from "./panelTabs";
@@ -64,8 +65,11 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
     const { outcome } = await orch.createLink({ linkId: ids.idFor(key), fromAgentId, toAgentId });
     linkTrace("createLink.result", { kind: outcome.kind, code: "code" in outcome ? outcome.code : null });
     if (outcome.kind !== "transport") ids.settle(key);
-    const text = outcomeText(locale, outcome);
-    say(fromAgentId, text, outcome.kind === "refused" && outcome.code === "link_duplicate" ? "info" : "error");
+    // a refusal says on the card that the link was not made, then why (mock-up 06); a repeated pair has its own sentence (mock-up 19)
+    const reason = outcomeText(locale, outcome);
+    const text = reason && outcome.kind === "refused" && outcome.code !== "link_duplicate"
+      ? t(locale, "orchLinkNotCreated").replace("{reason}", reason.charAt(0).toLowerCase() + reason.slice(1).replace(/\.$/, "")) : reason;
+    say(fromAgentId, text);
     if (toAgentId !== fromAgentId) say(toAgentId, null);
   }, [ids, locale, orch, say]);
 
@@ -107,7 +111,7 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
       const v = panelView(opts);
       setPanel((cur) => {
         const same = cur?.linkId === linkId ? cur : null;
-        return { linkId, ...target(v, same, "overview"), role: v.role ?? same?.role ?? "executor", focus };
+        return { linkId, ...target(v, same, "overview"), role: v.role ?? same?.role ?? "all", focus };
       });
     },
     // Switch the tab/mode/section/participant, or (runId) the run shown among a link's live ones.
@@ -128,25 +132,26 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
     openRun: (linkId: string) => {
       const link = orch.canvas.links.find((l) => l.linkId === linkId);
       const runId = shownRunId(link, orch.runs, pickedRuns);
-      const status = runId ? orch.runs[runId]?.view.status : undefined;
+      const view = runId ? orch.runs[runId]?.view : undefined;
       setGoalLinkId(null);
       focusCount.current += 1;
       const focus = focusCount.current;
-      setPanel((cur) => ({ linkId, tab: "summary", mode: "feed", section: status && TERMINAL_STATUSES.includes(status) ? undefined : "overview", role: cur?.linkId === linkId ? cur.role : "executor", focus }));
+      // R5b (D-017): the tab by the run's state, as the mock-ups (openingTab); the role filter starts at "All" (mock-up 13)
+      setPanel((cur) => ({ linkId, tab: view ? openingTab(view) : "summary", mode: "feed", section: undefined, role: cur?.linkId === linkId ? cur.role : "all", focus }));
     },
     // A run by id, with or without its link; the same view arguments as openPanel (a bare string stays a legacy key).
     openRunById: (runId: string, arg?: PanelViewArg) => {
       orch.watchRun(runId);
       const linkId = orch.canvas.links.find((l) => l.runIds.includes(runId))?.linkId ?? null;
-      const status = orch.runs[runId]?.view.status;
+      const view = orch.runs[runId]?.view;
       setGoalLinkId(null);
       focusCount.current += 1;
       const focus = focusCount.current;
       const v = panelView(arg);
-      const dflt = !status || TERMINAL_STATUSES.includes(status) ? undefined : "overview";
+      const dflt = !view || TERMINAL_STATUSES.includes(view.status) ? undefined : "overview";
       // a run of a link is the link's picked run (chip and panel agree); only a run without its link is held by the panel
       if (linkId) setPickedRuns((p) => ({ ...p, [linkId]: pickOf(linkId, runId) }));
-      setPanel({ linkId, ...(linkId ? {} : { runId }), ...target(v, null, dflt), role: v.role ?? "executor", focus });
+      setPanel({ linkId, ...(linkId ? {} : { runId }), ...target(dflt && !v.tab && !v.section ? { ...v, tab: openingTab(view) } : v, null, dflt), role: v.role ?? "all", focus });
     },
     closePanel: () => setPanel(null),
     // The native browser view composites above the DOM; it hides while one of these is open.
