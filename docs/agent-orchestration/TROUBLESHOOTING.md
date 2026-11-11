@@ -1022,3 +1022,11 @@ CanvasTTY отдельно фиксирует три факта: проверк�
   Упакованная сборка ведёт себя как раньше (`src/main/quietWindow.ts`).
 - **Что сделать один раз.** Закрепить dev-Electron за нужным столом: запустить, правый клик по значку Electron в Dock →
   Параметры → Назначить → «Этому рабочему столу» (bundle id `com.github.Electron`, `node_modules/electron/dist/Electron.app`).
+
+## T142 — smoke-workspaces-background: «the minimized window is hidden to the page: "visible"» (2026-11-11)
+Статус: исправлено
+Симптом: после слияния «тихого окна» (#101) smoke падал: свёрнутое окно оставалось `visible`, затем `screenshot "1-after-return" failed twice: no answer in 15 s`.
+Причина: тихий режим включается hermetic-smoke автоматически и держит отрисовку (переключатели backgrounding, `backgroundThrottling: false`), а кит включал `Emulation.setFocusEmulationEnabled` — страница не видела сворачивания. Этот smoke как раз проверяет обычное скрытое окно.
+Исправление: `CANVASTTY_QUIET_WINDOW=0` отключает тихий режим (`src/main/quietWindow.ts`), smoke передаёт его, кит при этом не включает эмуляцию фокуса.
+Как проверить: `node scripts/smoke-workspaces-background.mjs` → `ok: true`; `node --test tests/quiet-window.test.mjs`.
+Как не повторить: smoke, проверяющий поведение скрытого окна, обязан отказаться от тихого режима.
