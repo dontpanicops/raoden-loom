@@ -108,8 +108,8 @@ test("the proof line says what is proven and what is not, never against the head
 test("checks that never ran read «not run yet», never «0 of N passed» (it reads as failed)", async () => {
   const v = view("running", null, { progress: progress({ checks: [{ id: "c", title: "npm test", status: "not_run", class: null }], checksFrom: "proposal", mode: "autopilot" }) });
   assert.deepEqual([board(v).checked.ran, board(v).checked.total], [0, 1]);
+  // D-018: the board's line is gone from the panel; the summary's row of the checks says the same (tests/orchestration-activity-review-fixes.test.mjs)
   const html = (await panelOf())(v).replace(/<[^>]+>/g, "");
-  assert.match(html, /1, ещё не запускались/);
   assert.doesNotMatch(html, /0 из 1 прошли/);
 });
 
@@ -125,17 +125,17 @@ test("journal ids read as «Замечание 1», «Критерий 1», «Т
   const html = panel(view("paused", "awaiting_person_decision", { decisions }));
   const text = html.replace(/<[^>]+>/g, "");
   assert.match(text, /Закрытое замечание 1/);
-  assert.match(text, /Повтор замечания 1/);
-  assert.match(text, /Критерий 2 подтверждаете вы/);
+  assert.match(text, /Повтор/);
+  assert.match(text, /Критерий · «the person checks it»/);
   assert.doesNotMatch(text, /\b[FC]\d\b/, "no bare F1 or C2 in the text");
-  assert.match(html, /title="F1"/, "the id in the tooltip");
+  assert.match(html, /data-orch-disputed-candidate="F1"/, "the id stays on the element");
   const drop = { ...decisions, disputed: [], conditions: [], proposal: { proposalTurnId: "p", dropped: [{ id: "C2", text: "x", covers: ["R2"], why: "w" }], dropRequirements: [{ id: "R2", text: "y", why: "w" }],
     uncovered: ["R2"], stages: [{ stage: 1, title: "s" }], findings: [] } };
   const proposal = panel(view("paused", "coverage_lost", { decisions: drop, proposalWaits: true }));
-  assert.match(proposal.replace(/<[^>]+>/g, ""), /Критерий 2[\s\S]*Требование 2[\s\S]*Останутся без критериев: Требование 2/);
+  assert.match(proposal.replace(/<[^>]+>/g, ""), /Критерий 2[\s\S]*Требование 2/);
   // what the decision is about stays in view: the headline and the dropped list in one sticky block, before the choices
   const head = proposal.indexOf("data-orch-proposal-head");
-  assert.ok(head > 0 && head < proposal.indexOf("data-orch-proposal-drop") && proposal.indexOf("data-orch-proposal-uncovered") < proposal.indexOf("data-orch-proposal-return"));
+  assert.ok(head > 0 && head < proposal.indexOf("data-orch-proposal-drop") && proposal.indexOf("data-orch-proposal-drop") < proposal.indexOf("data-orch-proposal-return"));
 });
 
 test("push and deploy to QA are two separate groups, each confirmed or declined on its own", async () => {
@@ -143,9 +143,8 @@ test("push and deploy to QA are two separate groups, each confirmed or declined 
   const html = panel(view("paused", "awaiting_finish_confirmation", { confirm: { tree: "t".repeat(40), commit: "c".repeat(40), push: true, qa: true } }));
   const groups = [...html.matchAll(/<fieldset class="orch-field orch-finish-group" data-orch-finish-step="(push|qa)"><legend>([^<]+)<\/legend>([\s\S]*?)<\/fieldset>/g)];
   assert.deepEqual(groups.map((g) => g[1]), ["push", "qa"]);
-  assert.deepEqual(groups.map((g) => g[2]), [t("ru", "orchFinishGroup_push"), t("ru", "orchFinishGroup_qa")]);
+  assert.deepEqual(groups.map((g) => g[2]), ["Push · ccccccc", t("ru", "orchFinishLegend_qa")]); // D-018, mock-up 12
   for (const g of groups) assert.deepEqual([...g[3].matchAll(/data-orch-finish-choice="([a-z]+:[a-z]+)"/g)].map((m) => m[1]), [`${g[1]}:confirm`, `${g[1]}:decline`]);
-  assert.match(html, /data-orch-finish-independent/);
 });
 
 test("the glossary: every listed term has one sentence in en and ru and is explained on hover; One step and Resume say how they differ", async () => {
@@ -164,7 +163,7 @@ test("the glossary: every listed term has one sentence in en and ru and is expla
   assert.match(html, new RegExp(`title="${t("ru", "orchResumeHint")}"`));
   assert.match(t("ru", "orchStepHint"), /один ход и снова встать на паузу/);
   assert.match(t("ru", "orchResumeHint"), /до завершения или следующей паузы/);
-  assert.match(panel(view("paused", "lead_modified_tree")), /<abbr class="orch-term" title="[^"]+" data-term="lead">Лид<\/abbr>/);
+  assert.doesNotMatch(panel(view("paused", "lead_modified_tree")), /<abbr class="orch-term"[^>]*>Лид<\/abbr>/, "D-018: no glossary underline in the zone");
 });
 
 test("the link chip never covers a card: between the cards when it fits, else under (or above) them", () => {

@@ -114,7 +114,7 @@ test("the zone's main button is the pause's action; Stop is in the footer outsid
 
   const limit = panel(view("paused", "limit_reached"));
   assert.match(primaryOf(limit)[0].attrs, /data-orch-primary="raise_limit"/);
-  assert.match(limit, /Новое значение/, "the limit's field says what it is");
+  assert.match(limit, /новое значение/, "the limit's field says what it is");
 
   const tree = panel(view("paused", "lead_modified_tree"));
   assert.equal(stopsOf(tree).length, 1, "Stop once: the main button, not the footer");
@@ -171,7 +171,7 @@ test("a plan proposal that drops criteria: «Вернуть лиду» is the ma
   assert.doesNotMatch(acc.attrs, /orch-primary/);
   assert.equal(acc.text, "Принять снятие");
   assert.ok(html.indexOf("data-orch-proposal-return") < html.indexOf("data-orch-proposal-accept=\"true\""), "the safe choice first");
-  assert.match(html, /перестанут проверяться/);
+  // D-018 (mock-up 11): the warning is what «Принять снятие» asks when pressed, not a line of the form
 });
 
 test("an unavailable sandbox on macOS is a failed self-test with what to do — never «run on macOS»; elsewhere the platform has none", () => {
@@ -217,7 +217,7 @@ test("the zone's headline is unique among the 37 sets, in both languages, and ea
       titles.set(z.title, set);
       assert.ok(!z.why.toLowerCase().includes(z.title.toLowerCase()), `${locale}: ${set}: the why repeats the headline`);
       // R5b (D-015, D-017): the plan under review and the checks' forms say only why (the mock-ups 04, 05, 06)
-      assert.ok((["plan_review", "awaiting_checks_decision", "awaiting_checks_none", "loop_suspected"].includes(set) || z.todo.trim().length > 1) && z.why.trim().length > 1, `${locale}: ${set}: why and what to do are said`);
+      assert.ok((["plan_review", "awaiting_checks_decision", "awaiting_checks_none", "loop_suspected", "awaiting_answer", "awaiting_finish_confirmation", "check_needs_permissions", "limit_reached"].includes(set) || z.todo.trim().length > 1) && z.why.trim().length > 1, `${locale}: ${set}: why and what to do are said`);
     }
     for (const set of [...DERIVED, "mcp_present", "mcp_unchecked", "push_protected"]) assert.ok(t(locale, `orchPause_${set}_what`), `${locale}: orchPause_${set}_what`);
   }
@@ -295,7 +295,7 @@ test("states without a pause: working, stopping, ended, halted, a permission", (
 
 test("D-017: the panel opens on the tab the mock-ups show for the run's state", () => {
   const tab = (status, reason) => openingTab({ status, reason });
-  for (const r of ["awaiting_checks_decision", "awaiting_finish_confirmation", "check_needs_permissions"]) assert.equal(tab("paused", r), "summary", r);
+  for (const r of ["awaiting_checks_decision", "awaiting_finish_confirmation", "check_needs_permissions", "plan_review", "awaiting_person_decision"]) assert.equal(tab("paused", r), "summary", r);
   for (const r of ["outcome_unknown", "lead_modified_tree"]) assert.equal(tab("paused", r), "changes", r);
   assert.equal(tab("paused", "limit_reached"), "work");
   assert.equal(tab("running"), "work");

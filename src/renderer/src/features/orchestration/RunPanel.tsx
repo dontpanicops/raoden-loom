@@ -47,7 +47,6 @@ import {
   availableActions,
   proposalBlocks,
   TERMINAL_STATUSES,
-  board,
   commandOf,
   digest,
   finishStatus,
@@ -55,7 +54,6 @@ import {
   historyLines,
   outcomeOf,
   parsePlan,
-  nextStepText,
   causeText,
   headlineKey,
   pauseCause,
@@ -63,8 +61,6 @@ import {
   idLabel,
   idNumber,
   factLines,
-  proofLine,
-  changesNote,
   conditionStatusKey,
   requirementStatusKey,
   pauseLabel,
@@ -88,7 +84,8 @@ import {
   type ParticipantState,
   type PendingCommand,
   type RunAction,
-  type RunDigest
+  type RunDigest,
+  type ResultFacts
 } from "./runModel";
 import { duration, findingsLine, finishText, isServiceEntry, outcomeKey, personDecisionsLine, readJournal, reportParts, saidKey, summaryModel, type ReportParts, type RunJournalState, type TextRef } from "./runStatus";
 import { pickDocs, planDoc, readCreatedFile, resultDoc, toMarkdown, type CreatedDocs, type CreatedFile, type DocInput, type Loaded, type PlanEntry, type PlanJson, type RunDoc } from "./runDocs";
@@ -124,13 +121,6 @@ function useNow(ms = 1000): number {
 // Why the run is paused: the step that ended the turn when main recorded it, else the reason's general words.
 // A paused run's headline and why are its pause's words (runModel pauseText) wherever the panel says them: the header,
 // the summary's outcome, its reason line.
-function reasonText(locale: LocaleId, view: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[]): string {
-  const pause = pauseText(locale, view, entries);
-  if (pause) return pause.why;
-  const cause = viewCause(view, entries);
-  return cause ? causeText(locale, cause) : "";
-}
-
 // A copy or a worktree: what became of its dependency folders (main's plan per folder, cloneDependencies), one phrase
 // when all agree. A folder a preparation step installs is said by that step's last result, nothing until there is one.
 // failed: a step failed, its output is in the activity of the checks.
@@ -154,10 +144,6 @@ function dependenciesText(locale: LocaleId, entries: readonly OrchestrationActiv
     text: dirs.every(([, r]) => r === dirs[0][1]) ? word(dirs[0][1]) : dirs.map(([dir, r]) => `${dir} — ${word(r)}`).join(" · "),
     failed: dirs.some(([, r]) => r === "failed")
   };
-}
-
-function headlineText(locale: LocaleId, view: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[]): string {
-  return pauseText(locale, view, entries)?.what ?? tr(locale, `orchHeadline_${headlineKey(view, entries)}`);
 }
 
 // A status line's reason: a pause by pauseCause with the turn it followed, anything else as main said it.
@@ -603,8 +589,8 @@ function PermissionBlock({ locale, request, more, sending, onDecide }: {
   const answers = () => Object.fromEntries(request.questions.map((q) => [q.id, [...(picked[q.id] ?? []), ...(own[q.id]?.trim() ? [own[q.id].trim()] : [])]]));
   const answered = !question || request.questions.every((q) => (picked[q.id]?.length ?? 0) > 0 || !!own[q.id]?.trim());
   const title = question ? "orchPermQuestion" : request.kind === "plan" ? "orchPermPlan" : request.kind === "elicitation" ? "orchPermForm" : "orchPermTitle";
-  // R5b: the zone's headline already says "Claude asks for permission": a plain request shows only whose it is
-  const head = <h4>{title === "orchPermTitle" ? roleName(locale, request.role) : `${t(locale, title)} · ${roleName(locale, request.role)}`}</h4>;
+  // D-018: the zone's headline already says who asks and what (mock-ups 02, 03): a plain request or a question has no title of its own
+  const head = title === "orchPermTitle" || question ? null : <h4>{`${t(locale, title)} · ${roleName(locale, request.role)}`}</h4>;
   // R5b (D-017): no hint under the buttons (mock-up 03); only the count of the others waiting
   const foot = more > 0 ? <p className="orch-hint">{t(locale, "orchPermMore")} {more}.</p> : null;
 
@@ -643,35 +629,44 @@ function PermissionBlock({ locale, request, more, sending, onDecide }: {
       </form>
     );
   }
+  if (question) {
+    // mock-up 02: the question in a plate, the answer field, one button
+    return (
+      <div className="orch-permission orch-permission--question" data-orch-permission="question" data-request-id={request.requestId}>
+        {request.questions.map((q) => (
+          <fieldset key={q.id} className="orch-permission__q">
+            <legend className="orch-permission__ask">{q.question}</legend>
+            {q.options.map((o) => (
+              <label key={o} className="orch-check">
+                <input type={q.multiple ? "checkbox" : "radio"} name={`q-${request.requestId}-${q.id}`} checked={(picked[q.id] ?? []).includes(o)}
+                  onChange={(e) => setPicked((cur) => ({ ...cur, [q.id]: q.multiple ? (e.target.checked ? [...(cur[q.id] ?? []), o] : (cur[q.id] ?? []).filter((x) => x !== o)) : [o] }))} />
+                <span>{o}</span>
+              </label>
+            ))}
+            {q.other && (q.options.length === 0 && !q.secret
+              ? <textarea rows={3} aria-label={q.question} value={own[q.id] ?? ""} onChange={(e) => setOwn((cur) => ({ ...cur, [q.id]: e.target.value }))} />
+              : <input type={q.secret ? "password" : "text"} autoComplete={q.secret ? "off" : undefined} placeholder={t(locale, "orchPermOther")} aria-label={q.question} value={own[q.id] ?? ""} onChange={(e) => setOwn((cur) => ({ ...cur, [q.id]: e.target.value }))} />)}
+          </fieldset>
+        ))}
+        <div className="orch-panel__actions">
+          <button type="button" className="orch-primary" data-decision="allow_once" disabled={sending || !answered} onClick={() => onDecide("allow_once", { answers: answers() })}>{t(locale, "orchPause_awaiting_answer_button")}</button>
+        </div>
+        {foot}
+      </div>
+    );
+  }
   return (
     <div className="orch-permission" data-orch-permission={request.kind} data-request-id={request.requestId}>
       {head}
       <p className="orch-permission__cmd"><b>{request.tool}</b>{request.summary ? <> · <code>{request.summary}</code></> : null}</p>
-      {request.detail && <details><summary>{t(locale, "orchPermDetail")}</summary><pre>{request.detail}</pre></details>}
-      {request.questions.map((q) => (
-        <fieldset key={q.id} className="orch-permission__q">
-          <legend>{q.question}</legend>
-          {q.options.map((o) => (
-            <label key={o} className="orch-check">
-              <input type={q.multiple ? "checkbox" : "radio"} name={`q-${request.requestId}-${q.id}`} checked={(picked[q.id] ?? []).includes(o)}
-                onChange={(e) => setPicked((cur) => ({ ...cur, [q.id]: q.multiple ? (e.target.checked ? [...(cur[q.id] ?? []), o] : (cur[q.id] ?? []).filter((x) => x !== o)) : [o] }))} />
-              <span>{o}</span>
-            </label>
-          ))}
-          {q.other && <input type={q.secret ? "password" : "text"} autoComplete={q.secret ? "off" : undefined} placeholder={t(locale, "orchPermOther")} value={own[q.id] ?? ""} onChange={(e) => setOwn((cur) => ({ ...cur, [q.id]: e.target.value }))} />}
-        </fieldset>
-      ))}
       <div className="orch-panel__actions">
         {request.options.map((o) => (
           <button key={o} type="button" data-decision={o} className={o === "deny" ? "orch-danger" : o === "allow_once" ? "orch-primary" : undefined}
-            disabled={sending || (o !== "deny" && !answered)}
-            onClick={() => onDecide(o, question && o !== "deny" ? { answers: answers() } : undefined)}>
-            {tr(locale, question ? (o === "deny" ? "orchPermDecline" : "orchPermAnswer") : `orchPerm_${o}`)}
+            disabled={sending} onClick={() => onDecide(o)}>
+            {tr(locale, `orchPerm_${o}`)}
           </button>
         ))}
       </div>
-      {request.options.includes("allow_readonly_run") && <p className="orch-hint" data-orch-readonly-hint>{t(locale, "orchPermReadOnlyHint")}</p>}
-      {request.alwaysAsk && <p className="orch-hint" data-orch-always-ask>{t(locale, "orchPermAlwaysAsk")}</p>}
       {foot}
     </div>
   );
@@ -680,34 +675,9 @@ function PermissionBlock({ locale, request, more, sending, onDecide }: {
 // ---------- stage 13: what the CLIs reported they loaded in this run ----------
 
 const ENV_FIELDS = ["model", "permissionMode", "approvalPolicy", "sandbox", "mcp", "skills", "plugins", "agents", "instructionSources", "toolCount", "slashCommands", "outputStyle"] as const;
-function SessionEnvironment({ locale, entries }: { locale: LocaleId; entries: readonly OrchestrationActivityEntry[] }): React.JSX.Element {
-  const last = (["codex", "claude"] as const).map((p) => ({ p, e: [...entries].reverse().find((x) => x.kind === "session" && x.provider === p && x.detail?.reported === true) ?? null }));
-  return (
-    <section className="orch-panel__section" data-orch-env-session>
-      <h4>{t(locale, "orchEnvSession")}</h4>
-      {last.every((x) => !x.e) ? <p className="orch-hint">{t(locale, "orchEnvSessionNone")}</p> : (
-        <dl className="orch-env">
-          {last.filter((x) => x.e).map(({ p, e }) => (
-            <div key={p} data-env-provider={p}>
-              <dt>{p === "codex" ? "Codex" : "Claude"} <small className="orch-hint">{t(locale, "orchEnvConfirmed")}</small></dt>
-              <dd>{ENV_FIELDS.filter((k) => e!.detail?.[k] !== undefined && e!.detail?.[k] !== null && e!.detail?.[k] !== "").map((k) => (
-                <span key={k} className="orch-env__item" data-env-item={k} title={k}><b>{t(locale, `orchEnvKey_${k}`)}</b>: {String(e!.detail![k])}</span>
-              ))}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      <p className="orch-hint">{t(locale, "orchEnvParityNote")}</p>
-    </section>
-  );
-}
 
 // ---------- the run summary (stage 13 UX): what the run was for and what it ended with ----------
 
-// Where a statement comes from: the application's own journal, or an agent's words.
-function Src({ locale, kind }: { locale: LocaleId; kind: "journal" | "agent" }): React.JSX.Element {
-  return <small className={`orch-src orch-src--${kind}`} data-src={kind}><Termed locale={locale} text={t(locale, kind === "journal" ? "orchSumConfirmed" : "orchSumClaim")} /></small>;
-}
 // Nothing recorded — or, while the journal is only partly read, nothing recorded in the part read so far.
 function NotSpecified({ locale, incomplete }: { locale: LocaleId; incomplete: boolean }): React.JSX.Element {
   return incomplete
@@ -726,13 +696,18 @@ function Stored({ orch, runId, textRef, locale, incomplete, children }: {
   if (s.text === null) return <p className="orch-hint">{t(locale, "orchLoading")}</p>;
   return <>{children(s.text)}</>;
 }
-function Section({ id, title, src, locale, children }: { id: string; title: string; src?: "journal" | "agent"; locale: LocaleId; children: React.ReactNode }): React.JSX.Element {
+// D-018: one block of the summary, as the mock-ups 13 and 17 draw it — a small title (and what belongs beside it) over plates
+function Section({ id, title, aside, attrs, children }: { id: string; title?: string; aside?: React.ReactNode; attrs?: Record<string, string | undefined>; children: React.ReactNode }): React.JSX.Element {
   return (
-    <section className="orch-panel__section orch-sum" data-sum={id}>
-      <h4>{title}{src && <Src locale={locale} kind={src} />}</h4>
+    <section className="orch-sum-block" data-sum={id} {...attrs}>
+      {(title || aside) && <header>{title && <h4>{title}</h4>}{aside}</header>}
       {children}
     </section>
   );
+}
+// a row of a plate: the name on the left, the value (the same line) on the right
+function Row({ label, mark, dd, children, attrs }: { label: React.ReactNode; mark?: "done" | "idle" | "failed" | "paused"; dd?: Record<string, string | undefined>; children?: React.ReactNode; attrs?: Record<string, string | undefined> }): React.JSX.Element {
+  return <div className="orch-kv__row" {...attrs}><dt>{mark && <UiIcon name={`status-${mark}`} size={14} />}{label}</dt><dd {...dd}>{children}</dd></div>;
 }
 
 // Journal v2, A2 (journal-v2-format.md §2.7): each requirement with the conditions that prove it, the status of each and
@@ -764,7 +739,7 @@ function Conditions({ orch, runId, c, locale, incomplete, completion }: {
   const loose = c.conditions.filter((x) => x.covers.length === 0);
   return (
     // no "confirmed by the journal" mark: a "change" condition's evidence is the lead's word (each line says which)
-    <Section id="conditions" title={t(locale, "orchSum_conditions")} locale={locale}>
+    <Section id="conditions" title={t(locale, "orchSum_conditions")}>
       <p data-sum-conditions-count><b>{fill(t(locale, "orchConditionsCount"), { met: c.met, total: c.total })}</b></p>
       <p className="orch-hint">{t(locale, "orchCondCoversHint")}</p>
       <ul className="orch-sum__requirements">{c.requirements.map((r) => (
@@ -786,19 +761,30 @@ function Conditions({ orch, runId, c, locale, incomplete, completion }: {
 // open one, and what each review did with it on which tree. "Open blocking: N" is findingsLine, as the cards say it.
 // A4: the person's decisions are said as such (closed by the person, made a wish — never as fixed); onDecide: the pause
 // lets the person close an open finding or make a blocking one a wish.
-function Findings({ f, locale, onDecide }: { f: OrchestrationFindings; locale: LocaleId; onDecide?: (id: string, decision: "close" | "to_wish") => void }): React.JSX.Element {
+function Findings({ f, locale }: { f: OrchestrationFindings; locale: LocaleId }): React.JSX.Element {
   const item = (x: OrchestrationFindings["items"][number]) => (
-    <li key={x.id} data-finding={x.id} data-finding-severity={x.severity} data-finding-status={x.status} data-finding-downgraded={x.downgraded ? "yes" : undefined}>
-      <IdLabel locale={locale} id={x.id} /> · {t(locale, `orchFinding_${x.severity}`)} · <b className={`orch-cond orch-cond--${x.status === "closed" ? "met" : "not_met"}`}>{t(locale, `orchFinding_${x.status}`)}</b>
-      {x.downgraded && <> · <b className="orch-cond orch-cond--not_met" data-finding-person="to_wish">{t(locale, "orchFindingDowngraded")}</b></>}
-      {x.status === "open" && <> · {x.stage !== null ? fill(t(locale, "orchFindingStage"), { n: x.stage }) : t(locale, "orchFindingNextPlan")}</>}
-      {x.condition && <> · <IdLabel locale={locale} id={x.condition} plain /></>}
-      {x.possibleRepeatOf && <> · <span className="orch-hint" data-finding-repeat={x.possibleRepeatOf}>{fill(t(locale, "orchFindingRepeat"), { n: idNumber(x.possibleRepeatOf) })}</span></>}
-      <p className="orch-panel__text">{x.problem}</p>
-      {x.paths.length > 0 && <p className="orch-hint">{x.paths.join(", ")}</p>}
-      <p className="orch-hint">{fill(t(locale, "orchFindingCloseWhen"), { text: x.closeWhen })}</p>
+    <li key={x.id} className="orch-finding" data-finding={x.id} data-finding-severity={x.severity} data-finding-status={x.status} data-finding-downgraded={x.downgraded ? "yes" : undefined}>
+      <span className="orch-finding__text">
+        <b><IdLabel locale={locale} id={x.id} /></b> {x.problem}
+        <small className="orch-hint"> {t(locale, `orchFinding_${x.severity}`)} · <b className={`orch-cond orch-cond--${x.status === "closed" ? "met" : "not_met"}`}>{t(locale, `orchFinding_${x.status}`)}</b>
+          {x.downgraded && <> · <b className="orch-cond orch-cond--not_met" data-finding-person="to_wish">{t(locale, "orchFindingDowngraded")}</b></>}
+          {x.status === "open" && <> · {x.stage !== null ? fill(t(locale, "orchFindingStage"), { n: x.stage }) : t(locale, "orchFindingNextPlan")}</>}
+          {x.condition && <> · <IdLabel locale={locale} id={x.condition} plain /></>}
+          {x.possibleRepeatOf && <> · <span data-finding-repeat={x.possibleRepeatOf}>{fill(t(locale, "orchFindingRepeat"), { n: idNumber(x.possibleRepeatOf) })}</span></>}
+          {x.paths.length > 0 && <> · {x.paths.join(", ")}</>}
+        </small>
+      </span>
+      {/* what the person decided about it (mock-up 13): the segment shows the choice made; it is made on the pause (PersonDecide) */}
+      {(x.downgraded || (x.status === "closed" && x.history.some((h) => h.by === "person"))) && (
+        // biome-ignore lint/a11y/useSemanticElements: a button segment, not a form group
+        <div className="orch-seg orch-finding__seg" role="group" aria-label={t(locale, "orchSumDecisions")}>
+          <button type="button" disabled aria-pressed={!x.downgraded} className={x.downgraded ? undefined : "orch-tabs__on"}>{t(locale, "orchSumDecideClose")}</button>
+          <button type="button" disabled aria-pressed={!!x.downgraded} className={x.downgraded ? "orch-tabs__on" : undefined}>{t(locale, "orchSumDecideWish")}</button>
+        </div>
+      )}
       <details data-finding-history>
         <summary>{t(locale, "orchFindingHistory")}</summary>
+        <p className="orch-hint">{fill(t(locale, "orchFindingCloseWhen"), { text: x.closeWhen })}</p>
         <ol>{x.history.map((h, i) => (
           <li key={`${h.kind}:${h.reviewTurnId ?? h.by}:${h.index ?? i}`} data-finding-event={h.kind} data-finding-by={h.by} data-finding-review={h.reviewTurnId ?? undefined} data-finding-tree={h.tree}>
             {fill(t(locale, `orchFindingHist_${h.kind}`), { turn: (h.reviewTurnId ?? "").slice(0, 8), note: h.note ?? "" })}
@@ -808,28 +794,18 @@ function Findings({ f, locale, onDecide }: { f: OrchestrationFindings; locale: L
           </li>
         ))}</ol>
       </details>
-      {onDecide && x.status === "open" && (
-        <div className="orch-panel__actions" data-finding-actions>
-          {/* the safe choice is no button: the finding stays open for the executor; both of these remove it unfixed */}
-          <small className="orch-hint" data-finding-safe>{t(locale, "orchFindingSafeHint")}</small>
-          <button type="button" data-finding-close={x.id} onClick={() => onDecide(x.id, "close")}>{t(locale, "orchFindingClose")}</button>
-          {x.severity === "blocking" && <button type="button" data-finding-to-wish={x.id} onClick={() => onDecide(x.id, "to_wish")}>{t(locale, "orchFindingToWish")}</button>}
-        </div>
-      )}
     </li>
   );
   const blocking = f.items.filter((x) => x.severity === "blocking");
   const wishes = f.items.filter((x) => x.severity === "wish");
   return (
     // a finding is the reviewer's word; what the application did with it is the journal's (history)
-    <Section id="findings" title={t(locale, "orchSum_findings")} locale={locale}>
-      <p data-sum-findings-open={f.openBlocking}><b>{findingsLine(locale, { progress: { findings: f } as OrchestrationRunView["progress"] })}</b></p>
-      {f.items.length === 0 && <p>{t(locale, "orchFindingsNone")}</p>}
-      {blocking.length > 0 && <ul className="orch-sum__findings" data-findings="blocking">{blocking.map(item)}</ul>}
-      {f.disputed.length > 0 && <><b>{t(locale, "orchFindingsDisputed")}</b><ul data-findings="disputed">{f.disputed.map((d) => (
-        <li key={`${d.reviewTurnId}:${d.index}`}>{d.problem} · <span className="orch-hint" title={d.candidates.join(", ")}>{d.candidates.map((c) => idLabel(locale, c)).join(", ")}</span></li>
-      ))}</ul></>}
-      {wishes.length > 0 && <><b>{t(locale, "orchFindingsWishes")}</b><ul className="orch-sum__findings" data-findings="wish">{wishes.map(item)}</ul></>}
+    <Section id="findings" title={t(locale, "orchSumDecisions")} aside={<small className="orch-hint" data-sum-findings-open={f.openBlocking}>{findingsLine(locale, { progress: { findings: f } as OrchestrationRunView["progress"] })}</small>}>
+      {blocking.length > 0 && <ul className="orch-findings" data-findings="blocking">{blocking.map(item)}</ul>}
+      {f.disputed.length > 0 && <ul className="orch-findings" data-findings="disputed">{f.disputed.map((d) => (
+        <li key={`${d.reviewTurnId}:${d.index}`} className="orch-finding"><span className="orch-finding__text">{d.problem} <small className="orch-hint" title={d.candidates.join(", ")}>· {d.candidates.map((c) => idLabel(locale, c)).join(", ")}</small></span></li>
+      ))}</ul>}
+      {wishes.length > 0 && <ul className="orch-findings" data-findings="wish">{wishes.map(item)}</ul>}
     </Section>
   );
 }
@@ -842,9 +818,13 @@ function parseGoal(text: string): GoalJson | null {
 const FIRST_CHOICE = "input:not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled)";
 const fill = (s: string, vars: Record<string, string | number>): string => Object.entries(vars).reduce((a, [k, v]) => a.replaceAll(`{${k}}`, String(v)), s);
 
-function RunSummary({ orch, runId, view, records, locale, changedFiles, gaps, incomplete, onFinding }: {
+// D-018: the summary as the mock-ups 13 and 17 draw it — the plates of what the run ended with (stages, checks, the review),
+// then the blocks: result facts, plan, decisions on findings, the people / time (the panel's `middle`), the result. Only what the
+// journal has: a block with nothing to say is not drawn.
+function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onOpen, middle, alerts }: {
   orch: Orchestration; runId: string; view: OrchestrationRunView; records: readonly OrchestrationHistoryRecord[];
-  locale: LocaleId; changedFiles: number | null; gaps: number; incomplete: boolean; onFinding?: (id: string, decision: "close" | "to_wish") => void;
+  locale: LocaleId; incomplete: boolean; facts: ResultFacts;
+  onOpen(section: "plan" | "result"): void; middle?: React.ReactNode; alerts?: React.ReactNode;
 }): React.JSX.Element {
   // Every plan's titles (a replan names the stages from its firstStage on), read through the shared text cache.
   const planShas = useMemo(() => records.filter((r) => r.type === "plan.recorded")
@@ -858,9 +838,6 @@ function RunSummary({ orch, runId, view, records, locale, changedFiles, gaps, in
     planTitles: (sha) => { const s = orch.texts[sha]; return s?.status === "ready" ? parsePlan(s.text).map((p) => p.title) : null; },
     goalCommands: commands, complete: !incomplete
   }), [view, records, planKey, commands, incomplete]);
-  const finalText = useText(orch, runId, m.finalReport?.sha256);
-  const lastText = useText(orch, runId, m.lastReport?.sha256);
-  const next = (finalText ? reportParts(finalText).next : null) ?? (lastText ? reportParts(lastText).next : null);
   const outcome = outcomeKey(view, m.finalVerdict, m.complete);
   // Read only in part: what was read stands, but nothing is concluded from what was not read yet.
   // A3: a run the reviewer reviews says so — the application accepts its stages, the reviewer concludes
@@ -868,7 +845,7 @@ function RunSummary({ orch, runId, view, records, locale, changedFiles, gaps, in
   const stageStateText = (st: { state: string }) => said(!m.complete && st.state !== "done" ? "orchSumStage_unloaded" : `orchSumStage_${st.state}`);
   const progress = view.progress ?? null;
   const verdictText = (v: string | null) => (v ? tr(locale, `orchVerdict_${v}`) : "—");
-  const missing = <NotSpecified locale={locale} incomplete={incomplete} />;
+  const countOf = (done: number, total: number) => fill(t(locale, "orchSumCountOf"), { done, total });
   const stageLabel = (n: number | null, title: string | null, plan?: number | null) =>
     `${n === null ? t(locale, "orchSumReviewFinal") : `${t(locale, "orchStage")} ${n}${title ? `: ${title}` : ""}`}${plan ? ` · ${fill(t(locale, "orchSumPlanVersion"), { v: plan })}` : ""}`;
   const findingsList = (ref: TextRef | null, attr: string) => (
@@ -877,53 +854,65 @@ function RunSummary({ orch, runId, view, records, locale, changedFiles, gaps, in
       return f.length ? <ul {...{ [attr]: "" }}>{f.map((x, i) => <li key={i}>{x}</li>)}</ul> : <p>{said("orchSumRemarksNone")}</p>;
     }}</Stored>
   );
-  const problems = [
-    ...(m.complete ? (m.stages ?? []).filter((s) => s.state !== "done").map((s) => `${stageLabel(s.n, s.title)} — ${stageStateText(s)}`) : []),
-    ...m.checks.filter((c) => c.status !== "passed" && (m.complete || !!progress?.checks)).map((c) => `${c.title} — ${tr(locale, `orchCheck_${c.status}`)}`),
-    ...(progress?.finish ?? []).filter((f) => f.asked && finishStatus(f) !== "done" && finishStatus(f) !== "qa_confirmed").map((f) => `${tr(locale, `orchFinishStep_${f.step}`)} — ${finishText(locale, f)}`),
-    ...(gaps > 0 ? [t(locale, "orchSumGaps")] : [])
-  ];
   const current = m.finalReport || m.finalVerdict ? null : m.currentReview;
   const history = m.reviews.filter((rv) => rv.state !== "current" && rv.state !== "final");
+  const finished = TERMINAL_STATUSES.includes(view.status); // the blocks of the result are the finished run's (mock-ups 13, 17); a paused one shows only the rows it has (mock-ups 04, 06, 12)
+  const reviewed = outcome === "completed" || outcome === "completed_no_checks";
+  const stagesText = !m.stageCounts || m.stageCounts.total === 0 || (m.stageCounts.done === 0 && !finished) ? null : m.complete ? countOf(m.stageCounts.done, m.stageCounts.total) : fill(said("orchSumStages_countPartial"), m.stageCounts);
+  const checksText = m.checks.length === 0 ? (m.checksKnown ? t(locale, "orchSumChecksNone") : null)
+    : m.checksKnown && m.checks.every((c) => c.status === "not_run") ? t(locale, "orchSumChecksNotRunShort") : countOf(m.checkCounts.passed, m.checkCounts.total);
+  const factChanges = factLines(locale, view, facts, !incomplete).find((f) => f.key === "changes");
+  const hasFindings = !!progress?.findings && (progress.findings.items.length > 0 || progress.findings.disputed.length > 0);
+  const legacyRemarks = !progress?.findings && !!(m.finalFindings || current?.findings);
+  const hasReport = !!(m.stages?.some((s) => s.report) || m.lastReport);
+  const hasExport = view.export !== undefined && !(view.export === null && view.status !== "completed");
+  const person = personDecisionsLine(locale, view);
   return (
     <div className="orch-summary-view" data-orch-run-summary data-outcome={outcome} data-incomplete={incomplete ? "yes" : "no"}>
-      <Section id="goal" title={t(locale, "orchSum_goal")} locale={locale}>
-        <Stored orch={orch} runId={runId} textRef={m.goal} locale={locale} incomplete={incomplete}>{(text) => {
-          const g = parseGoal(text);
-          if (!g) return <p className="orch-panel__text">{text}</p>;
-          const criteria = Array.isArray(g.criteria) ? g.criteria.filter((c): c is string => typeof c === "string") : [];
-          return <>
-            {typeof g.text === "string" ? <p className="orch-panel__text" data-sum-goal>{g.text}</p> : missing}
-            {criteria.length > 0 && <><b>{t(locale, "orchSum_criteria")}:</b><ul>{criteria.map((c, i) => <li key={i}>{c}</li>)}</ul></>}
-          </>;
-        }}</Stored>
-      </Section>
+      <dl className="orch-kv orch-kv--status" data-sum="outcome">
+        {stagesText && <Row label={t(locale, "orchSum_stages")} mark={m.complete && m.stageCounts && m.stageCounts.done === m.stageCounts.total ? "done" : "idle"}
+          dd={{ "data-sum-stage-count": "", "data-partial": m.complete ? undefined : "yes" }}>{stagesText}</Row>}
+        {checksText && <Row label={t(locale, "orchSum_checks")} mark={m.checks.length === 0 ? "idle" : m.complete && m.checkCounts.passed === m.checkCounts.total ? "done" : "idle"}
+          dd={{ "data-sum-check-count": "", "data-checks-known": m.checksKnown ? "yes" : "no", ...(outcome === "completed_no_checks" ? { "data-sum-no-checks": "" } : {}) }}>{checksText}</Row>}
+        {finished && <Row label={reviewed ? t(locale, "orchSumReviewFinal") : t(locale, "orchResult")} mark={reviewed ? "done" : outcome === "failed" ? "failed" : outcome === "paused" || outcome === "active" ? "paused" : "idle"}
+          dd={{ "data-sum-outcome": outcome, "data-orch-proof": outcome, "data-orch-result": m.finalVerdict ?? undefined }}>{reviewed ? t(locale, "orchSumAccepted") : said(`orchSumOutcome_${outcome}`)}</Row>}
+      </dl>
+      {person && <p className="orch-hint orch-hint--warn" data-sum-person>{person}</p>}
 
-      {/* without checks nothing confirmed the result: its outcome and checks carry no "confirmed by the journal" mark */}
-      <Section id="outcome" title={t(locale, "orchSum_outcome")} src={outcome === "completed_no_checks" ? undefined : "journal"} locale={locale}>
-        <p className={`orch-sum__outcome orch-sum__outcome--${outcome}`} data-sum-outcome={outcome}>
-          <b>{headlineText(locale, view, orch.activity[runId]?.entries ?? [])}</b> — {said(`orchSumOutcome_${outcome}`)}
-        </p>
-        {outcome === "completed_no_checks" && <p className="orch-note orch-note--warn" data-sum-no-checks>{t(locale, "orchNoChecksRan")}</p>}
-        {view.reason && <p><b>{t(locale, "orchSum_reason")}:</b> {reasonText(locale, view, orch.activity[runId]?.entries ?? [])}</p>}
-        {outcome === "completed" && <p className="orch-hint" data-sum-scope>{t(locale, "orchSumScope")}</p>}
-        {/* A4: what the person decided instead of evidence — the result never reads cleaner than it is */}
-        {personDecisionsLine(locale, view) && <p className="orch-note orch-note--warn" data-sum-person>{personDecisionsLine(locale, view)}</p>}
-        {m.endedAt && <p className="orch-hint">{t(locale, "orchSumEnded").replace("{time}", new Date(m.endedAt).toLocaleString(locale))}</p>}
-      </Section>
+      {alerts}
+      {finished && (m.finish || view.workMode || factChanges) && (
+        <Section id="finish" title={t(locale, "orchSumFacts")} attrs={{ "data-orch-facts": "" }}>
+          <dl className="orch-kv" data-orch-finish>
+            {(m.finish ?? []).map((f) => (
+              <Row key={f.step} label={t(locale, `orchSumRow_${f.step}` as TranslationKey)} attrs={{ "data-finish-step": f.step, "data-finish-status": f.asked ? finishStatus(f) : "not_asked" }}>
+                {/* mock-up 17: a step that is done is its hash; any other state is said */}
+                {f.step !== "qa" && f.asked && finishStatus(f) === "done" && f.commit ? null : <>{finishText(locale, f)}{f.commit ? " · " : ""}</>}{f.commit ? <code>{f.commit.slice(0, 7)}</code> : null}
+              </Row>
+            ))}
+            {factChanges && facts.changes !== "unknown" && <Row label={t(locale, "orchSumRow_changes")} attrs={{ "data-fact": "changes" }}>{factChanges.value}</Row>}
+            {view.workMode && (
+              <Row label={t(locale, "orchSum_where")} attrs={{ "data-orch-where": view.workMode, title: view.workDir }}>
+                {view.workMode === "worktree" && <><code>{progress?.branch ?? "?"}</code> · </>}<code>{view.workDir}</code>
+              </Row>
+            )}
+          </dl>
+        </Section>
+      )}
 
-      {progress?.conditions && <Conditions orch={orch} runId={runId} c={progress.conditions} locale={locale} incomplete={incomplete} completion={progress.completion} />}
-      {progress?.findings && <Findings f={progress.findings} locale={locale} onDecide={onFinding} />}
-
-      <Section id="stages" title={t(locale, "orchSum_stages")} src="journal" locale={locale}>
-        {!m.stages ? missing : <>
-          {m.stageCounts && <p data-sum-stage-count data-partial={m.complete ? undefined : "yes"}><b>{fill(said(m.complete ? "orchSumStages_count" : "orchSumStages_countPartial"), { done: m.stageCounts.done, total: m.stageCounts.total })}</b></p>}
-          <ol className="orch-sum__stages">{m.stages.map((st) => (
-            <li key={st.n} data-stage-state={st.state} data-stage-n={st.n} value={st.n}>
-              <strong>{st.title ?? `${t(locale, "orchStage")} ${st.n}`}</strong>
-              <span> — {stageStateText(st)}{st.rounds > 1 ? ` · ${fill(t(locale, "orchSumRounds"), { n: st.rounds })}` : ""}</span>
-            </li>
-          ))}</ol>
+      {((m.stages && m.stages.length > 0) || progress?.conditions) && (
+        <Section id="stages" title={finished ? t(locale, "orchPlan") : undefined} aside={finished &&
+          <span className="orch-sum-block__aside">
+            {planShas.map((sha, i) => <span key={sha} className={`orch-chip${i === planShas.length - 1 ? " orch-chip--on" : ""}`}>v{i + 1}</span>)}
+            <button type="button" className="orch-textual" data-orch-open-doc="plan" onClick={() => onOpen("plan")}>{t(locale, "orchSumOpen")}</button>
+          </span>}>
+          <dl className="orch-kv">
+            {(m.stages ?? []).map((st) => (
+              <Row key={st.n} label={`${t(locale, "orchStage")} ${st.n}${st.title ? ` · ${st.title}` : ""}`} mark={st.state === "done" ? "done" : st.state === "not_done" ? "failed" : "idle"}
+                attrs={{ "data-stage-state": st.state, "data-stage-n": String(st.n) }}>{st.state === "done" && m.complete ? t(locale, "orchSumStageShort_done") : st.state === "not_started" ? null : stageStateText(st)}{st.rounds > 1 ? ` · ${fill(t(locale, "orchSumRounds"), { n: st.rounds })}` : ""}</Row>
+            ))}
+            {m.openQuestion && <Row label={t(locale, "orchSumQuestionLead")} dd={{ "data-sum-question": "" }}>
+              <Stored orch={orch} runId={runId} textRef={m.openQuestion} locale={locale} incomplete={incomplete}>{(text) => <>{text}</>}</Stored></Row>}
+          </dl>
           {m.superseded.length > 0 && (
             <details className="orch-sum__superseded" data-sum-superseded>
               <summary>{t(locale, "orchSumSuperseded")} ({m.superseded.length})</summary>
@@ -932,101 +921,38 @@ function RunSummary({ orch, runId, view, records, locale, changedFiles, gaps, in
               ))}</ul>
             </details>
           )}
-        </>}
-      </Section>
+          {progress?.conditions && <Conditions orch={orch} runId={runId} c={progress.conditions} locale={locale} incomplete={incomplete} completion={progress.completion} />}
+        </Section>
+      )}
 
-      <Section id="executor" title={t(locale, "orchSum_executor")} src="agent" locale={locale}>
-        {!m.stages?.some((s) => s.report) ? (m.lastReport
-          ? <Stored orch={orch} runId={runId} textRef={m.lastReport} locale={locale} incomplete={incomplete}>{(text) => <ReportView locale={locale} parts={reportParts(text)} />}</Stored>
-          : missing)
-          : m.stages.filter((s) => s.report).map((st) => (
-            <details key={st.n} className="orch-sum__report" open={m.stages!.length === 1}>
-              <summary>{stageLabel(st.n, st.title)}</summary>
-              <Stored orch={orch} runId={runId} textRef={st.report} locale={locale} incomplete={incomplete}>{(text) => <ReportView locale={locale} parts={reportParts(text)} />}</Stored>
+      {hasFindings && <Findings f={progress!.findings!} locale={locale} />}
+      {legacyRemarks && (
+        <Section id="remarks" title={t(locale, "orchSumDecisions")}>
+          {current && <p className="orch-hint" data-sum-current-review={current.verdict ?? ""}>{fill(said(m.complete ? "orchSumCurrentReview" : "orchSumCurrentReviewPartial"), { stage: stageLabel(current.stage, current.title) })} · {verdictText(current.verdict)}</p>}
+          {m.finalFindings ? findingsList(m.finalFindings, "data-sum-findings") : findingsList(current!.findings!, "data-sum-findings")}
+          {history.length > 0 && (
+            <details className="orch-sum__history" data-sum-review-history>
+              <summary>{fill(t(locale, "orchSumHistory"), { n: history.length })}</summary>
+              <ul>{history.map((rv) => (
+                <li key={rv.seq} data-review-state={rv.state}>
+                  {stageLabel(rv.stage, rv.title, rv.plan)} · {verdictText(rv.verdict)} — <i>{tr(locale, `orchSumReview_${rv.state}`)}</i>
+                  {rv.findings && findingsList(rv.findings, "data-sum-old-findings")}
+                </li>
+              ))}</ul>
             </details>
-          ))}
-      </Section>
+          )}
+        </Section>
+      )}
 
-      <Section id="lead" title={said("orchSum_lead")} src="agent" locale={locale}>
-        {m.finalReport
-          ? <Stored orch={orch} runId={runId} textRef={m.finalReport} locale={locale} incomplete={incomplete}>{(text) => <ReportView locale={locale} parts={{ ...reportParts(text), findings: [], next: null }} />}</Stored>
-          : m.finalVerdict ? <p><b>{t(locale, "orchSumVerdict")}:</b> {tr(locale, `orchVerdict_${m.finalVerdict}`)}</p>
-            : current ? (
-              <div data-sum-current-review={current.verdict ?? ""}>
-                <p><b>{fill(said(m.complete ? "orchSumCurrentReview" : "orchSumCurrentReviewPartial"), { stage: stageLabel(current.stage, current.title) })}</b></p>
-                {current.report
-                  ? <Stored orch={orch} runId={runId} textRef={current.report} locale={locale} incomplete={incomplete}>{(text) => <ReportView locale={locale} parts={{ ...reportParts(text), findings: [] }} />}</Stored>
-                  : <p><b>{t(locale, "orchSumVerdict")}:</b> {verdictText(current.verdict)}</p>}
-              </div>
-            ) : missing}
-      </Section>
+      {finished && middle}
 
-      <Section id="checks" title={t(locale, "orchSum_checks")} src={outcome === "completed_no_checks" ? undefined : "journal"} locale={locale}>
-        {m.checks.length === 0 ? (m.checksKnown ? <p>{t(locale, "orchSumChecks_noneConfigured")}</p> : missing) : <>
-          <p data-sum-check-count data-checks-known={m.checksKnown ? "yes" : "no"}><b>{fill(t(locale, m.checksKnown && m.checks.every((c) => c.status === "not_run") ? "orchSumChecks_notRun" : m.checksKnown ? "orchSumChecks_count" : "orchSumChecks_seen"), { passed: m.checkCounts.passed, total: m.checkCounts.total })}</b></p>
-          <ul className="orch-sum__checks">{m.checks.map((c) => (
-            <li key={c.id} data-check-id={c.id} data-check-status={c.status} data-check-runs={c.runs}><code>{c.title}</code> — {tr(locale, `orchCheck_${c.status}`)} · {fill(t(locale, m.complete ? "orchSumChecks_runs" : "orchSumChecks_runsAtLeast"), { n: c.runs })}</li>
-          ))}</ul>
-          <p className="orch-hint" data-sum-tests>{t(locale, "orchSumTests")}</p>
-        </>}
-      </Section>
-
-      <Section id="remarks" title={t(locale, "orchSum_remarks")} locale={locale}>
-        <b>{t(locale, "orchSumFindingsCurrent")} <Src locale={locale} kind="agent" /></b>
-        {m.finalFindings ? findingsList(m.finalFindings, "data-sum-findings")
-          : m.finalVerdict ? <p>{said("orchSumRemarksNone")}</p>
-            : current ? <>
-              <p className="orch-hint">{stageLabel(current.stage, current.title)} · {verdictText(current.verdict)}{m.complete ? "" : ` — ${t(locale, "orchSumFindingsPartial")}`}</p>
-              {current.findings ? findingsList(current.findings, "data-sum-findings") : <p>{said("orchSumRemarksNone")}</p>}
-            </> : missing}
-        {m.openQuestion && (
-          <div data-sum-question>
-            <b>{t(locale, "orchSumOpenQuestion")} <Src locale={locale} kind="agent" /></b>
-            <Stored orch={orch} runId={runId} textRef={m.openQuestion} locale={locale} incomplete={incomplete}>{(text) => <p className="orch-panel__text">{text}</p>}</Stored>
-          </div>
-        )}
-        {history.length > 0 && (
-          <details className="orch-sum__history" data-sum-review-history>
-            <summary>{fill(t(locale, "orchSumHistory"), { n: history.length })}</summary>
-            <ul>{history.map((rv) => (
-              <li key={rv.seq} data-review-state={rv.state}>
-                {stageLabel(rv.stage, rv.title, rv.plan)} · {verdictText(rv.verdict)} — <i>{tr(locale, `orchSumReview_${rv.state}`)}</i>
-                {rv.findings && findingsList(rv.findings, "data-sum-old-findings")}
-              </li>
-            ))}</ul>
-          </details>
-        )}
-        {problems.length > 0 && <><b>{t(locale, "orchSumLimits")} <Src locale={locale} kind="journal" /></b><ul data-sum-limits>{problems.map((x, i) => <li key={i}>{x}</li>)}</ul></>}
-      </Section>
-
-      <Section id="where" title={t(locale, "orchSum_where")} src="journal" locale={locale}>
-        {view.workMode ? (
-          <p title={view.workDir}>
-            {view.workMode === "worktree"
-              ? <>{t(locale, "orchWhereWorktree")} <code><Termed locale={locale} text={progress?.branch ?? "?"} /></code> · <code>{view.workDir}</code></>
-              : <>{t(locale, view.workMode === "project" ? "orchWhereProject" : "orchWhereCopy")} <code>{view.workDir}</code></>}
-          </p>
-        ) : missing}
-        {m.checkpoint && <p>{fill(t(locale, "orchSumCheckpoint"), { stage: m.checkpoint.stage, commit: m.checkpoint.commit.slice(0, 12) })}</p>}
-        {changedFiles !== null && <p>{fill(t(locale, "orchSumChangedFiles"), { n: changedFiles })}</p>}
-      </Section>
-
-      <Section id="finish" title={t(locale, "orchSum_finish")} src="journal" locale={locale}>
-        {!m.finish ? missing : (
-          <ul className="orch-table">{m.finish.map((f) => (
-            <li key={f.step} data-finish-step={f.step} data-finish-status={f.asked ? finishStatus(f) : "not_asked"}>
-              <span>{tr(locale, `orchFinishStep_${f.step}`)}</span><span><b>{finishText(locale, f)}</b>{f.commit ? <> · <code>{f.commit.slice(0, 12)}</code></> : null}</span>
-            </li>
-          ))}</ul>
-        )}
-      </Section>
-
-      <Section id="next" title={t(locale, "orchSum_next")} locale={locale}>
-        {next ? <p className="orch-panel__text" data-sum-next>{next} <Src locale={locale} kind="agent" /></p> : missing}
-        {view.newer
-          ? <p className="orch-hint" data-orch-read-only-next>{t(locale, "orchReadOnlyHint")}</p>
-          : <p className="orch-hint">{t(locale, "orchSumAppHint")}: {nextStepText(locale, view, orch.activity[runId]?.entries ?? [])}</p>}
-      </Section>
+      {finished && (hasReport || hasExport) && (
+        <Section id="result" title={t(locale, "orchSumResult")}>
+          {hasReport && <dl className="orch-kv"><Row label={t(locale, "orchSumExecReport")}>
+            <button type="button" className="orch-textual" data-orch-open-doc="result" onClick={() => onOpen("result")}>{t(locale, "orchSumOpen")}</button></Row></dl>}
+          <ReviewExport locale={locale} view={view} />
+        </Section>
+      )}
     </div>
   );
 }
@@ -1363,37 +1289,12 @@ function NewerRunPanel({ orch, runId, locale, onClose, newer }: {
   );
 }
 
-// UX audit 2026-10-05, Н9: what the run spends — model calls per role, the tokens each CLI reported (never money), the
-// time worked, the turns of the limit and the time left to the deadline.
-function CostRows({ locale, cost, reviewer }: { locale: LocaleId; cost: Cost; reviewer: boolean }): React.JSX.Element {
+// UX audit 2026-10-05, Н9: what the run spends — model calls and the tokens each CLI reported (never money)
+function costText(locale: LocaleId, cost: Cost, reviewer: boolean): string {
   const roles: CostRole[] = reviewer ? ["lead", "executor", "reviewer"] : ["lead", "executor"];
-  const name = (r: CostRole) => t(locale, r === "lead" ? "orchRoleLead" : r === "executor" ? "orchRoleExecutor" : "orchRoleReviewer");
-  const atLeast = cost.partial ? `${t(locale, "orchCostAtLeast")} ` : "";
-  const tokens = (r: CostRole) => {
-    const x = cost.tokens[r];
-    if (!x) return t(locale, cost.calls[r] ? "orchCostTokensNone" : "orchCostTokensNoCalls");
-    return `${atLeast}${tokensText(locale, x.input + x.output)} (${t(locale, "orchCostIn")} ${tokensText(locale, x.input)}, ${t(locale, "orchCostOut")} ${tokensText(locale, x.output)})`;
-  };
   const calls = roles.reduce((n, r) => n + cost.calls[r], 0);
   const tok = roles.reduce((n, r) => n + (cost.tokens[r] ? cost.tokens[r]!.input + cost.tokens[r]!.output : 0), 0);
-  const of = (used: string, limit: string) => t(locale, "orchCostOf").replace("{used}", used).replace("{limit}", limit);
-  // one line in the pinned board (the plan to review must stay in view above it); the roles folded under it
-  return (
-    <div className="orch-cost">
-      <dt>{t(locale, "orchCostTotal")}:</dt>
-      <dd>
-        <span data-board="cost-total">{t(locale, "orchCostTotalValue").replace("{calls}", String(calls)).replace("{tokens}", `${atLeast}${tokensText(locale, tok)}`)}</span>
-        {" · "}{t(locale, "orchCostTurns")} <span data-board="turns-used">{of(String(cost.turns.used), String(cost.turns.limit))}</span>
-        {cost.elapsedMs !== null && <>{" · "}{t(locale, "orchCostElapsed")} <span data-board="elapsed">{of(duration(locale, cost.elapsedMs), duration(locale, cost.runMs))}</span></>}
-        {cost.leftMs !== null && <>{" · "}{t(locale, "orchCostLeft")} <span data-board="left">{duration(locale, cost.leftMs)}</span></>}
-        <details className="orch-cost__roles" data-orch-cost-roles>
-          <summary>{t(locale, "orchCostByRole")}</summary>
-          <div><span>{t(locale, "orchCostCalls")}:</span> <span data-board="calls">{roles.map((r) => `${name(r)} ${cost.calls[r]}`).join(" · ")}</span></div>
-          <div><span>{t(locale, "orchCostTokens")}:</span> <span data-board="tokens">{roles.map((r) => <span key={r} className="orch-cost__role" data-cost-role={r}>{name(r)}: {tokens(r)}</span>)}</span></div>
-        </details>
-      </dd>
-    </div>
-  );
+  return t(locale, "orchCostTotalValue").replace("{calls}", String(calls)).replace("{tokens}", `${cost.partial ? `${t(locale, "orchCostAtLeast")} ` : ""}${tokensText(locale, tok)}`);
 }
 
 // UX audit 2026-10-05, Н7: the limit pause — each limit's value and what is used of it (limitRows), the new value with
@@ -1414,31 +1315,32 @@ function RaiseLimit({ locale, cost, budget, sending, onRaise }: {
   const spent = kind === "runMs" && cost?.elapsedMs != null ? Math.ceil(cost.elapsedMs / 60_000) : null;
   const tooSmall = kind === "runMs" && cost?.elapsedMs != null && Number.isInteger(n) && n * 60_000 <= cost.elapsedMs;
   const valid = Number.isInteger(n) && n > 0 && (current === null || n > current) && !tooSmall;
+  const name = t(locale, `orchLimit_${kind}` as TranslationKey);
   return (
     <div className="orch-limit" data-orch-limit>
       {rows.length > 0 && (
-        <table className="orch-limit__table">
-          <thead><tr><th>{t(locale, "orchLimitName")}</th><th>{t(locale, "orchLimitUsed")}</th><th>{t(locale, "orchLimitNow")}</th></tr></thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.kind} data-limit-kind={r.kind} data-limit-reached={r.reached ? "" : undefined} className={r.reached ? "orch-limit__reached" : undefined}>
-                <th scope="row">{t(locale, `orchLimit_${r.kind}` as TranslationKey)}{r.reached && <small> — {t(locale, "orchLimitReached")}</small>}</th>
-                <td data-limit-used>{r.used ?? "—"}</td>
-                <td data-limit-now>{r.now}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <dl className="orch-kv orch-limit__table">
+          {rows.filter((r) => r.reached || r.kind === "turns" || r.kind === "runMs" || (r.used ?? 0) > 0).map((r) => {
+            const time = r.kind === "runMs"; // mock-up 07: the time as «1 ч 12 м / 4 ч»
+            const fmt = (n: number) => (time ? duration(locale, n * 60_000) : String(n));
+            return (
+              <Row key={r.kind} label={time ? t(locale, "orchSumTime") : t(locale, `orchLimit_${r.kind}` as TranslationKey)}
+                attrs={{ "data-limit-kind": r.kind, "data-limit-reached": r.reached ? "" : undefined, className: `orch-kv__row${r.reached ? " orch-limit__reached" : ""}` }}>
+                <span data-limit-used>{r.used === null ? "—" : fmt(r.used)}</span> / <span data-limit-now>{fmt(r.now)}</span>
+              </Row>
+            );
+          })}
+        </dl>
       )}
-      <div className="orch-panel__row">
-        <label className="orch-field orch-field--inline"><span>{t(locale, "orchLimitWhich")}</span>
+      {/* mock-up 07: the limit the run stopped at is the one to raise; the choice of another one only where none stopped it */}
+      {!cost?.reached && (
+        <label className="orch-field"><span>{t(locale, "orchLimitWhich")}</span>
           <select value={kind} onChange={(e) => { const k = e.target.value as OrchestrationLimitKind; setKind(k); setValue(proposed(k)); }}>
             {LIMIT_KINDS.map((k) => <option key={k} value={k}>{t(locale, `orchLimit_${k}` as TranslationKey)}</option>)}
           </select></label>
-        <label className="orch-field orch-field--inline"><span>{t(locale, "orchLimitNew")}</span>
-          <input type="number" min={1} value={value} data-orch-limit-value onChange={(e) => setValue(e.target.value)} /> <span data-orch-limit-unit>{unit}</span></label>
-        {current !== null && <small className="orch-hint" data-orch-limit-current>{t(locale, "orchZone_limitNow").replace("{n}", String(current)).replace("{unit}", unit)}</small>}
-      </div>
+      )}
+      <label className="orch-field"><span>{current !== null ? fill(t(locale, "orchLimitNewOf"), { name, n: current }) : `${name} · ${t(locale, "orchLimitNew").toLocaleLowerCase(locale)}`}</span>
+        <input type="number" min={1} value={value} data-orch-limit-value aria-label={`${name}, ${unit}`} onChange={(e) => setValue(e.target.value)} /></label>
       {!valid && value !== "" && current !== null && <small className="orch-hint orch-hint--warn" data-orch-limit-invalid>{t(locale, tooSmall ? "orchZone_limitElapsed" : "orchLimitMore").replace("{now}", String(tooSmall ? spent : current))}</small>}
       <div className="orch-panel__actions orch-form__submit">
         <button type="button" className="orch-primary" data-orch-primary="raise_limit" data-orch-raise
@@ -1586,7 +1488,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
 
   // what goes on after a command that did not get an answer (a lost connection): Repeat keeps it, by the command id
   const afterOf = useRef(new Map<string, () => void | Promise<void>>());
-  const deliver = async (req: PendingCommand, afterNew?: () => void | Promise<void>): Promise<void> => {
+  const deliver = async (req: PendingCommand, afterNew?: () => void | Promise<void>): Promise<boolean> => {
     const after = afterNew ?? afterOf.current.get(req.commandId);
     if (afterNew) afterOf.current.set(req.commandId, afterNew);
     setSending(true);
@@ -1595,23 +1497,33 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
     setProgressNote(null);
     try {
       const { outcome } = await outcomeOf(() => api().command(req));
-      if (outcome.kind === "transport") return setOffline(true);
-      if (outcome.kind === "in_progress") return setProgressNote(t(locale, "orchInProgress"));
+      if (outcome.kind === "transport") { setOffline(true); return false; }
+      if (outcome.kind === "in_progress") { setProgressNote(t(locale, "orchInProgress")); return false; }
       afterOf.current.delete(req.commandId);
       orch.commands.settle(req);
       if (outcome.kind === "rejected" && outcome.code === "stale_revision") {
         await orch.refreshRun(req.runId);
-        return setNotice(t(locale, "orchStaleRefreshed"));
+        setNotice(t(locale, "orchStaleRefreshed"));
+        return false;
       }
       const text = outcomeText(locale, outcome);
-      if (text) return setNotice(text);
+      if (text) { setNotice(text); return false; }
       await after?.(); // sending holds until the whole chain (raise the limit, then resume) is done
+      return true;
     } finally {
       setSending(false);
     }
   };
-  const send = (action: RunAction, input: Parameters<typeof commandOf>[1] = {}, after?: () => void | Promise<void>): Promise<void> =>
-    view ? deliver(orch.commands.request(view.runId, view.revision, commandOf(action, input)), after) : Promise.resolve();
+  const send = (action: RunAction, input: Parameters<typeof commandOf>[1] = {}, after?: () => void | Promise<void>): Promise<boolean> =>
+    view ? deliver(orch.commands.request(view.runId, view.revision, commandOf(action, input)), after) : Promise.resolve(false);
+  // D-018 (mock-up 10): the person's choices go together; one command per item, each at the revision the run has by then
+  const sendPeople = async (list: Omit<OrchestrationPersonDecide, "kind">[]): Promise<void> => {
+    for (const [i, person] of list.entries()) {
+      const fresh = i === 0 ? view : await api().get(view!.runId).then((r) => (r.ok ? r.value.view : null)).catch(() => null);
+      if (!fresh) return;
+      if (!(await deliver(orch.commands.request(fresh.runId, fresh.revision, commandOf("person_decide", { person: { ...person, runKey: fresh.decisions?.runKey ?? person.runKey } }))))) return;
+    }
+  };
   const unknown = runId ? orch.commands.pending(runId) : [];
   // a refusal, a lost connection or a command still in progress shows above the buttons: bring it into view when it appears
   // biome-ignore lint/correctness/useExhaustiveDependencies: the three notices are the triggers
@@ -1649,7 +1561,6 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
       : active.kind === "prepare" ? t(locale, "orchCanvasPrepare")
         : active.kind === "finish" ? `${t(locale, "orchCanvasFinish")}: ${tr(locale, `orchFinishStep_${active.step}`)}`
           : `${roleName(locale, workingRole!)} — ${tr(locale, `orchPurpose_${active.purpose}`)}${stageText ? ` · ${stageText}` : ""} · ${workingState ? phaseText(locale, workingState, now) : ""}`;
-  const top = view ? board(view) : null;
   const cost = view ? costOf(view, activity.entries, now, activity.firstId) : null;
   const depsText = dependenciesText(locale, activity.entries);
   // The action zone: the model says what is offered; the panel only drops what it cannot do here (no settings dialog, no new goal)
@@ -1692,6 +1603,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
       default: return;
     }
   };
+  const openFindings = view?.decisions?.findings ? (view.progress?.findings?.items ?? []).filter((x) => x.status === "open") : [];
   const accessMismatch = activity.entries.some((e) => e.kind === "error" && e.detail?.accessMismatch === true);
   const progress = view?.progress ?? null;
   const silenceFor = (p: ParticipantState): string | null => {
@@ -1704,7 +1616,6 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
   // a newer version's run: its changes are not read here (main refuses them), so there is no tab for them
   const tabs: PanelTab[] = view?.newer ? ["summary", "work"] : ["summary", "work", "changes"];
   const curTab: PanelTab = tabs.includes(panel.tab) ? panel.tab : "summary"; // a readable newer run has no Changes tab
-  const outcome = view ? outcomeKey(view, d.finalVerdict, journal?.status === "ready") : "active";
   const roleFilter = useCallback((e: OrchestrationActivityEntry) => panel.role === "all" ? FEED_KINDS.has(e.kind)
     : panel.role === "check"
     ? (e.role === "check" || e.role === "run") && FEED_KINDS.has(e.kind)
@@ -1719,6 +1630,56 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
   const execCard = runLink ? orch.canvas.agents.find((a) => a.agentId === runLink.toAgentId) : undefined;
   const project = leadCard?.project ? leadCard.project.split(/[\\/]/).filter(Boolean).at(-1) ?? null : null;
   const pair = leadCard && execCard ? `${providerName(leadCard.provider)} → ${providerName(execCard.provider)}` : null;
+  // D-018: the people and the time/limits/environment of the summary (mock-up 13), only from what the run has
+  const roleList = byReviewer(view) ? ["lead", "executor", "reviewer"] as const : ["lead", "executor"] as const;
+  const envReported = (["codex", "claude"] as const).map((p) => ({ p, e: [...activity.entries].reverse().find((x) => x.kind === "session" && x.provider === p && x.detail?.reported === true) ?? null })).filter((x) => x.e);
+  const middle = !view ? null : (
+    <>
+      <Section id="people" title={t(locale, "orchParticipants")} attrs={{ "data-orch-participants": "" }}>
+        <dl className="orch-kv orch-people">
+          {roleList.map((role) => {
+            const info = orch.catalog.providers?.[role === "reviewer" ? "lead" : role];
+            const p = role === "lead" ? lead : role === "executor" ? executor : reviewer;
+            const mdl = roleModel(role, activity.entries, progress?.models);
+            const roleWord = t(locale, role === "lead" ? "orchRoleLead" : role === "executor" ? "orchRoleExecutor" : "orchRoleReviewer").toLocaleLowerCase(locale);
+            return (
+              <div key={role} className="orch-kv__row" data-participant={role} data-phase={p.phase}>
+                <dt>
+                  <strong title={t(locale, `orchTerm_${role}`)}>{info ? `${providerName(info.provider)} · ${roleWord}` : roleName(locale, role)}</strong>
+                  {info && <span className="orch-hint">{info.protocol}
+                    {progress?.access && <> · <span data-participant-access={progress.access[info.provider]}>{tr(locale, `orchAccess_${progress.access[info.provider]}`)}</span></>}
+                    {" · "}<span data-participant-model={mdl.model ?? "cli"} data-model-reported={mdl.reported ? "yes" : "no"}>{modelLabel(locale, mdl)}</span></span>}
+                </dt>
+                <dd><button type="button" className="orch-textual" onClick={() => onView({ tab: "work", mode: "feed", role })}>{t(locale, "orchObserve")}</button></dd>
+              </div>
+            );
+          })}
+        </dl>
+      </Section>
+      <Section id="limits" title={t(locale, "orchSumTimeEnv")} attrs={{ "data-orch-limits": "" }}>
+        <dl className="orch-kv">
+          {d.createdAt && <Row label={t(locale, "orchSumTime")}>{duration(locale, (busy ? now : Date.parse(lines[0]?.ts ?? d.createdAt)) - Date.parse(d.createdAt))}{goal?.limits?.runMs ? ` / ${duration(locale, goal.limits.runMs)}` : ""}</Row>}
+          <Row label={t(locale, "orchSumTurnsRounds")}>{view.turns}{goal?.limits?.turns ? ` / ${goal.limits.turns}` : ""}{goal?.limits?.roundsPerStage ? ` · ${goal.limits.roundsPerStage}` : ""}</Row>
+          {envReported.map(({ p, e }) => (
+            <Row key={p} label={`${t(locale, "orchSumEnv")} · ${p === "codex" ? "Codex" : "Claude"}`} attrs={{ "data-env-provider": p }}>
+              {ENV_FIELDS.filter((k) => e!.detail?.[k] !== undefined && e!.detail?.[k] !== null && e!.detail?.[k] !== "").map((k, i) => (
+                <span key={k} className="orch-env__item" data-env-item={k} title={t(locale, `orchEnvKey_${k}`)}>{i > 0 ? " · " : ""}{String(e!.detail![k])}</span>
+              ))}
+            </Row>
+          ))}
+          {cost && <Row label={t(locale, "orchSumSpend")} dd={{ "data-board": "cost-total" }}>{costText(locale, cost, byReviewer(view) || cost.calls.reviewer > 0)}</Row>}
+        </dl>
+      </Section>
+    </>
+  );
+  // what needs the person's eye in any state: a preparation that failed, a dependency check, an access that does not match
+  const alerts = !view ? null : (depsText || (progress?.prepare?.status === "failed" && runId) || accessMismatch) ? (
+    <>
+      {depsText && <dl className="orch-kv"><Row label={t(locale, "orchBoardDeps")} dd={{ "data-board": "deps" }}>{depsText.text}{depsText.failed && <> <button type="button" data-deps-step onClick={() => onView({ tab: "work", mode: "feed", role: "check" })}>{t(locale, "orchDepsStep")}</button></>}</Row></dl>}
+      {progress?.prepare?.status === "failed" && runId && <PrepareFailure orch={orch} runId={runId} locale={locale} prepare={progress.prepare} entries={activity.entries} />}
+      {accessMismatch && <p className="dialog-error" data-orch-access-mismatch>{t(locale, "orchAccessMismatchWarn")}</p>}
+    </>
+  ) : null;
   const wide = curTab === "summary" && (opened.plan || opened.result); // only the documents are wide
   return (
     <aside className={`orch-panel${wide ? " orch-panel--wide" : ""}${expanded ? " orch-panel--full" : ""}`}
@@ -1755,7 +1716,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
           )}
           <ActionZone locale={locale} zone={zone!} runKey={view.runId} clarifyOff={actionEnabled("clarify", available) ? null : entry.hint ? t(locale, entry.hint) : t(locale, "orchClarify")} headline={head.headline} status={view.status} task={task ?? null} zoneRef={summary} flash={flash}
             compact={curTab !== "summary" || panel.section !== "overview"} sending={sending} disabled={zoneDisabled} onButton={onZone} confirmText={zoneConfirm}
-            resumeNext={head.next} who={zoneWho} stages={plan.map((x) => x.title)} words={(text) => <Termed locale={locale} text={text} />} clarify={{ value: clarify, onChange: setClarify, onSend: () => void send("clarify", { text: clarify.trim() }, () => setClarify("")) }}
+            resumeNext={head.next} who={zoneWho} stages={plan.map((x) => x.title)} words={(text) => text} clarify={{ value: clarify, onChange: setClarify, onSend: () => void send("clarify", { text: clarify.trim() }, () => setClarify("")) }}
             notices={<>
               {entry.hint && actions.some(off) && <div className="orch-hint" data-orch-platform-hint>{t(locale, entry.hint)}</div>}
               {sending && <div className="orch-hint">{t(locale, "orchSending")}</div>}
@@ -1792,13 +1753,12 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
                 onDecide={(decision, extra) => void send("permission", { requestId: view.permission!.requestId, decision, ...extra })} />
             )}
             {has("answer") && d.question && (
-              <section className="orch-question orch-form-card" aria-labelledby={`${answerId}-q`} data-orch-question data-orch-form>
-                <h4 id={`${answerId}-q`}>{t(locale, "orchQuestion")}</h4>
-                <p className="orch-panel__text" id={`${answerId}-t`}>{questionText ?? t(locale, "orchLoading")}</p>
+              <section className="orch-question orch-form-card" data-orch-question data-orch-form>
+                <p className="orch-permission__ask" id={`${answerId}-t`}>{questionText ?? t(locale, "orchLoading")}</p>
                 <textarea ref={answerBox} rows={3} value={answer} placeholder={t(locale, "orchAnswerPlaceholder")} aria-labelledby={`${answerId}-t`} onChange={(e) => setAnswer(e.target.value)} />
                 <div className="orch-panel__actions orch-form__foot" data-orch-form-foot>
                   <button type="button" className="orch-primary" data-orch-primary="answer" disabled={sending || !answer.trim() || off("answer")}
-                    onClick={() => void send("answer", { questionId: d.question!.questionId, text: answer.trim() }, () => setAnswer(""))}>{t(locale, "orchAnswer")}</button>
+                    onClick={() => void send("answer", { questionId: d.question!.questionId, text: answer.trim() }, () => setAnswer(""))}>{t(locale, "orchPause_awaiting_answer_button")}</button>
                 </div>
               </section>
             )}
@@ -1814,9 +1774,9 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
               <FinishConfirm key={view.revision} locale={locale} confirm={view.confirm} sending={sending || off("finish_confirm")}
                 onConfirm={(push, qa) => void send("finish_confirm", { tree: view.confirm!.tree ?? "", commit: view.confirm!.commit, push, qa })} />
             )}
-            {has("person_decide") && view.decisions && (view.decisions.disputed.length > 0 || view.decisions.conditions.length > 0) && (
-              <PersonDecide key={view.revision} locale={locale} d={view.decisions} sending={sending || off("person_decide")}
-                onDecide={(person) => void send("person_decide", { person })} />
+            {has("person_decide") && view.decisions && (view.decisions.disputed.length > 0 || view.decisions.conditions.length > 0 || openFindings.length > 0) && (
+              <PersonDecide key={view.revision} locale={locale} d={view.decisions} findings={openFindings} sending={sending || off("person_decide")}
+                onSubmit={(list) => void sendPeople(list)} />
             )}
             {has("plan_decide") && view.decisions?.proposal && (
               <PlanProposal key={view.revision} locale={locale} d={view.decisions} sending={sending || off("plan_decide")}
@@ -1880,159 +1840,27 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
                 </p>
               )}
               {journal?.status === "loading" && records.length > 0 && <p className="orch-hint" data-sum-journal-loading>{t(locale, "orchSumIncomplete")}</p>}
+              {!zoneWho && active && <p className="orch-summary__who" data-orch-working>{who}</p>}
               {!records.length
                 ? journal?.status !== "error" && <p className="orch-hint">{t(locale, "orchLoading")}</p>
-                : <RunSummary orch={orch} runId={runId} view={view} records={records} locale={locale} changedFiles={changedFiles} gaps={activity.gaps.length}
-                  onFinding={has("person_decide") && view.decisions?.findings
-                    ? (id, decision) => void send("person_decide", { person: { subject: "finding", target: id, decision, finding: null, runKey: view.decisions!.runKey } }) : undefined}
+                : <RunSummary orch={orch} runId={runId} view={view} records={records} locale={locale} facts={facts} middle={middle} alerts={alerts} onOpen={openSection}
                   incomplete={journal?.status !== "ready"} />}
-              <Sect id="overview" title={tr(locale, "orchTab_overview")} open={opened.overview} lazy={false} onToggle={(o) => toggleSection("overview", o)} elRef={sectionEl("overview")}>
-                <section className="orch-panel__section orch-reference" data-orch-reference>
-                  {!zoneWho && active && <p className="orch-summary__who" data-orch-working>{who}</p>}
-                  {top && progress && (
-                    <dl className="orch-board" data-orch-board data-action={top.action ? "yes" : "no"}>
-                      <div><dt>{t(locale, "orchRunMode")}:</dt><dd data-board="mode">{tr(locale, `orchRunMode_${progress.mode}`)}</dd></div>
-                      <div><dt>{t(locale, "orchBoardStage")}:</dt><dd data-board="stage">{stageText ?? "—"}</dd></div>
-                      {depsText && <div><dt>{t(locale, "orchBoardDeps")}:</dt><dd data-board="deps">{depsText.text}{depsText.failed && <> <button type="button" data-deps-step onClick={() => onView({ tab: "work", mode: "feed", role: "check" })}>{t(locale, "orchDepsStep")}</button></>}</dd></div>}
-                      {top.prepare && <div><dt>{t(locale, "orchBoardPrepare")}:</dt><dd data-board="prepare">{tr(locale, `orchPrepare_${top.prepare}`)}
-                        {progress.prepare?.status === "failed" && runId && <PrepareFailure orch={orch} runId={runId} locale={locale} prepare={progress.prepare} entries={activity.entries} />}</dd></div>}
-                      <div><dt>{t(locale, "orchBoardChecked")}:</dt><dd data-board="checked">{top.checked.total && top.checked.ran === 0 ? fill(t(locale, "orchBoardCheckedNotRun"), { total: top.checked.total }) : top.checked.total ? t(locale, "orchBoardCheckedValue").replace("{passed}", String(top.checked.passed)).replace("{total}", String(top.checked.total)) : progress.completion === "no_checks" ? t(locale, "orchBoardNoChecks") : "—"}
-                        {top.checked.failed.map((f, i) => <small key={i} className="orch-board__failed"> · {f.title}{f.class ? ` (${tr(locale, `orchClass_${f.class}`)})` : ""}</small>)}</dd></div>
-                      {progress.checksFrom && <div><dt>{t(locale, "orchBoardChecksFrom")}:</dt><dd data-board="checks-from">{tr(locale, progress.checksFrom === "proposal" && progress.checks.length === 0 ? "orchChecksFrom_proposal_none" : `orchChecksFrom_${progress.checksFrom}`)}</dd></div>}
-                      <div><dt>{t(locale, "orchBoardAction")}:</dt><dd data-board="action">{t(locale, top.action ? "orchBoardActionYes" : "orchBoardActionNone")}</dd></div>
-                      {progress.access && (
-                        <div className={progress.access.claude === "full" || progress.access.codex === "full" ? "orch-board__full"
-                          : progress.access.claude === "terminal" || progress.access.codex === "terminal" ? "orch-board__terminal" : undefined}>
-                          <dt>{t(locale, "orchBoardAccess")}:</dt>
-                          <dd data-board="access">Claude — {tr(locale, `orchAccess_${progress.access.claude}`)} · Codex — {tr(locale, `orchAccess_${progress.access.codex}`)}</dd>
-                        </div>
-                      )}
-                      {progress.models && (
-                        <div><dt>{t(locale, "orchBoardModels")}:</dt>
-                          <dd data-board="models">{(byReviewer(view) ? ["lead", "executor", "reviewer"] as const : ["lead", "executor"] as const)
-                            .map((role) => `${t(locale, role === "lead" ? "orchRoleLead" : role === "executor" ? "orchRoleExecutor" : "orchRoleReviewer")} — ${modelLabel(locale, roleModel(role, activity.entries, progress.models))}`).join(" · ")}</dd>
-                        </div>
-                      )}
-                      {top.grantsApplied > 0 && <div><dt>{t(locale, "orchBoardGrants")}:</dt><dd data-board="grants">{top.grantsApplied}</dd></div>}
-                      {cost && <CostRows locale={locale} cost={cost} reviewer={byReviewer(view) || cost.calls.reviewer > 0} />}
-                    </dl>
-                  )}
-                  {accessMismatch && <p className="dialog-error" data-orch-access-mismatch>{t(locale, "orchAccessMismatchWarn")}</p>}
-                  {personDecisionsLine(locale, view) && <p className="orch-hint orch-hint--warn" data-orch-person>{personDecisionsLine(locale, view)}</p>}
-                  {view.workMode && (
-                    <p className={`orch-summary__where orch-summary__where--${view.workMode}`} data-orch-where={view.workMode} title={view.workDir}>
-                      {view.workMode === "worktree"
-                        ? <>{t(locale, "orchWhereWorktree")} <code><Termed locale={locale} text={take?.runBranch ?? progress?.branch ?? "?"} /></code> · <code>{view.workDir}</code></>
-                        : <>{t(locale, view.workMode === "project" ? "orchWhereProject" : "orchWhereCopy")} <code>{view.workDir}</code></>}
-                    </p>
-                  )}
-                </section>
-                <section className="orch-panel__section orch-facts" data-orch-facts>
-                  <h4>{t(locale, "orchResult")}</h4>
-                  <p className={`orch-proof orch-proof--${outcome}`} data-orch-proof={outcome} data-orch-result={d.finalVerdict ?? undefined}>{proofLine(locale, outcome, facts)}</p>
-                  <ul>
-                    {factLines(locale, view, facts, journal?.status === "ready").filter((f) => !(f.key === "accepted" && view.status === "completed")).map((f) => (
-                      <li key={f.key} data-fact={f.key}><Termed locale={locale} text={f.label} />: <b>{f.value}</b>{f.key === "changes" && changesNote(locale, view, facts) && <span data-fact-note="changes"> — {changesNote(locale, view, facts)}</span>}</li>
-                    ))}
-                    {view.workMode === "project"
-                      ? <li data-fact="in_place">{t(locale, "orchFactInPlace")} — {t(locale, "orchFactInPlaceHint")}</li>
-                      : view.workMode === "worktree"
-                        ? <li data-fact="where">{t(locale, "orchResultWhere")}: <code><Termed locale={locale} text={progress?.branch ?? "?"} /></code> · <code>{view.workDir}</code></li>
-                        : view.workMode === "copy" && !takenLines(locale, take).length && <li data-fact="transferred">{t(locale, "orchFactTransferred")}: <b>{t(locale, "orchNo")}</b> — {t(locale, "orchFactTransferredHint")}</li>}
-                    {takenLines(locale, take).map((line) => <li key={line} data-fact="taken">{line}</li>)}
-                    {progress?.checks.map((c) => (
-                      <li key={c.id} data-fact="check" data-check-status={c.status}><code>{c.title}</code>: <b>{tr(locale, `orchCheck_${c.status}`)}</b>{c.class ? ` (${tr(locale, `orchClass_${c.class}`)})` : ""}</li>
-                    ))}
-                  </ul>
-                  {progress && (
-                    <>
-                      <h4>{t(locale, "orchResultAfter")}</h4>
-                      <ul data-orch-finish>
-                        {progress.finish.map((f) => (
-                          <li key={f.step} data-finish-step={f.step} data-finish-status={f.asked ? finishStatus(f) : "not_asked"}>
-                            {tr(locale, `orchFinishStep_${f.step}`)}: <b>{f.asked ? tr(locale, `orchFinishStatus_${finishStatus(f)}`) : t(locale, "orchFinishNotAsked")}</b>
-                            {f.step === "qa" && f.commit ? <> · {t(locale, "orchFinishExpected")} <code>{f.commit.slice(0, 12)}</code></> : f.commit ? <> · <code>{f.commit.slice(0, 12)}</code></> : null}
-                            {f.asked && f.step === "qa" && f.observed && <span data-finish-observed={f.observed}> · {t(locale, "orchFinishObserved")} <code>{f.observed.slice(0, 12)}</code></span>}
-                            {f.established ? ` · ${t(locale, "orchFinishEstablished")}` : ""}
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                  <ReviewExport locale={locale} view={view} />
-                </section>
-                <section className="orch-panel__section" data-orch-participants>
-                  <h4>{t(locale, "orchParticipants")}</h4>
-                  <ul className="orch-people">
-                    {(byReviewer(view) ? ["lead", "executor", "reviewer"] as const : ["lead", "executor"] as const).map((role) => {
-                      const info = orch.catalog.providers?.[role === "reviewer" ? "lead" : role];
-                      const p = role === "lead" ? lead : role === "executor" ? executor : reviewer;
-                      return (
-                        <li key={role} data-participant={role} data-phase={p.phase}>
-                          <strong title={t(locale, `orchTerm_${role}`)} data-term={role}>{roleName(locale, role)}</strong>
-                          {info && <span className="orch-hint">{info.protocol} · {t(locale, "orchNativeInfo")}</span>}
-                          {info && progress?.access && (
-                            <span className="orch-access-badge" data-participant-access={progress.access[info.provider]}>
-                              {t(locale, "orchBoardAccess")}: {tr(locale, `orchAccess_${progress.access[info.provider]}`)}
-                            </span>
-                          )}
-                          {(() => {
-                            const m = roleModel(role, activity.entries, progress?.models);
-                            return <span className="orch-access-badge" data-participant-model={m.model ?? "cli"} data-model-reported={m.reported ? "yes" : "no"}>{t(locale, "orchModels")}: {modelLabel(locale, m)}</span>;
-                          })()}
-                          <span>{phaseText(locale, p, now)}{p.lastEventAt ? ` · ${t(locale, "orchLastEvent")} ${time(locale, p.lastEventAt)}` : ""}</span>
-                          <button type="button" onClick={() => onView({ tab: "work", mode: "feed", role })}>{t(locale, "orchObserve")}</button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  {d.currentTask && (
-                    <p className="orch-hint">{t(locale, "orchCurrentTask")}: {roleName(locale, d.currentTask.role as PanelRole)} — {tr(locale, `orchPurpose_${d.currentTask.purpose ?? "plan"}`)} · {time(locale, d.currentTask.ts)}</p>
-                  )}
-                </section>
-                <SessionEnvironment locale={locale} entries={activity.entries} />
-                <section className="orch-panel__section"><Differences locale={locale} /></section>
-                <section className="orch-panel__section" data-orch-limits>
-                  <h4>{t(locale, "orchTimeAndLimits")}</h4>
-                  <dl className="orch-limits-view">
-                    <dt>{t(locale, "orchElapsed")}</dt><dd>{d.createdAt ? duration(locale, (busy ? now : Date.parse(lines[0]?.ts ?? d.createdAt)) - Date.parse(d.createdAt)) : "—"}{goal?.limits?.runMs ? ` / ${duration(locale, goal.limits.runMs)}` : ""}</dd>
-                    <dt>{t(locale, "orchTurns")}</dt><dd>{view.turns}{goal?.limits?.turns ? ` / ${goal.limits.turns}` : ""}</dd>
-                    <dt>{t(locale, "orchStage")}</dt><dd>{view.stage === null ? "—" : `${view.stage}${planTotal ? ` / ${planTotal}` : ""}`}</dd>
-                    {goal?.limits?.roundsPerStage && <><dt>{tr(locale, "orchLimit_roundsPerStage")}</dt><dd>{goal.limits.roundsPerStage}</dd></>}
-                  </dl>
-                </section>
-                <section className="orch-panel__section">
-                  <h4>{t(locale, "orchPlan")}</h4>
-                  {plan.length === 0 ? <p className="orch-hint">{d.plan ? t(locale, "orchLoading") : t(locale, "orchNothingYet")}</p> : (
-                    <ol className="orch-plan" start={planFirst}>{plan.map((s, i) => (
-                      <li key={i} className={view.stage === planFirst + i ? "orch-plan__current" : undefined}><strong>{s.title}</strong><span>{s.task}</span></li>
-                    ))}</ol>
-                  )}
-                </section>
-                <section className="orch-panel__section">
-                  <h4>{t(locale, "orchChecks")}</h4>
-                  {d.checks.length === 0 ? <p className="orch-hint">{t(locale, "orchNothingYet")}</p> : (
-                    <ul className="orch-checks">{d.checks.map((c) => (
-                      <li key={c.checkRunId} className={`orch-checks__${c.status ?? "running"}`}>
-                        <code>{c.checkId}</code> {c.status ? tr(locale, `orchCheck_${c.status}`) : t(locale, "orchCheckRunning")}
-                        {c.reason ? ` — ${tr(locale, `orchCheckReason_${c.reason}`)}` : ""}
-                      </li>
-                    ))}</ul>
-                  )}
-                </section>
-              </Sect>
-              <Sect id="plan" title={tr(locale, "orchTab_plan")} open={opened.plan} lazy onToggle={(o) => toggleSection("plan", o)} elRef={sectionEl("plan")}>
-                {records.length
-                  ? <RunDocs kind="plan" orch={orch} runId={runId} view={view} records={records} locale={locale} task={task ?? null} take={take}
-                    seq={state?.seq ?? 0} incomplete={journal?.status !== "ready"} onNote={onNoteFromText} />
-                  : <p className="orch-hint">{t(locale, "orchLoading")}</p>}
-              </Sect>
-              <Sect id="result" title={tr(locale, "orchTab_result")} open={opened.result} lazy onToggle={(o) => toggleSection("result", o)} elRef={sectionEl("result")}>
-                {records.length
-                  ? <RunDocs kind="result" orch={orch} runId={runId} view={view} records={records} locale={locale} task={task ?? null} take={take}
-                    seq={state?.seq ?? 0} incomplete={journal?.status !== "ready"} onNote={onNoteFromText} />
-                  : <p className="orch-hint">{t(locale, "orchLoading")}</p>}
-              </Sect>
+              {opened.plan && (
+                <Sect id="plan" title={tr(locale, "orchTab_plan")} open lazy onToggle={(o) => toggleSection("plan", o)} elRef={sectionEl("plan")}>
+                  {records.length
+                    ? <RunDocs kind="plan" orch={orch} runId={runId} view={view} records={records} locale={locale} task={task ?? null} take={take}
+                      seq={state?.seq ?? 0} incomplete={journal?.status !== "ready"} onNote={onNoteFromText} />
+                    : <p className="orch-hint">{t(locale, "orchLoading")}</p>}
+                </Sect>
+              )}
+              {opened.result && (
+                <Sect id="result" title={tr(locale, "orchTab_result")} open lazy onToggle={(o) => toggleSection("result", o)} elRef={sectionEl("result")}>
+                  {records.length
+                    ? <RunDocs kind="result" orch={orch} runId={runId} view={view} records={records} locale={locale} task={task ?? null} take={take}
+                      seq={state?.seq ?? 0} incomplete={journal?.status !== "ready"} onNote={onNoteFromText} />
+                    : <p className="orch-hint">{t(locale, "orchLoading")}</p>}
+                </Sect>
+              )}
             </>}
             {curTab === "work" && panel.mode === "feed" && runId && (
               <ActivityList key={`a:${panel.role}`} locale={locale} entries={activity.entries} gaps={activity.gaps} filter={roleFilter}
@@ -2102,14 +1930,11 @@ function ChecksDecision({ locale, proposal, sending, onDecide }: {
   const editId = useId();
   return (
     <Form title={t(locale, "orchChecksProposalTitle")} attrs={{ "data-orch-checks-proposal": true }}>
-      {none
-        ? <>
-          <p className="orch-panel__text" data-orch-checks-none>{t(locale, "orchChecksProposalNone")}: {proposal.none}</p>
-          <p className="orch-hint">{t(locale, "orchChecksProposalNoneHint")}</p>
-        </>
-        : <ol className="orch-items" data-orch-checks-list>{proposal.checks.map((c) => (
-          <li key={c.id} className="orch-item"><code>{c.command}</code><span className="orch-hint">{c.why}{c.source.length > 0 && <small> ({t(locale, "orchChecksSource")}: {c.source.join(", ")})</small>}</span></li>
-        ))}</ol>}
+      {/* D-018 (mock-up 06): nothing proposed — the zone says it; here only the field for the person's own commands */}
+      {!none && <ol className="orch-items" data-orch-checks-list>{proposal.checks.map((c) => (
+        <li key={c.id} className="orch-item"><code>{c.command}</code><span className="orch-hint">{c.why}{c.source.length > 0 && <small> ({t(locale, "orchChecksSource")}: {c.source.join(", ")})</small>}</span></li>
+      ))}</ol>}
+      {none && <span hidden data-orch-checks-none>{proposal.none}</span>}
       {editing && (
         <label className="orch-field">
           <textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} data-orch-checks-edit aria-describedby={editId} />
@@ -2121,7 +1946,7 @@ function ChecksDecision({ locale, proposal, sending, onDecide }: {
         {!editing && <button type="button" className="orch-primary" disabled={sending} data-orch-primary="checks_accept" data-orch-checks-accept onClick={() => onDecide(null)}>{t(locale, "orchZone_acceptChecks")}</button>}
         {!editing && <button type="button" disabled={sending} data-orch-checks-edit-open onClick={() => setEditing(true)}>{t(locale, "orchChecksEdit")}</button>}
         {editing && <button type="button" className="orch-primary" disabled={sending || lines.length === 0 || lines.length > 16} data-orch-primary="checks_edit" data-orch-checks-save onClick={() => onDecide(lines)}>{t(locale, "orchChecksSave")}</button>}
-        {none && <DangerConfirm locale={locale} label={t(locale, "orchChecksNoChecks")} text={t(locale, "orchZone_confirmNoChecks")} disabled={sending}
+        {none && <DangerConfirm locale={locale} label={t(locale, "orchChecksNoChecks")} text={t(locale, "orchZone_confirmNoChecks")} disabled={sending} textual
           attr={{ "data-orch-checks-accept": true }} onConfirm={() => onDecide(null)} />}
       </FormFoot>
     </Form>
@@ -2135,12 +1960,15 @@ function CheckRefused({ locale, refused, sending, onAmend }: {
 }): React.JSX.Element {
   const [text, setText] = useState(refused.command);
   const editId = useId();
+  const multi = refused.command.includes("\n");
   return (
     <Form title={t(locale, "orchCheckRefusedTitle")} attrs={{ "data-orch-check-refused": refused.checkId }}>
-      {/* the whole command, never shortened, in the field at once; saving it unchanged is the person's decision too (S1-4) */}
+      {/* the whole command, never shortened, in the field at once; saving it unchanged is the person's decision too (S1-4); mock-up 14: one line */}
+      {/* biome-ignore lint/a11y/noLabelWithoutControl: the control is the textarea or the input, whichever the command's lines call for */}
       <label className="orch-field">
-        <small className="orch-hint" id={editId}>{t(locale, "orchCheckRefusedEditHint")}</small>
-        <textarea rows={Math.min(8, refused.command.split("\n").length + 2)} value={text} onChange={(e) => setText(e.target.value)} data-orch-check-refused-line aria-describedby={editId} />
+        <span id={editId} className="orch-field__lead">{t(locale, "orchCheckRefusedEditHint")}</span>
+        {multi && <textarea rows={Math.min(8, refused.command.split("\n").length + 2)} value={text} onChange={(e) => setText(e.target.value)} data-orch-check-refused-line aria-describedby={editId} />}
+        {!multi && <input type="text" spellCheck={false} value={text} onChange={(e) => setText(e.target.value)} data-orch-check-refused-line aria-describedby={editId} />}
       </label>
       <FormFoot>
         <button type="button" className="orch-primary" disabled={sending || text.trim() === ""} data-orch-primary="check_amend" data-orch-check-edit-save onClick={() => onAmend(text.trim())}>{t(locale, "orchZone_saveOwn")}</button>
@@ -2150,8 +1978,8 @@ function CheckRefused({ locale, refused, sending, onAmend }: {
 }
 
 // Journal v2 (§2.1): push and QA of a run without checks — every step the goal asked for decided at once, for the tree
-// and commit shown; each is decided on its own (owner's decision 5i §7 p. 3), with a warning for QA of an unpushed commit.
-// Each choice is a card: its name and what it means for the work.
+// and commit shown; each is decided on its own (owner's decision 5i §7 p. 3). D-018 (mock-up 12): each step a row with the
+// segment «Выполнить | Пропустить», one button at the end; no cards, no warnings the mock-up does not draw.
 function FinishConfirm({ locale, confirm, sending, onConfirm }: {
   locale: LocaleId; confirm: NonNullable<OrchestrationRunView["confirm"]>; sending: boolean;
   onConfirm(push: "confirm" | "decline" | null, qa: "confirm" | "decline" | null): void;
@@ -2161,26 +1989,22 @@ function FinishConfirm({ locale, confirm, sending, onConfirm }: {
   const ready = !!confirm.tree && (!confirm.push || push !== null) && (!confirm.qa || qa !== null);
   const choice = (step: "push" | "qa", value: "confirm" | "decline" | null, set: (v: "confirm" | "decline") => void) => (
     <fieldset className="orch-field orch-finish-group" data-orch-finish-step={step}>
-      <legend>{t(locale, step === "push" ? "orchFinishGroup_push" : "orchFinishGroup_qa")}</legend>
-      <div className="orch-cards">
+      <legend>{step === "push" ? `Push${confirm.commit ? ` · ${confirm.commit.slice(0, 7)}` : ""}` : t(locale, "orchFinishLegend_qa")}</legend>
+      <div className="orch-seg orch-seg--field">
         {(["confirm", "decline"] as const).map((v) => (
-          <label key={v} className="orch-check orch-card">
-            <input type="radio" name={`orch-finish-${step}`} checked={value === v} onChange={() => set(v)} data-orch-finish-choice={`${step}:${v}`} />
-            <span className="orch-card__name">{t(locale, step === "push" ? (v === "confirm" ? "orchFinishConfirmPush" : "orchFinishDeclinePush") : v === "confirm" ? "orchFinishConfirmQa" : "orchFinishDeclineQa")}</span>
-            <small className="orch-card__effect">{t(locale, `orchFinishEffect_${step}_${v}` as TranslationKey)}</small>
-          </label>
+          <button key={v} type="button" aria-pressed={value === v} className={value === v ? "orch-tabs__on" : undefined} disabled={sending} data-orch-finish-choice={`${step}:${v}`} onClick={() => set(v)}>
+            {t(locale, v === "confirm" ? "orchFinishDo" : "orchFinishSkip")}
+          </button>
         ))}
       </div>
     </fieldset>
   );
   return (
     <Form title={t(locale, "orchFinishConfirmTitle")} attrs={{ "data-orch-finish-confirm": true }}>
-      <p className="orch-note orch-note--warn" data-orch-finish-no-checks>{t(locale, "orchFinishConfirmNoChecks")}</p>
-      {confirm.commit && <p className="orch-hint">commit <code>{confirm.commit.slice(0, 12)}</code></p>}
-      {confirm.push && confirm.qa && <p className="orch-hint" data-orch-finish-independent>{t(locale, "orchFinishIndependent")}</p>}
-      {confirm.push && choice("push", push, setPush)}
-      {confirm.qa && choice("qa", qa, setQa)}
-      {qa === "confirm" && push === "decline" && <p className="orch-note orch-note--warn" data-orch-qa-unpushed>{t(locale, "orchFinishConfirmQaUnpushed")}</p>}
+      <div className="orch-plate">
+        {confirm.push && choice("push", push, setPush)}
+        {confirm.qa && choice("qa", qa, setQa)}
+      </div>
       <FormFoot>
         <button type="button" className="orch-primary" disabled={sending || !ready} data-orch-primary="finish_confirm" data-orch-finish-submit
           onClick={() => onConfirm(confirm.push ? push : null, confirm.qa ? qa : null)}>{t(locale, "orchFinishConfirmSubmit")}</button>
@@ -2189,125 +2013,139 @@ function FinishConfirm({ locale, confirm, sending, onConfirm }: {
   );
 }
 
-// A4 (5h §3.5, §4; journal-v2-format.md §2.9): the person's decision on awaiting_person_decision — a disputed item (both
-// texts and paths: a new defect or a repeat of a closed candidate) and a person condition (met / not met). Each about
-// the state shown (runKey); the run goes on by itself after it. A choice sends its decision at once (one command per
-// item), so the choices are equal buttons: there is no default to press, and so no main button.
-function PersonDecide({ locale, d, sending, onDecide }: {
-  locale: LocaleId; d: OrchestrationDecisions; sending: boolean; onDecide(person: Omit<OrchestrationPersonDecide, "kind">): void;
+// A4 (5h §3.5, §4; journal-v2-format.md §2.9): the person's decision on awaiting_person_decision — a disputed item (a new
+// defect or a repeat of a closed candidate), a person condition (met / not met) and an open finding (close / to a wish). Each
+// about the state shown (runKey). D-018 (mock-up 10): one plate, every item a row with its segment, one «Отправить решения»
+// at the end that sends one command per item (as before: the choices are equal, there is no default to press).
+type PersonItem = { key: string; kind: string; text: string; attrs: Record<string, string>; context?: React.ReactNode;
+  options: { value: string; label: string; attrs: Record<string, string>; person: Omit<OrchestrationPersonDecide, "kind"> }[] };
+function PersonDecide({ locale, d, findings, sending, onSubmit }: {
+  locale: LocaleId; d: OrchestrationDecisions; findings: readonly OrchestrationFindings["items"][number][]; sending: boolean;
+  onSubmit(list: Omit<OrchestrationPersonDecide, "kind">[]): void;
 }): React.JSX.Element {
-  const uid = useId();
+  const [picked, setPicked] = useState<Record<string, string>>({});
+  const items: PersonItem[] = [
+    ...d.disputed.map((x): PersonItem => {
+      const target = { reviewTurnId: x.reviewTurnId, index: x.index };
+      return {
+        key: `d:${x.reviewTurnId}:${x.index}`, kind: t(locale, "orchPersonKind_disputed"), text: x.problem, attrs: { "data-orch-disputed": `${x.reviewTurnId}:${x.index}` },
+        context: <>
+          {x.paths.length > 0 && <small className="orch-hint">{x.paths.join(", ")}</small>}
+          {x.candidates.map((c) => <small key={c.id} className="orch-hint" data-orch-disputed-candidate={c.id}>{fill(t(locale, "orchDisputedCandidate"), { n: idNumber(c.id) })}: {c.problem}</small>)}
+        </>,
+        options: [
+          { value: "new", label: t(locale, "orchDisputedNew"), attrs: { "data-orch-disputed-new": "" }, person: { subject: "disputed", target, decision: "new", finding: null, runKey: d.runKey } },
+          ...x.candidates.map((c) => ({ value: `repeat:${c.id}`, label: x.candidates.length > 1 ? fill(t(locale, "orchDisputedRepeat"), { n: idNumber(c.id) }) : t(locale, "orchDisputedRepeatShort"),
+            attrs: { "data-orch-disputed-repeat": c.id }, person: { subject: "disputed" as const, target, decision: "repeat" as const, finding: c.id, runKey: d.runKey } }))
+        ]
+      };
+    }),
+    ...d.conditions.map((c): PersonItem => ({
+      key: `k:${c.id}`, kind: t(locale, "orchPersonKind_condition"), text: `«${c.text}»`, attrs: { "data-orch-person-condition": c.id },
+      options: [
+        { value: "met", label: t(locale, "orchPersonMet"), attrs: { "data-orch-person-met": "" }, person: { subject: "condition", target: c.id, decision: "met", finding: null, runKey: d.runKey } },
+        { value: "not_met", label: t(locale, "orchPersonNotMet"), attrs: { "data-orch-person-not-met": "" }, person: { subject: "condition", target: c.id, decision: "not_met", finding: null, runKey: d.runKey } }
+      ]
+    })),
+    ...(d.findings ? findings.map((f): PersonItem => ({
+      key: `f:${f.id}`, kind: t(locale, "orchPersonKind_finding"), text: f.problem, attrs: { "data-orch-person-finding": f.id },
+      options: [
+        { value: "close", label: t(locale, "orchSumDecideClose"), attrs: { "data-finding-close": f.id }, person: { subject: "finding", target: f.id, decision: "close", finding: null, runKey: d.runKey } },
+        ...(f.severity === "blocking" ? [{ value: "to_wish", label: t(locale, "orchSumDecideWish"), attrs: { "data-finding-to-wish": f.id }, person: { subject: "finding" as const, target: f.id, decision: "to_wish" as const, finding: null, runKey: d.runKey } }] : [])
+      ]
+    })) : [])
+  ];
+  const ready = items.length > 0 && items.every((it) => picked[it.key]);
   return (
     <Form title={t(locale, "orchPersonTitle")} attrs={{ "data-orch-person-decide": true }}>
-      {d.disputed.map((x, i) => (
-        <section key={`${x.reviewTurnId}:${x.index}`} className="orch-item" aria-labelledby={`${uid}-d${i}`} aria-describedby={`${uid}-c${i}`} data-orch-disputed={`${x.reviewTurnId}:${x.index}`}>
-          <p className="orch-item__ask" id={`${uid}-d${i}`}>{t(locale, "orchDisputedItem")}</p>
-          <p className="orch-hint" id={`${uid}-c${i}`} data-orch-disputed-consequence>{t(locale, "orchDisputedConsequence")}</p>
-          <div className="orch-seen">
-            <div data-orch-disputed-now>
-              <p className="orch-panel__text"><b>{t(locale, "orchDisputedNow")}</b> {x.problem}</p>
-              {x.evidence && <p className="orch-hint">{x.evidence}</p>}
-              {x.paths.length > 0 && <p className="orch-hint">{x.paths.join(", ")}</p>}
+      <div className="orch-plate">
+        {items.map((it) => (
+          <section key={it.key} className="orch-decide" {...it.attrs}>
+            <p className="orch-decide__ask"><span>{it.kind} · </span>{it.text}</p>
+            {it.context}
+            {/* biome-ignore lint/a11y/useSemanticElements: a button segment, not a form group */}
+            <div className="orch-seg orch-seg--field" role="group" aria-label={`${it.kind}: ${it.text}`}>
+              {it.options.map((o) => (
+                <button key={o.value} type="button" aria-pressed={picked[it.key] === o.value} className={picked[it.key] === o.value ? "orch-tabs__on" : undefined} disabled={sending} {...o.attrs}
+                  onClick={() => setPicked((cur) => ({ ...cur, [it.key]: o.value }))}>{o.label}</button>
+              ))}
             </div>
-            {x.candidates.map((c) => {
-              const shared = c.paths.filter((f) => x.paths.includes(f));
-              return (
-                <blockquote key={c.id} data-orch-disputed-candidate={c.id}>
-                  <b title={c.id}>{fill(t(locale, "orchDisputedCandidate"), { n: idNumber(c.id) })}</b>: {c.problem}
-                  {c.paths.length > 0 && <span className="orch-hint"> · {c.paths.join(", ")}</span>}
-                  {shared.length > 0 && <p className="orch-hint" data-orch-disputed-shared>{fill(t(locale, "orchDisputedShared"), { files: shared.join(", ") })}</p>}
-                </blockquote>
-              );
-            })}
-          </div>
-          <p className="orch-hint" data-orch-disputed-how>{t(locale, "orchDisputedHow")}</p>
-          <div className="orch-panel__actions orch-choices">
-            <button type="button" disabled={sending} data-orch-disputed-new
-              onClick={() => onDecide({ subject: "disputed", target: { reviewTurnId: x.reviewTurnId, index: x.index }, decision: "new", finding: null, runKey: d.runKey })}>
-              {t(locale, "orchDisputedNew")}</button>
-            {x.candidates.map((c) => (
-              <button key={c.id} type="button" disabled={sending} data-orch-disputed-repeat={c.id}
-                onClick={() => onDecide({ subject: "disputed", target: { reviewTurnId: x.reviewTurnId, index: x.index }, decision: "repeat", finding: c.id, runKey: d.runKey })}>
-                {fill(t(locale, "orchDisputedRepeat"), { n: idNumber(c.id) })}</button>
-            ))}
-          </div>
-        </section>
-      ))}
-      {d.conditions.map((c) => (
-        <section key={c.id} className="orch-item" aria-labelledby={`${uid}-k${c.id}`} data-orch-person-condition={c.id}>
-          <p className="orch-item__ask" id={`${uid}-k${c.id}`}><b title={c.id}>{fill(t(locale, "orchPersonCondition"), { n: idNumber(c.id) })}</b>: {c.text}</p>
-          <div className="orch-panel__actions orch-choices">
-            <button type="button" disabled={sending} data-orch-person-met
-              onClick={() => onDecide({ subject: "condition", target: c.id, decision: "met", finding: null, runKey: d.runKey })}>{t(locale, "orchPersonMet")}</button>
-            <button type="button" disabled={sending} data-orch-person-not-met
-              onClick={() => onDecide({ subject: "condition", target: c.id, decision: "not_met", finding: null, runKey: d.runKey })}>{t(locale, "orchPersonNotMet")}</button>
-          </div>
-        </section>
-      ))}
+          </section>
+        ))}
+      </div>
+      <FormFoot>
+        <button type="button" className="orch-primary" disabled={sending || !ready} data-orch-primary="person_decide" data-orch-person-submit
+          onClick={() => onSubmit(items.map((it) => it.options.find((o) => o.value === picked[it.key])!.person))}>{t(locale, "orchZone_sendDecisions")}</button>
+      </FormFoot>
     </Form>
   );
 }
 
-// A4 (5h §3.6 p. 5): a plan proposal that drops conditions or requirements — what goes, why, what is left uncovered,
-// and a choice for every open blocking finding of a dropped condition (Accept stays off until each has one). «Вернуть
-// лиду» keeps the plan in force and sends the note.
+// A4 (5h §3.6 p. 5): a plan proposal that drops conditions or requirements — what goes and why, and a choice for every open
+// blocking finding of a dropped condition (asked after «Принять снятие…», mock-up 11). «Вернуть лиду» keeps the plan in
+// force and sends the note.
 function PlanProposal({ locale, d, sending, onDecide }: {
   locale: LocaleId; d: OrchestrationDecisions; sending: boolean; onDecide(plan: Omit<OrchestrationPlanDecide, "kind">): void;
 }): React.JSX.Element {
   const p = d.proposal!;
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [note, setNote] = useState("");
+  const [noting, setNoting] = useState(false);
+  const [picking, setPicking] = useState(false);
   const ready = p.findings.every((f) => choices[f.id]);
   const waitId = useId();
   const choiceOf = (id: string): OrchestrationPlanChoice => {
     const v = choices[id];
     return v === "close" || v === "to_wish" ? { id, choice: v, stage: null, condition: null } : { id, choice: "move", stage: Number(v.slice(6)), condition: null };
   };
+  const accept = () => onDecide({ proposalTurnId: p.proposalTurnId, decision: "accept", choices: p.findings.map((f) => choiceOf(f.id)), note: null, runKey: d.runKey });
   return (
     <Form title={t(locale, "orchProposalTitle")} attrs={{ "data-orch-plan-proposal": p.proposalTurnId }}>
       {/* UX audit PR 2: what the decision is about stays in view while its choices scroll */}
-      <div className="orch-proposal__head" data-orch-proposal-head>
-        <ul className="orch-items">
-          {p.dropped.map((x) => (
-            <li key={x.id} className="orch-item" data-orch-proposal-drop={x.id}><b title={x.id}>{fill(t(locale, "orchProposalCondition"), { n: idNumber(x.id) })}</b>: {x.text}
-              {x.covers.length > 0 && <span className="orch-hint"> · {x.covers.join(", ")}</span>}<br /><span className="orch-hint">{fill(t(locale, "orchProposalWhy"), { why: x.why })}</span></li>
-          ))}
-          {p.dropRequirements.map((x) => (
-            <li key={x.id} className="orch-item" data-orch-proposal-drop={x.id}><b title={x.id}>{fill(t(locale, "orchProposalRequirement"), { n: idNumber(x.id) })}</b>: {x.text}
-              <br /><span className="orch-hint">{fill(t(locale, "orchProposalWhy"), { why: x.why })}</span></li>
-          ))}
-        </ul>
-        {p.uncovered.length > 0 && <p className="orch-note orch-note--warn" data-orch-proposal-uncovered>{fill(t(locale, "orchProposalUncovered"), { list: p.uncovered.map((id) => idLabel(locale, id)).join(", ") })}</p>}
-      </div>
-      <p className="orch-hint">{fill(t(locale, "orchProposalStages"), { stages: p.stages.map((s) => `${s.stage}. ${s.title}`).join("; ") })}</p>
-      {p.findings.length > 0 && <>
-        <p><b>{t(locale, "orchProposalFindings")}</b></p>
-        {p.findings.map((f) => (
-          <label key={f.id} className="orch-field orch-item" data-orch-proposal-finding={f.id}>
-            <span><IdLabel locale={locale} id={f.id} /> (<IdLabel locale={locale} id={f.condition} plain />): {f.problem}</span>
-            <select value={choices[f.id] ?? ""} onChange={(e) => setChoices((c) => ({ ...c, [f.id]: e.target.value }))}>
-              <option value="" disabled>{t(locale, "orchProposalChoose")}</option>
-              {p.stages.map((s) => <option key={s.stage} value={`stage:${s.stage}`}>{fill(t(locale, "orchProposalMove"), { n: s.stage })}</option>)}
-              <option value="close">{t(locale, "orchProposalClose")}</option>
-              <option value="to_wish">{t(locale, "orchProposalToWish")}</option>
-            </select>
-          </label>
+      <div className="orch-plate orch-proposal__head" data-orch-proposal-head>
+        {p.dropped.map((x) => (
+          <section key={x.id} className="orch-decide" data-orch-proposal-drop={x.id}>
+            <p className="orch-decide__ask" title={x.id}>{fill(t(locale, "orchProposalCondition"), { n: idNumber(x.id) })} «{x.text}»</p>
+            <small className="orch-hint">{fill(t(locale, "orchProposalWhy"), { why: x.why })}</small>
+          </section>
         ))}
-      </>}
-      {/* UX audit: the safe choice first and main — the plan in force stays; accepting drops what is no longer checked.
-          Both in one row, so neither scrolls under the pinned subject while the other is in view (PR 2) */}
-      <textarea rows={2} value={note} placeholder={t(locale, "orchProposalNote")} aria-label={t(locale, "orchProposalNote")} onChange={(e) => setNote(e.target.value)} data-orch-proposal-note />
-      <p className="orch-hint">{t(locale, "orchProposalKeeps")}</p>
-      <p className="orch-hint orch-hint--warn" data-orch-proposal-accept-warn>{t(locale, "orchProposalAcceptWarn")}</p>
-      {!ready && <p className="orch-hint" id={waitId} data-orch-proposal-pick>{t(locale, "orchProposalPickFirst")}</p>}
+        {p.dropRequirements.map((x) => (
+          <section key={x.id} className="orch-decide" data-orch-proposal-drop={x.id}>
+            <p className="orch-decide__ask" title={x.id}>{fill(t(locale, "orchProposalRequirement"), { n: idNumber(x.id) })} «{x.text}»</p>
+            <small className="orch-hint">{fill(t(locale, "orchProposalWhy"), { why: x.why })}</small>
+          </section>
+        ))}
+        {p.findings.map((f) => (
+          <section key={f.id} className="orch-decide" data-orch-proposal-finding={f.id}>
+            <p className="orch-decide__ask">{t(locale, "orchPersonKind_finding")} «{f.problem}»</p>
+            {picking
+              ? <select value={choices[f.id] ?? ""} aria-label={f.problem} onChange={(e) => setChoices((c) => ({ ...c, [f.id]: e.target.value }))}>
+                <option value="" disabled>{t(locale, "orchProposalChoose")}</option>
+                {p.stages.map((s) => <option key={s.stage} value={`stage:${s.stage}`}>{fill(t(locale, "orchProposalMove"), { n: s.stage })}</option>)}
+                <option value="close">{t(locale, "orchProposalClose")}</option>
+                <option value="to_wish">{t(locale, "orchProposalToWish")}</option>
+              </select>
+              : <small className="orch-hint">{t(locale, "orchProposalIfAccepted")}</small>}
+          </section>
+        ))}
+      </div>
+      {noting && <textarea rows={2} value={note} placeholder={t(locale, "orchProposalNote")} aria-label={t(locale, "orchProposalNote")} onChange={(e) => setNote(e.target.value)} data-orch-proposal-note />}
       <FormFoot>
         <button type="button" className="orch-primary" disabled={sending} data-orch-primary="plan_return" data-orch-proposal-return
           onClick={() => onDecide({ proposalTurnId: p.proposalTurnId, decision: "return", choices: [], note: note.trim() || null, runKey: d.runKey })}>
           {t(locale, "orchProposalReturn")}</button>
-        <DangerConfirm locale={locale} label={t(locale, "orchProposalAcceptDrop")} text={t(locale, "orchProposalAcceptWarn")} disabled={sending || !ready}
-          attr={{ "data-orch-proposal-accept": true, ...(ready ? {} : { "aria-describedby": waitId }) }}
-          onConfirm={() => onDecide({ proposalTurnId: p.proposalTurnId, decision: "accept", choices: p.findings.map((f) => choiceOf(f.id)), note: null, runKey: d.runKey })} />
+        {!noting && <button type="button" className="orch-textual" data-orch-proposal-note-open onClick={() => setNoting(true)}>{t(locale, "orchProposalNoteOpen")}</button>}
       </FormFoot>
+      {/* mock-up 11: the dangerous way out is a row of its own: «Принять снятие…» and what it asks */}
+      <div className="orch-zone__danger" data-orch-danger-row>
+        {p.findings.length > 0 && !picking
+          ? <span className="orch-zone__danger-row"><button type="button" className="orch-stop" disabled={sending} data-orch-proposal-accept-open onClick={() => setPicking(true)}>{t(locale, "orchProposalAcceptOpen")}</button><small>{t(locale, "orchProposalPerItem")}</small></span>
+          : <span className="orch-zone__danger-row">
+            <DangerConfirm locale={locale} label={t(locale, "orchProposalAcceptDrop")} text={t(locale, "orchProposalAcceptWarn")} disabled={sending || !ready}
+              attr={{ "data-orch-proposal-accept": true, ...(ready ? {} : { "aria-describedby": waitId }) }} onConfirm={accept} />
+            {!ready && <small id={waitId} data-orch-proposal-pick>{t(locale, "orchProposalPickFirst")}</small>}
+          </span>}
+      </div>
     </Form>
   );
 }

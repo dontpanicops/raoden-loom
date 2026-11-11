@@ -28,8 +28,8 @@ const TEXTUAL: ReadonlySet<ZoneAction> = new Set<ZoneAction>(["open_plan"]);
 const cap = (x: string): string => x.charAt(0).toLocaleUpperCase() + x.slice(1);
 
 // An outlined danger button that asks first: the question and "Do it" / "Cancel" take its place until answered.
-export function DangerConfirm({ locale, label, text, disabled, onConfirm, attr }: {
-  locale: LocaleId; label: string; text: string; disabled?: boolean; onConfirm(): void; attr?: Record<string, string | boolean>;
+export function DangerConfirm({ locale, label, text, disabled, onConfirm, attr, textual }: {
+  locale: LocaleId; label: string; text: string; disabled?: boolean; onConfirm(): void; attr?: Record<string, string | boolean>; textual?: boolean;
 }): React.JSX.Element {
   const [asking, setAsking] = useState(false);
   const opener = useRef<HTMLButtonElement>(null);
@@ -43,7 +43,7 @@ export function DangerConfirm({ locale, label, text, disabled, onConfirm, attr }
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [asking]);
-  if (!asking) return <button ref={opener} type="button" className="orch-stop" disabled={disabled} data-orch-danger {...attr} onClick={() => setAsking(true)}>{label}</button>;
+  if (!asking) return <button ref={opener} type="button" className={textual ? "orch-textual" : "orch-stop"} disabled={disabled} data-orch-danger {...attr} onClick={() => setAsking(true)}>{label}</button>;
   return (
     <div className="orch-confirm" role="alertdialog" aria-label={label} aria-describedby={textId} data-orch-confirm>
       <span id={textId}>{text}</span>
@@ -150,6 +150,7 @@ export function ActionZone(p: ActionZoneProps): React.JSX.Element {
           </p>
         )}
       </div>
+      {zone.detail && <pre className="orch-zone__error" data-orch-error>{zone.detail}</pre>}
       {p.stages && p.stages.length > 0 && zone.variant === "plan_review" && <ol className="orch-zone__stages" data-orch-stages>{p.stages.map((x) => <li key={x}>{x}</li>)}</ol>}
       {p.children}
       {p.notices}

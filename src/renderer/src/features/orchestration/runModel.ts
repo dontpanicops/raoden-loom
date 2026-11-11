@@ -26,8 +26,8 @@ export { admits, RESUMABLE, STEP_ONLY, STOP_ONLY, type AdmissionKind };
 export const ACTIVE_STATUSES = ["preparing", "running", "pausing", "paused", "stopping"];
 export const TERMINAL_STATUSES = ["stopped", "completed", "failed"];
 // R5b (D-017): the tab a run opens on, as the mock-ups have it: a finished run and the decisions of the checks and the
-// finish on the summary, the pauses about the tree on the changes, the work on "Work"
-const SUMMARY_PAUSES = ["awaiting_checks_decision", "awaiting_finish_confirmation", "check_needs_permissions"];
+// finish, the plan to review and the person's decisions (D-018) on the summary, the pauses about the tree on the changes, the work on "Work"
+const SUMMARY_PAUSES = ["awaiting_checks_decision", "awaiting_finish_confirmation", "check_needs_permissions", "plan_review", "awaiting_person_decision"];
 const CHANGES_PAUSES = ["outcome_unknown", "lead_modified_tree"];
 export function openingTab(view: { status: string; reason?: string | null } | undefined): "summary" | "work" | "changes" {
   if (!view || TERMINAL_STATUSES.includes(view.status)) return "summary";
@@ -685,6 +685,7 @@ export interface ZoneModel {
   dangerous: ZoneButton[]; // outlined in the danger colour, each asks for a confirmation
   clarify: "hidden" | "collapsed" | "open" | "disabled"; // disabled: a waiting plan proposal is the person's first
   footer: ZoneButton[]; // under the tabs, outside the scroll: pause after the turn, Stop, copy id / journal
+  detail?: string; // a failed run: the last error the activity quotes (mock-up 18)
   commands: AdmissionKind[]; // every command the zone can send, for the test against admits()
 }
 
@@ -747,15 +748,16 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
     }
     case "stopped": case "failed": {
       const cause = viewCause(view, entries);
+      const lastError = [...entries].reverse().find((e) => e.kind === "error" && e.text)?.text.slice(0, 600) ?? null;
       // R5a: the cause is the headline (the mock-up's "Claude CLI exited with code 1 on stage 2"); no cause - the state's own words
-      return state(status, status, { eyebrow: L(`orchEyebrow_${status}`), ...(cause ? { title: causeText(locale, cause) } : {}), footer: [b("copy_id", L("orchZone_copyId"))],
+      return state(status, status, { eyebrow: L(`orchEyebrow_${status}`), ...(cause ? { title: causeText(locale, cause) } : {}), ...(status === "failed" && lastError ? { detail: lastError } : {}), footer: [b("copy_id", L("orchZone_copyId"))],
         primary: b("open_journal", L("orchZone_openJournal")), secondary: [b("new_goal", L("orchNewGoal"))] });
     }
   }
   // paused
   const set = zoneSet(view, entries, onMac);
   const title = text?.what ?? L(`orchHeadline_${runHeadline(view).headline}`);
-  const base = { variant: set, tone: (text?.you === false ? "calm" : "waiting") as ZoneTone, eyebrow: "", title, why: text?.why ?? "", todo: ["plan_review", "awaiting_checks_decision", "awaiting_checks_none", "loop_suspected"].includes(set) ? "" : text?.todo ?? "" }; // the "why" alone (mock-ups 04, 05, 06, 09)
+  const base = { variant: set, tone: (text?.you === false ? "calm" : "waiting") as ZoneTone, eyebrow: "", title, why: (set === "limit_reached" && view.progress?.budget?.reached ? L(`orchPause_limit_reached_why_${view.progress.budget.reached}` as TranslationKey) : text?.why) ?? "", todo: ["plan_review", "awaiting_checks_decision", "awaiting_checks_none", "loop_suspected", "awaiting_answer", "awaiting_finish_confirmation", "check_needs_permissions", "limit_reached"].includes(set) ? "" : text?.todo ?? "" }; // the "why" alone (mock-ups 02, 04, 05, 06, 07, 09, 12, 14)
   const resume = (label = text?.button ?? L("orchResume")) => b("resume", label, ["resume"]);
   const step = () => b("step", L("orchStep"), ["step"]);
   const secondary: ZoneButton[] = [];

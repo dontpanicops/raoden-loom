@@ -145,9 +145,6 @@ try {
   const N = await pair(node);
   await startGoal(app, N.link.linkId, { task: "Добавить src/note.mjs", criteria: "src/note.mjs есть\nnode --test проходит", commands: ["node --test"],
     onDialog: async () => { await app.waitFor(`${q("[data-orch-readiness]")} && true`, "readiness"); await app.shot("03-goal-dialog"); } });
-  await app.waitFor(`${q("[data-orch-where]")} && true`, "the panel's work folder"); // under load the panel renders after the start
-  const where = await app.ev(`(() => { const el = ${q("[data-orch-where]")}; return el && { mode: el.dataset.orchWhere, text: el.textContent }; })()`);
-  expect(where?.mode === "project" && where.text.includes(node), "the panel says: in the project folder, with its path", where);
   await app.waitFor(`${q("[data-orch-permission]")} && true`, "permission prompt", 60_000);
   const perm = await app.ev(`${q("[data-orch-permission]")}.textContent`);
   expect(perm.includes("Bash") && perm.includes("node --test"), "the executor's Bash prompt is in the panel with its command", perm);
@@ -170,6 +167,10 @@ try {
   expect(fs.readFileSync(path.join(node, "src", "note.mjs"), "utf8").includes("note"), "the executor wrote into the project folder", null);
   expect(fs.readFileSync(path.join(node, "README.md"), "utf8") === "the user's uncommitted work\n", "the user's uncommitted work is kept", null);
   expect(git(node, "rev-parse", "--abbrev-ref", "HEAD").trim() === "main", "the user's branch is untouched", null);
+  await openTab(app, "summary");
+  await app.waitFor(`${q("[data-orch-where]")} && true`, "the panel's work folder"); // D-018: «Где изменения» is a fact of the finished run (mock-ups 13, 17)
+  const where = await app.ev(`(() => { const el = ${q("[data-orch-where]")}; return el && { mode: el.dataset.orchWhere, text: el.textContent }; })()`);
+  expect(where?.mode === "project" && where.text.includes(node), "the panel says: in the project folder, with its path", where);
   await app.shot("06-completed");
   await openTab(app, "activity");
   await app.waitFor(`document.querySelectorAll("[data-activity-kind]").length > 3`, "feed", 10_000);

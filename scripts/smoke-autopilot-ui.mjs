@@ -208,12 +208,6 @@ try {
   await app.clickEl(byText(`[data-agent-link-id="${link.linkId}"] button`, "Наблюдать"));
   await app.waitFor(`${q("[data-orch-permission]")} && true`, "panel again", 10_000);
   expect((await visibleNow(app, q(`[data-orch-permission] [data-decision="allow_project"]`))).ok, "reopened by Observe: the permission's buttons are in view", await visibleNow(app, q(`[data-orch-permission] [data-decision="allow_project"]`)));
-  await openTab(app, "overview");
-  expect((await app.ev(`${q("[data-board=access]")}?.textContent ?? ""`)).includes("Правки файлов без вопросов"), "the board shows the run's rights", null);
-  expect(await app.ev(`!!${q("[data-board=access]")}?.closest(".orch-board__terminal")`), "the board shows «Как в моём терминале» in the warning colour", null);
-  // v2: the reviewer is a participant too, a new session of the lead's CLI with its mode
-  const badges = await app.ev(`[...document.querySelectorAll("[data-participant] [data-participant-access]")].map((e) => [e.closest("[data-participant]").dataset.participant, e.dataset.participantAccess])`);
-  expect(JSON.stringify(badges) === JSON.stringify([["lead", "terminal"], ["executor", "acceptEdits"], ...(V2 ? [["reviewer", "terminal"]] : [])]), "each participant's card shows its CLI's mode", badges);
   await app.clickEl(q(`[data-orch-permission] [data-decision="allow_project"]`));
 
   await app.waitFor(`${q('[data-orch-permission="elicitation"]')} && true`, "MCP form", 30_000);
@@ -249,32 +243,30 @@ try {
   expect(qa?.status === "done" && fs.readFileSync(deployed, "utf8").trim() === commit?.commit, "QA got the commit and its verification passed", qa);
   const changes = await app.ev(`window.canvasTTY.orchestration.changes(${JSON.stringify(v.runId)})`);
   expect(changes.ok && changes.value.files.map((f) => f.path).join() === "app.php", "the changes against the start list the fix", changes);
+  await openTab(app, "summary");
+  // D-018: the rights are on the participants' rows of the summary (mock-up 13), no board
+  expect((await app.ev(`${q('[data-participant="executor"] [data-participant-access]')}?.textContent ?? ""`)).includes("Правки файлов без вопросов"), "the participants show the run's rights", null);
+  // v2: the reviewer is a participant too, a new session of the lead's CLI with its mode
+  const badges = await app.ev(`[...document.querySelectorAll("[data-participant] [data-participant-access]")].map((e) => [e.closest("[data-participant]").dataset.participant, e.dataset.participantAccess])`);
+  expect(JSON.stringify(badges) === JSON.stringify([["lead", "terminal"], ["executor", "acceptEdits"], ...(V2 ? [["reviewer", "terminal"]] : [])]), "each participant's card shows its CLI's mode", badges);
   await sleep(800);
   expect((await app.ev(`${q('[data-fact="changes"]')}.textContent`)).includes("да"), "the result says there are changes", await app.ev(`${q('[data-fact="changes"]')}.textContent`));
-  await app.ev(`${q("[data-orch-board]")}?.scrollIntoView({ block: "start" })`);
-  await app.shot("08-completed-board");
-  // UX audit Н9: what the run spent — model calls per role, the tokens each CLI reported, the turns and the time
-  const cost = await app.ev(`Object.fromEntries(["calls", "tokens", "turns-used", "elapsed"].map((k) => [k, document.querySelector('[data-board="' + k + '"]')?.textContent ?? null]))`);
-  expect(/Лид [1-9]/.test(cost.calls ?? "") && /Исполнитель [1-9]/.test(cost.calls ?? ""), "the board: model calls per role", cost);
-  expect(/Лид: [\d,]+/.test(cost.tokens ?? "") && /Исполнитель: [\d,]+/.test(cost.tokens ?? "") && !/\$|USD/.test(cost.tokens ?? ""), "the board: tokens per role as the CLIs reported them, no money", cost);
-  expect(/^\d+ из \d+$/.test(cost["turns-used"] ?? "") && / из /.test(cost.elapsed ?? ""), "the board: turns and time against the limits", cost);
-  expect(/вызовов моделей: \d+, токенов: [\d,]/.test(await app.ev(`${q('[data-board="cost-total"]')}?.textContent ?? ""`)), "the board: what the run spent in all, on one line", null);
-  await app.ev(`${q("[data-orch-cost-roles]")}.open = true`);
+  await app.ev(`${q("[data-orch-limits]")}?.scrollIntoView({ block: "start" })`);
+  await app.shot("08-completed-limits");
+  // UX audit Н9: what the run spent — D-018: one row of the «Время, лимиты, окружение» block (the roles' split is the journal's)
+  expect(/вызовов моделей: \d+, токенов: [\d,]/.test(await app.ev(`${q('[data-board="cost-total"]')}?.textContent ?? ""`)), "the summary: what the run spent in all, on one line", null);
   expect(/Вызовы этого агента: \d+ · токенов:/.test(await app.ev(`${q("[data-agent-cost]")}?.textContent ?? ""`)), "the cards: calls and tokens of their agent", await app.ev(`${q("[data-agent-cost]")}?.textContent ?? ""`));
-  await app.ev(`${q('[data-board="calls"]')}?.scrollIntoView({ block: "center" })`);
-  await sleep(200);
-  await app.shot("08b-board-cost");
   await app.ev(`${q("[data-orch-finish]")}.scrollIntoView({ block: "center" })`);
   await sleep(200);
   await app.shot("09-result");
   // review 2: the version is confirmed only because the verification reported the observed commit and it matched
   expect(qa?.version === "confirmed" && qa?.observed === commit?.commit, "QA: the observed version is the expected commit", qa);
   const qaLine = await app.ev(`${q('[data-finish-step="qa"]')}?.textContent ?? ""`);
-  expect(qaLine.includes("подтверждена ожидаемая версия") && qaLine.includes(commit.commit.slice(0, 12)) && (await app.ev(`${q('[data-finish-step="qa"]')}.dataset.finishStatus`)) === "qa_confirmed",
+  expect(qaLine.includes("подтверждена ожидаемая версия") && qaLine.includes(commit.commit.slice(0, 7)) && (await app.ev(`${q('[data-finish-step="qa"]')}.dataset.finishStatus`)) === "qa_confirmed",
     "the result says the expected version is confirmed on QA and shows the observed commit", qaLine);
-  await app.ev(`${q("[data-orch-env-session]")}.scrollIntoView({ block: "center" })`);
+  await app.ev(`${q("[data-orch-limits]")}.scrollIntoView({ block: "center" })`);
   await sleep(200);
-  expect((await app.ev(`${q("[data-orch-env-session]")}.textContent`)).includes("mock-mcp (connected)"), "the run shows what the CLIs reported they loaded", null);
+  expect((await app.ev(`[...document.querySelectorAll("[data-env-provider]")].map((e) => e.textContent).join(" ")`)).includes("mock-mcp (connected)"), "the run shows what the CLIs reported they loaded", null);
   await app.shot("10-session-environment");
   await openTab(app, "activity");
   await app.clickEl(`document.querySelector('.orch-roles [data-orch-role="executor"]')`);

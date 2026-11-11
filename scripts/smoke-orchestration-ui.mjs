@@ -167,7 +167,7 @@ try {
   // v1: the lead's final verdict; v2 has none (the reviewer marks requirements): the result line itself
   await app.waitFor(`${q(V2 ? '[data-orch-proof]' : "[data-orch-result]")} && true`, "final verdict shown", 10_000);
   const run1 = link.runIds[0] ?? (await canvasState(app)).links[0].runIds[0];
-  expect(await app.ev(`document.querySelectorAll(".orch-checks li").length > 0 && document.querySelectorAll(".orch-plan li").length === 1`), "completed: plan and check results in the overview", null);
+  expect(await app.ev(`!!document.querySelector("[data-sum-check-count]") && document.querySelectorAll("[data-stage-n]").length === 1`), "completed: plan stages and check results in the summary", null);
   await openTab(app, "history");
   await app.waitFor(`document.querySelectorAll(".orch-history li").length > 3`, "history tab");
   expect(true, "completed: the history is in its tab", null);
@@ -204,13 +204,15 @@ try {
   const scrolled = await app.ev(`${q(".orch-panel__body")}.scrollTop`);
   expect(scrolled > 0, "the run panel scrolls with the mouse wheel (the canvas does not take the wheel over it)", scrolled);
   expect(true, "the executor's report opens with its summary", null);
-  await openTab(app, "result");
+  await openTab(app, "summary");
+  await app.clickEl(q('[data-orch-open-doc="result"]'));
   await app.waitFor(`${q('[data-run-doc="result"]')}?.textContent.includes("extra test fixed")`, "result tab shows what was done");
   expect(true, "completed: the result tab shows what the executor did", null);
   await app.clickEl(q("[data-run-doc-copy]"));
   const copied = await app.ev("window.canvasTTY.clipboard.readText()");
   expect(typeof copied === "string" && copied.startsWith("# "), "the result is copied as markdown", copied?.slice(0, 80));
-  await openTab(app, "plan");
+  await openTab(app, "summary");
+  await app.clickEl(q('[data-orch-open-doc="plan"]'));
   await app.waitFor(`${q('[data-run-doc="plan"]')}?.textContent.includes("Заметка")`, "plan tab shows the stage");
   expect(true, "completed: the plan tab shows the stage", null);
   // «To the canvas»: a snapshot note, marked as a copy; «Open current» leads back to the run's plan tab
@@ -241,7 +243,7 @@ try {
   const reason2 = await app.ev(`${q(".orch-panel__status [data-orch-reason]")}.textContent`);
   const actions2 = await app.ev(`[...document.querySelectorAll(".orch-panel__actions button, .orch-panel__foot button")].map((b) => b.textContent)`);
   expect(reason2.includes("план") && JSON.stringify(actions2) === JSON.stringify(["Начать работу по плану", "Один шаг", "Остановить запуск"]) && (await app.ev(`!!${q("[data-orch-open-plan]")}`)), "plan review: paused with its reason; Resume (as «Начать работу по плану») and Step in the row, Open the plan as a text button (R5a), Stop (footer) offered", [reason2, actions2]);
-  await app.waitFor(`document.querySelectorAll(".orch-plan li").length === 1`, "plan shown for review");
+  await app.waitFor(`document.querySelectorAll("[data-stage-n]").length === 1`, "plan shown for review");
   // review UX-9: the plan to review is also in the pinned summary, in view without scrolling
   const openPlan = await visibleNow(app, q("[data-orch-open-plan]"));
   expect(openPlan.ok, "plan review: «Open the plan» is in the summary, in view", openPlan);

@@ -79,9 +79,26 @@ const { fixture, view } = await import(pathToFileURL(path.join(ROOT, "tests/fixt
 const { legacyView } = await import(pathToFileURL(path.join(ROOT, "src/renderer/src/features/orchestration/panelTabs.ts")).href);
 
 // the plan of two stages the run runs on (the mock-up's "stage 2 of 2" and the numbered list of the plan review)
-const PLAN_RECORDS = [{ seq: 1, ts: "2026-11-11T10:00:00.000Z", type: "plan.recorded", data: { plan: { sha256: "pp", bytes: 1 }, firstStage: 1 } },
+const PLAN_RECORDS = [{ seq: 1, ts: "2026-11-11T10:00:00.000Z", type: "plan.recorded", data: { plan: { sha256: "pp", bytes: 1 }, firstStage: 1, stageCount: 2 } },
   { seq: 2, ts: "2026-11-11T10:05:00.000Z", type: "review.recorded", data: { stage: null, verdict: "complete", findings: null } }];
-const PLAN_TEXTS = { pp: { status: "ready", text: JSON.stringify({ stages: [{ title: "Модель заметки и хранилище", task: "t" }, { title: "API и список заметок в UI", task: "t" }] }) } };
+const PLAN_TEXTS = { pp: { status: "ready", text: JSON.stringify({ stages: [{ title: "модель заметки", task: "t" }, { title: "API и список", task: "t" }] }) },
+  gg: { status: "ready", text: JSON.stringify({ text: "Добавить заметки к задачам доски", limits: { runMs: 4 * 3600_000, turns: 40, roundsPerStage: 6 } }) },
+  rr: { status: "ready", text: JSON.stringify({ done: true, summary: "заметки добавлены" }) } };
+// R5b3: the journal of the completed run the mock-up 17 draws — the goal with its limits, three plan versions of two stages, both stages accepted, the executor's report
+const T0 = Date.parse("2026-11-11T10:00:00.000Z");
+const at = (min) => new Date(T0 + min * 60_000).toISOString();
+const RECORDS_17 = [{ seq: 1, ts: at(0), type: "run.created", data: { goal: { sha256: "gg", bytes: 1 } } },
+  ...[2, 3, 4].map((n) => ({ seq: n, ts: at(n), type: "plan.recorded", data: { plan: { sha256: "pp", bytes: 1 }, firstStage: 1, stageCount: 2, version: n - 1 } })),
+  { seq: 5, ts: at(10), type: "orch.turn", data: { turnId: "t1", purpose: "execute", stage: 1 } },
+  { seq: 6, ts: at(20), type: "turn.finished", data: { turnId: "t1", outcome: "completed", report: { ref: { sha256: "rr", bytes: 1 } } } },
+  { seq: 7, ts: at(21), type: "stage.accepted", data: { stage: 1 } }, { seq: 8, ts: at(40), type: "stage.accepted", data: { stage: 2 } },
+  { seq: 9, ts: at(72), type: "review.recorded", data: { stage: null, verdict: "complete", findings: null } }];
+const check = (id, title) => ({ id, title, status: "passed", class: null });
+const PROGRESS_17 = { mode: "autopilot", branch: "feat/notes", access: { claude: "workspace", codex: "terminal" }, models: null, prepare: null, grantsApplied: 0, completion: "confirmed",
+  checks: [check("c1", "npm test"), check("c2", "npm run lint"), check("c3", "npm run build")],
+  finish: [{ step: "commit", asked: true, status: "done", established: true, commit: "a1b2c3d4e5f60718", evidence: null }, { step: "push", asked: true, status: "done", established: true, commit: "9f8e7d6c5b4a3921", evidence: null },
+    { step: "qa", asked: false, status: "not_started", established: false, commit: null, evidence: null }] };
+const budget = (extra) => ({ calls: { lead: 14, executor: 22, reviewer: 0 }, limits: { turns: 40, runMs: 4 * 3600_000, replans: 3, roundsPerStage: 6 }, used: { turns: 40, replans: 0 }, startedAt: Date.now() - 72 * 60_000, deadlineAt: Date.now() + 168 * 60_000, reached: null, ...extra });
 async function renderer() { // the built RunPanel to static markup (as tests/orchestration-action-zone-render.test.mjs does)
   const out = await requireApp("esbuild").build({
     // R5b (D-017): the entry also exports ActionZone and the zone model, for the frame of the open "Уточнить" field
@@ -111,8 +128,8 @@ async function renderer() { // the built RunPanel to static markup (as tests/orc
     return renderToStaticMarkup(React.createElement(mod.exports.RunPanel, {
       orch: { runs: { "25931336": { view: v, open: true, seq: 9, tick: 0 }, ...(f.live ? { "7c41e09a": { view: { ...v, runId: "7c41e09a", status: "paused" }, open: true, seq: 1, tick: 0 }, b2e0f115: { view: { ...v, runId: "b2e0f115", status: "completed" }, open: true, seq: 1, tick: 0 } } : {}) }, activity: { "25931336": { entries: f.entries, gaps: [], firstId: f.entries[0]?.id ?? 0, status: "ready", resyncs: 0 } },
         runErrors: {}, canvas: { links: [{ linkId: "L", fromAgentId: "a1", toAgentId: "a2", createdAt: "2026-11-11T10:00:00.000Z", runIds: ["25931336"] }],
-          agents: [{ agentId: "a1", provider: "codex", role: "lead", project: "/work/project-b" }, { agentId: "a2", provider: "claude", role: "executor", project: "/work/project-b" }] }, journals: { "25931336": { records: PLAN_RECORDS, next: 1, status: "ready" } }, texts: PLAN_TEXTS,
-        commands: { pending: () => [] }, catalog: { checks: [] }, loadText() {}, syncJournal() {}, retry() {}, stageTitles: () => ({}) },
+          agents: [{ agentId: "a1", provider: "codex", role: "lead", project: "/work/project-b" }, { agentId: "a2", provider: "claude", role: "executor", project: "/work/project-b" }] }, journals: { "25931336": { records: f.records ?? PLAN_RECORDS, next: 1, status: "ready" } }, texts: PLAN_TEXTS,
+        commands: { pending: () => [] }, catalog: { checks: [], providers: { lead: { provider: "codex", protocol: "app-server" }, executor: { provider: "claude", protocol: "stream-json" } } }, loadText() {}, syncJournal() {}, retry() {}, stageTitles: () => ({}) },
       runId: "25931336", locale: "ru", liveRunIds: f.live ? ["25931336", "7c41e09a", "b2e0f115"] : undefined, panel: { linkId: "L", mode: "feed", ...(f.tab ? { tab: f.tab, role: "all" } : f.work ? { tab: "work", role: "all" } : legacyView("overview")), role: f.work || f.tab ? "all" : "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {},
       onProjectSettings: () => {}
     }));
@@ -122,7 +139,7 @@ async function renderer() { // the built RunPanel to static markup (as tests/orc
 }
 const cssFile = () => { const dir = path.join(ROOT, "out/renderer/assets"); return path.join(dir, fs.readdirSync(dir).find((f) => /^index-.*\.css$/.test(f))); };
 // the mock-up opens a run that works (and most pauses) on "Work" and the checks / finish / refused ones on "Summary"
-const SUMMARY_STATES = ["05-checks-decision", "06-checks-none", "12-finish-confirmation", "13-finish-unconfirmed", "14-check-needs-permissions", "17-completed", "11-coverage-lost"];
+const SUMMARY_STATES = ["04-plan-review", "10-person-decision", "05-checks-decision", "06-checks-none", "12-finish-confirmation", "13-finish-unconfirmed", "14-check-needs-permissions", "17-completed", "11-coverage-lost"];
 const TURN = (id, kind, text) => ({ id, ts: "2026-11-11T07:31:0" + id + ".000Z", turnId: "t1", role: "executor", provider: "claude", kind, text });
 const WORKING_ENTRIES = [TURN(1, "thinking", ""), TURN(2, "tool_started", "Edit src/api/notes.ts"), TURN(3, "tool_started", "Bash npm test")];
 const CHANGES_STATES = ["08-outcome-unknown", "15-lead-modified-tree"]; // D-017: the pauses about the tree open on "Changes"
@@ -138,10 +155,15 @@ const fixtureOf0 = ([, set, o]) => {
       dropRequirements: [], uncovered: ["R2"], findings: [{ id: "F2", condition: "C2", problem: "Нет теста на удаление заметки" }] } } }), entries: [], onMac: true };
   if (set === "awaiting_finish_confirmation") return { ...fixture(set), view: { ...fixture(set).view, confirm: { tree: "t".repeat(40), commit: "c0ffee1234567890".repeat(2).slice(0, 40), push: true, qa: true } } };
   if (set === "check_needs_permissions") return { ...fixture(set), view: { ...fixture(set).view, refused: { checkId: "c1", command: "npm test -- --runInBand && curl http://localhost:3000/health" } } };
+  if (set === "limit_reached") { const f = fixture(set); return { ...f, view: { ...f.view, stage: 2, progress: { mode: "autopilot", checks: [], finish: [], budget: budget({ reached: "turns" }) } } }; }
   if (set) return fixture(set === "finish_unconfirmed" ? "awaiting_finish_confirmation" : set);
   if (o.running) return { view: view("running", null, o.running), entries: [], onMac: true };
-  if (o.completed) return { view: view("completed", null, { stage: 1, completion: { kind: "confirmed" } }), entries: [], onMac: true };
-  return { view: view("failed", "environment_error", { stage: 1 }), entries: [], onMac: true };
+  if (o.completed) return { view: view("completed", null, { stage: 2, turns: 22, workMode: "worktree", workDir: "~/dev/project-b", completion: { kind: "confirmed" }, progress: { ...PROGRESS_17, budget: budget({ used: { turns: 22, replans: 0 } }) } }),
+    entries: [{ id: 1, ts: at(1), runId: "r", role: "lead", provider: "codex", turnId: null, kind: "session", text: "", detail: { reported: true, sandbox: "read-only", model: "gpt-5" } },
+      { id: 2, ts: at(2), runId: "r", role: "executor", provider: "claude", turnId: null, kind: "session", text: "", detail: { reported: true, permissionMode: "acceptEdits", model: "sonnet" } }], records: RECORDS_17, onMac: true };
+  // the failure: the executor's turn ended with an error the zone quotes
+  return { view: view("failed", "environment_error", { stage: 2 }), entries: [{ id: 1, ts: at(30), runId: "r", role: "executor", provider: "claude", turnId: "t1", kind: "turn_finished", text: "failed" },
+    { id: 2, ts: at(30), runId: "r", role: "executor", provider: "claude", turnId: "t1", kind: "error", text: "Error: API rate limit reached\nat runTurn (claude:1:4412)" }], onMac: true };
 };
 
 const combos = BEFORE ? [{ name: "before", patch: { palette: "sand", canvasColor: "theme" } }]
