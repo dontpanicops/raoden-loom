@@ -18,7 +18,7 @@ interface Props {
 }
 
 // The repository's own getting-started page; the docs name no per-CLI install commands.
-const installUrl = (locale: LocaleId): string =>
+export const installUrl = (locale: LocaleId): string =>
   `https://github.com/dontpanicops/raoden-loom/blob/main/docs/${locale === "ru" ? "getting-started.ru.md" : "getting-started.md"}`;
 
 // "Getting started": a level-3 card in the canvas overlays, placed clear of HOME and the minimap (onboardingPlacement).

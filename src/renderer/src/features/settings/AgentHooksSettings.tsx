@@ -6,6 +6,7 @@ import type {
   PluginAgentHook,
   PluginAgentHookEvent
 } from "../../../../shared/contracts";
+import { Switch } from "../../components/Switch";
 import { PROVIDERS } from "../../lib/providers";
 import { t, type TranslationKey } from "../../lib/i18n";
 
@@ -62,22 +63,21 @@ export function AgentHooksSettings({
   };
 
   return (
-    <section className="setting-group agent-hooks">
-      <h3>{t(locale, "agentHooks")}</h3>
-      <p className="setting-group__description">{t(locale, "agentHooksDescription")}</p>
-
-      <div className="agent-hooks__core">
-        <span>
-          <strong>{t(locale, "canvasTTYStatusHooks")}</strong>
-          <small>{t(locale, "canvasTTYStatusHooksDescription")}</small>
-        </span>
-        <HookToggle
-          enabled={settings.agentLifecycleHooksEnabled}
-          disabled={busy !== null}
-          locale={locale}
-          onClick={() => void setCoreEnabled(!settings.agentLifecycleHooksEnabled)}
-        />
-      </div>
+    <div className="agent-hooks">
+      <section className="setting-group setting-group--field setting-group--switch">
+        <div className="setting-group__copy">
+          <h3>{t(locale, "agentHooks")}</h3>
+          <p className="setting-group__description">{t(locale, "agentHooksStatusDescription")}</p>
+        </div>
+        <div className="setting-group__control">
+          <Switch
+            checked={settings.agentLifecycleHooksEnabled}
+            disabled={busy !== null}
+            label={t(locale, "agentHooks")}
+            onChange={(next) => void setCoreEnabled(next)}
+          />
+        </div>
+      </section>
 
       <div className="agent-hooks__subheading">
         <strong>{t(locale, "optionalPluginHooks")}</strong>
@@ -101,11 +101,11 @@ export function AgentHooksSettings({
                     <small>{row.plugin.manifest.name}</small>
                     {row.hook.description && <span>{row.hook.description}</span>}
                   </span>
-                  <HookToggle
-                    enabled={enabled}
+                  <Switch
+                    checked={enabled}
                     disabled={!row.plugin.enabled || busy !== null}
-                    locale={locale}
-                    onClick={() => {
+                    label={row.hook.title}
+                    onChange={() => {
                       if (enabled) void setPluginHook(row, false);
                       else setConfirming(key);
                     }}
@@ -141,33 +141,7 @@ export function AgentHooksSettings({
         </div>
       )}
       {error && <p className="agent-hooks__error" role="alert">{error}</p>}
-    </section>
-  );
-}
-
-function HookToggle({
-  enabled,
-  disabled,
-  locale,
-  onClick
-}: {
-  enabled: boolean;
-  disabled: boolean;
-  locale: LocaleId;
-  onClick(): void;
-}): React.JSX.Element {
-  return (
-    <button
-      className={`agent-hooks__toggle${enabled ? " agent-hooks__toggle--on" : ""}`}
-      type="button"
-      role="switch"
-      aria-checked={enabled}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      <span aria-hidden="true" />
-      {t(locale, enabled ? "on" : "off")}
-    </button>
+    </div>
   );
 }
 

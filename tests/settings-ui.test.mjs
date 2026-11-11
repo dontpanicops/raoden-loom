@@ -33,11 +33,13 @@ test("Settings uses the approved icon-sidebar modal instead of the legacy horizo
   assert.match(settings, /className="settings-panel__sidebar"/);
   assert.match(settings, /className="settings-panel__main"/);
   assert.match(settings, /className="settings-tabs__icon"/);
-  assert.match(settings, /settings-panel__brand-icon"><UiIcon name="settings"/);
+  // R5g: no brand block; the section title is the header, «About» is pinned to the bottom of the sidebar
+  assert.doesNotMatch(settings, /settings-panel__brand/);
+  assert.match(settings, /settings-tabs__button--about/);
   assert.match(settings, /\{ id: "general", icon: "app-window" \}/);
   assert.doesNotMatch(settings, /\{ id: "general", icon: "settings" \}/);
   assert.match(settings, /SETTINGS_SECTIONS\.map\(\(\{ id, icon \}\)/);
-  assert.match(settings, /className=\{`setting-group setting-group--field\$\{layout === "stacked" \? " setting-group--stacked" : ""\}`\}/);
+  assert.match(settings, /className=\{`setting-group setting-group--field\$\{layout === "stacked" \? " setting-group--stacked" : ""\}\$\{layout === "switch" \? " setting-group--switch" : ""\}`\}/);
   assert.doesNotMatch(settings, /settings-panel__topbar/);
   assert.match(styles, /\.settings-panel \{[^}]*grid-template-columns: 15\.5em minmax\(0, 1fr\);[^}]*background: var\(--surface-3-solid\);[^}]*font-size: calc\(13px \* var\(--ui-scale, 1\)\)/);
   assert.match(styles, /\.settings-tabs \{[^}]*flex-direction: column/);
@@ -62,8 +64,8 @@ test("Hooks stays concise while detailed safety copy is available in About", asy
 test("HOME and rename are independent shortcut settings with mouse capture", async () => {
   const settings = await readFile(settingsPanelPath, "utf8");
   assert.doesNotMatch(settings, /<SettingGroup label=\{t\(locale, "keyboardShortcuts"\)\}>/);
-  assert.match(settings, /label=\{t\(locale, "homeShortcut"\)\} description=\{t\(locale, "homeShortcutDescription"\)\}/);
-  assert.match(settings, /label=\{t\(locale, "renameWindow"\)\} description=\{t\(locale, "renameWindowDescription"\)\}/);
+  assert.match(settings, /label=\{t\(locale, "homeShortcut"\)\}/);
+  assert.match(settings, /label=\{t\(locale, "renameWindow"\)\}/);
   assert.match(settings, /capturePointerShortcut\("home", event\)/);
   assert.match(settings, /capturePointerShortcut\("renameWindow", event\)/);
 });
@@ -92,12 +94,12 @@ test("canvas overlays share configurable collision-safe corner slots", async () 
 
 test("General keeps independent persistence controls", async () => {
   const settings = await readFile(settingsPanelPath, "utf8");
-  assert.match(settings, /settings\.restoreTerminalSessions \? "save" : "discard"/);
-  assert.match(settings, /restoreTerminalSessions: value === "save"/);
-  assert.match(settings, /settings\.persistCanvasRegions \? "save" : "discard"/);
-  assert.match(settings, /persistCanvasRegions: value === "save"/);
-  assert.match(settings, /settings\.persistStickyNotes \? "save" : "discard"/);
-  assert.match(settings, /persistStickyNotes: value === "save"/);
+  assert.match(settings, /settings\.restoreTerminalSessions,/);
+  assert.match(settings, /restoreTerminalSessions: next/);
+  assert.match(settings, /settings\.persistCanvasRegions,/);
+  assert.match(settings, /persistCanvasRegions: next/);
+  assert.match(settings, /settings\.persistStickyNotes,/);
+  assert.match(settings, /persistStickyNotes: next/);
 });
 
 test("Appearance controls whole-row session status colors", async () => {
@@ -204,8 +206,9 @@ test("the redesigned menus use shared tokens, em geometry, and the configured UI
   assert.match(settings, /className="canvas-menu canvas-launcher-settings-menu"/);
   assert.match(settings, /icon=\{enabled \? "minus" : "plus"\}/);
   assert.match(settings, /layout="stacked"\s+label=\{t\(locale, "canvasLauncherItems"\)\}/);
-  assert.match(settings, /layout="stacked"\s+label=\{t\(locale, "homeLauncherAgents"\)\}/);
-  assert.match(settings, /layout="stacked"\s+label=\{t\(locale, "homeLimitProviders"\)\}/);
+  assert.match(settings, /<AgentProviderTable/);
+  assert.match(settings, /setHomeLauncherProviderEnabled\(homeLauncherProviders, provider, enabled\)/);
+  assert.match(settings, /setHomeLimitProviderEnabled\(homeLimitProviders, provider, enabled\)/);
   assert.match(settings, /<CanvasMenuRow\s+icon="home"\s+muted/);
   assert.doesNotMatch(contextMenu, /canvas-menu__section|onChangeRegionColor\(\)/);
   const menuStyleStart = styles.indexOf(".canvas-menu, .canvas-region-editor, .canvas-command-palette");
@@ -224,8 +227,8 @@ test("the redesigned menus use shared tokens, em geometry, and the configured UI
 test("R4: four theme swatches, a follow-system row, a manual pick turns followSystem off", async () => {
   const settings = await readFile(settingsPanelPath, "utf8");
   for (const id of ["sand", "bay", "paper", "frost"]) assert.match(settings, new RegExp(`\\["${id}", t\\(locale, "theme`));
-  assert.match(settings, /onChange\(\{ followSystem: value === "on" \}\)/);
-  assert.match(settings, /onChange\(\{ palette: value as PaletteId, followSystem: false \}\)/);
+  assert.match(settings, /onChange\(\{ followSystem: next \}\)/);
+  assert.match(settings, /onChange\(\{ palette: value, followSystem: false \}\)/);
   // following the system, the tiles show the theme in effect and say so
   assert.match(settings, /settings\.followSystem \? `\$\{t\(locale, "paletteBySystem"\)\}/);
   assert.match(settings, /THEME_CANVAS_PREVIEW: Record<PaletteId, string>/);

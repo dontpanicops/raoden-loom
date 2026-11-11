@@ -186,12 +186,18 @@ export function CanvasNavigationShortcutEditor({
               }}
             >
               {capturing
-                ? (preview ?? "…")
+                ? (preview ?? t(locale, "shortcutPress"))
                 : binding === null
                   ? t(locale, "disabled")
                   : displayCanvasNavigationBinding(binding, isMacOS)}
             </button>
-            {allowDisable && binding !== null && (
+            <button
+              className="shortcut-editor__edit"
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={capturing ? stopCapture : beginCapture}
+            >{capturing ? t(locale, "cancel") : t(locale, "shortcutEdit")}</button>
+            {allowDisable && binding !== null && !capturing && (
               <button
                 className="shortcut-editor__clear"
                 type="button"

@@ -172,8 +172,19 @@ try {
       await app.clickEl(q(".settings-button"));
       await app.waitFor(`${q(".settings-backdrop--open")} && true`, "settings open", 10_000);
       for (const tab of ["general", "notifications", "appearance", "agents", "controls", "browser", "plugins", "about"]) {
-        try { await app.clickEl(q(`#settings-tab-${tab}`)); await sleep(500); await shot(`settings-${tab}`); }
-        catch (e) { failed.push(`${theme} settings-${tab}: ${String(e.message).slice(0, 120)}`); }
+        try {
+          await app.clickEl(q(`#settings-tab-${tab}`)); await sleep(500);
+          if (tab === "about") await app.ev(`(() => { document.querySelector(".about-settings__faq details")?.setAttribute("open", ""); return true; })()`);
+          await shot(`settings-${tab}`);
+          // below the visible part: scroll the section to its end and take it again
+          const more = await app.ev(`(() => { const c = document.querySelector(".settings-panel__content"); if (!c || c.scrollHeight <= c.clientHeight + 4) return false; c.scrollTop = c.scrollHeight; return true; })()`);
+          if (more) { await sleep(300); await shot(`settings-${tab}-end`); await app.ev(`(() => { document.querySelector(".settings-panel__content").scrollTop = 0; return true; })()`); }
+          if (tab === "controls") {
+            await app.ev(`(() => { document.querySelector(".shortcut-block")?.scrollIntoView({ block: "center" }); return true; })()`); await sleep(200);
+            await app.clickEl(q(".shortcut-block .shortcut-editor__edit")); await sleep(300);
+            await shot("settings-controls-capture"); await app.key("Escape", "Escape", 27); await sleep(200);
+          }
+        } catch (e) { failed.push(`${theme} settings-${tab}: ${String(e.message).slice(0, 120)}`); }
       }
       await app.clickEl(q(".settings-panel__close")); await sleep(500);
     });

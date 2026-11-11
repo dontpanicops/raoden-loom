@@ -40,7 +40,7 @@ test("radial pointer handling is gated by the persisted settings toggle", async 
   const settings = await readFile(new URL("../src/renderer/src/features/settings/SettingsPanel.tsx", import.meta.url), "utf8");
   assert.match(workspace, /if \(!settings\.radialLauncherEnabled \|\| event\.button !== 2 \|\| shouldKeepCanvasContextMenu\(event\.target\)\) return false/);
   assert.match(workspace, /if \(!settings\.radialLauncherEnabled\) closeRadialLauncher\(\)/);
-  assert.match(settings, /onChange\(\{ radialLauncherEnabled: value === "on" \}\)/);
+  assert.match(settings, /onChange\(\{ radialLauncherEnabled: next \}\)/);
 });
 
 test("direction selection follows the visual radial positions", () => {

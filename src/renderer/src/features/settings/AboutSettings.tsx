@@ -11,16 +11,23 @@ const FAQ: ReadonlyArray<readonly [TranslationKey, TranslationKey]> = [
   ["aboutFaqPluginHooksQuestion", "aboutFaqPluginHooksAnswer"]
 ];
 
+const REPO = "https://github.com/dontpanicops/raoden-loom";
+const LINKS: ReadonlyArray<readonly [TranslationKey, string]> = [
+  ["aboutLinkChangelog", `${REPO}/releases`],
+  ["aboutLinkLicenses", `${REPO}/blob/main/LICENSE`],
+  ["aboutLinkIssues", `${REPO}/issues`]
+];
+
 export function AboutSettings({ locale }: { locale: LocaleId }): React.JSX.Element {
+  const channel = import.meta.env.DEV ? "DEV" : "RELEASE";
   return (
     <section className="about-settings">
       <header className="about-settings__header">
-        <span>
-          <AppMark size={28} />
+        <span className="about-settings__icon"><AppMark size={28} /></span>
+        <span className="about-settings__name">
           <strong>Raoden Loom</strong>
-          <small>v{appManifest.version} · {import.meta.env.DEV ? "DEV" : "RELEASE"}</small>
+          <small>{t(locale, "aboutVersion")} {appManifest.version} · macOS · {channel}</small>
         </span>
-        <p>{t(locale, "aboutDescription")}</p>
       </header>
 
       <div className="about-settings__faq">
@@ -32,6 +39,12 @@ export function AboutSettings({ locale }: { locale: LocaleId }): React.JSX.Eleme
           </details>
         ))}
       </div>
+
+      <nav className="about-settings__links">
+        {LINKS.map(([label, url]) => (
+          <button key={label} type="button" onClick={() => void window.canvasTTY.external.openUrl(url)}>{t(locale, label)}</button>
+        ))}
+      </nav>
     </section>
   );
 }
