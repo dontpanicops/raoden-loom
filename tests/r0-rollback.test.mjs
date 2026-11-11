@@ -48,6 +48,20 @@ test("R0: the v1.5.20 build reads a v16 file with default look, everything else 
     assert.deepEqual(a, b, "only the look differs; agents, HOME layout, regions, notes and shortcuts are as written");
     const kept = ["homeLauncherProviders", "shortcuts", "homeLayout", "canvasRegions", "stickyNotes"];
     for (const k of kept) assert.deepEqual(a[k], written[k], k);
+
+    // R4a: paper + followSystem -> the old build shows sage and drops the unknown field; the way back restores paper
+    const c = await s.update({ palette: "paper", followSystem: true });
+    assert.equal(c.followSystem, true);
+    const writtenC = JSON.parse(fs.readFileSync(path.join(dir, "settings.json"), "utf8"));
+    assert.equal(writtenC.followSystem, true);
+    assert.equal(writtenC.settingsVersion, 16);
+    const oldC = await readOld(writtenC);
+    assert.equal(oldC.palette, "sage");
+    assert.equal("followSystem" in oldC, false, "the 1.5.20 normalizer drops the field");
+    const oldD = await readOld({ ...writtenC, palette: "sage", followSystem: undefined });
+    assert.deepEqual(oldC, oldD, "nothing else changes");
+    const back = new SettingsStore(dir, "en"); await back.load();
+    assert.deepEqual([back.get().palette, back.get().followSystem], ["paper", true], "the return to the new build keeps paper");
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

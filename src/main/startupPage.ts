@@ -1,12 +1,16 @@
-import { DARK_WINDOW_BACKGROUND } from "../shared/appearance.ts";
+import type { PaletteId } from "../shared/contracts.ts";
+import { isLightTheme, windowBackground } from "../shared/appearance.ts";
 
 interface StartupPageOptions {
   locale: string;
   isMacOS: boolean;
   error?: string;
+  theme?: PaletteId;
 }
 
-export function startupPageUrl({ locale, isMacOS, error }: StartupPageOptions): string {
+export function startupPageUrl({ locale, isMacOS, error, theme = "sand" }: StartupPageOptions): string {
+  const light = isLightTheme(theme);
+  const background = windowBackground(theme);
   const russian = locale.toLowerCase().startsWith("ru");
   const titlebarHeight = 44;
   const failed = typeof error === "string";
@@ -31,14 +35,14 @@ export function startupPageUrl({ locale, isMacOS, error }: StartupPageOptions): 
     <style>
       * { box-sizing: border-box; }
       html, body { width: 100%; height: 100%; margin: 0; }
-      body { --titlebar-height: ${titlebarHeight}px; display: grid; grid-template-rows: var(--titlebar-height) 1fr; color: #f7f4ec; background: ${DARK_WINDOW_BACKGROUND}; font-family: Inter, system-ui, sans-serif; }
-      header { display: flex; align-items: center; justify-content: space-between; padding-left: 15px; border-bottom: 1px solid rgba(255,255,255,.08); -webkit-app-region: drag; }
+      body { --titlebar-height: ${titlebarHeight}px; display: grid; grid-template-rows: var(--titlebar-height) 1fr; color: ${light ? "#22201C" : "#f7f4ec"}; background: ${background}; font-family: Inter, system-ui, sans-serif; }
+      header { display: flex; align-items: center; justify-content: space-between; padding-left: 15px; border-bottom: 1px solid ${light ? "rgba(0,0,0,.1)" : "rgba(255,255,255,.08)"}; -webkit-app-region: drag; }
       header strong { font-size: 13px; letter-spacing: .02em; }
-      button { width: 46px; height: 100%; border: 0; color: rgba(255,255,255,.8); background: transparent; cursor: pointer; font-size: 22px; -webkit-app-region: no-drag; }
-      button:hover { color: white; background: #d85b61; }
+      button { width: 46px; height: 100%; border: 0; color: ${light ? "rgba(0,0,0,.7)" : "rgba(255,255,255,.8)"}; background: transparent; cursor: pointer; font-size: 22px; -webkit-app-region: no-drag; }
+      button:hover { color: #fff; background: #d85b61; }
       .macos-titlebar { justify-content: flex-start; gap: 10px; padding-left: 72px; }
       .macos-titlebar .drag { flex: 1; height: 100%; }
-      main { display: grid; place-items: center; padding: 32px; background: ${DARK_WINDOW_BACKGROUND}; }
+      main { display: grid; place-items: center; padding: 32px; background: ${background}; }
       section { width: min(620px, 100%); padding: 28px; border-radius: 18px; color: #2f3038; background: #e4f1cf; box-shadow: 0 18px 48px rgba(30,31,40,.22); }
       h1 { margin: 0 0 9px; font-size: 24px; }
       p { margin: 0; color: #585965; font-size: 14px; line-height: 1.5; }

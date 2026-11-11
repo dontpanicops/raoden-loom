@@ -233,6 +233,8 @@ export interface AppSettings {
   palette: PaletteId;
   reduceTransparency: boolean;
   onboardingDismissed: boolean;
+  // true: the theme in effect follows the system (paper by day, sand by night); `palette` keeps the manual choice
+  followSystem: boolean;
   homeAccentPreset: HomeAccentPresetId;
   homeAccentColors: HomeAccentColors;
   sessionRowColorMode: SessionRowColorMode;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffectiveTheme } from "../settings/useEffectiveTheme";
 import type {
   AgentProviderId,
   AppSettings,
@@ -213,6 +214,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     onCanvasRegionBoundsChange, onDeleteCanvasRegion, onCreateStickyNote,
     onStickyNoteBoundsChange, onStickyNoteTextChange, onDeleteStickyNote, onDismissOnboarding
   } = props;
+  const theme = useEffectiveTheme(settings);
   const viewport = useRef<HTMLDivElement>(null);
   // Orchestration agent cards live in main (stage-8-contract.md §2), not in settings.
   const orch = useOrchestration();
@@ -968,7 +970,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
               key={session.id}
               session={withGroupNudge(terminalLayerId(session.id), session)}
               locale={settings.locale}
-              palette={settings.palette}
+              palette={theme}
               zoom={camera.zoom}
               stackIndex={canvasLayerZIndex(layerOrder, terminalLayerId(session.id))}
               snapEnabled={settings.snapToGrid}
@@ -1015,7 +1017,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
                 plugin={plugin}
                 contribution={contribution}
                 locale={settings.locale}
-                palette={settings.palette}
+                palette={theme}
                 zoom={camera.zoom}
                 stackIndex={canvasLayerZIndex(layerOrder, pluginLayerId(instance.id))}
                 snapEnabled={settings.snapToGrid}

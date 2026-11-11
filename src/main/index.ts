@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 import { isAbsolute } from "node:path";
 import { EvenG2Controller } from "./services/companion/EvenG2Controller";
 import { join } from "node:path";
-import { app, BrowserWindow, dialog, Menu, net, protocol, safeStorage } from "electron";
+import { readFileSync } from "node:fs";
+import { app, BrowserWindow, dialog, Menu, nativeTheme, net, protocol, safeStorage } from "electron";
 import { IPC, type PluginCanvasRequest } from "../shared/contracts";
 import { registerIpc } from "./ipc/registerIpc";
 import { SettingsStore } from "./services/SettingsStore";
@@ -57,7 +58,8 @@ import type { RunManager } from "./services/orchestration/manager";
 import { JOURNAL_V2_BY_DEFAULT } from "./services/orchestration/journal";
 import { runOrchestrationIpcSmoke } from "./services/orchestration/ipcSmoke";
 import { startupPageUrl } from "./startupPage";
-import { DARK_WINDOW_BACKGROUND } from "../shared/appearance";
+import { earlyTheme, effectiveTheme, windowBackground } from "../shared/appearance";
+import type { AppSettings, PaletteId } from "../shared/contracts";
 import { mainWindowChromeOptions } from "./windowChrome";
 import { ensureUtf8Locale } from "./services/utf8Locale";
 
@@ -151,7 +153,27 @@ let mainWindowClosing = false;
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) app.quit();
 
+// The theme in effect, known before the window exists: settings.json is read synchronously (the SettingsStore is
+// created later). Any read failure leaves the dark default. The system theme is only read, never overridden.
+let currentTheme: PaletteId = "sand";
+function readEarlyTheme(): PaletteId {
+  let raw: string | null = null;
+  try { raw = readFileSync(join(app.getPath("userData"), "settings.json"), "utf8"); } catch { /* no file yet */ }
+  return earlyTheme(raw, nativeTheme.shouldUseDarkColors);
+}
+function syncWindowTheme(next: PaletteId): void {
+  currentTheme = next;
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(windowBackground(next));
+}
+let lastSettings: Pick<AppSettings, "palette" | "followSystem"> | null = null;
+function applyWindowTheme(next: Pick<AppSettings, "palette" | "followSystem">): void {
+  lastSettings = next;
+  syncWindowTheme(effectiveTheme(next, nativeTheme.shouldUseDarkColors));
+}
+nativeTheme.on("updated", () => { if (lastSettings) applyWindowTheme(lastSettings); else syncWindowTheme(readEarlyTheme()); });
+
 async function createWindow(): Promise<BrowserWindow> {
+  currentTheme = readEarlyTheme();
   const window = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -159,7 +181,7 @@ async function createWindow(): Promise<BrowserWindow> {
     minHeight: 620,
     show: true,
     ...mainWindowChromeOptions(),
-    backgroundColor: DARK_WINDOW_BACKGROUND,
+    backgroundColor: windowBackground(currentTheme),
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
@@ -198,7 +220,7 @@ async function createWindow(): Promise<BrowserWindow> {
   });
 
   try {
-    await window.loadURL(startupPageUrl({ locale: app.getLocale(), isMacOS: process.platform === "darwin" }));
+    await window.loadURL(startupPageUrl({ locale: app.getLocale(), isMacOS: process.platform === "darwin", theme: currentTheme }));
   } catch (error) {
     // A close during this load aborts the navigation (ERR_ABORTED / ERR_FAILED).
     // That is a quit, not a failed startup, so it must not reach the caller's
@@ -249,6 +271,7 @@ async function initializeServices(): Promise<void> {
   });
   const settings = new SettingsStore(userDataPath, app.getLocale());
   await settings.load();
+  applyWindowTheme(settings.get());
   pluginManager = new PluginManager(userDataPath);
   await pluginManager.load();
 
@@ -428,6 +451,7 @@ async function initializeServices(): Promise<void> {
     notesToLog: hermeticSmoke(),
     smokeImport,
     applyBrowserSettings: async (next) => {
+      applyWindowTheme(next);
       agentRuntimeBridge?.setCoreHooksEnabled(next.agentLifecycleHooksEnabled);
       terminalManager?.setLifecycleHooksEnabled(next.agentLifecycleHooksEnabled);
       agentBrowserBridge?.setEnabled(next.browserAgentAccess);
@@ -466,9 +490,9 @@ async function loadApplication(window: BrowserWindow): Promise<void> {
   try {
     const rendererUrl = developmentEnv("ELECTRON_RENDERER_URL");
     if (rendererUrl) {
-      await window.loadURL(rendererUrl);
+      await window.loadURL(`${rendererUrl}${rendererUrl.includes("?") ? "&" : "?"}theme=${currentTheme}`);
     } else {
-      await window.loadFile(join(__dirname, "../renderer/index.html"));
+      await window.loadFile(join(__dirname, "../renderer/index.html"), { query: { theme: currentTheme } });
     }
   } catch (error) {
     // Closing during the load is a normal exit, not a failed startup.
@@ -671,7 +695,7 @@ async function showStartupFailure(window: BrowserWindow, error: unknown): Promis
   }
 
   try {
-    await window.loadURL(startupPageUrl({ locale: app.getLocale(), isMacOS: process.platform === "darwin", error: detail }));
+    await window.loadURL(startupPageUrl({ locale: app.getLocale(), isMacOS: process.platform === "darwin", error: detail, theme: currentTheme }));
     // Reported only once the diagnostic is really on screen: a close that aborts
     // this very load would otherwise log a failure the user never saw, which is
     // the same false signal as the dialog it replaced.

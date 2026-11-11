@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import { LEGACY_PALETTE_TO_PALETTE, PALETTE_IDS } from "../../shared/appearance.ts";
 import { dirname, join } from "node:path";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import type {
@@ -58,12 +59,10 @@ import {
 } from "../../shared/canvasNavigation.ts";
 
 const LOCALES = new Set<LocaleId>(["ru", "en"]);
-const PALETTES = new Set<PaletteId>(["sand", "bay", "paper", "frost"]);
 const HOME_ACCENT_PRESETS = new Set<HomeAccentPresetId>(["theme", "pastel", "dusk", "warm", "cool", "mono", "custom"]);
 const SESSION_ROW_COLOR_MODES = new Set<SessionRowColorMode>(["monochrome", "status"]);
 const CANVAS_COLORS = new Set<CanvasColorId>(["theme", "stone", "linen", "graphite", "lilac", "night", "mist"]);
 // Old ids are read only: the normalizer rewrites them, only the new ids are saved.
-const LEGACY_PALETTE_TO_PALETTE: Record<string, PaletteId> = { sage: "sand", lilac: "bay", night: "bay" };
 const LEGACY_PALETTE_TO_CANVAS: Record<string, CanvasColorId> = { sage: "stone", lilac: "lilac", night: "night" };
 const LEGACY_CANVAS_COLORS: Record<string, CanvasColorId> = {
   sage: "stone", sand: "stone", rose: "lilac", slate: "night"
@@ -283,6 +282,7 @@ function createDefaults(systemLocale: string, platform: CanvasNavigationPlatform
     palette: "sand",
     reduceTransparency: false,
     onboardingDismissed: false,
+    followSystem: false,
     homeAccentPreset: "theme",
     homeAccentColors: { ...DEFAULT_HOME_ACCENT_COLORS },
     sessionRowColorMode: "status",
@@ -394,7 +394,7 @@ export function normalizeSettings(
     fallback.radialLauncherItems ?? DEFAULT_RADIAL_LAUNCHER_ITEMS
   );
   const legacyPalette = (source as Record<string, unknown>).palette as string;
-  const palette = PALETTES.has(source.palette as PaletteId) ? source.palette as PaletteId
+  const palette = PALETTE_IDS.has(source.palette as PaletteId) ? source.palette as PaletteId
     : legacyId(LEGACY_PALETTE_TO_PALETTE, legacyPalette) ?? fallback.palette;
   const canvasColorCandidate = (source as Record<string, unknown>).canvasColor as string | undefined;
   // Canvas first (it reads the OLD palette), then the palette.
@@ -427,6 +427,9 @@ export function normalizeSettings(
     onboardingDismissed: typeof source.onboardingDismissed === "boolean"
       ? source.onboardingDismissed
       : fallback.onboardingDismissed ?? false,
+    followSystem: typeof source.followSystem === "boolean"
+      ? source.followSystem
+      : fallback.followSystem ?? false,
     homeAccentPreset,
     homeAccentColors,
     sessionRowColorMode: SESSION_ROW_COLOR_MODES.has(source.sessionRowColorMode as SessionRowColorMode)
