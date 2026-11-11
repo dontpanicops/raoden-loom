@@ -987,3 +987,25 @@ CanvasTTY отдельно фиксирует три факта: проверк�
     `/etc/zprofile`.
   - `export LANG=ru_RU.UTF-8` в `~/.zshenv` помогает только CLI, запущенным из shell. Карточки Claude Code и Codex
     запускают CLI напрямую, без shell, и этот файл не читают.
+
+### T139. Все Electron-smoke падают на «timeout: canvas (null)» после работы в git worktree (2026-11-11)
+
+- **Симптом.** Любой smoke (`smoke:orchestration-ui`, `smoke-board-ui` и др.) падает на `timeout: canvas (null)`; в
+  консоли рендерера `Cannot read properties of null (reading 'useState')`; окно пустое.
+- **Причина (подтверждена).** В worktree `node_modules` — симлинк на `node_modules` основного чекаута. Команда
+  `cp -c -R ~/dev/raoden-loom/node_modules ./node_modules` поверх симлинка скопировала каталог внутрь цели — появился
+  `~/dev/raoden-loom/node_modules/node_modules` со второй копией React. Сборка рендерера подхватила два React.
+- **Исправление.** Удалить вложенный `node_modules/node_modules`, пересобрать (`npm run build`).
+- **Как проверить.** `ls node_modules/node_modules` — нет такого каталога; smoke проходит.
+- **Как не повторить.** В worktree сначала `rm node_modules` (удаляет только симлинк), потом `cp -c -R`; в конце работы
+  `rm -rf ./node_modules` и проверка, что в основном чекауте нет вложенного `node_modules`.
+
+### T140. `smoke:workspaces-ui` падает на «timeout: panel closed» под нагрузкой (2026-11-11)
+
+- **Статус.** Обходной путь, причина не подтверждена.
+- **Симптом.** Панель запуска не закрывается по Esc в smoke, `timeout: panel closed`; на кадре панель открыта.
+- **Наблюдение.** Два падения подряд, когда параллельно шли полный `npm test` и `npm run build`; затем 5 из 5 прогонов
+  зелёные; на ветке без правок R4 тоже зелёный. Предположение (не проверено): гонка — Esc приходит до регистрации
+  слушателя окна при медленной машине. Ранее похожий флейк W7 (2 из 29 прогонов).
+- **Что делать.** Не гонять Electron-smoke параллельно с полным `npm test` и сборкой; при падении повторить один раз.
+  Если повторится без нагрузки — разбирать слушатель Esc в панели запуска.

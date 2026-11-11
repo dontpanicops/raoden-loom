@@ -80,7 +80,9 @@ test("the form pauses have one main button (the model's, which the form draws); 
   }
   const person = panel("awaiting_person_decision", { extra: { decisions: { runKey: "k".repeat(64), conditions: [], findings: false, proposal: null,
     disputed: [{ reviewTurnId: "t1", index: 0, problem: "P", evidence: null, paths: [], candidates: [] }] } } });
-  assert.equal(buttons(person).filter((b) => /orch-primary/.test(b.attrs)).length, 1, "a person decision: the form's one main button");
+  // R4.1: a choice sends its decision at once and "no default" is the rule, so the person form has equal choices and no main button
+  assert.equal(buttons(person).filter((b) => /orch-primary/.test(b.attrs)).length, 0, "a person decision: no default to press");
+  assert.match(person, /class="orch-panel__actions orch-choices"/);
   const stopRow = ["push_protected", "lead_modified_tree"].map((set) => buttons(zoneOf(panel(set))).filter((b) => /data-orch-stop/.test(b.attrs)).length);
   assert.deepEqual(stopRow, [1, 1], "Stop in the zone row carries data-orch-stop");
   const newer = panel("newer_version", { extra: { newer: { chain: "ok", goal: null, compatible: true, fallback: null, version: 2 } } });
@@ -149,4 +151,28 @@ test("the states without a pause draw their zone: working, ended, newer version"
   assert.match(newer, /data-orch-zone="newer_version"/);
   assert.equal(mainOf(newer).length, 0, "a newer run offers no command");
   assert.match(footOf(newer), /copy_id/);
+});
+
+test("R4.1: every decision form is a labelled group with exactly one main button, in its pinned row", async () => {
+  const panel = await panelOf();
+  const proposal = { proposalTurnId: "t1", dropped: [{ id: "C2", text: "x", covers: [], why: "y" }], dropRequirements: [], uncovered: [], stages: [{ stage: 1, title: "N" }],
+    findings: [{ id: "F1", condition: "C2", problem: "p" }] };
+  const forms = {
+    "awaiting_checks_decision": panel("awaiting_checks_decision"),
+    "awaiting_checks_none": panel("awaiting_checks_none"),
+    "check_needs_permissions": panel("check_needs_permissions", { extra: { refused: { checkId: "c1", command: "npm test" } } }),
+    "awaiting_finish_confirmation": panel("awaiting_finish_confirmation", { extra: { confirm: { tree: "t".repeat(40), commit: "c".repeat(40), push: true, qa: true } } }),
+    "coverage_lost": panel("coverage_lost", { extra: { decisions: { runKey: "k".repeat(64), disputed: [], conditions: [], findings: false, proposal } } })
+  };
+  for (const [set, html] of Object.entries(forms)) {
+    const form = html.slice(html.indexOf("data-orch-form"), html.indexOf('id="orch-tabpanel"'));
+    assert.match(html, /<section[^>]*aria-labelledby="[^"]+"[^>]*data-orch-form/, `${set}: a labelled group`);
+    assert.equal(buttons(form).filter((b) => /data-orch-primary=/.test(b.attrs)).length, 1, `${set}: the form's one main button`);
+    assert.equal(buttons(form).filter((b) => /orch-primary/.test(b.attrs)).length, 1, `${set}: one filled button`);
+    assert.ok(form.indexOf("data-orch-form-foot") > 0 && form.indexOf("data-orch-primary") > form.indexOf("data-orch-form-foot"), `${set}: the main button is in the pinned row`);
+  }
+  assert.match(forms.awaiting_finish_confirmation, /<fieldset[^>]*data-orch-finish-step="push"[^>]*><legend>/);
+  assert.equal([...forms.awaiting_finish_confirmation.matchAll(/orch-card__effect/g)].length, 4, "every choice says what follows");
+  assert.match(forms.coverage_lost, /data-orch-proposal-pick/, "why Accept dropping is off");
+  assert.match(forms.coverage_lost, /data-orch-proposal-accept="true"[^>]*aria-describedby=/);
 });
