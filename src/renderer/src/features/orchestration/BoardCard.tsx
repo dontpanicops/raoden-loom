@@ -1,7 +1,7 @@
 // B2: the task board on the canvas (stage-b-board.md §6). One card per workspace, moved and resized as an agent card
 // is. Its columns and every line of a task card come from the shared status (boardStatuses) and the same display rules
 // as the agent cards (runStatus); the board only sends what the person asked for — main checks every rule.
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { LocaleId, SessionBounds } from "../../../../shared/contracts";
 import type { OrchestrationAgentLink } from "../../../../shared/orchestration";
 import { AUTOPILOT_BUDGET, type AutopilotLimit, type AutopilotStopCode, conflictsOf, placeKey, externalInForce, isCopy, startBase, taskText, mergeMark, parallelOf, type AutopilotBudget, type AutopilotState, type BoardHead, type BoardMerge, type BoardTask, type ImportReport, type InboxRow, type InboxTask, type RunTaskFacts, type TaskColumn, type TaskStatus } from "../../../../shared/taskBoard";
@@ -34,6 +34,7 @@ export interface BoardCardProps {
   defaultProject: string | null;
   onBoundsChange(bounds: SessionBounds): void;
   onHide(): void;
+  onRaise?(): void; // the card goes to the top of the canvas stack (the import report sits outside its box)
 }
 
 export function BoardCard(props: BoardCardProps): React.JSX.Element {
@@ -51,6 +52,21 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
   // F1 (T-2): «Import tasks» under way, and the report window (the button's result, or an inbox/ file's after «Import»)
   const [importing, setImporting] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
+  // R4: the report plate: raises the card, goes to the left when the right has no room, takes focus and gives it back to «Import»
+  const asideRef = useRef<HTMLElement>(null);
+  const importRef = useRef<HTMLButtonElement>(null);
+  const [asideLeft, setAsideLeft] = useState(false);
+  const closeReport = (): void => { setReport(null); importRef.current?.focus(); };
+  const asideOpen = !!report;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the plate opens or closes, not on every render
+  useLayoutEffect(() => {
+    setAsideLeft(false);
+    const el = asideRef.current;
+    if (!el) return;
+    props.onRaise?.();
+    if (el.getBoundingClientRect().right > window.innerWidth) setAsideLeft(true);
+    el.querySelector<HTMLElement>("[data-board-import-close]")?.focus();
+  }, [asideOpen]);
   const newInputs = window.canvasTTY.orchestration.newInputs;
   const view = board.view;
   const readOnly = !!view?.readOnly;
@@ -114,7 +130,7 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
         {readOnly && <span className="board-card__readonly" role="status">{t(locale, "boardReadOnly")}</span>}
         <span className="board-card__header-actions">
           <button type="button" data-board-new disabled={readOnly} onClick={() => setForm({ task: null })}>{t(locale, "boardNewTask")}</button>
-          <button type="button" data-board-import disabled={readOnly || !newInputs || importing} aria-busy={importing}
+          <button type="button" ref={importRef} data-board-import disabled={readOnly || !newInputs || importing} aria-busy={importing}
             title={newInputs ? undefined : t(locale, "boardImportCode_unsupported_platform")} onClick={async () => {
               setImporting(true);
               const r = await board.importFile();
@@ -338,10 +354,11 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
       ))}
       {/* R4c: the import's report is a side plate, not a modal: the columns stay in reach */}
       {report && (
-        <aside className="board-aside" aria-label={t(locale, "boardImport")} data-board-aside>
+        <aside ref={asideRef} className={`board-aside ${asideLeft ? "board-aside--left" : ""}`} aria-label={t(locale, "boardImport")} data-board-aside
+          onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeReport(); } }}>
           <div className="board-aside__head">
             <strong>{t(locale, "boardImportAside")}</strong>
-            <button type="button" className="board-aside__close" data-board-import-close aria-label={t(locale, "orchClose")} onClick={() => setReport(null)}>×</button>
+            <button type="button" className="board-aside__close" data-board-import-close aria-label={t(locale, "orchClose")} onClick={closeReport}>×</button>
           </div>
           <ImportReportView locale={locale} report={report} tasks={view?.inbox?.find((r) => r.file === report.file)?.tasks ?? []} />
         </aside>
@@ -643,7 +660,7 @@ const reportLine = (locale: LocaleId, r: ImportReport) =>
 function ImportReportView({ locale, report, tasks }: { locale: LocaleId; report: ImportReport; tasks: InboxTask[] }): React.JSX.Element {
   return (
     <div className="board-import" data-board-import-report={report.status} data-wheel-owner="local">
-      <p data-board-import-line>{reportLine(locale, report)}</p>
+      <p data-board-import-line role="status" aria-live="polite">{reportLine(locale, report)}</p>
       <ul className="board-import__list">
         {report.created.map((x) => <li key={`c${x.ref}`} data-board-import-created={x.ref}>+ {x.ref} → {x.key}</li>)}
         {report.updated.map((x) => <li key={`u${x.ref}`} data-board-import-updated={x.ref}>~ {x.ref} → {x.key}</li>)}

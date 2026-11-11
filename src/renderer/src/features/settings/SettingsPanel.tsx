@@ -402,9 +402,9 @@ export function SettingsPanel({
                   onChange={(value) => void onChange({ followSystem: value === "on" })}
                 />
               </SettingGroup>
-              <SettingGroup label={t(locale, "palette")} description={t(locale, "paletteDescription")}>
+              <SettingGroup label={t(locale, "palette")} description={settings.followSystem ? `${t(locale, "paletteBySystem")} ${t(locale, "paletteDescription")}` : t(locale, "paletteDescription")}>
                 <SwatchChoices
-                  value={settings.palette}
+                  value={settings.followSystem ? theme : settings.palette}
                   columns={4}
                   options={([
                     ["sand", t(locale, "themeSand")],

@@ -109,6 +109,13 @@ for (const [selector, v] of themes) {
     check(`${theme}: --status-waiting on its tint over --surface-2-b`, need(v, "--status-waiting", theme), `rgba(${c.r},${c.g},${c.b},0.16)`, TEXT, need(v, "--surface-2-b", theme));
   }
 
+  // R4c: the board's chips: the status colour on its own tint over --surface-2-b
+  for (const [fg, tint, name] of [["--status-working", 0.14, "--status-working-bg"], ["--danger-fg", 0.14, "--status-failed-bg"]]) {
+    const src = fg === "--danger-fg" ? "--status-failed" : fg;
+    const c = parseColor(need(v, src, theme));
+    check(`${theme}: ${fg} on ${name} over --surface-2-b`, need(v, fg, theme), `rgba(${c.r},${c.g},${c.b},${tint})`, TEXT, need(v, "--surface-2-b", theme));
+  }
+
   const termBg = need(v, "--term-bg", theme);
   check(`${theme}: --term-fg on --term-bg`, need(v, "--term-fg", theme), termBg, NON_TEXT);
   const skipped = dark ? ["black", "bright-black"] : ["white", "bright-white"];

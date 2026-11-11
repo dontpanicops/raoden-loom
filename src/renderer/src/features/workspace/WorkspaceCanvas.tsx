@@ -1154,6 +1154,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
               defaultProject={settings.lastDirectory ?? null}
               onBoundsChange={(next) => void board.place(workspace.activeId, next)}
               onHide={() => void board.place(workspace.activeId, null)}
+              onRaise={() => raiseLayer(boardLayerId(workspace.activeId))}
             />
           )}
         </div>

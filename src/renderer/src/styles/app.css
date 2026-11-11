@@ -1123,6 +1123,7 @@ button { border: 0; }
 .orch-dialog .orch-form button.orch-primary:disabled { opacity: .45; }
 .orch-form__why { margin-right: auto; align-self: center; }
 .orch-term { text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
+.orch-dialog:has(.orch-form__actions) { background: var(--surface-4-solid); } /* R4: the pinned bottom and the body are one tone (frost: glass over the scrim was tinted, the bottom was white) */
 .orch-dialog .orch-form__actions { position: sticky; bottom: -28px; z-index: 2; margin: 0 -28px -28px; padding: 12px 28px 20px; background: var(--surface-4-solid); box-shadow: var(--elev-2); }
 .orch-dialog .launch-dialog__toolbar { justify-content: space-between; align-items: center; }
 .orch-dialog__title { font-size: 18px; }
@@ -1515,7 +1516,8 @@ button { border: 0; }
 .board-card__message, .board-card__empty { margin: .5em .9em 0; color: var(--text-secondary); }
 .board-card__message { padding: .5em .7em; border-radius: 9px; color: var(--text-primary); background: var(--status-waiting-bg); }
 /* R4c: the import's report is a plate beside the card, not a modal */
-.board-aside { position: absolute; left: calc(100% + 12px); top: 0; z-index: 2; width: min(22em, 90vw); max-height: 100%; overflow-y: auto; border-radius: 14px; color: var(--text-primary); background: var(--surface-3-solid); box-shadow: var(--edge), var(--elev-3); }
+.board-aside { position: absolute; left: calc(100% + 12px); top: 0; z-index: 2; width: min(22em, 90vw); max-height: 100%; overflow-y: auto; border-radius: 14px; color: var(--text-primary); background: var(--surface-3-solid); box-shadow: var(--edge), inset 0 0 0 1px var(--border-strong), var(--elev-4); }
+.board-aside--left { left: auto; right: calc(100% + 12px); }
 .board-aside__head { padding: .7em .8em .2em 1em; display: flex; align-items: center; justify-content: space-between; gap: .5em; }
 .board-card .board-aside__close { width: 2em; height: 2em; padding: 0; display: grid; place-items: center; color: var(--text-secondary); background: transparent; }
 .board-aside .board-import { padding: 0 1em 1em; font-size: .92em; overflow-wrap: anywhere; }
