@@ -11,6 +11,7 @@ import {
   resizeHomePlacement,
   updateHomePlacement
 } from "../src/renderer/src/features/home/homeLayout.ts";
+import { DEFAULT_HOME_GRID_SIZE, DEFAULT_HOME_LAYOUT } from "../src/shared/contracts.ts";
 import { pluginHomeWidgetOptions } from "../src/renderer/src/features/home/pluginHomeWidgets.ts";
 
 test("lists enabled and disabled plugin Home widgets beside core options", () => {
@@ -151,4 +152,13 @@ test("resizes Home widgets from every anchored edge", () => {
   assert.deepEqual(resizeHomePlacement(placement, "n", 8, 1), {
     widgetId: "one", column: 4, row: 4, columnSpan: 4, rowSpan: 2
   });
+});
+
+test("the default Home layout follows mocks 03 and 05: dock in one row, media under the clock, no overlap, inside the grid", () => {
+  const at = (id) => DEFAULT_HOME_LAYOUT.find((p) => p.widgetId === id);
+  assert.equal(homeLayoutFitsGrid(DEFAULT_HOME_LAYOUT, DEFAULT_HOME_GRID_SIZE), true);
+  for (const [i, a] of DEFAULT_HOME_LAYOUT.entries()) for (const b of DEFAULT_HOME_LAYOUT.slice(i + 1)) assert.equal(placementsOverlap(a, b), false, `${a.widgetId} / ${b.widgetId}`);
+  assert.equal(at("core.launcher").columnSpan, 11);
+  assert.equal(at("core.media").row, at("core.clock").row + at("core.clock").rowSpan);
+  assert.equal(at("core.sessions").row, 0);
 });

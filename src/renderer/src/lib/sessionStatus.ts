@@ -14,7 +14,7 @@ const STATUS_KEYS: Record<SessionStatus, TranslationKey> = {
 const STATUS_ICONS: Record<SessionStatus, UiIconName | null> = {
   idle: null,
   working: "working",
-  needs_approval: "attention",
+  needs_approval: "bell",
   unavailable: null,
   done: "done",
   failed: "error"

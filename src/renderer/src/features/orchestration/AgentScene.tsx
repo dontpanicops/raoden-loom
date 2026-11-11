@@ -12,7 +12,7 @@ import { AgentCard } from "./AgentCard";
 import { chipOnCurve, chipSize } from "./linkChip";
 import { arrowPath, bendFromHandle, linkGeometry, linkPath } from "./linkCurve";
 import { linkTrace } from "./linkTrace";
-import { ACTIVE_STATUSES, activeRole, liveRuns, shownRunId, agentState, cardRole, orchestrationAvailableHere, orchestrationEntry, participantState, runStatusKey, viewPauseLabel, TERMINAL_STATUSES, type AgentState } from "./runModel";
+import { ACTIVE_STATUSES, activeRole, liveRuns, shownRunId, agentState, cardRole, orchestrationAvailableHere, orchestrationEntry, participantState, runStatusKey, viewPauseLabel, PAUSES, TERMINAL_STATUSES, type AgentState } from "./runModel";
 import { ReleaseNewerLink } from "./RunPanel";
 import { conditionsLine, costLine, duration, findingsLine, roleStatus, type StatusLine } from "./runStatus";
 import type { AgentCanvasUi } from "./useAgentCanvasUi";
@@ -87,6 +87,10 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
     const runId = runIdOf(link);
     const run = runId ? orch.runs[runId] ?? null : null;
     const s = agentState(card.role, run?.view ?? null);
+    // a pause only the person can end ("Ждёт вас: …") is the waiting tone on the card of the role that holds the turn, on both when none does (mock 06)
+    const v = run?.view;
+    if (s === "paused" && v?.reason && PAUSES[v.reason]?.you !== false && viewPauseLabel(locale, v, orch.activity[v.runId]?.entries ?? []) !== null
+      && (!activeRole(v) || (activeRole(v) === "reviewer" ? "lead" : activeRole(v)) === card.role)) return "needs_you";
     if (s !== "working" || !runId) return s;
     const p = participantState(cardRole(card.role, run!.view), run!.view, orch.activity[runId]?.entries ?? [], run!.open);
     return p.phase === "running" || p.phase === "finishing" ? "working" : "starting";

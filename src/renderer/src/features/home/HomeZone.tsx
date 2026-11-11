@@ -708,8 +708,8 @@ const RUN_TONE: Record<ActivityState, "working" | "waiting" | "idle"> = {
   starting: "working", working: "working", checking: "working", waiting_agent: "working", waiting_user: "waiting",
   paused: "waiting", stopping: "idle", completed: "idle", completed_no_checks: "idle", stopped: "idle", failed: "idle", read_only: "idle"
 };
-const RUN_ICON: Partial<Record<ActivityState, "working" | "attention" | "error" | "done">> = {
-  starting: "working", working: "working", checking: "working", waiting_user: "attention", failed: "error", completed: "done",
+const RUN_ICON: Partial<Record<ActivityState, "working" | "attention" | "bell" | "error" | "done">> = {
+  starting: "working", working: "working", checking: "working", waiting_user: "bell", failed: "error", completed: "done",
   completed_no_checks: "attention" // a warning, never the done mark: no check ran
 };
 const clockTime = (locale: LocaleId, iso: string): string =>
@@ -736,22 +736,26 @@ function RunActivityRow({ row, locale, onOpen }: { row: ActivityRunRow; locale: 
   const icon = RUN_ICON[line.state];
   const extra = line.wait ?? line.now;
   const last = line.lastEventAt ? t(locale, "orchNow_lastEvent").replace("{time}", clockTime(locale, line.lastEventAt)) : null;
+  const details = [line.doing, extra, row.conditions, row.findings, line.quiet ?? last].filter(Boolean).join(" · ");
+  // one 30px row as in mock 05: mark, project, status; the rest is in the tooltip (and kept in the row for readers)
   return (
     <div className="usage-row-wrap activity-run" data-activity-run={row.runId} data-run-state={line.state}>
       <button className="usage-row activity-run__main" type="button" data-session-tone={RUN_TONE[line.state]} onClick={onOpen}
-        aria-label={`${row.project}, ${stateLabel(locale, line.state)}: ${line.doing}`} title={row.projectPath}>
+        aria-label={`${row.project}, ${stateLabel(locale, line.state)}: ${line.doing}`} title={`${row.projectPath}\n${details}`}>
         {line.actor === "lead" || line.actor === "executor" || line.actor === "reviewer"
-          ? <ProviderIcon provider={line.actor === "executor" ? "claude" : "codex"} size="medium" />
-          : <UiIcon name="blocks" size={28} />}
-        <span className="usage-row__copy">
-          <strong>{stateLabel(locale, line.state)} · {row.project}</strong>
-          <span>{kind} {line.doing}</span>
-          {extra && <span className="activity-run__extra" data-activity-extra>{extra}</span>}
-          {row.conditions && <span className="activity-run__extra" data-activity-conditions>{row.conditions}</span>}
-          {row.findings && <span className="activity-run__extra" data-activity-findings>{row.findings}</span>}
-          {(line.quiet || last) && <span className="activity-run__time">{line.quiet ?? last}</span>}
+          ? <ProviderIcon provider={line.actor === "executor" ? "claude" : "codex"} size="small" />
+          : <UiIcon name="blocks" size={20} />}
+        <span className="usage-row__name">{row.project}</span>
+        <span className="usage-row__chip">
+          <UiIcon name={icon ?? "status-idle"} size={14} />{stateLabel(locale, line.state)}
         </span>
-        {icon && <UiIcon name={icon} size={24} />}
+        <span className="activity-run__detail">
+          {kind} <span>{line.doing}</span>
+          {extra && <span data-activity-extra>{extra}</span>}
+          {row.conditions && <span data-activity-conditions>{row.conditions}</span>}
+          {row.findings && <span data-activity-findings>{row.findings}</span>}
+          {(line.quiet || last) && <span>{line.quiet ?? last}</span>}
+        </span>
       </button>
       <details className="activity-run__people">
         <summary>{t(locale, "actParticipants")}</summary>
