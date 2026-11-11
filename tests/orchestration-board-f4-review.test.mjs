@@ -602,7 +602,7 @@ test("the pause of a run without MCP: needs_user_action, not a new reason; the p
     { turnId: "t1", kind: "error", text: "mcp_present: …", detail: { mcp: "mcp_present", cli: "codex", names: "a, b" } }];
   const cause = pauseCause("needs_user_action", "t1", entries);
   assert.deepEqual(cause, { kind: "mcp", reason: "needs_user_action", code: "mcp_present", cli: "codex", names: "a, b" });
-  assert.equal(causeText("ru", cause), "У Codex включены MCP-серверы: a, b; выключите их в своём конфиге Codex и нажмите «Продолжить»");
+  assert.equal(causeText("ru", cause), "У Codex включены MCP-серверы: a, b; выключите их в своём конфиге Codex и нажмите «Готово, продолжить»");
   assert.match(causeText("en", { ...cause, code: "mcp_unchecked" }), /MCP servers of Codex could not be checked \(no answer/);
   // the readiness item's words (OrchestrationDialogs readinessLine: mcp_warning by its facts)
   const dialogs = fs.readFileSync(path.join(HERE, "..", "src", "renderer", "src", "features", "orchestration", "OrchestrationDialogs.tsx"), "utf8");
