@@ -313,6 +313,7 @@ try {
   await clickAction(app, "Повторить ход");
   await app.waitFor(`${q(".orch-panel__unknown")} && true`, "unknown result shown");
   const notice = await app.ev(`${q("[data-orch-offline]")}?.textContent ?? null`);
+  expect(!(await app.ev(`!!${q("[data-orch-refused]")}`)), "4: a lost connection is not drawn as a refusal of main", null);
   expect(notice?.startsWith("Нет связи с процессом запуска") && !fs.existsSync(path.join(DROP, "recover")), "4: the dropped reply is reported; the command is pending", notice);
   expect(count(runC, "recovery.decided") === 1 && count(runC, "command.received", (d) => d.kind === "recover") === 1, "4: main carried the recover out once", timeline(runC));
   await app.shot("08-reply-lost");
