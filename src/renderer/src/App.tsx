@@ -258,14 +258,14 @@ export function App(): React.JSX.Element {
     dispatchToast({ type: "push", toast: { id: toastId.current, kind, message, action, title } });
   }, []);
   const dismissToast = useCallback((id: number): void => dispatchToast({ type: "dismiss", id }), []);
-  // R6-C: a driver hook for the frames of mock 10 (scripts/shots-r5.mjs), like linkTrace: inert unless a driver has set
-  // window.__canvasTTYToastDriver; it only shows the toast the driver describes (the app has no source of «waiting» toasts with an action)
+  // R6-C: a driver hook for the frames of mock 10 (scripts/shots-r5.mjs), like linkTrace: inert in a packaged build (devHooks comes
+  // from main as a preload argument); it only shows the toast the driver describes (the app has no source of «waiting» toasts with an action)
   useEffect(() => {
     const show = (event: Event): void => {
-      if (!(window as { __canvasTTYToastDriver?: unknown }).__canvasTTYToastDriver) return;
       const d = (event as CustomEvent<{ message: string; kind: ToastKind; action?: string; title?: string }>).detail;
       showToast(d.message, d.kind, d.action ? { label: d.action, run: () => undefined } : undefined, d.title);
     };
+    if (!window.canvasTTY.window.devHooks) return;
     window.addEventListener("canvastty:toast", show);
     return () => window.removeEventListener("canvastty:toast", show);
   }, [showToast]);

@@ -286,8 +286,8 @@ try {
       await shot("canvas-region-menu"); await esc();
     });
     await scene("overlay-toast", async () => {
-      // the app has no source of «waiting» toasts with an action: the driver hook of App.tsx (inert unless the flag is set) shows the three states of mock 10
-      await app.ev(`(() => { window.__canvasTTYToastDriver = true; const t = (message, kind, action, title) => window.dispatchEvent(new CustomEvent("canvastty:toast", { detail: { message, kind, action, title } }));
+      // the app has no source of «waiting» toasts with an action: the driver hook of App.tsx (inert in a packaged build) shows the three states of mock 10
+      await app.ev(`(() => { const t = (message, kind, action, title) => window.dispatchEvent(new CustomEvent("canvastty:toast", { detail: { message, kind, action, title } }));
         t("project-b · разрешение MCP", "waiting", "Перейти", "Claude ждёт разрешения"); t("project-c · Claude CLI, код 1", "error", "Открыть", "Запуск упал"); t("project-a · проверки прошли, ревью принято", "success", "Итог", "Запуск завершён"); return true; })()`);
       await sleep(600);
       await shot("overlay-toast");

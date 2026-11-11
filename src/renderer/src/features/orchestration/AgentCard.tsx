@@ -7,7 +7,7 @@ import { CARD_STATUS_ICON, agentCardStatus } from "../../lib/cardStatus";
 import { t, type TranslationKey } from "../../lib/i18n";
 import { AGENT_CARD_EXPANDED, AGENT_CARD_LIMITS as LIMITS, AGENT_CARD_SIZE, agentCardSize, isCompact, withoutHome } from "./agentCardGeometry";
 import type { AgentState } from "./runModel";
-import { entryLabel, FEED_KINDS, structured } from "./RunPanel";
+import { CARD_FEED_KINDS, entryLabel, structured } from "./RunPanel";
 import { isServiceEntry, type StatusLine } from "./runStatus";
 import { RESIZE_DIRECTIONS, useCardFrame } from "./useCardFrame";
 import type { CardMessage } from "./useAgentCanvasUi";
@@ -192,7 +192,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
 function CardFeed({ locale, entries, role, height }: { locale: LocaleId; entries: readonly OrchestrationActivityEntry[]; role: "lead" | "executor"; height: number }): React.JSX.Element {
   // the lead's card is also the reviewer's (the reviewer is a session of the lead's CLI)
   const items = useMemo(() => entries.filter((e) => (role === "lead" ? e.role === "lead" || e.role === "reviewer" : e.role === "executor")
-    && FEED_KINDS.has(e.kind) && !isServiceEntry(e)).slice(-200), [entries, role]);
+    && CARD_FEED_KINDS.has(e.kind) && !isServiceEntry(e)).slice(-200), [entries, role]);
   const box = useRef<HTMLDivElement>(null);
   const [following, setFollowing] = useState(true);
   useLayoutEffect(() => {

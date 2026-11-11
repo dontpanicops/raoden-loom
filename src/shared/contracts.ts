@@ -1108,6 +1108,8 @@ export interface CanvasTTYApi {
   };
   window: {
     isMacOS: boolean;
+    /** true only in an unpackaged build: the page may then honour test hooks */
+    devHooks: boolean;
     minimize(): void;
     toggleMaximize(): Promise<WindowState>;
     close(): void;

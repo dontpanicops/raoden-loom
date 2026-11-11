@@ -59,6 +59,7 @@ import { JOURNAL_V2_BY_DEFAULT } from "./services/orchestration/journal";
 import { runOrchestrationIpcSmoke } from "./services/orchestration/ipcSmoke";
 import { startupPageUrl } from "./startupPage";
 import { quietWindow } from "./quietWindow";
+import { devHooksArguments } from "./devHooks";
 import { earlyTheme, effectiveTheme, windowBackground } from "../shared/appearance";
 import type { AppSettings, PaletteId } from "../shared/contracts";
 import { mainWindowChromeOptions } from "./windowChrome";
@@ -188,6 +189,7 @@ async function createWindow(): Promise<BrowserWindow> {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      additionalArguments: devHooksArguments(app.isPackaged),
       ...(quiet() ? { backgroundThrottling: false } : {})
     }
   });

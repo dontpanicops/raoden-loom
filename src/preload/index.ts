@@ -211,6 +211,7 @@ const api: CanvasTTYApi = {
   },
   window: {
     isMacOS: process.platform === "darwin",
+    devHooks: process.argv.includes("--canvastty-dev-hooks"),
     minimize: () => ipcRenderer.send(IPC.windowMinimize),
     toggleMaximize: () => ipcRenderer.invoke(IPC.windowToggleMaximize),
     close: () => ipcRenderer.send(IPC.windowClose),

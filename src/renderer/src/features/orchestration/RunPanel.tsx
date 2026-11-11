@@ -289,6 +289,8 @@ const LOG_KINDS = new Set(["task_sent", "stderr", "error", "process_started", "p
 export const FEED_KINDS = new Set(["thinking", "message", "tool_started", "tool_finished", "file_read",
   "file_changed", "subagent", "refusal", "error", "turn_finished", "check_started", "check_finished", "status", "truncated",
   "permission_requested", "permission_decided", "permission_applied", "prepare_started", "prepare_finished", "external_action", "report_note"]);
+// the agent card keeps «task sent» (the hand-over of a turn), the run panel's feed has it only in «Журнал»
+export const CARD_FEED_KINDS: ReadonlySet<string> = new Set([...FEED_KINDS, "task_sent"]);
 
 // «— CLI: <its reason> (<its type>)», as the CLI put it; nothing when it gave none
 export function cliWhy(locale: LocaleId, d: Readonly<Record<string, unknown>>): string {
