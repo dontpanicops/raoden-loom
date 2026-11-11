@@ -211,6 +211,18 @@ export function historyLines(records: readonly OrchestrationHistoryRecord[]): Hi
   return out;
 }
 
+// R5h-A (mock-up 20): the role a history line belongs to, for the role filter of «Записи»; a status, a limit, a recovery or the
+// preparation belongs to the run itself and is shown under every role, as the feed shows the status
+export function lineRole(l: HistoryLine): "lead" | "executor" | "check" | "run" {
+  switch (l.kind) {
+    case "report": return "executor";
+    case "turn": case "turn_failed": return l.parts.purpose === "execute" ? "executor" : "lead";
+    case "check": return "check";
+    case "status": case "recovered": case "limit": case "prepare_started": case "prepare_finished": return "run";
+    default: return "lead";
+  }
+}
+
 // How a loaded text is shown: findings as a list, a report by its summary and the rest, check output as it is.
 export function formatText(kind: LineText["kind"], text: string): { items: string[]; body: string } {
   if (kind === "output") return { items: [], body: text };
@@ -749,8 +761,11 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
     case "stopped": case "failed": {
       const cause = viewCause(view, entries);
       const lastError = [...entries].reverse().find((e) => e.kind === "error" && e.text)?.text.slice(0, 600) ?? null;
+      // R5h-A (mock-up 18): a CLI that exited with a code — said with the code and the stage, as the activity recorded them
+      const exit = status === "failed" ? [...entries].reverse().find((e) => e.kind === "process_exited" && typeof e.detail?.code === "number" && e.detail.code !== 0) : undefined;
+      const exitTitle = exit?.provider ? L(view.stage !== null && view.stage !== undefined ? "orchFailedExit" : "orchFailedExitNoStage").replace("{agent}", providerName(exit.provider)).replace("{code}", String(exit.detail?.code)).replace("{n}", String(view.stage)) : null;
       // R5a: the cause is the headline (the mock-up's "Claude CLI exited with code 1 on stage 2"); no cause - the state's own words
-      return state(status, status, { eyebrow: L(`orchEyebrow_${status}`), ...(cause ? { title: causeText(locale, cause) } : {}), ...(status === "failed" && lastError ? { detail: lastError } : {}), footer: [b("copy_id", L("orchZone_copyId"))],
+      return state(status, status, { eyebrow: L(`orchEyebrow_${status}`), ...(exitTitle ? { title: exitTitle } : cause ? { title: causeText(locale, cause) } : {}), ...(status === "failed" && lastError ? { detail: lastError } : {}), footer: [b("copy_id", L("orchZone_copyId"))],
         primary: b("open_journal", L("orchZone_openJournal")), secondary: [b("new_goal", L("orchNewGoal"))] });
     }
   }
@@ -1111,7 +1126,7 @@ export function costOf(view: OrchestrationRunView, entries: readonly Orchestrati
 // person types (minutes for the run's time). used null: no single number (rounds are counted per stage).
 export const LIMIT_KINDS: readonly OrchestrationLimitKind[] = ["turns", "runMs", "replans", "roundsPerStage"];
 export interface LimitRow { kind: OrchestrationLimitKind; now: number; used: number | null; reached: boolean }
-export function limitRows(cost: Cost, budget: NonNullable<NonNullable<OrchestrationRunView["progress"]>["budget"]>): LimitRow[] {
+export function limitRows(cost: Cost, budget: NonNullable<NonNullable<OrchestrationRunView["progress"]>["budget"]>, rounds: number | null = null): LimitRow[] {
   const minutes = (ms: number) => Math.round(ms / 60_000);
   return LIMIT_KINDS.map((kind) => ({
     kind, reached: cost.reached === kind,
@@ -1119,7 +1134,7 @@ export function limitRows(cost: Cost, budget: NonNullable<NonNullable<Orchestrat
     used: kind === "turns" ? budget.used.turns : kind === "replans" ? budget.used.replans
       : kind === "runMs" ? (cost.elapsedMs === null ? null : Math.ceil(cost.elapsedMs / 60_000))
         // rounds are counted per stage: known only for the stage that reached its limit
-        : cost.reached === "roundsPerStage" ? budget.limits.roundsPerStage : null
+        : cost.reached === "roundsPerStage" ? budget.limits.roundsPerStage : rounds
   }));
 }
 

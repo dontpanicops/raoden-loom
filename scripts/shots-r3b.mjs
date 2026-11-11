@@ -58,7 +58,7 @@ const permission = { requestId: "p1", role: "executor", provider: "claude", kind
 const STATES = [
   ["01-working", null, { running: { stage: 2, permission: null, active: { kind: "turn", purpose: "execute" } } }],
   ["02-awaiting-answer", "awaiting_answer"],
-  ["03-permission", null, { running: { stage: 1, permission, pendingPermissions: 1 } }],
+  ["03-permission", null, { running: { stage: 2, permission, pendingPermissions: 1 } }],
   ["04-plan-review", "plan_review"],
   ["05-checks-decision", "awaiting_checks_decision"],
   ["06-checks-none", "awaiting_checks_none"],
@@ -82,7 +82,7 @@ const { legacyView } = await import(pathToFileURL(path.join(ROOT, "src/renderer/
 const PLAN_RECORDS = [{ seq: 1, ts: "2026-11-11T10:00:00.000Z", type: "plan.recorded", data: { plan: { sha256: "pp", bytes: 1 }, firstStage: 1, stageCount: 2 } },
   { seq: 2, ts: "2026-11-11T10:05:00.000Z", type: "review.recorded", data: { stage: null, verdict: "complete", findings: null } }];
 const PLAN_TEXTS = { pp: { status: "ready", text: JSON.stringify({ stages: [{ title: "модель заметки", task: "t" }, { title: "API и список", task: "t" }] }) },
-  gg: { status: "ready", text: JSON.stringify({ text: "Добавить заметки к задачам доски", limits: { runMs: 4 * 3600_000, turns: 40, roundsPerStage: 6 } }) },
+  gg: { status: "ready", text: JSON.stringify({ text: "Добавить заметки к задачам доски", commands: [], limits: { runMs: 4 * 3600_000, turns: 40, roundsPerStage: 6 } }) },
   rr: { status: "ready", text: JSON.stringify({ done: true, summary: "заметки добавлены" }) } };
 // R5b3: the journal of the completed run the mock-up 17 draws — the goal with its limits, three plan versions of two stages, both stages accepted, the executor's report
 const T0 = Date.parse("2026-11-11T10:00:00.000Z");
@@ -98,7 +98,7 @@ const PROGRESS_17 = { mode: "autopilot", branch: "feat/notes", access: { claude:
   checks: [check("c1", "npm test"), check("c2", "npm run lint"), check("c3", "npm run build")],
   finish: [{ step: "commit", asked: true, status: "done", established: true, commit: "a1b2c3d4e5f60718", evidence: null }, { step: "push", asked: true, status: "done", established: true, commit: "9f8e7d6c5b4a3921", evidence: null },
     { step: "qa", asked: false, status: "not_started", established: false, commit: null, evidence: null }] };
-const budget = (extra) => ({ calls: { lead: 14, executor: 22, reviewer: 0 }, limits: { turns: 40, runMs: 4 * 3600_000, replans: 3, roundsPerStage: 6 }, used: { turns: 40, replans: 0 }, startedAt: Date.now() - 72 * 60_000, deadlineAt: Date.now() + 168 * 60_000, reached: null, ...extra });
+const budget = (extra) => ({ calls: { lead: 14, executor: 22, reviewer: 0 }, limits: { turns: 40, runMs: 4 * 3600_000, replans: 3, roundsPerStage: 6 }, used: { turns: 40, replans: 0 }, startedAt: Date.now() - 71.2 * 60_000, deadlineAt: Date.now() + 168 * 60_000, reached: null, ...extra });
 async function renderer() { // the built RunPanel to static markup (as tests/orchestration-action-zone-render.test.mjs does)
   const out = await requireApp("esbuild").build({
     // R5b (D-017): the entry also exports ActionZone and the zone model, for the frame of the open "Уточнить" field
@@ -122,20 +122,38 @@ async function renderer() { // the built RunPanel to static markup (as tests/orc
       sending: false, disabled: () => false, onButton: noop, confirmText: () => null, clarify: { value: "Список заметок без пагинации, до 200 записей.", onChange: noop, onSend: noop }, who: "Claude",
       words: (x) => x }));
   };
-  const render = (f) => {
+  const propsOf = (f) => {
     const v = { ...f.view };
     if (v.progress) v.progress = { mode: "autopilot", checks: [], finish: [], ...v.progress };
-    return renderToStaticMarkup(React.createElement(mod.exports.RunPanel, {
+    return {
       orch: { runs: { "25931336": { view: v, open: true, seq: 9, tick: 0 }, ...(f.live ? { "7c41e09a": { view: { ...v, runId: "7c41e09a", status: "paused" }, open: true, seq: 1, tick: 0 }, b2e0f115: { view: { ...v, runId: "b2e0f115", status: "completed" }, open: true, seq: 1, tick: 0 } } : {}) }, activity: { "25931336": { entries: f.entries, gaps: [], firstId: f.entries[0]?.id ?? 0, status: "ready", resyncs: 0 } },
         runErrors: {}, canvas: { links: [{ linkId: "L", fromAgentId: "a1", toAgentId: "a2", createdAt: "2026-11-11T10:00:00.000Z", runIds: ["25931336"] }],
-          agents: [{ agentId: "a1", provider: "codex", role: "lead", project: "/work/project-b" }, { agentId: "a2", provider: "claude", role: "executor", project: "/work/project-b" }] }, journals: { "25931336": { records: f.records ?? PLAN_RECORDS, next: 1, status: "ready" } }, texts: PLAN_TEXTS,
+          agents: [{ agentId: "a1", provider: "codex", role: "lead", project: "/work/project-b" }, { agentId: "a2", provider: "claude", role: "executor", project: "/work/project-b" }] }, journals: { "25931336": { records: f.records ?? PLAN_RECORDS, next: 1, status: "ready" } }, texts: { ...PLAN_TEXTS, ...(f.texts ?? {}) },
         commands: { pending: () => [] }, catalog: { checks: [], providers: { lead: { provider: "codex", protocol: "app-server" }, executor: { provider: "claude", protocol: "stream-json" } } }, loadText() {}, syncJournal() {}, retry() {}, stageTitles: () => ({}) },
       runId: "25931336", locale: "ru", liveRunIds: f.live ? ["25931336", "7c41e09a", "b2e0f115"] : undefined, panel: { linkId: "L", mode: "feed", ...(f.tab ? { tab: f.tab, role: "all" } : f.work ? { tab: "work", role: "all" } : legacyView("overview")), role: f.work || f.tab ? "all" : "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {},
       onProjectSettings: () => {}
-    }));
+    };
   };
+  const render = (f) => renderToStaticMarkup(React.createElement(mod.exports.RunPanel, propsOf(f)));
+  render.props = propsOf;
   render.clarifyOpen = clarifyOpen;
   return render;
+}
+// R5h-A: the states whose frame needs what the panel loads by itself (the result to take, the changed files): drawn by the real
+// RunPanel in the page, with the application's API answered by the fixture, and waited for until nothing says «Загрузка…»
+const LIVE_FIXTURES = ["08-outcome-unknown", "15-lead-modified-tree", "17-completed", "18-failed"];
+const TAKE = { mode: "worktree", from: "checkpoint", stage: 2, files: 3, allowed: true, suggested: "raoden/notes-api-25931336", runBranch: "feat/notes", branch: null, applied: null };
+const CHANGES = { base: "baseline", at: "live_snapshot", atTs: "2026-11-11T10:31:00.000Z", truncated: false, checkpoints: [], baselineRef: "base", transferred: false,
+  files: [{ path: "src/api/notes.ts", status: "added" }, { path: "src/api/notes.test.ts", status: "added" }, { path: "src/index.ts", status: "modified" }] };
+async function browserBundle() {
+  const out = await requireApp("esbuild").build({
+    stdin: { contents: 'import * as React from "react"; import { createRoot } from "react-dom/client"; import { RunPanel } from "./RunPanel"; window.__mount = (props) => { const orch = props.orch; orch.commands = { pending: () => [], request: (runId, revision, command) => ({ runId, commandId: "c", expectedRevision: revision, command }), settle() {} }; Object.assign(orch, { loadText() {}, syncJournal() {}, retry() {}, refreshRun() {}, stageTitles: () => ({}) }); createRoot(document.getElementById("root")).render(React.createElement(RunPanel, { ...props, onClose() {}, onNewGoal() {}, onView() {}, onProjectSettings() {} })); };',
+      resolveDir: path.join(ROOT, "src/renderer/src/features/orchestration"), loader: "tsx" },
+    bundle: true, write: false, platform: "browser", format: "iife", jsx: "automatic", logLevel: "silent", define: { "process.env.NODE_ENV": '"production"', "window.canvasTTY": "window.__fxApi" }, // the real preload owns window.canvasTTY: the fixture answers instead
+    loader: { ".png": "dataurl", ".ico": "dataurl", ".webp": "dataurl", ".jpg": "dataurl" },
+    plugins: [{ name: "svg-base64", setup(b) { b.onLoad({ filter: /\.svg$/ }, (a) => ({ contents: `export default "data:image/svg+xml;base64,${fs.readFileSync(a.path).toString("base64")}"`, loader: "js" })); } }]
+  });
+  return out.outputFiles[0].text;
 }
 const cssFile = () => { const dir = path.join(ROOT, "out/renderer/assets"); return path.join(dir, fs.readdirSync(dir).find((f) => /^index-.*\.css$/.test(f))); };
 // the mock-up opens a run that works (and most pauses) on "Work" and the checks / finish / refused ones on "Summary"
@@ -143,7 +161,27 @@ const SUMMARY_STATES = ["04-plan-review", "10-person-decision", "05-checks-decis
 const TURN = (id, kind, text) => ({ id, ts: "2026-11-11T07:31:0" + id + ".000Z", turnId: "t1", role: "executor", provider: "claude", kind, text });
 const WORKING_ENTRIES = [TURN(1, "thinking", ""), TURN(2, "tool_started", "Edit src/api/notes.ts"), TURN(3, "tool_started", "Bash npm test")];
 const CHANGES_STATES = ["08-outcome-unknown", "15-lead-modified-tree"]; // D-017: the pauses about the tree open on "Changes"
-const fixtureOf = (state) => { const f = fixtureOf0(state); return CHANGES_STATES.includes(state[0]) ? { ...f, tab: "changes" } : SUMMARY_STATES.includes(state[0]) ? f : { ...f, work: true, live: state[0] === "01-working", entries: state[0] === "01-working" ? WORKING_ENTRIES : f.entries }; };
+// R5h-A (D-026): the pauses show where the run stands under the zone — their journals carry the plan (and the accepted stages, the round, the refused check)
+const rec = (seq, type, data) => ({ seq, ts: at(seq), type, data });
+const REC_PLAN = [rec(1, "run.created", { goal: { sha256: "gg", bytes: 1 } }), rec(2, "plan.recorded", { plan: { sha256: "pp", bytes: 1 }, firstStage: 1, stageCount: 2, version: 1 })];
+const REC_PLAN_PR = [rec(1, "run.created", { goal: { sha256: "gg", bytes: 1 } }), rec(2, "plan.recorded", { plan: { sha256: "pq", bytes: 1 }, firstStage: 1, stageCount: 2, version: 1 }), rec(3, "stage.accepted", { stage: 1 })];
+const PAUSE_EXTRA = {
+  "02-awaiting-answer": { records: REC_PLAN },
+  "03-permission": { records: REC_PLAN_PR, texts: { pq: { status: "ready", text: JSON.stringify({ stages: [{ title: "модель заметки", task: "t" }, { title: "PR и описание", task: "t" }] }) } } },
+  "05-checks-decision": { records: REC_PLAN },
+  "18-failed": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 })] },
+  "07-limit-reached": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "orch.turn", { turnId: "t7", purpose: "execute", stage: 2, round: 3 })] },
+  "12-finish-confirmation": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "stage.accepted", { stage: 2 })] },
+  "14-check-needs-permissions": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "check.started", { checkRunId: "x1", checkId: "c1" }), rec(5, "check.finished", { checkRunId: "x1", checkId: "c1", status: "failed" })],
+    progress: { checks: [{ id: "c1", title: "npm run test:e2e", status: "failed", class: "sandbox" }] }, refusedCommand: "npm run test:e2e" }
+};
+const withExtra = (f, name) => {
+  const x = PAUSE_EXTRA[name];
+  if (!x) return f;
+  return { ...f, records: x.records, ...(x.texts ? { texts: x.texts } : {}), view: { ...f.view, ...(x.progress ? { progress: { ...(f.view.progress ?? {}), ...x.progress } } : {}), ...(x.refusedCommand && f.view.refused ? { refused: { ...f.view.refused, command: x.refusedCommand } } : {}) } };
+};
+const fixtureOf = (state) => withExtra(fixtureOf1(state), state[0]);
+const fixtureOf1 = (state) => { const f = fixtureOf0(state); return CHANGES_STATES.includes(state[0]) ? { ...f, tab: "changes" } : SUMMARY_STATES.includes(state[0]) ? f : { ...f, work: true, live: state[0] === "01-working", entries: state[0] === "01-working" ? WORKING_ENTRIES : f.entries }; };
 const fixtureOf0 = ([, set, o]) => {
   if (set === "awaiting_answer") return { view: view("paused", "awaiting_answer", { stage: 1, permission: { ...permission, kind: "question", tool: "AskUserQuestion", summary: "Где хранить заметки?", detail: null, options: ["allow_once", "deny"],
     questions: [{ id: "q1", question: "Где хранить заметки: в SQLite (~/.loom/notes.db) или JSON-файлами в папке проекта?", options: [], multiple: false, other: true }] } }), entries: [], onMac: true };
@@ -163,7 +201,8 @@ const fixtureOf0 = ([, set, o]) => {
       { id: 2, ts: at(2), runId: "r", role: "executor", provider: "claude", turnId: null, kind: "session", text: "", detail: { reported: true, permissionMode: "acceptEdits", model: "sonnet" } }], records: RECORDS_17, onMac: true };
   // the failure: the executor's turn ended with an error the zone quotes
   return { view: view("failed", "environment_error", { stage: 2 }), entries: [{ id: 1, ts: at(30), runId: "r", role: "executor", provider: "claude", turnId: "t1", kind: "turn_finished", text: "failed" },
-    { id: 2, ts: at(30), runId: "r", role: "executor", provider: "claude", turnId: "t1", kind: "error", text: "Error: API rate limit reached\nat runTurn (claude:1:4412)" }], onMac: true };
+    { id: 2, ts: at(30), runId: "r", role: "executor", provider: "claude", turnId: "t1", kind: "error", text: "Error: API rate limit reached\nat runTurn (claude:1:4412)" },
+    { id: 3, ts: at(30), runId: "r", role: "executor", provider: "claude", turnId: "t1", kind: "process_exited", text: "", detail: { code: 1 } }], onMac: true };
 };
 
 const combos = BEFORE ? [{ name: "before", patch: { palette: "sand", canvasColor: "theme" } }]
@@ -222,9 +261,27 @@ try {
       await sleep(900);
       await shot(`${theme}${scale === 1 ? "" : "-scale125"}`, `fx-${name}`);
     };
+    const bundleJs = fs.existsSync(D("panel.js")) ? null : await browserBundle();
+    if (bundleJs) fs.writeFileSync(D("panel.js"), bundleJs);
+    const drawLive = async (name, f, theme, scale) => {
+      const file = D(`page-live-${name}.html`);
+      const api = `const ok = (value) => Promise.resolve({ ok: true, value }); const none = () => Promise.resolve({ ok: false, error: { code: "fixture" } });
+        window.__fxApi = new Proxy({}, { get: () => new Proxy({ take: () => ok(${JSON.stringify(TAKE)}), changes: () => ok(${JSON.stringify(CHANGES)}) }, { get: (t, k) => t[k] ?? none }) });`;
+      fs.writeFileSync(file, `<!doctype html><html lang="ru"><head><meta charset="utf-8"><link rel="stylesheet" href="${css}"></head>
+<body style="margin:0"><div class="app app--${theme} app--macos" style="--ui-scale:${scale};position:fixed;inset:0"><div class="workspace" style="position:absolute;inset:0"><div id="root"></div></div></div>
+<script>${api}</script><script src="${pathToFileURL(D("panel.js")).href}"></script><script>window.__mount(${JSON.stringify(render.props(f))});</script></body></html>`);
+      await app.call("Page.navigate", { url: pathToFileURL(file).href });
+      await app.waitFor(`document.querySelector(".orch-panel") && !document.body.innerText.includes("Загрузка")`, `${name}: the panel without «Загрузка…»`, 15_000);
+      await sleep(600);
+      await shot(`${theme}${scale === 1 ? "" : "-scale125"}`, `fx-${name}`);
+    };
     const todo = FORMS ? STATES.filter((s) => FORM_STATES.includes(s[0])) : BEFORE ? STATES.filter((s) => ["02-awaiting-answer", "07-limit-reached", "10-person-decision", "17-completed"].includes(s[0])) : STATES;
     for (const theme of BEFORE ? ["sand"] : THEMES) {
       for (const s of todo) {
+        if (LIVE_FIXTURES.includes(s[0])) {
+          try { await drawLive(s[0], fixtureOf(s), theme, 1); } catch (e) { console.error(`[shots-r3b] ${s[0]} not drawn: ${e.message}`); }
+          continue;
+        }
         let html;
         try { html = render(fixtureOf(s)); } catch (e) { console.error(`[shots-r3b] ${s[0]} not drawn: ${e.message}`); continue; }
         await draw(s[0], html, theme === "sand" && BEFORE ? "sand" : theme, 1);

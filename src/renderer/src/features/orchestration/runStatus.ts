@@ -35,6 +35,14 @@ export function duration(locale: LocaleId, ms: number): string {
   return m < 60 ? `${m} ${min} ${s % 60} ${sec}` : `${Math.floor(m / 60)} ${h} ${m % 60} ${min}`;
 }
 
+// R5h-A (mock-ups 07, 13): a time span as «1 ч 12 м»: hours and minutes, no seconds and no zero minutes
+export function spanText(locale: LocaleId, ms: number): string {
+  const m = Math.max(0, Math.round(ms / 60_000));
+  if (m < 1) return duration(locale, ms);
+  const [min, h] = [t(locale, "orchUnitMinShort"), t(locale, "orchUnitHour")];
+  return m < 60 ? `${m} ${min}` : m % 60 === 0 ? `${m / 60} ${h}` : `${Math.floor(m / 60)} ${h} ${m % 60} ${min}`;
+}
+
 // A service event of a CLI (Codex hooks): kept in the full feed, folded by default.
 export const isServiceEntry = (e: OrchestrationActivityEntry): boolean =>
   (e.kind === "tool_started" || e.kind === "tool_finished") && e.detail?.tool === "hook";

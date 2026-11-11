@@ -198,9 +198,12 @@ try {
     const findingsShown = await app.ev(`[...${li("review", "нужны исправления")}.querySelectorAll(".orch-details__body li")].map((x) => x.textContent)`);
     expect(JSON.stringify(findingsShown) === JSON.stringify(FINDINGS), "the lead's findings open as a list", findingsShown);
   }
-  const firstReport = `[...document.querySelectorAll('.orch-history li[data-history-kind="report"]')].at(-1)`;
+  const firstReport = `document.querySelector('.orch-history li[data-history-kind="report"]')`; // R5h-A: the records are in the order they happened
   await app.clickEl(`${firstReport}.querySelector(".orch-details__toggle")`);
   await app.waitFor(`${firstReport}.querySelector(".orch-details__body li")?.textContent === "note and extra test added"`, "executor report shown");
+  const bodyBox = await app.ev(`(() => { const r = ${q(".orch-panel__body")}.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 20 }; })()`);
+  await app.call("Input.dispatchMouseEvent", { type: "mouseWheel", x: bodyBox.x, y: bodyBox.y, deltaX: 0, deltaY: 300 }); // R5h-A: the records are in order, the report is no longer at the bottom: scroll by the wheel itself
+  await sleep(300);
   const scrolled = await app.ev(`${q(".orch-panel__body")}.scrollTop`);
   expect(scrolled > 0, "the run panel scrolls with the mouse wheel (the canvas does not take the wheel over it)", scrolled);
   expect(true, "the executor's report opens with its summary", null);

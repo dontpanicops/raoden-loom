@@ -52,6 +52,7 @@ import {
   finishStatus,
   formatText,
   historyLines,
+  lineRole,
   outcomeOf,
   parsePlan,
   causeText,
@@ -87,7 +88,7 @@ import {
   type RunDigest,
   type ResultFacts
 } from "./runModel";
-import { duration, findingsLine, finishText, isServiceEntry, outcomeKey, personDecisionsLine, readJournal, reportParts, saidKey, summaryModel, type ReportParts, type RunJournalState, type TextRef } from "./runStatus";
+import { duration, spanText, findingsLine, finishText, isServiceEntry, outcomeKey, personDecisionsLine, readJournal, reportParts, saidKey, summaryModel, type ReportParts, type RunJournalState, type TextRef } from "./runStatus";
 import { pickDocs, planDoc, readCreatedFile, resultDoc, toMarkdown, type CreatedDocs, type CreatedFile, type DocInput, type Loaded, type PlanEntry, type PlanJson, type RunDoc } from "./runDocs";
 import type { PanelRole, PanelState } from "./useAgentCanvasUi";
 import type { PanelMode, PanelSection, PanelTab, PanelView } from "./panelTabs";
@@ -241,7 +242,7 @@ function LineDetails({ runId, text, dropped, locale }: { runId: string; text: Li
   return (
     <div className="orch-details">
       <button type="button" className="orch-details__toggle" aria-expanded={open} onClick={toggle}>
-        {t(locale, (open ? "orchHide" : `orchShow_${text.kind}`) as TranslationKey)}
+        <UiIcon name="chevron" size={12} />{t(locale, (open ? "orchHide" : `orchShow_${text.kind}`) as TranslationKey)}
       </button>
       {open && (
         <div className="orch-details__body" data-details-state={!text.ref ? "missing" : state?.kind ?? "loading"}>
@@ -282,8 +283,10 @@ function phaseText(locale: LocaleId, p: ParticipantState, now: number): string {
 
 // ---------- activity feed ----------
 
-const LOG_KINDS = new Set(["stderr", "error", "process_started", "process_exited", "usage", "truncated", "session", "check_output", "turn_finished", "refusal"]);
-export const FEED_KINDS = new Set(["task_sent", "process_started", "process_exited", "session", "thinking", "message", "tool_started", "tool_finished", "file_read",
+const LOG_KINDS = new Set(["task_sent", "stderr", "error", "process_started", "process_exited", "usage", "truncated", "session", "check_output", "turn_finished", "refusal"]);
+// R5h-A (mock-up 20): the feed has the work (thoughts, tools, files, messages) and what needs the person; the application's own lines
+// (task sent, process started and exited, session) are in «Журнал»
+export const FEED_KINDS = new Set(["thinking", "message", "tool_started", "tool_finished", "file_read",
   "file_changed", "subagent", "refusal", "error", "turn_finished", "check_started", "check_finished", "status", "truncated",
   "permission_requested", "permission_decided", "permission_applied", "prepare_started", "prepare_finished", "external_action", "report_note"]);
 
@@ -712,8 +715,8 @@ function Section({ id, title, aside, attrs, children }: { id: string; title?: st
   );
 }
 // a row of a plate: the name on the left, the value (the same line) on the right
-function Row({ label, mark, dd, children, attrs }: { label: React.ReactNode; mark?: "done" | "idle" | "failed" | "paused"; dd?: Record<string, string | undefined>; children?: React.ReactNode; attrs?: Record<string, string | undefined> }): React.JSX.Element {
-  return <div className="orch-kv__row" {...attrs}><dt>{mark && <UiIcon name={`status-${mark}`} size={14} />}{label}</dt><dd {...dd}>{children}</dd></div>;
+function Row({ label, mark, dd, children, attrs }: { label: React.ReactNode; mark?: "done" | "idle" | "failed" | "paused" | "waiting"; dd?: Record<string, string | undefined>; children?: React.ReactNode; attrs?: Record<string, string | undefined> }): React.JSX.Element {
+  return <div className="orch-kv__row" {...attrs}><dt>{mark && <UiIcon name={mark === "waiting" ? "bell" : `status-${mark}`} size={14} />}{label}</dt><dd {...dd}>{children}</dd></div>;
 }
 
 // Journal v2, A2 (journal-v2-format.md §2.7): each requirement with the conditions that prove it, the status of each and
@@ -827,10 +830,11 @@ const fill = (s: string, vars: Record<string, string | number>): string => Objec
 // D-018: the summary as the mock-ups 13 and 17 draw it — the plates of what the run ended with (stages, checks, the review),
 // then the blocks: result facts, plan, decisions on findings, the people / time (the panel's `middle`), the result. Only what the
 // journal has: a block with nothing to say is not drawn.
-function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onOpen, middle, alerts }: {
+function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onOpen, middle, alerts, list }: {
   orch: Orchestration; runId: string; view: OrchestrationRunView; records: readonly OrchestrationHistoryRecord[];
   locale: LocaleId; incomplete: boolean; facts: ResultFacts;
   onOpen(section: "plan" | "result"): void; middle?: React.ReactNode; alerts?: React.ReactNode;
+  list?: boolean; // R5h-A (mock-ups 02, 03, 07): only the list of the stages with their states, for the work tab of a paused run
 }): React.JSX.Element {
   // Every plan's titles (a replan names the stages from its firstStage on), read through the shared text cache.
   const planShas = useMemo(() => records.filter((r) => r.type === "plan.recorded")
@@ -883,26 +887,44 @@ function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onO
     return m.checks.filter((c) => c.status !== "passed" && c.status !== "not_run" && c.status !== "running")
       .map((c) => ({ id: c.id, title: c.title, status: c.status, cls: progress?.checks.find((x) => x.id === c.id)?.class ?? null, reason: reasons.get(c.id) ?? null }));
   }, [m.checks, records, progress?.checks]);
+  // R5h-A (D-026, mock-ups 02, 03, 05, 07, 12, 14): under the zone of a pause, where the run stands — the plan, the stages up to the
+  // one that waits, the commands asked, the check the sandbox refused; only what the journal has
+  const waiting = !finished && (view.status === "paused" || !!view.permission);
+  const waitKey = view.permission ? (view.permission.kind === "question" ? "orchRowWait_answer" : "orchRowWait_you") : view.status === "paused" ? "orchRowWait_paused" : view.status === "failed" ? "orchRowWait_failed" : null;
+  const stageRows = (): React.ReactNode => {
+    const stages = m.stages ?? [];
+    const current = stages.find((st) => st.n === view.stage) ?? stages.find((st) => st.state !== "done");
+    const upTo = current ? stages.filter((st) => st.n <= current.n) : stages;
+    return <>
+      {stages.length > 0 && !stages.some((st) => st.state === "done") && <Row label={t(locale, "orchRowPlanApproved")} mark="done" attrs={{ "data-pause-row": "plan" }} />}
+      {upTo.map((st) => st === current && waitKey
+        ? <Row key={st.n} label={`${t(locale, "orchStage")} ${st.n}${st.title ? ` · ${st.title}` : ""}`} mark={waitKey === "orchRowWait_paused" ? "paused" : waitKey === "orchRowWait_failed" ? "failed" : "waiting"} attrs={{ "data-pause-row": "stage", "data-stage-n": String(st.n) }}>{t(locale, waitKey)}</Row>
+        : <Row key={st.n} label={`${t(locale, "orchStage")} ${st.n}${st.title ? ` · ${st.title}` : ""}`} mark={st.state === "done" ? "done" : "idle"} attrs={{ "data-pause-row": "stage", "data-stage-n": String(st.n) }} />)}
+    </>;
+  };
+  const refusedRows = (): React.ReactNode => (failedChecks.length > 0
+    ? failedChecks.map((c) => <Row key={c.id} label={c.title} mark="failed" attrs={{ "data-sum-failed-check": c.id, "data-check-class": c.cls ?? undefined }}>{[c.cls ? tr(locale, `orchClass_${c.cls}`) : null, c.reason && known(locale, `orchCheckReason_${c.reason}`) ? tr(locale, `orchCheckReason_${c.reason}`) : c.reason].filter(Boolean).join(" · ")}</Row>)
+    : view.refused ? <Row label={view.refused.command} mark="failed" attrs={{ "data-sum-failed-check": view.refused.checkId }}>{tr(locale, "orchClass_sandbox")}</Row> : null);
+  const ownList = waiting && ["awaiting_checks_decision", "check_needs_permissions", "awaiting_finish_confirmation"].includes(view.reason ?? ""); // drawn by their rows only (mock-ups 05, 12, 14)
+  const shownRows = view.reason === "awaiting_checks_decision" && ownList
+    ? <><Row label={t(locale, "orchRowPlanApproved")} mark="done" attrs={{ "data-pause-row": "plan" }} /><Row label={t(locale, "orchRowChecksProposal")} mark="waiting" attrs={{ "data-pause-row": "checks" }}>{t(locale, "orchRowWait_decision")}</Row></>
+    : refusedRows();
+  const rowsKind = view.reason === "awaiting_checks_decision" && ownList ? "pause" : "failed-checks";
+  if (list) return <dl className="orch-kv orch-kv--pause" data-orch-pause-list>{stageRows()}</dl>;
   const person = personDecisionsLine(locale, view);
   const hasPlanDoc = planShas.length > 0 || records.some((r) => r.type.startsWith("decomposition."));
   return (
     <div className="orch-summary-view" data-orch-run-summary data-outcome={outcome} data-incomplete={incomplete ? "yes" : "no"}>
-      <dl className="orch-kv orch-kv--status" data-sum="outcome">
+      {!(ownList && view.reason !== "awaiting_finish_confirmation") && <dl className="orch-kv orch-kv--status" data-sum="outcome">
         {stagesText && <Row label={t(locale, "orchSum_stages")} mark={m.complete && m.stageCounts && m.stageCounts.done === m.stageCounts.total ? "done" : "idle"}
           dd={{ "data-sum-stage-count": "", "data-partial": m.complete ? undefined : "yes" }}>{stagesText}</Row>}
         {checksText && <Row label={t(locale, "orchSum_checks")} mark={m.checks.length === 0 ? "idle" : m.complete && m.checkCounts.passed === m.checkCounts.total ? "done" : "idle"}
           dd={{ "data-sum-check-count": "", "data-checks-known": m.checksKnown ? "yes" : "no", ...(outcome === "completed_no_checks" ? { "data-sum-no-checks": "" } : {}) }}>{checksText}</Row>}
         {finished && <Row label={reviewed ? t(locale, "orchSumReviewFinal") : t(locale, "orchResult")} mark={reviewed ? "done" : outcome === "failed" ? "failed" : outcome === "paused" || outcome === "active" ? "paused" : "idle"}
           dd={{ "data-sum-outcome": outcome, "data-orch-proof": outcome, "data-orch-result": m.finalVerdict ?? undefined }}>{reviewed ? t(locale, "orchSumAccepted") : said(`orchSumOutcome_${outcome}`)}</Row>}
-      </dl>
-      {failedChecks.length > 0 && (
-        <ul className="orch-sum__failed" data-sum-failed-checks>
-          {failedChecks.map((c) => (
-            <li key={c.id} className="orch-hint" data-sum-failed-check={c.id} data-check-class={c.cls ?? undefined}>
-              {c.title} — {tr(locale, `orchCheck_${c.status}`)}{c.cls ? ` · ${tr(locale, `orchClass_${c.cls}`)}` : ""}{c.reason ? ` · ${c.reason}` : ""}
-            </li>
-          ))}
-        </ul>
+      </dl>}
+      {shownRows && (ownList ? view.reason !== "awaiting_finish_confirmation" : failedChecks.length > 0) && (
+        <dl className="orch-kv orch-kv--pause" data-sum={rowsKind} data-sum-failed-checks={rowsKind === "failed-checks" ? "" : undefined}>{shownRows}</dl>
       )}
       {person && <p className="orch-hint orch-hint--warn" data-sum-person>{person}</p>}
 
@@ -926,7 +948,7 @@ function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onO
         </Section>
       )}
 
-      {((m.stages && m.stages.length > 0) || progress?.conditions || hasPlanDoc) && ( // a split that was refused has no stages, but its reasons are in the plan document
+      {!ownList && ((m.stages && m.stages.length > 0) || progress?.conditions || hasPlanDoc) && ( // a split that was refused has no stages, but its reasons are in the plan document
         <Section id="stages" title={finished || !m.stages?.length ? t(locale, "orchPlan") : undefined} aside={(finished || !m.stages?.length) &&
           <span className="orch-sum-block__aside">
             {planShas.map((sha, i) => <span key={sha} className={`orch-chip${i === planShas.length - 1 ? " orch-chip--on" : ""}`}>v{i + 1}</span>)}
@@ -1326,11 +1348,11 @@ function costText(locale: LocaleId, cost: Cost, reviewer: boolean): string {
 
 // UX audit 2026-10-05, Н7: the limit pause — each limit's value and what is used of it (limitRows), the new value with
 // its unit, and «Raise the limit and continue» as the main action. The limit the run stopped at is chosen first.
-function RaiseLimit({ locale, cost, budget, sending, onRaise }: {
-  locale: LocaleId; cost: Cost | null; budget: NonNullable<NonNullable<OrchestrationRunView["progress"]>["budget"]> | null; sending: boolean;
+function RaiseLimit({ locale, cost, budget, rounds, sending, onRaise }: {
+  locale: LocaleId; cost: Cost | null; rounds: number | null; budget: NonNullable<NonNullable<OrchestrationRunView["progress"]>["budget"]> | null; sending: boolean;
   onRaise(kind: OrchestrationLimitKind, value: number): void;
 }): React.JSX.Element {
-  const rows = cost && budget ? limitRows(cost, budget) : [];
+  const rows = cost && budget ? limitRows(cost, budget, rounds) : [];
   const nowOf = (k: OrchestrationLimitKind) => rows.find((r) => r.kind === k)?.now ?? null;
   const proposed = (k: OrchestrationLimitKind) => { const c = nowOf(k); return c !== null ? String(Math.ceil(c * 1.5)) : ""; }; // half as much again
   const [kind, setKind] = useState<OrchestrationLimitKind>(cost?.reached ?? "turns");
@@ -1347,9 +1369,9 @@ function RaiseLimit({ locale, cost, budget, sending, onRaise }: {
     <div className="orch-limit" data-orch-limit>
       {rows.length > 0 && (
         <dl className="orch-kv orch-limit__table">
-          {rows.filter((r) => r.reached || r.kind === "turns" || r.kind === "runMs" || (r.used ?? 0) > 0).map((r) => {
+          {[...rows.filter((r) => r.reached || r.kind === "turns" || r.kind === "runMs" || (r.used ?? 0) > 0)].sort((a, b) => ["turns", "roundsPerStage", "runMs", "replans"].indexOf(a.kind) - ["turns", "roundsPerStage", "runMs", "replans"].indexOf(b.kind)).map((r) => { // mock-up 07: turns, rounds, time
             const time = r.kind === "runMs"; // mock-up 07: the time as «1 ч 12 м / 4 ч»
-            const fmt = (n: number) => (time ? duration(locale, n * 60_000) : String(n));
+            const fmt = (n: number) => (time ? spanText(locale, n * 60_000) : String(n));
             return (
               <Row key={r.kind} label={time ? t(locale, "orchSumTime") : t(locale, `orchLimit_${r.kind}` as TranslationKey)}
                 attrs={{ "data-limit-kind": r.kind, "data-limit-reached": r.reached ? "" : undefined, className: `orch-kv__row${r.reached ? " orch-limit__reached" : ""}` }}>
@@ -1398,7 +1420,9 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
   const planTotal = plan.length ? planFirst - 1 + plan.length : 0;
   const goal = useMemo(() => { try { return goalText ? JSON.parse(goalText) as { limits?: Record<string, number>; createdAt?: number } : null; } catch { return null; } }, [goalText]);
   const reportedDone = useMemo(() => { try { const r = reportText ? JSON.parse(reportText) as { done?: unknown } : null; return typeof r?.done === "boolean" ? r.done : null; } catch { return null; } }, [reportText]);
-  const lines = useMemo(() => historyLines(records).reverse(), [records]);
+  // mock-up 07: the rounds the stage in hand has used (the journal counts them per turn)
+  const stageRounds = useMemo(() => records.reduce((max, r) => (r.type === "orch.turn" && r.data.stage === view?.stage && typeof r.data.round === "number" ? Math.max(max, r.data.round) : max), 0) || null, [records, view?.stage]);
+  const lines = useMemo(() => historyLines(records), [records]); // mock-up 20: in the order they happened
   const now = useNow();
   const [expanded, setExpanded] = useState(false);
   // The run ended while the person watched another tab: offer the summary, never switch or scroll by itself.
@@ -1650,12 +1674,15 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
   // a newer version's run: its changes are not read here (main refuses them), so there is no tab for them
   const tabs: PanelTab[] = view?.newer ? ["summary", "work"] : ["summary", "work", "changes"];
   const curTab: PanelTab = tabs.includes(panel.tab) ? panel.tab : "summary"; // a readable newer run has no Changes tab
-  const roleFilter = useCallback((e: OrchestrationActivityEntry) => panel.role === "all" ? FEED_KINDS.has(e.kind)
+  const roleFilter = useCallback((e: OrchestrationActivityEntry) => (e.kind === "turn_finished" && e.text === "completed") ? false : panel.role === "all" ? FEED_KINDS.has(e.kind)
     : panel.role === "check"
     ? (e.role === "check" || e.role === "run") && FEED_KINDS.has(e.kind)
     : (e.role === panel.role && FEED_KINDS.has(e.kind)) || (e.role === "run" && e.kind === "status"), [panel.role]);
   const logFilter = useCallback((e: OrchestrationActivityEntry) => (panel.role === "all" || (panel.role === "check" ? e.role === "check" : e.role === panel.role))
     && (LOG_KINDS.has(e.kind) || (e.kind === "tool_finished" && typeof e.detail?.output === "string")), [panel.role]);
+  // R5h-A (mock-ups 02, 03, 07, 18): a run that waits for the person, is paused or failed: the stages and where it stands over the feed
+  const stagesAbove = (!!view?.permission || view?.status === "paused" || view?.status === "failed") && records.length > 0;
+  const feedEmpty = !activity.entries.some(roleFilter);
   const selected = panel.role === "lead" ? lead : panel.role === "executor" ? executor : panel.role === "reviewer" ? reviewer : null;
 
   // R5b: the header names the project and the pair of agents (lead -> executor) of the link the run belongs to
@@ -1693,7 +1720,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
       </Section>
       <Section id="limits" title={t(locale, "orchSumTimeEnv")} attrs={{ "data-orch-limits": "" }}>
         <dl className="orch-kv">
-          {d.createdAt && <Row label={t(locale, "orchSumTime")}>{duration(locale, (busy ? now : Date.parse(lines[0]?.ts ?? d.createdAt)) - Date.parse(d.createdAt))}{goal?.limits?.runMs ? ` / ${duration(locale, goal.limits.runMs)}` : ""}</Row>}
+          {d.createdAt && <Row label={t(locale, "orchSumTime")}>{spanText(locale, (busy ? now : Date.parse(lines.at(-1)?.ts ?? d.createdAt)) - Date.parse(d.createdAt))}{goal?.limits?.runMs ? ` / ${spanText(locale, goal.limits.runMs)}` : ""}</Row>}
           <Row label={t(locale, "orchSumTurnsRounds")}>{view.turns}{goal?.limits?.turns ? ` / ${goal.limits.turns}` : ""}{goal?.limits?.roundsPerStage ? ` · ${goal.limits.roundsPerStage}` : ""}</Row>
           {envReported.map(({ p, e }) => (
             <Row key={p} label={`${t(locale, "orchSumEnv")} · ${p === "codex" ? "Codex" : "Claude"}`} attrs={{ "data-env-provider": p }}>
@@ -1819,7 +1846,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
                 onDecide={(plan) => void send("plan_decide", { plan })} />
             )}
             {zone!.primary?.action === "raise_limit" && (
-              <RaiseLimit key={`${view.revision}:${cost?.reached ?? ""}`} locale={locale} cost={cost} budget={view.progress?.budget ?? null}
+              <RaiseLimit key={`${view.revision}:${cost?.reached ?? ""}`} locale={locale} cost={cost} rounds={stageRounds} budget={view.progress?.budget ?? null}
                 sending={sending || off("raise_limit")} onRaise={(kind, value) => void send("raise_limit", { limit: kind, value }, continueAfterRaise)} />
             )}
             {takenLines(locale, take).map((line) => <p key={line} className="orch-take__taken" data-orch-taken>{line}</p>)}
@@ -1857,7 +1884,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
               ))}
             </div>
           )}
-          {curTab === "work" && panel.mode !== "records" && (
+          {curTab === "work" && (
             <div className="orch-roles orch-seg" role="radiogroup" aria-label={t(locale, "orchObserveWho")}>
               {(["all", "lead", "executor", "check"] as const).map((role) => (
                 <button key={role} type="button" role="radio" aria-checked={panel.role === role} data-orch-role={role}
@@ -1898,7 +1925,10 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
                 </Sect>
               )}
             </>}
-            {curTab === "work" && panel.mode === "feed" && runId && (
+            {curTab === "work" && panel.mode === "feed" && runId && stagesAbove && (
+              <RunSummary list orch={orch} runId={runId} view={view} records={records} locale={locale} facts={facts} onOpen={openSection} incomplete={journal?.status !== "ready"} />
+            )}
+            {curTab === "work" && panel.mode === "feed" && runId && !(stagesAbove && feedEmpty) && (
               <ActivityList key={`a:${panel.role}`} locale={locale} entries={activity.entries} gaps={activity.gaps} filter={roleFilter}
                 emptyText={activity.status === "loading" ? t(locale, "orchLoading") : t(locale, "orchFeedEmpty")}
                 silence={selected ? silenceFor(selected) : [lead, executor, reviewer].map((x) => (x ? silenceFor(x) : null)).find(Boolean) ?? null} />
@@ -1907,13 +1937,14 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
               <ActivityList key={`l:${panel.role}`} locale={locale} entries={activity.entries} gaps={activity.gaps} filter={logFilter}
                 emptyText={t(locale, "orchLogEmpty")} silence={null} />
             )}
+            {curTab === "changes" && view.reason === "lead_modified_tree" && <p className="orch-hint" data-orch-lead-modified-why>{t(locale, "orchLeadModifiedWhy")}</p>}
             {curTab === "changes" && runId && !view.newer && <ChangesTab locale={locale} runId={runId} seq={state?.seq ?? 0} inPlace={view.workMode === "project"} />}
             {curTab === "work" && panel.mode === "records" && (
               <section className="orch-panel__section">
                 <ol className="orch-history">
-                  {lines.map((l) => (
-                    <li key={l.seq} data-history-kind={l.kind}>
-                      <time>{new Date(l.ts).toLocaleTimeString(locale)}</time> <code className="orch-history__kind">{l.kind}</code> {lineText(locale, l, activity.entries)}
+                  {lines.filter((l) => panel.role === "all" || lineRole(l) === "run" || lineRole(l) === panel.role).map((l) => (
+                    <li key={l.seq} data-history-kind={l.kind} data-history-role={lineRole(l)}>
+                      <time>{new Date(l.ts).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</time> <code className="orch-history__kind">{l.kind}</code> {lineText(locale, l, activity.entries)}
                       {l.text && runId && <LineDetails runId={runId} text={l.text} dropped={Number(l.parts.outputDropped ?? 0)} locale={locale} />}
                     </li>
                   ))}
@@ -2112,10 +2143,9 @@ function PersonDecide({ locale, d, findings, sending, onSubmit }: {
     <Form title={t(locale, "orchPersonTitle")} attrs={{ "data-orch-person-decide": true }}>
       <div className="orch-plate">
         {items.map((it) => (
-          <section key={it.key} className="orch-decide" {...it.attrs}>
+          <section key={it.key} className="orch-decide" {...it.attrs} {...(it.key.startsWith("f:") ? { title: t(locale, "orchFindingSafeHint"), "data-finding-safe": "" } : {})}>
             <p className="orch-decide__ask"><span>{it.kind} · </span>{it.text}</p>
             {it.context}
-            {it.key.startsWith("f:") && <small className="orch-hint" data-finding-safe>{t(locale, "orchFindingSafeHint")}</small>}
             {/* biome-ignore lint/a11y/useSemanticElements: a button segment, not a form group */}
             <div className="orch-seg orch-seg--field" role="group" aria-label={`${it.kind}: ${it.text}`}>
               {it.options.map((o) => (

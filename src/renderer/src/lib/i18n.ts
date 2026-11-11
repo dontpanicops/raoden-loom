@@ -556,7 +556,7 @@ const ru = {
   orchGoalChecks: "Проверки",
   orchGoalLimits: "Лимиты · пусто = без лимита",
   orchLimit_turns: "Ходы",
-  orchLimit_roundsPerStage: "Раундов на этап",
+  orchLimit_roundsPerStage: "Раунды на этап",
   orchLimit_replans: "Перепланирований",
   orchLimit_runMs: "Минут на запуск",
   orchReviewPlan: "Показать план перед выполнением",
@@ -2224,8 +2224,8 @@ const ru = {
   orchPause_loop_suspected_do: "Уточните задачу ниже или дайте ещё раунд.",
   orchPause_loop_suspected_button: "Дать ещё раунд",
   orchPause_lead_modified_tree_what: "Лид изменил файлы, хотя не должен был",
-  orchPause_lead_modified_tree_why: "Лид только планирует и проверяет, файлы меняет исполнитель. Продолжать такой запуск нельзя.",
-  orchPause_lead_modified_tree_do: "Остановите запуск. Во вкладке «Изменения» решите, оставить ли эти правки, затем задайте цель заново.",
+  orchPause_lead_modified_tree_why: "Продолжать нельзя.",
+  orchPause_lead_modified_tree_do: "Во вкладке «Изменения» решите, оставить ли правки, затем задайте цель заново.",
   orchPause_lead_modified_tree_button: "Остановить запуск",
   orchPause_environment_error_what: "Агенту помешало окружение",
   orchPause_environment_error_why: "Не запустилась программа агента или команда проекта: нет нужной программы, входа в аккаунт или сети.",
@@ -2579,7 +2579,18 @@ const ru = {
   orchError_mcp_warning_unchecked: "MCP-серверы Codex не проверены (нет ответа за 30 с или ответ не разобран): запуск остановится, если они включены",
   // R5h-A
   orchPersonPartial: "Принято {n} из {m}, остальные — при следующей паузе",
-  orchDisputedMore: "Доказательства проверяющего"
+  orchDisputedMore: "Доказательства проверяющего",
+  orchRowPlanApproved: "План одобрен",
+  orchRowChecksProposal: "Команды проверки",
+  orchRowWait_decision: "ждут решения",
+  orchRowWait_answer: "ждёт ответа",
+  orchRowWait_you: "ждёт вас",
+  orchRowWait_paused: "на паузе",
+  orchRowWait_failed: "упал",
+  orchLeadModifiedWhy: "Лид только планирует и проверяет, файлы меняет исполнитель.",
+  orchUnitMinShort: "м",
+  orchFailedExit: "{agent} CLI завершился с кодом {code} на этапе {n}",
+  orchFailedExitNoStage: "{agent} CLI завершился с кодом {code}"
 } as const;
 
 const en: Record<keyof typeof ru, string> = {
@@ -4803,8 +4814,8 @@ const en: Record<keyof typeof ru, string> = {
   orchPause_loop_suspected_do: "Clarify the task below or give one more round.",
   orchPause_loop_suspected_button: "Give one more round",
   orchPause_lead_modified_tree_what: "The lead changed files it must not change",
-  orchPause_lead_modified_tree_why: "The lead only plans and reviews; the executor changes the files. Such a run cannot go on.",
-  orchPause_lead_modified_tree_do: "Stop the run. On the “Changes” tab decide whether to keep these edits, then set the goal again.",
+  orchPause_lead_modified_tree_why: "The run cannot go on.",
+  orchPause_lead_modified_tree_do: "On the “Changes” tab decide whether to keep the edits, then set the goal again.",
   orchPause_lead_modified_tree_button: "Stop the run",
   orchPause_environment_error_what: "The environment got in the agent's way",
   orchPause_environment_error_why: "The agent's program or a project command did not start: a program, a sign-in or the network is missing.",
@@ -5154,7 +5165,18 @@ const en: Record<keyof typeof ru, string> = {
   orchError_mcp_warning_unchecked: "The MCP servers of Codex were not checked (no answer in 30 s, or the answer could not be read): the run stops if they are on",
   // R5h-A
   orchPersonPartial: "Accepted {n} of {m}, the rest at the next pause",
-  orchDisputedMore: "The reviewer's evidence"
+  orchDisputedMore: "The reviewer's evidence",
+  orchRowPlanApproved: "Plan approved",
+  orchRowChecksProposal: "Check commands",
+  orchRowWait_decision: "waiting for your decision",
+  orchRowWait_answer: "waiting for an answer",
+  orchRowWait_you: "waiting for you",
+  orchRowWait_paused: "paused",
+  orchRowWait_failed: "failed",
+  orchLeadModifiedWhy: "The lead only plans and reviews; the executor changes the files.",
+  orchUnitMinShort: "m",
+  orchFailedExit: "{agent} CLI exited with code {code} on stage {n}",
+  orchFailedExitNoStage: "{agent} CLI exited with code {code}"
 };
 
 export type TranslationKey = keyof typeof ru;

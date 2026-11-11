@@ -125,7 +125,7 @@ test("the work tab: three modes, the role filter on the feed and the journal onl
     const html = render({ tab: "work", mode, role: "lead" });
     assert.deepEqual(attr(html, "data-orch-mode").filter((m, i, a) => a.indexOf(m) === i), ["feed", "journal", "records"]);
     assert.match(html, new RegExp(`data-orch-body="work" data-orch-mode="${mode}"`));
-    assert.equal(/data-orch-role=/.test(html), mode !== "records", mode);
+    assert.equal(/data-orch-role=/.test(html), true, mode); // R5h-A (mock-up 20): the role filter is on «Записи» too
   }
   assert.doesNotMatch(render({ tab: "summary", mode: "feed" }), /data-orch-mode=/);
 });

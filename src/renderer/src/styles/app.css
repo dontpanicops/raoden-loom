@@ -2004,3 +2004,12 @@ button { border: 0; }
 .orch-rows button.orch-rows__add { align-self: flex-start; min-height: var(--control-h-m); padding: 0 8px; }
 .orch-rows button.orch-rows__x:hover, .orch-rows button.orch-rows__add:hover { background: transparent; color: var(--text-primary); }
 .orch-rows button.orch-rows__x:focus-visible, .orch-rows button.orch-rows__add:focus-visible { outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 30%, transparent); }
+
+/* R5h-A: the list of a pause (mock-ups 02, 03, 05, 07, 12, 14), the chevron of a record */
+.orch-kv--pause + .orch-kv--pause, .orch-kv--status + .orch-kv--pause { margin-top: 8px; }
+.orch-kv--pause .ui-icon--bell { color: var(--status-waiting); }
+.orch-kv--pause .ui-icon--status-failed { color: var(--status-failed); }
+.orch-kv--pause .orch-kv__row:has(.ui-icon--bell) dd { color: var(--text-primary); }
+.orch-details__toggle { display: inline-flex; align-items: center; gap: 4px; }
+.orch-details__toggle .ui-icon { transition: transform .12s ease; }
+.orch-details__toggle[aria-expanded="true"] .ui-icon { transform: rotate(180deg); }
