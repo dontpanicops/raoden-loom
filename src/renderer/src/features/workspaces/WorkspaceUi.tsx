@@ -519,9 +519,9 @@ export function BrowserElsewhereDialog({ controls, locale }: { controls: Workspa
   if (!controls.browserElsewhere) return null;
   const w = controls.state.workspaces.find((x) => x.id === controls.browserElsewhere);
   return (
-    <Dialog label={tk(locale, "wsBrowserTitle")} onClose={controls.closeBrowserNotice} locale={locale} className="ws-dialog">
+    <Dialog label={tr(locale, "wsBrowserTitle", { name: workspaceTitle(locale, w) })} onClose={controls.closeBrowserNotice} locale={locale} className="ws-dialog">
       <div className="orch-form" data-ws-browser-elsewhere={controls.browserElsewhere}>
-        <p>{tr(locale, "wsBrowserElsewhere", { name: workspaceTitle(locale, w) })}</p>
+        <p>{tk(locale, "wsBrowserElsewhere")}</p>
         <div className="orch-form__actions">
           <button type="button" className="orch-cancel" onClick={controls.closeBrowserNotice}>{t(locale, "orchCancel")}</button>
           <button type="button" data-ws-browser-bring onClick={() => void controls.bringBrowserHere()}>{tk(locale, "wsBrowserBring")}</button>

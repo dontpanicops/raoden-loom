@@ -2025,8 +2025,9 @@ button { border: 0; }
 /* R6-C (M6, M9): the rights of an agent are one row of short labels (the full name is the tooltip); the steps and checks are rows
    as in the goal dialog; «Скрыть пространство» keeps the labels of its buttons on one line (mock 17) */
 .orch-access__row { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
-.orch-access__name { flex: 0 0 auto; }
+.orch-access__name { flex: 0 0 3.6em; }
 .orch-access__seg.orch-seg2 { flex: 1 1 auto; display: flex; }
-.orch-access__seg.orch-seg2 > button { flex: 1 1 0; min-width: 0; padding-inline: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.orch-access__seg.orch-seg2 > button { flex: 1 1 auto; min-width: 0; padding-inline: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .orch-hint--line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ws-dialog .orch-form__actions { flex-wrap: wrap; }
 .ws-dialog .orch-form__actions button { white-space: nowrap; }
