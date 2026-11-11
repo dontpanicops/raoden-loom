@@ -601,7 +601,7 @@ async function projectSettings(name, s, sc) {
       if (!offered.includes(mode)) halt(`${name}: ${cli} does not offer ${mode} (${offered})`);
       await app.clickEl(q(`[data-orch-access="${cli}"] [data-orch-access-mode="${mode}"]`)); // R5f: a segment
     }
-    sc.accessMapping = await app.ev(`[...document.querySelectorAll("[data-orch-access] code")].map((c) => c.textContent)`);
+    sc.accessMapping = await app.ev(`[...document.querySelectorAll("[data-orch-access] [data-orch-access-mode]")].map((b) => b.title)`);
   }
   if (s.workMode === "worktree") await app.clickEl(q(`[data-orch-settings-workmode-to="worktree"]`));
   if (s.finish) {
