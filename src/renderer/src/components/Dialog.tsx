@@ -11,8 +11,19 @@ const stack: symbol[] = [];
 const focusables = (root: HTMLElement): HTMLElement[] =>
   [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.getClientRects().length > 0);
 
-export function Dialog({ label, onClose, children, locale, className = "", backdropClassName = "" }: {
+// `anchor` makes it a popover (mock 14): the same card, no scrim, beside the opener; focus trap and Esc are the same.
+// `lead` and `sub` are the mark and the caption of a card header; without them the header is the plain title.
+function popoverStyle(anchor: DOMRect): React.CSSProperties {
+  const width = 420;
+  const left = Math.min(Math.max(12, anchor.left + anchor.width / 2 - width / 2), window.innerWidth - width - 12);
+  return anchor.top > window.innerHeight / 2
+    ? { left, bottom: window.innerHeight - anchor.top + 10 }
+    : { left, top: anchor.bottom + 10 };
+}
+
+export function Dialog({ label, onClose, children, locale, className = "", backdropClassName = "", anchor = null, lead, sub }: {
   label: string; onClose(): void; children: React.ReactNode; locale: LocaleId; className?: string; backdropClassName?: string;
+  anchor?: DOMRect | null; lead?: React.ReactNode; sub?: string;
 }): React.JSX.Element {
   const titleId = useId();
   const root = useRef<HTMLElement>(null);
@@ -53,17 +64,35 @@ export function Dialog({ label, onClose, children, locale, className = "", backd
     return () => { window.removeEventListener("keydown", onKey); stack.splice(stack.indexOf(me), 1); };
   }, []);
 
+  // a popover has no scrim to click: a press outside it (not on the opener's row of buttons) closes it
+  useEffect(() => {
+    if (!anchor) return;
+    const onDown = (event: PointerEvent): void => {
+      const target = event.target as Element | null;
+      if (root.current?.contains(target) || target?.closest(".launcher-button")) return;
+      close.current();
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [anchor]);
+
+  const title = <strong id={titleId} className="orch-dialog__title">{label}</strong>;
+  const card = (
+    <section ref={root} className={`launch-dialog orch-dialog surface-4 ${anchor ? "launch-popover" : ""} ${className}`.trim()} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
+      {...(anchor ? { style: popoverStyle(anchor), "data-interactive": "true", "data-wheel-owner": "local", "data-canvas-wheel-priority": "local" } : {})}>
+      <div className="launch-dialog__toolbar">
+        {lead || sub ? <>{lead}<div className="launch-dialog__titles">{title}{sub && <small>{sub}</small>}</div></> : title}
+        <button className="launch-dialog__close dialog__close" type="button" onClick={onClose} aria-label={t(locale, "orchClose")}><UiIcon name="close" size={18} /></button>
+      </div>
+      {children}
+    </section>
+  );
+  if (anchor) return card;
   return (
     <div className={`dialog-backdrop ${backdropClassName}`.trim()} role="presentation" data-interactive="true" data-wheel-owner="local" data-canvas-wheel-priority="local" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}>
-      <section ref={root} className={`launch-dialog orch-dialog surface-4 ${className}`.trim()} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
-        <div className="launch-dialog__toolbar">
-          <strong id={titleId} className="orch-dialog__title">{label}</strong>
-          <button className="launch-dialog__close dialog__close" type="button" onClick={onClose} aria-label={t(locale, "orchClose")}><UiIcon name="close" size={18} /></button>
-        </div>
-        {children}
-      </section>
+      {card}
     </div>
   );
 }

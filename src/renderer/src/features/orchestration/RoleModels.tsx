@@ -56,13 +56,13 @@ function RoleModel({ locale, role, value, codex, onChange }: {
   );
 }
 
-export function RoleModelsField({ locale, linkId, value, onChange, hint }: {
-  locale: LocaleId; linkId: string; value: OrchestrationRoleModels; onChange(v: OrchestrationRoleModels): void; hint: string;
+export function RoleModelsField({ locale, linkId, value, onChange, hint, bare }: {
+  locale: LocaleId; linkId: string; value: OrchestrationRoleModels; onChange(v: OrchestrationRoleModels): void; hint: string; bare?: boolean;
 }): React.JSX.Element {
   const codex = useCodexModels(linkId);
   return (
     <fieldset className="orch-field orch-models" data-orch-models>
-      <legend>{t(locale, "orchModels")}</legend>
+      {!bare && <legend>{t(locale, "orchModels")}</legend>}
       <p className="orch-hint">{hint}</p>
       {ROLES.map((role) => (
         <RoleModel key={role} locale={locale} role={role} value={value[role]} codex={codex.list} onChange={(m) => onChange({ ...value, [role]: m })} />

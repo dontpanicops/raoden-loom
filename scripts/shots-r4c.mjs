@@ -88,7 +88,7 @@ try {
     await app.clickEl(q("[data-board-import-close]"));
     await frame(`${theme}-board`, ["[data-board]"]);
     await app.clickEl(q("[data-board-autopilot-start]"));
-    await frame(`${theme}-board-autopilot-form`, ["[data-board]"]);
+    await frame(`${theme}-board-autopilot-form`, ["[data-board]", ".board-asides"]);
     for (const uiScale of [1, 1.25]) {
       await settle({ palette: theme, uiScale });
       await app.clickEl(`[...document.querySelectorAll('[data-agent-link-id="${linkId}"] button')].find((b) => /Новая цель/.test(b.textContent))`);
@@ -100,8 +100,16 @@ try {
       await sleep(1500);
       await frame(`${theme}-goal-dialog-${uiScale}`, [".orch-dialog"]);
       await app.ev(`${q(".orch-dialog .orch-advanced")}.open = true`);
+      await app.ev(`(() => { const b = document.querySelector(".orch-dialog .orch-form__body"); b.scrollTop = b.scrollHeight; return true; })()`); // R5f: the body scrolls under the pinned header and foot
       await sleep(300);
       await frame(`${theme}-goal-dialog-${uiScale}-advanced`, [".orch-dialog"]);
+      // R5f: the project settings, opened from the goal dialog (two columns of cards; no horizontal overflow at 1.25)
+      await app.ev(`document.querySelector(".orch-dialog [data-orch-open-settings]").click()`);
+      await app.waitFor(`${q("[data-orch-settings]")} && true`, "project settings");
+      await sleep(1500);
+      await frame(`${theme}-project-settings-${uiScale}`, [".orch-dialog"]);
+      const over = await app.ev(`(() => { const d = document.querySelector(".orch-dialog"); return { dialog: d.scrollWidth - d.clientWidth, body: (() => { const b = d.querySelector(".orch-form__body"); return b.scrollWidth - b.clientWidth; })() }; })()`);
+      console.log(`[r4c] project settings ${theme} ${uiScale}: horizontal overflow ${JSON.stringify(over)}`);
     }
   }
   console.log(`frames in ${OUT}`);

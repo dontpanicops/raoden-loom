@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type {
   AgentProviderId,
   AppSettings,
@@ -10,41 +10,76 @@ import { UiIcon } from "../../components/UiIcon";
 import { t } from "../../lib/i18n";
 import { PROVIDERS } from "../../lib/providers";
 import { directoryPathFromClipboard } from "../../lib/directoryPathFromClipboard";
+import { installUrl } from "../onboarding/OnboardingCard";
 
 interface AgentLaunchDialogProps {
   provider: AgentProviderId | null;
   settings: AppSettings;
+  /** The dock button the card was opened from (mock 14: a popover, no scrim); none from the menus: a dialog. */
+  anchor: DOMRect | null;
+  /** Folders of the sessions already open, newest first. */
+  recentDirectories: readonly string[];
   onClose(): void;
-  onAcknowledge(provider: AgentProviderId): Promise<void>;
+  onRemoveFromDock(provider: AgentProviderId): void;
   onLaunch(provider: AgentProviderId, profile: LaunchProfileId, cwd: string): Promise<void>;
 }
+
+const baseName = (path: string): string => path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
+// The product's own name where the button's label is shorter (mock 14: "Claude Code").
+const cardName = (provider: AgentProviderId): string => (provider === "claude" ? "Claude Code" : PROVIDERS[provider].label);
 
 export function AgentLaunchDialog({
   provider,
   settings,
+  anchor,
+  recentDirectories,
   onClose,
-  onAcknowledge,
+  onRemoveFromDock,
   onLaunch
 }: AgentLaunchDialogProps): React.JSX.Element | null {
   const [profile, setProfile] = useState<LaunchProfileId>("normal");
   const [cwd, setCwd] = useState(settings.lastDirectory);
-  const [confirmDanger, setConfirmDanger] = useState(false);
+  const [understood, setUnderstood] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // the CLIs main finds in PATH; null until asked (the card shows the launch form meanwhile)
+  const [found, setFound] = useState<AgentProviderId[] | null>(null);
   const locale = settings.locale;
 
+  const check = useCallback(() => {
+    window.canvasTTY.providers.available().then((list: AgentProviderId[]) => setFound(list)).catch(() => setFound(null));
+  }, []);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a newly opened card starts from the defaults; the folder is read once per opening
   useEffect(() => {
     if (!provider) return;
     setProfile("normal");
     setCwd(settings.lastDirectory);
-    setConfirmDanger(false);
+    setUnderstood(false);
     setError(null);
-  }, [provider, settings.lastDirectory]);
+    check();
+  }, [provider, check]);
 
   if (!provider) return null;
 
-  const acknowledged = settings.acknowledgedDangerousProfiles.includes(provider);
-  const dangerKey = PROVIDERS[provider].dangerKey!;
+  const missing = found !== null && !found.includes(provider);
+  const name = cardName(provider);
+  const mark = <span className="launch-card__mark"><ProviderIcon provider={provider} size="large" /></span>;
+
+  if (missing) {
+    return (
+      <Dialog label={name} sub={t(locale, "launchMissing")} lead={mark} onClose={onClose} locale={locale} anchor={anchor} className="agent-launch-dialog agent-launch-dialog--missing">
+        <div className="orch-form launch-card" data-launch-missing>
+          <p className="launch-card__text">{t(locale, "launchMissingText").replace("{name}", name)}</p>
+          <div className="launch-card__row launch-card__row--buttons">
+            <button type="button" className="orch-primary" data-autofocus onClick={() => void window.canvasTTY.external.openUrl(installUrl(locale))}>{t(locale, "howToInstall")}</button>
+            <button type="button" className="launch-card__btn" onClick={check}>{t(locale, "onboardingRecheck")}</button>
+          </div>
+          <button type="button" className="launch-card__link" onClick={() => { onRemoveFromDock(provider); onClose(); }}>{t(locale, "launchRemoveFromDock")}</button>
+        </div>
+      </Dialog>
+    );
+  }
 
   const chooseDirectory = async (): Promise<void> => {
     const selected = await window.canvasTTY.dialog.pickDirectory(cwd);
@@ -54,30 +89,21 @@ export function AgentLaunchDialog({
     }
   };
 
-  const pasteDirectory = async (): Promise<void> => {
-    try {
-      const path = directoryPathFromClipboard(await window.canvasTTY.clipboard.readText());
-      if (!path) {
-        setError(t(locale, "clipboardPathMissing"));
-        return;
-      }
-      setCwd(path);
-      setError(null);
-    } catch {
-      setError(t(locale, "clipboardReadFailed"));
-    }
+  // a pasted path goes through the same clean-up as before: file-manager lists, quotes, file:// links
+  const pastePath = (event: React.ClipboardEvent<HTMLInputElement>): void => {
+    const path = directoryPathFromClipboard(event.clipboardData.getData("text/plain"));
+    if (!path) return;
+    event.preventDefault();
+    setCwd(path);
+    setError(null);
   };
 
+  const yolo = profile === "yolo";
   const submit = async (): Promise<void> => {
-    if (profile === "yolo" && !acknowledged && !confirmDanger) {
-      setConfirmDanger(true);
-      return;
-    }
-
+    if (yolo && !understood) return;
     setBusy(true);
     setError(null);
     try {
-      if (profile === "yolo" && !acknowledged) await onAcknowledge(provider);
       await onLaunch(provider, profile, cwd);
       onClose();
     } catch (reason) {
@@ -87,49 +113,46 @@ export function AgentLaunchDialog({
     }
   };
 
+  const choose = (next: LaunchProfileId): void => {
+    setProfile(next);
+    setUnderstood(false);
+  };
+  const recent = recentDirectories.filter((dir) => dir !== cwd).slice(0, 3);
+
   return (
-    <Dialog label={`${t(locale, "launchAgent")}: ${PROVIDERS[provider].label}`} onClose={onClose} locale={locale} className="agent-launch-dialog">
-      <form className="orch-form" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-        <div className="launch-dialog__top">
-          <div className="launch-dialog__provider"><ProviderIcon provider={provider} size="large" /></div>
-          <div className="folder-field">
-            <button className="folder-field__picker" type="button" onClick={() => void chooseDirectory()}>
-              <UiIcon name="folder" size={28} />
-              <span className="folder-field__copy">
-                <small>{t(locale, "projectFolder")}</small>
-                <strong title={cwd}>{cwd}</strong>
-              </span>
-              <UiIcon name="chevron" size={20} />
-            </button>
-            <button className="folder-field__paste" type="button" onClick={() => void pasteDirectory()} title={t(locale, "pasteProjectPath")} aria-label={t(locale, "pasteProjectPath")}>
-              <UiIcon name="copy" size={20} />
-              <span>{t(locale, "pastePath")}</span>
-            </button>
+    <Dialog label={name} sub={t(locale, "launchNewSession")} lead={mark} onClose={onClose} locale={locale} anchor={anchor} className="agent-launch-dialog">
+      <form className="orch-form launch-card" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+        <div className="launch-card__field">
+          <label htmlFor="launch-cwd">{t(locale, "projectFolder")}</label>
+          <div className="launch-card__row">
+            <input id="launch-cwd" className="launch-card__path" value={cwd} title={cwd} spellCheck={false} onChange={(event) => { setCwd(event.currentTarget.value); setError(null); }} onPaste={pastePath} />
+            <button className="launch-card__btn" type="button" onClick={() => void chooseDirectory()}>{t(locale, "launchChoose")}</button>
           </div>
+          {recent.length > 0 && (
+            <p className="launch-card__hint launch-card__recent">{t(locale, "launchRecent")}: {recent.map((dir, i) => (
+              <span key={dir}>{i > 0 && " · "}<button type="button" title={dir} onClick={() => setCwd(dir)}>{baseName(dir)}</button></span>
+            ))}</p>
+          )}
         </div>
 
-        <div className="profile-row" role="group">
-          <button className={profile === "normal" ? "profile-button profile-button--active" : "profile-button"} type="button" data-autofocus={profile === "normal" ? "" : undefined} aria-pressed={profile === "normal"} onClick={() => {
-            setProfile("normal");
-            setConfirmDanger(false);
-          }}>{t(locale, "normal")}</button>
-          <button className={profile === "yolo" ? "profile-button profile-button--active" : "profile-button"} type="button" data-autofocus={profile === "yolo" ? "" : undefined} aria-pressed={profile === "yolo"} onClick={() => {
-            setProfile("yolo");
-            setConfirmDanger(false);
-          }}>{t(locale, "yolo")}</button>
+        <div className="launch-card__field">
+          <span id="launch-profile">{t(locale, "launchProfile")}</span>
+          <div className="profile-row" role="group" aria-labelledby="launch-profile">
+            <button className={profile === "normal" ? "profile-button profile-button--active" : "profile-button"} type="button" data-autofocus={profile === "normal" ? "" : undefined} aria-pressed={profile === "normal"} onClick={() => choose("normal")}>{t(locale, "normal")}</button>
+            <button className={yolo ? "profile-button profile-button--active profile-button--danger" : "profile-button"} type="button" data-autofocus={yolo ? "" : undefined} aria-pressed={yolo} onClick={() => choose("yolo")}>{t(locale, "yolo")}</button>
+          </div>
+          {!yolo && <p className="launch-card__hint">{t(locale, "launchHintNormal")}</p>}
         </div>
 
-        {profile === "yolo" && (
-          <div className={`danger-note ${confirmDanger ? "danger-note--confirm" : ""}`}>
-            <strong>{t(locale, dangerKey)}</strong>
-            {!acknowledged && <span>{confirmDanger ? t(locale, "dangerousFirstUse") : t(locale, "confirmLaunch")}</span>}
+        {yolo && (
+          <div className="danger-note" title={t(locale, PROVIDERS[provider].dangerKey!)}>
+            <p><UiIcon name="status-failed" size={16} />{t(locale, "launchYoloWarn")}</p>
+            <label className="danger-note__ack"><input type="checkbox" checked={understood} onChange={(event) => setUnderstood(event.currentTarget.checked)} />{t(locale, "launchYoloAck")}</label>
           </div>
         )}
         {error && <div className="dialog-error" role="alert">{error}</div>}
-        <div className="orch-form__actions">
-          <button type="button" className="orch-cancel" onClick={onClose}>{t(locale, "cancel")}</button>
-          <button type="submit" className="orch-primary" disabled={busy}>{busy ? <span className="launch-submit__busy" /> : t(locale, "launch")}</button>
-        </div>
+        <button type="submit" className="orch-primary launch-card__go" disabled={busy || (yolo && !understood)}>{busy ? <span className="launch-submit__busy" /> : t(locale, yolo ? "launchYoloGo" : "launch")}</button>
+        {yolo && <p className="launch-card__hint">{t(locale, "launchYoloNote")}</p>}
       </form>
     </Dialog>
   );

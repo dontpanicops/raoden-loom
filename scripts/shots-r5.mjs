@@ -26,6 +26,11 @@ const wrap = (p) => {
   fs.writeFileSync(f, `#!/bin/sh\nexec "${NODE}" "${path.join(FIXTURES, `mock-${p}.mjs`)}" "$@"\n`, { mode: 0o755 });
   return f;
 };
+// a CLI that is "found" (the launch card of an installed agent); the others stay missing (the "CLI not found" card)
+const cliBin = D("cli-bin");
+fs.mkdirSync(cliBin, { recursive: true });
+// its window title tells the app what it does: a folder named *waiting* asks for approval, *working* works (mock 10 palette)
+fs.writeFileSync(path.join(cliBin, "claude"), `#!/bin/sh\ncase "$PWD" in *waiting*) printf '\\033]0;✳ Claude\\007';; *working*) printf '\\033]0;◐ Claude\\007';; esac\nexec sleep 3000\n`, { mode: 0o755 });
 const PATHS = `${path.dirname(NODE)}:/usr/bin:/bin`;
 const SHELL = D("login-shell");
 fs.writeFileSync(SHELL, `#!/bin/sh\n[ "$1" = "-ilc" ] && shift\nexec /bin/sh -c "$1"\n`, { mode: 0o755 });
@@ -81,7 +86,7 @@ const fit = async () => {
 let world = {};
 
 try {
-  app = await launch({ userData, providers, port: PORT, shots: OUT, env: { CANVASTTY_USER_DATA_DIR: userData, CANVASTTY_SMOKE_IMPORT_FILE: BOARD_FILE } });
+  app = await launch({ userData, providers, port: PORT, shots: OUT, env: { CANVASTTY_SMOKE_CLI_DIR: cliBin, CANVASTTY_USER_DATA_DIR: userData, CANVASTTY_SMOKE_IMPORT_FILE: BOARD_FILE } });
   await laptop();
   await app.waitFor(`${q(".workspace")} && true`, "window", 30_000);
 
@@ -143,7 +148,7 @@ try {
       await app.click(spot.x + 20, spot.y + 20, "right"); await sleep(500);
       await app.waitFor(`${q(".canvas-menu")} && true`, "menu");
       const launch = await app.ev(`(() => { const b = [...document.querySelectorAll(".canvas-menu [role=menuitem]")].find((e) => /Запустить/.test(e.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
-      if (launch) { await app.mouse("mouseMoved", launch.x, launch.y); await sleep(600); }
+      if (launch) { await app.click(launch.x, launch.y); await sleep(600); }
       await shot("overlay-context-menu");
       await esc();
     });
@@ -152,18 +157,39 @@ try {
       await app.waitFor(`${q(".canvas-command-palette")} && true`, "palette", 5000);
       await shot("overlay-palette"); await esc();
     });
+    await scene("overlay-palette-waiting", async () => {
+      // an agent that waits for approval, one that works, a terminal that failed: the palette's three groups and its chips
+      const mkdir = (name) => { const d = path.join(termDir, name); fs.mkdirSync(d, { recursive: true }); return d; };
+      const mk = (provider, cwd, x, y) => app.ev(`window.canvasTTY.terminal.create({ provider: ${JSON.stringify(provider)}, profile: "normal", cwd: ${JSON.stringify(cwd)}, position: { x: ${x}, y: ${y} } })`);
+      if (!world.palette) {
+        world.palette = [await mk("claude", mkdir("project-waiting"), 2400, 2500), await mk("claude", mkdir("project-working"), 2800, 2500)];
+        const bad = await mk("terminal", mkdir("infra"), 3200, 2500); await sleep(1500);
+        await app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(bad.id)}, ${JSON.stringify("exit 1\r")})`); world.palette.push(bad);
+        await sleep(2500);
+      }
+      await meta("k", "KeyK", 75);
+      await app.waitFor(`${q(".canvas-command-palette")} && true`, "palette", 5000);
+      await shot("overlay-palette-waiting"); await esc();
+    });
     await scene("overlay-region-menu", async () => {
       await app.key("Home", "Home", 36); await sleep(900);
-      const spot = await app.freeRect(40, 40);
-      await app.click(spot.x + 20, spot.y + 20, "right"); await sleep(500);
-      await app.clickEl(`[...document.querySelectorAll(".canvas-menu [role=menuitem]")].find((e) => /егион|бласть/.test(e.textContent))`); await sleep(800);
-      await app.clickEl(`[...document.querySelectorAll("button")].find((e) => e.textContent.trim() === "Создать")`); await sleep(900);
+      if (!(await app.ev(`!!document.querySelector(".canvas-region__title")`))) { // the second theme finds the first one's region
+        const spot = await app.freeRect(40, 40);
+        await app.click(spot.x + 20, spot.y + 20, "right"); await sleep(500);
+        await app.clickEl(`[...document.querySelectorAll(".canvas-menu [role=menuitem]")].find((e) => /егион|бласть/.test(e.textContent))`); await sleep(800);
+        await app.clickEl(`[...document.querySelectorAll("button")].find((e) => e.textContent.trim() === "Создать")`); await sleep(900);
+      }
       const reg = await app.center(`document.querySelector(".canvas-region__title")`);
       await app.click(reg.x, reg.y, "right"); await sleep(600);
       await shot("canvas-region-menu"); await esc();
     });
     await scene("overlay-toast", async () => {
-      await app.click(40, 880); await app.key("F2", "F2", 113); await sleep(600);
+      // the app has no source of "waiting" toasts with an action yet: the three states of mock 10 need a temporary
+      // window.__r5Toast(message, kind, action, title) in App.tsx (not committed); without it, the one real toast (F2)
+      if (await app.ev(`typeof window.__r5Toast === "function"`)) {
+        await app.ev(`(() => { const t = window.__r5Toast; t("project-b · разрешение MCP", "waiting", { label: "Перейти", run() {} }, "Claude ждёт разрешения"); t("project-c · Claude CLI, код 1", "error", { label: "Открыть", run() {} }, "Запуск упал"); t("project-a · проверки прошли, ревью принято", "success", { label: "Итог", run() {} }, "Запуск завершён"); return true; })()`);
+      } else { await app.click(40, 880); await app.key("F2", "F2", 113); }
+      await sleep(600);
       await shot("overlay-toast");
     });
 
@@ -209,6 +235,7 @@ try {
       const yolo = await app.ev(`(() => { const e = [...document.querySelectorAll(".agent-launch-dialog label, .agent-launch-dialog button")].find((x) => /YOLO/.test(x.textContent)); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
       if (!yolo) throw new Error("no YOLO choice");
       await app.click(yolo.x, yolo.y); await sleep(500);
+      await app.clickEl(`document.querySelector(".agent-launch-dialog .danger-note__ack input")`); await sleep(300); // mock 14: the box is ticked
       await shot("launch-card-yolo"); await esc();
     });
 
@@ -257,7 +284,7 @@ try {
       await app.clickEl(q("[data-board-autopilot-start]")); await sleep(500);
       await shot("board-autopilot");
     });
-    await scene("board-close", async () => { if (await app.ev(`!!${q("[data-board]")}`)) await app.clickEl(q("[data-board-hide]")); await sleep(500); });
+    await scene("board-close", async () => { if (await app.ev(`!!${q("[data-board]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); } await sleep(500); });
 
     // goal dialog and project settings
     await scene("goal", async () => {
@@ -275,6 +302,14 @@ try {
       await sleep(1500);
       await shot("project-settings");
       await esc(); await sleep(300); await esc();
+    });
+
+    // a lead without a link: the hint under the path and the port as a ring
+    await scene("cards-agents-idle", async () => {
+      await createAgent(app, "Агент Codex (лид)", node);
+      const lone = (await canvasState(app)).agents.find((x) => x.provider === "codex" && x.agentId !== lead.agentId);
+      await app.reveal(card(lone.agentId)); await sleep(600); await shot("cards-agents-idle");
+      await app.clickEl(card(lone.agentId, ".agent-card__close")); await sleep(500);
     });
 
     // links: repeated pair refused, executor to the left, zoom 0.2
@@ -301,6 +336,8 @@ try {
       const mk = async (x, y, cmd) => {
         const tt = await app.ev(`window.canvasTTY.terminal.create({ provider: "terminal", profile: "normal", cwd: ${JSON.stringify(termDir)}, position: { x: ${x}, y: ${y} } })`);
         await sleep(1500);
+        // a neutral prompt: the default one carries the user name
+        await app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(tt.id)}, ${JSON.stringify("PS1='$ ' PROMPT='$ '; clear\r")})`); await sleep(500);
         await app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(tt.id)}, ${JSON.stringify(cmd + "\r")})`);
         return tt.id;
       };

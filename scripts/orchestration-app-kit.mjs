@@ -90,6 +90,9 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
   // the new app cannot bind it and the page list below comes from the other.
   if (await fetchFn(`http://127.0.0.1:${port}/json/version`).then(() => true, () => false)) throw new Error(`port ${port} is taken by another DevTools server`);
   step(`launch ${userData}`);
+  // the first-run card and its key guide float over the canvas where a board's dialog opens (since R5c): a smoke is not about them
+  fs.mkdirSync(userData, { recursive: true });
+  if (!fs.existsSync(path.join(userData, "settings.json"))) fs.writeFileSync(path.join(userData, "settings.json"), JSON.stringify({ onboardingDismissed: true }));
   const extra = { ...(providers ? { CANVASTTY_ORCHESTRATION_TEST_PROVIDERS: providers } : {}), ...env };
   const flags = [...new Set([...PAINTED, ...switches])];
   console.log("occluded-window throttling disabled for smoke");
@@ -202,7 +205,7 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
           const r = await app.ev(`(() => { const el = ${selector}; if (!el) return null;
             if (el.closest(".usage-list")) el.scrollIntoView({ block: "nearest" }); // HOME's session tile scrolls on its own
             const r = el.getBoundingClientRect();
-            const scroller = el.closest(".orch-zone, .orch-panel__body, .orch-dialog"); // the panel's body or a dialog taller than the window
+            const scroller = el.closest(".orch-zone, .orch-panel__body, .orch-form__body, .board-card__list, .orch-dialog"); // the panel's body, the scrolling body of a dialog with a pinned header and foot (R5f), or a dialog taller than the window
             const sbox = scroller?.getBoundingClientRect() ?? { left: 0, top: 40, right: innerWidth, bottom: innerHeight };
             // a dialog's pinned bottom (Start / Save) covers what scrolls under it: the visible part ends above it
             const foot = scroller?.matches(".orch-dialog") ? scroller.querySelector(".orch-form__actions") : null;
@@ -224,7 +227,7 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
           if (!r.scene) throw new Error(`outside the window: ${selector}`);
           await app.panBy({ x: r.w / 2 - r.cx, y: r.h / 2 - r.cy });
         }
-        throw new Error(`could not bring into view: ${selector} ${JSON.stringify(await app.ev(`(() => { const el = ${selector}; const b = el.closest(".orch-panel__body"); const r = el.getBoundingClientRect(); return { r: r.toJSON(), st: b?.scrollTop, sh: b?.scrollHeight, ch: b?.clientHeight, br: b?.getBoundingClientRect().toJSON() }; })()`))}`);
+        throw new Error(`could not bring into view: ${selector} ${JSON.stringify(await app.ev(`(() => { const el = ${selector}; const b = el.closest(".orch-panel__body"); const r = el.getBoundingClientRect(); return { r: r.toJSON(), st: b?.scrollTop, sh: b?.scrollHeight, ch: b?.clientHeight, br: b?.getBoundingClientRect().toJSON(), at: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.outerHTML.slice(0, 160), win: [innerWidth, innerHeight] }; })()`))}`);
       },
       // Empty canvas at (x, y): the workspace itself, not a card, HOME, a menu, a dialog, the panel or an overlay.
       isEmpty: (x, y) => app.ev(`(() => { const el = document.elementFromPoint(${x}, ${y}); return !!el && !!el.closest(".workspace")

@@ -17,7 +17,7 @@ import type {
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { UiIcon } from "../../components/UiIcon";
 import { t } from "../../lib/i18n";
-import { sessionStatusLabel } from "../../lib/sessionStatus";
+import { sessionCardLabel, sessionStatusLabel } from "../../lib/sessionStatus";
 import { sessionCardStatus } from "../../lib/cardStatus";
 import { CardStatus } from "../../components/CardStatus";
 import { attachTerminalMouseCoordinateAdapter, attachTerminalScrollbarCoordinateAdapter } from "./terminalMouseCoordinates";
@@ -548,7 +548,14 @@ export function TerminalCard({
         </div>
       </header>
       <div className="terminal-card__surface" ref={terminalHost} />
-      <footer className="terminal-card__status"><CardStatus kind={sessionCardStatus(session.status)} label={sessionStatusLabel(locale, session.status, session.provider)} /></footer>
+      <footer className="terminal-card__status">
+        <CardStatus kind={sessionCardStatus(session.status)} label={sessionCardLabel(locale, session.status, session.exitCode)} />
+        {session.exitCode !== null && (
+          <button className="terminal-card__restart" type="button" disabled={restarting} onClick={() => void restartAction.current()} title={`${t(locale, "restartSession")} · Ctrl+D`}>
+            {t(locale, "restartShort")}<kbd>^D</kbd>
+          </button>
+        )}
+      </footer>
       <button
         className="terminal-card__summary"
         type="button"
@@ -602,10 +609,9 @@ function readTerminalTheme(element: HTMLElement): ITheme {
 }
 
 function compactPath(path: string): string {
-  const home = "/home/";
-  if (!path.startsWith(home)) return path;
+  if (!/^\/(?:home|Users)\//.test(path)) return path;
   const parts = path.split("/").filter(Boolean);
-  return parts.length > 2 ? `~/${parts.slice(2).join("/")}` : path;
+  return parts.length > 2 ? `~/${parts.slice(2).join("/")}` : "~";
 }
 
 function isCardControl(target: EventTarget): boolean {

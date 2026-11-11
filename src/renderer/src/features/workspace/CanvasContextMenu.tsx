@@ -15,8 +15,7 @@ import {
   CanvasMenuIcon,
   CanvasMenuKbd,
   CanvasMenuLabel,
-  CanvasMenuRow,
-  CanvasMenuSub
+  CanvasMenuRow
 } from "../../components/CanvasMenuPrimitives";
 import {
   chooseCanvasSubmenuSide,
@@ -89,7 +88,7 @@ export function CanvasContextMenu({
       setSubmenuSide(chooseCanvasSubmenuSide(
         root.getBoundingClientRect(),
         workspace.getBoundingClientRect(),
-        19 * fontSize,
+        15.5 * fontSize,
         .55 * fontSize
       ));
     }
@@ -118,19 +117,8 @@ export function CanvasContextMenu({
     >
       {kind === "empty" && (
         <>
-          <CanvasMenuRow
-            icon="maximize"
-            right={<CanvasMenuSub>{t(locale, "canvasMenuHere")}</CanvasMenuSub>}
-            role="menuitem"
-            onClick={onCreateRegion}
-          >{t(locale, "canvasMenuCreateRegion")}</CanvasMenuRow>
-          <CanvasMenuRow
-            icon="sticky-note"
-            right={<CanvasMenuSub>{t(locale, "canvasMenuHere")}</CanvasMenuSub>}
-            role="menuitem"
-            onClick={onCreateNote}
-          >{t(locale, "newStickyNote")}</CanvasMenuRow>
-          <CanvasMenuDivider />
+          <CanvasMenuRow icon="maximize" role="menuitem" onClick={onCreateRegion}>{t(locale, "ctxRegion")}</CanvasMenuRow>
+          <CanvasMenuRow icon="sticky-note" role="menuitem" onClick={onCreateNote}>{t(locale, "ctxNote")}</CanvasMenuRow>
           <div className="canvas-menu__submenu-anchor">
             <CanvasMenuRow
               icon="terminal"
@@ -139,27 +127,14 @@ export function CanvasContextMenu({
               aria-haspopup="menu"
               aria-expanded={launcherOpen}
               onClick={toggleLauncher}
-            >{t(locale, "canvasMenuLaunchAgent")}</CanvasMenuRow>
+            >{t(locale, "canvasMenuLaunch")}</CanvasMenuRow>
             {launcherOpen && (
               <div className={`canvas-menu canvas-menu__submenu canvas-menu__submenu--${submenuSide}`} role="menu">
                 {launcherItems.map((provider) => (
                   provider === "terminal" ? (
-                    <CanvasMenuRow
-                      icon="terminal"
-                      muted
-                      indent
-                      role="menuitem"
-                      key={provider}
-                      onClick={() => onLaunch(provider)}
-                    >{PROVIDERS[provider].label}</CanvasMenuRow>
+                    <CanvasMenuRow icon="terminal" indent role="menuitem" key={provider} onClick={() => onLaunch(provider)}>{PROVIDERS[provider].label}</CanvasMenuRow>
                   ) : (
-                    <CanvasMenuRow
-                      indent
-                      right={<CanvasMenuSub>{t(locale, "normal").toLocaleLowerCase(locale)}</CanvasMenuSub>}
-                      role="menuitem"
-                      key={provider}
-                      onClick={() => onLaunch(provider)}
-                    >
+                    <CanvasMenuRow indent role="menuitem" key={provider} onClick={() => onLaunch(provider)}>
                       <span className="canvas-menu__provider">
                         <ProviderIcon provider={provider} size="small" />
                         {PROVIDERS[provider].label}
@@ -167,13 +142,11 @@ export function CanvasContextMenu({
                     </CanvasMenuRow>
                   )
                 ))}
+                <CanvasMenuDivider />
+                <CanvasMenuRow muted indent role="menuitem" onClick={onOpenSettings}>{t(locale, "ctxConfigureList")}</CanvasMenuRow>
               </div>
             )}
           </div>
-          <CanvasMenuRow icon="browser" role="menuitem" onClick={onOpenBrowser}>
-            {t(locale, "canvasMenuOpenBrowser")}
-          </CanvasMenuRow>
-          <CanvasMenuDivider />
           {(["codex", "claude"] as const).map((provider) => {
             const entry = orchestrationEntry(orchestrationAvailableHere());
             return (
@@ -183,6 +156,9 @@ export function CanvasContextMenu({
               </CanvasMenuRow>
             );
           })}
+          <CanvasMenuRow icon="browser" role="menuitem" onClick={onOpenBrowser}>
+            {t(locale, "ctxBrowser")}
+          </CanvasMenuRow>
           <CanvasMenuDivider />
           <CanvasMenuRow
             icon="settings"

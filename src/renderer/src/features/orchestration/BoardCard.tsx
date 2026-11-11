@@ -1,12 +1,13 @@
 // B2: the task board on the canvas (stage-b-board.md §6). One card per workspace, moved and resized as an agent card
 // is. Its columns and every line of a task card come from the shared status (boardStatuses) and the same display rules
 // as the agent cards (runStatus); the board only sends what the person asked for — main checks every rule.
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { LocaleId, SessionBounds } from "../../../../shared/contracts";
 import type { OrchestrationAgentLink } from "../../../../shared/orchestration";
 import { AUTOPILOT_BUDGET, type AutopilotLimit, type AutopilotStopCode, conflictsOf, placeKey, externalInForce, isCopy, startBase, taskText, mergeMark, parallelOf, type AutopilotBudget, type AutopilotState, type BoardHead, type BoardMerge, type BoardTask, type ImportReport, type InboxRow, type InboxTask, type RunTaskFacts, type TaskColumn, type TaskStatus } from "../../../../shared/taskBoard";
 import { t, type TranslationKey } from "../../lib/i18n";
 import { Dialog } from "../../components/Dialog";
+import { UiIcon } from "../../components/UiIcon";
 import { ACTIVE_STATUSES, providerName, resetTime } from "./runModel";
 import { ASKS_HINT_OVER, askCount, permissionLine, splitActions, stopText, subtaskInfo, taskLine, tr, unsplit } from "./boardModel";
 import { conditionsLine, costLine, findingsLine } from "./runStatus";
@@ -53,11 +54,21 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
   const [importing, setImporting] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
   // R4: the report plate: raises the card, goes to the left when the right has no room, takes focus and gives it back to «Import»
-  const asideRef = useRef<HTMLElement>(null);
+  const asideRef = useRef<HTMLDivElement>(null);
+  const [apAsking, setApAsking] = useState<string | null>(null); // R5f: the link whose autopilot form is open (a plate beside the card)
+  const [menuOpen, setMenuOpen] = useState(false);
   const importRef = useRef<HTMLButtonElement>(null);
   const [asideLeft, setAsideLeft] = useState(false);
   const closeReport = (): void => { setReport(null); importRef.current?.focus(); };
-  const asideOpen = !!report;
+  useEffect(() => {
+    if (!menuOpen) return;
+    const off = (e: PointerEvent): void => { if (!(e.target as Element | null)?.closest(".board-menu")) setMenuOpen(false); };
+    const esc = (e: KeyboardEvent): void => { if (e.key === "Escape") { e.stopPropagation(); setMenuOpen(false); } };
+    document.addEventListener("pointerdown", off, true);
+    document.addEventListener("keydown", esc, true);
+    return () => { document.removeEventListener("pointerdown", off, true); document.removeEventListener("keydown", esc, true); };
+  }, [menuOpen]);
+  const asideOpen = !!report || !!apAsking;
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the plate opens or closes, not on every render
   useLayoutEffect(() => {
     setAsideLeft(false);
@@ -65,7 +76,7 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
     if (!el) return;
     props.onRaise?.();
     if (el.getBoundingClientRect().right > window.innerWidth) setAsideLeft(true);
-    el.querySelector<HTMLElement>("[data-board-import-close]")?.focus();
+    el.querySelector<HTMLElement>("[data-board-import-close], [data-board-budget-runs]")?.focus();
   }, [asideOpen]);
   const newInputs = window.canvasTTY.orchestration.newInputs;
   const view = board.view;
@@ -94,6 +105,7 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
     const base = view ? startBase(task, view.board, board.statuses, view.facts, view.heads ?? []) : null;
     ui.openGoal(link.linkId, { id: task.id, key: task.key, title: task.title, text: taskText(task, view?.board.tasks ?? [], locale === "ru" ? "ru" : "en"), criteria: task.criteria, ...(startAnyway ? { anyway: true } : {}), ...(base ? { base } : {}) });
   };
+  const boardProjects = [...new Set(orch.canvas.agents.map((a) => a.project))];
   const projects = [...new Set([...orch.canvas.agents.map((a) => a.project), ...(props.defaultProject ? [props.defaultProject] : [])])];
   const language = locale === "ru" ? "ru" : "en";
   // C1: the board's merged head of each project of this workspace
@@ -126,28 +138,35 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
       data-canvas-layer-id={`board:${workspaceId}`} aria-label={t(locale, "boardTitle")}
       style={{ zIndex: props.stackIndex, width: size.width, height: size.height, transform: `translate(${position.x}px, ${position.y}px)` }}>
       <header className="board-card__header" {...frame.header}>
-        <strong>{t(locale, "boardTitle")}</strong>
+        <UiIcon name="kanban" size="1.25em" />
+        <strong>{t(locale, "boardTitle")}{boardProjects.length === 1 ? ` · ${boardProjects[0]!.split("/").filter(Boolean).at(-1)}` : ""}</strong>
         {readOnly && <span className="board-card__readonly" role="status">{t(locale, "boardReadOnly")}</span>}
         <span className="board-card__header-actions">
-          <button type="button" data-board-new disabled={readOnly} onClick={() => setForm({ task: null })}>{t(locale, "boardNewTask")}</button>
-          <button type="button" ref={importRef} data-board-import disabled={readOnly || !newInputs || importing} aria-busy={importing}
+          {view && !readOnly && orch.canvas.links.map((l) => (
+            <ApSegment key={l.linkId} locale={locale} state={view.autopilot?.[l.linkId] ?? null} project={leadOf(l)?.project ?? ""} many={orch.canvas.links.length > 1} asking={apAsking === l.linkId}
+              onAsk={() => setApAsking(l.linkId)} onOff={async () => { const f = failure(await board.autopilot(l.linkId, false, language)); if (f) say(null, f); }} />
+          ))}
+          <button type="button" className="board-card__import" ref={importRef} data-board-import disabled={readOnly || !newInputs || importing} aria-busy={importing}
             title={newInputs ? undefined : t(locale, "boardImportCode_unsupported_platform")} onClick={async () => {
               setImporting(true);
               const r = await board.importFile();
               setImporting(false);
               if (!r.ok) say(null, importText(locale, r.code, r.message));
               else if (r.value) setReport(r.value);
-            }}>{importing ? `${t(locale, "boardImport")}…` : t(locale, "boardImport")}</button>
-          <button type="button" data-board-archive-toggle aria-pressed={showArchive} onClick={() => setShowArchive((v) => !v)}>
-            {t(locale, showArchive ? "boardHideArchive" : "boardShowArchive")}</button>
-          <button type="button" className="board-card__hide" data-board-hide title={t(locale, "boardHide")} aria-label={t(locale, "boardHide")} onClick={props.onHide}>×</button>
+            }}><UiIcon name="inbox" size="1.15em" />{importing ? `${t(locale, "boardImport")}…` : t(locale, "boardImport")}</button>
+          <span className="board-menu">
+            <button type="button" className="board-card__icon" data-board-menu aria-expanded={menuOpen} title={t(locale, "boardMenu")} aria-label={t(locale, "boardMenu")}
+              onClick={() => setMenuOpen((v) => !v)}><UiIcon name="sliders-horizontal" size="1.2em" /></button>
+            {menuOpen && (
+              <div className="board-menu__list">
+                <button type="button" data-board-archive-toggle aria-pressed={showArchive} onClick={() => { setShowArchive((v) => !v); setMenuOpen(false); }}>
+                  {t(locale, showArchive ? "boardHideArchive" : "boardShowArchive")}</button>
+                <button type="button" data-board-hide onClick={props.onHide}>{t(locale, "boardHide")}</button>
+              </div>
+            )}
+          </span>
         </span>
       </header>
-      {view && !readOnly && orch.canvas.links.map((l) => (
-        <AutopilotRow key={l.linkId} locale={locale} state={view.autopilot?.[l.linkId] ?? null} project={leadOf(l)?.project ?? ""} many={orch.canvas.links.length > 1}
-          onSet={async (on) => { const r = await board.autopilot(l.linkId, on, locale === "ru" ? "ru" : "en"); const f = failure(r); if (f) say(null, f); }}
-          onBudget={async (b) => { const r = await board.budget(l.linkId, b); const f = failure(r); if (f) say(null, f); }} />
-      ))}
       {view && !readOnly && heads.map((h) => (
         <HeadRow key={h.ref} locale={locale} head={h} tasks={tasks} statuses={board.statuses} facts={view.facts} board={board} workspaceId={workspaceId} say={(text) => say(null, text)} failure={failure} openRun={(id) => ui.openRunById(id)} />
       ))}
@@ -170,9 +189,11 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
             .sort((a, b) => a.order - b.order);
           return (
             <section key={column} className={`board-card__column board-card__column--${column}`} data-board-column={column} aria-label={t(locale, `boardCol_${column}`)}>
-              <h3>{showArchive && column === "queue" ? t(locale, "boardArchived") : t(locale, `boardCol_${column}`)} <span data-board-count>{items.length}</span></h3>
+              <h3><span className="board-card__col-name">{showArchive && column === "queue" ? t(locale, "boardArchived") : t(locale, `boardCol_${column}`)}</span> <span data-board-count>{items.length}</span>
+                {column === "queue" && !showArchive && <button type="button" className="board-card__icon board-card__add" data-board-new disabled={readOnly} title={t(locale, "boardNewTask")} aria-label={t(locale, "boardNewTask")}
+                  onClick={() => setForm({ task: null })}><UiIcon name="plus" size="1.2em" /></button>}</h3>
               <ul className="board-card__list">
-                {items.length === 0 && <li className="board-card__column-empty">{t(locale, "boardColumnEmpty")}</li>}
+                {items.length === 0 && <li className="board-card__column-empty"><strong>{t(locale, "boardColumnEmpty")}</strong>{column === "done" && !showArchive && <span>{t(locale, "boardColumnEmptyDone")}</span>}</li>}
                 {items.map((task) => {
                   const st = board.statuses.get(task.id)!;
                   const runId = st.current;
@@ -219,6 +240,8 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                   const acts = remote ? [...new Set(splitActions(task, st, true).map((a) => (a === "run" || a === "again" ? "whole" : a)))] : splitActions(task, st);
                   const subs = view ? subtaskInfo(task, tasks, board.statuses, view.facts, view.heads ?? []) : null;
                   const parent = task.parentId ? tasks.find((x) => x.id === task.parentId) : undefined;
+                  // R5f: the card's tone — the person's turn amber, a run going green, a failure red; the glyph says it too
+                  const tone = st.reason === "push_option_field" ? "danger" : st.column === "review" || st.reason === "waits_permission" ? "waiting" : st.column === "work" ? "working" : null;
                   return (
                     <li key={task.id} className={`board-task board-task--${st.column}${st.done ? ` board-task--done-${st.done}` : ""}`}
                       data-board-task={task.key} data-board-task-column={st.column} data-board-done={st.done ?? undefined} data-board-reason={st.reason ?? undefined}>
@@ -227,10 +250,12 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                         <span className="board-task__key">{task.key}</span> {task.title}
                       </button>
                       <div className="board-task__line" data-board-line title={line}>
-                        {st.done && <span className={`board-task__badge board-task__badge--${st.done}`} aria-hidden="true">{st.done === "confirmed" ? "✓" : "✋"}</span>}
+                        {st.done === "confirmed" ? <span className="board-task__badge board-task__badge--confirmed board-task__glyph board-task__glyph--done" aria-hidden="true"><UiIcon name="status-done" size="1.15em" /></span>
+                          : st.done ? <span className={`board-task__badge board-task__badge--${st.done}`} aria-hidden="true">✋</span>
+                          : tone && <span className={`board-task__glyph board-task__glyph--${tone}`} aria-hidden="true"><UiIcon name={tone === "waiting" ? "bell" : tone === "danger" ? "error" : "working"} size="1.15em" /></span>}
                         <span data-board-line-text>{line}</span>
                       </div>
-                      {task.external && <div className="board-task__line board-task__hint" data-board-external={external ? (st.done ? "done" : "waits") : "runs"}
+                      {task.external && <div className="board-task__line board-task__hint board-task__chip" data-board-external={external ? (st.done ? "done" : "waits") : "runs"}
                         title={task.externalDone?.note ?? undefined}>{external ? t(locale, "boardExternal") : t(locale, "boardReason_external_has_runs")}{external && task.externalDone?.note ? ` · ${task.externalDone.note}` : ""}</div>}
                       {facts && <div className="board-task__line board-task__facts" data-board-facts title={facts}>{facts}</div>}
                       {asks > ASKS_HINT_OVER && <div className="board-task__line board-task__hint" data-board-asks-hint>{t(locale, "boardAsksHint")}</div>}
@@ -348,20 +373,38 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
           );
         })}
       </div>
+      {view && !readOnly && orch.canvas.links.length > 0 && (
+        <footer className="board-ribbon" data-board-ribbon>
+          <span className="board-ribbon__label">{t(locale, "boardApLabel")}</span>
+          {orch.canvas.links.map((l) => (
+            <ApRibbon key={l.linkId} locale={locale} state={view.autopilot?.[l.linkId] ?? null} project={leadOf(l)?.project ?? ""} many={orch.canvas.links.length > 1} />
+          ))}
+        </footer>
+      )}
       {RESIZE_DIRECTIONS.map((direction) => (
         <div key={direction} className={`terminal-card__resize-handle terminal-card__resize-handle--${direction}`} aria-hidden="true" data-board-resize={direction}
           {...frame.handle(direction)} />
       ))}
       {/* R4c: the import's report is a side plate, not a modal: the columns stay in reach */}
-      {report && (
-        <aside ref={asideRef} className={`board-aside ${asideLeft ? "board-aside--left" : ""}`} aria-label={t(locale, "boardImport")} data-board-aside
-          onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeReport(); } }}>
-          <div className="board-aside__head">
-            <strong>{t(locale, "boardImportAside")}</strong>
-            <button type="button" className="board-aside__close" data-board-import-close aria-label={t(locale, "orchClose")} onClick={closeReport}>×</button>
-          </div>
-          <ImportReportView locale={locale} report={report} tasks={view?.inbox?.find((r) => r.file === report.file)?.tasks ?? []} />
-        </aside>
+      {(report || apAsking) && (
+        <div ref={asideRef} className={`board-asides ${asideLeft ? "board-asides--left" : ""}`}>
+          {report && (
+            <aside className="board-aside" aria-label={t(locale, "boardImport")} data-board-aside
+              onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeReport(); } }}>
+              <div className="board-aside__head">
+                <strong>{t(locale, "boardImportAside")}</strong>
+                <button type="button" className="board-aside__close" data-board-import-close aria-label={t(locale, "orchClose")} onClick={closeReport}><UiIcon name="close" size="1.15em" /></button>
+              </div>
+              <ImportReportView locale={locale} report={report} tasks={view?.inbox?.find((r) => r.file === report.file)?.tasks ?? []} />
+            </aside>
+          )}
+          {apAsking && view && orch.canvas.links.some((l) => l.linkId === apAsking) && (
+            <ApForm locale={locale} state={view.autopilot?.[apAsking] ?? null}
+              onCancel={() => { setApAsking(null); document.querySelector<HTMLElement>(`[data-board="${workspaceId}"] [data-board-autopilot-start]`)?.focus(); }}
+              onBudget={async (b) => { const f = failure(await board.budget(apAsking, b)); if (f) say(null, f); }}
+              onStart={async () => { setApAsking(null); const f = failure(await board.autopilot(apAsking, true, language)); if (f) say(null, f); }} />
+          )}
+        </div>
       )}
       {form && (
         <TaskForm locale={locale} task={form.task} remoteBase={(project) => !!view?.remoteBase?.includes(placeKey({ workspaceId: form.task?.workspaceId ?? workspaceId, project }))} splitLocked={!!form.task && ((board.statuses.get(form.task.id)?.attempts ?? 0) > 0 || tasks.some((x) => x.parentId === form.task!.id && !x.archivedAt))} tasks={tasks.filter((x) => !x.archivedAt)} projects={projects}
@@ -453,57 +496,90 @@ function TaskForm({ locale, task, remoteBase, splitLocked, tasks, projects, depe
   );
 }
 
-// B4: «Run the board» on a link (stage-b-board.md §5): on — what it waits for and how much of the budget is used; off —
-// why it stopped last. Turning it on says what it does; the budget is the link's, kept in board.json.
-function AutopilotRow({ locale, state, project, many, onSet, onBudget }: {
-  locale: LocaleId; state: AutopilotState | null; project: string; many: boolean; onSet(on: boolean): Promise<void>; onBudget(b: AutopilotBudget): Promise<void>;
+// B4: «Run the board» on a link (stage-b-board.md §5), R5f (mock-up 08): the header's «Автопилот [Вкл|Выкл]» segment and the chip of what
+// it waits for; the form (the budget, how many at once, who resolves a conflict) is a plate beside the card (ApForm); the strip at the
+// bottom says the state in words (ApRibbon). Turning it on goes through the form's confirmation, as it always did.
+function ApSegment({ locale, state, project, many, asking, onAsk, onOff }: {
+  locale: LocaleId; state: AutopilotState | null; project: string; many: boolean; asking: boolean; onAsk(): void; onOff(): Promise<void>;
 }): React.JSX.Element {
-  const budget = state?.budget ?? AUTOPILOT_BUDGET;
-  const [asking, setAsking] = useState(false);
-  const [runs, setRuns] = useState(String(budget.runs));
-  const [minutes, setMinutes] = useState(String(budget.minutes));
-  const [parallel, setParallel] = useState(String(parallelOf(budget)));
-  const [conflicts, setConflicts] = useState(conflictsOf(budget));
   const name = project.split("/").filter(Boolean).at(-1) ?? project;
-  const valid = /^\d+$/.test(runs) && +runs >= 1 && +runs <= 100 && /^\d+$/.test(minutes) && +minutes >= 1 && +minutes <= 1440 && /^[1-4]$/.test(parallel);
-  const changed = valid && (+runs !== budget.runs || +minutes !== budget.minutes || +parallel !== parallelOf(budget) || conflicts !== conflictsOf(budget));
+  const on = !!state?.on;
   return (
-    <div className="board-card__autopilot" data-board-autopilot={state?.on ? "on" : "off"}>
-      {many && <span className="board-card__autopilot-link">{tr(locale, "boardApLink", { project: name })}</span>}
+    <span className="board-ap" data-board-autopilot={on ? "on" : "off"}>
+      <span className="board-ap__label">{many ? `${t(locale, "boardApLabel")} · ${name}` : t(locale, "boardApLabel")}</span>
+      <fieldset className="board-seg" aria-label={many ? tr(locale, "boardApLink", { project: name }) : t(locale, "boardApLabel")}>
+        {on
+          ? <button type="button" className="board-seg__on" aria-pressed="true" data-board-autopilot-on disabled>{t(locale, "boardApSegOn")}</button>
+          : <button type="button" aria-pressed={asking} data-board-autopilot-start onClick={onAsk}>{t(locale, "boardApSegOn")}</button>}
+        <button type="button" className={on || asking ? undefined : "board-seg__on"} aria-pressed={!on && !asking} data-board-autopilot-off disabled={!on} onClick={() => void onOff()}>{t(locale, "boardApSegOff")}</button>
+      </fieldset>
+      {on && state?.waits && <span className={`board-chip board-chip--${WAIT_TONE[state.waits] ?? "neutral"}`} title={state.waits === "provider_limit" && state.limit ? limitText(locale, state.limit) : undefined}
+        data-board-autopilot-waits={state.waits}>{state.waits === "provider_limit" && state.limit ? limitText(locale, state.limit) : tr(locale, `boardApWaits_${state.waits}`, { key: state.waitsKey ?? "" })}</span>}
+    </span>
+  );
+}
+
+function ApRibbon({ locale, state, project, many }: { locale: LocaleId; state: AutopilotState | null; project: string; many: boolean }): React.JSX.Element {
+  const budget = state?.budget ?? AUTOPILOT_BUDGET;
+  const name = project.split("/").filter(Boolean).at(-1) ?? project;
+  return (
+    <span className="board-ribbon__item">
+      {many && <span className="board-ribbon__link">{tr(locale, "boardApLink", { project: name })}</span>}
       {state?.on ? (
         <>
-          <strong className="board-chip board-chip--working" data-board-autopilot-on>{t(locale, "boardApOn")}</strong>
-          {state.waits && <span className={`board-chip board-chip--${WAIT_TONE[state.waits] ?? "neutral"}`} data-board-autopilot-waits={state.waits}>{state.waits === "provider_limit" && state.limit ? limitText(locale, state.limit) : tr(locale, `boardApWaits_${state.waits}`, { key: state.waitsKey ?? "" })}</span>}
+          <span className="board-ribbon__on"><UiIcon name="working" size="1em" />{t(locale, "boardApRibbonOn")}</span>
           {state.resumed && state.waits !== "provider_limit" && <span data-board-autopilot-resumed={state.resumed.key}>{tr(locale, "boardApResumed", { key: state.resumed.key, time: resetTime(locale, Date.parse(state.resumed.at)) })}</span>}
           {state.splitting && <span data-board-autopilot-splitting={state.splitting}>{tr(locale, "boardApDecomposing", { key: state.splitting })}</span>}
           <span data-board-autopilot-parallel>{tr(locale, "boardApOnParallel", { n: parallelOf(budget) })}</span>
           <span data-board-autopilot-conflicts={conflictsOf(budget)}>{`${t(locale, "boardApConflicts")}: ${t(locale, `boardApConflicts_${conflictsOf(budget)}`)}`}</span>
           <span data-board-autopilot-used>{tr(locale, "boardApUsed", { runs: state.used.runs, maxRuns: budget.runs, minutes: state.used.minutes, maxMinutes: budget.minutes })}</span>
-          <button type="button" data-board-autopilot-off onClick={() => void onSet(false)}>{t(locale, "boardApOff")}</button>
         </>
-      ) : asking ? (
-        <span className="board-card__autopilot-ask" data-board-autopilot-confirm>
-          <span>{t(locale, "boardApToggleWhy")}</span>
-          <label>{t(locale, "boardApBudget")}: <input type="number" min={1} max={100} value={runs} onChange={(e) => setRuns(e.target.value)} data-board-budget-runs /> {t(locale, "boardApBudgetRuns")}</label>
-          <label><input type="number" min={1} max={1440} value={minutes} onChange={(e) => setMinutes(e.target.value)} data-board-budget-minutes /> {t(locale, "boardApBudgetMinutes")}</label>
-          <label title={t(locale, "boardApParallelHint")}><input type="number" min={1} max={4} value={parallel} onChange={(e) => setParallel(e.target.value)} data-board-budget-parallel /> {t(locale, "boardApParallelHint")}</label>
-          {/* C3 (stage-c3-conflicts.md §8): who resolves a merge conflict */}
-          <label title={t(locale, "boardApConflictsHint")}>{t(locale, "boardApConflicts")}:{" "}
-            <select value={conflicts} onChange={(e) => setConflicts(e.target.value === "person" ? "person" : "agent")} data-board-budget-conflicts>
-              <option value="agent">{t(locale, "boardApConflicts_agent")}</option>
-              <option value="person">{t(locale, "boardApConflicts_person")}</option>
-            </select></label>
-          <button type="button" data-board-autopilot-yes disabled={!valid} onClick={async () => { if (changed) await onBudget({ runs: +runs, minutes: +minutes, parallel: +parallel, conflicts }); setAsking(false); await onSet(true); }}>{t(locale, "boardApToggle")}</button>
-          <button type="button" onClick={() => setAsking(false)}>{t(locale, "cancel")}</button>
-        </span>
+      ) : state?.stop ? (
+        <span className={`board-ribbon__stop${STOP_FAILED.has(state.stop.code) ? " board-ribbon__stop--danger" : ""}`} role="status" data-board-autopilot-stop={state.stop.code}>{tr(locale, "boardApLast", { reason: stopText(locale, state.stop) })}</span>
       ) : (
-        <>
-          <button type="button" data-board-autopilot-start onClick={() => { setRuns(String(budget.runs)); setMinutes(String(budget.minutes)); setParallel(String(parallelOf(budget))); setConflicts(conflictsOf(budget)); setAsking(true); }}>{t(locale, "boardApToggle")}</button>
-          {!state?.stop && <small className="board-card__autopilot-hint" data-board-autopilot-hint>{t(locale, "boardApRestartHint")}</small>}
-          {state?.stop && <span className={`board-card__autopilot-stop board-chip board-chip--${STOP_FAILED.has(state.stop.code) ? "danger" : "neutral"}`} role="status" data-board-autopilot-stop={state.stop.code}>{tr(locale, "boardApLast", { reason: stopText(locale, state.stop) })}</span>}
-        </>
+        <span data-board-autopilot-hint>{t(locale, "boardApRibbonOff")} · {t(locale, "boardApRestartHint")}</span>
       )}
-    </div>
+    </span>
+  );
+}
+
+function ApForm({ locale, state, onCancel, onBudget, onStart }: {
+  locale: LocaleId; state: AutopilotState | null; onCancel(): void; onBudget(b: AutopilotBudget): Promise<void>; onStart(): Promise<void>;
+}): React.JSX.Element {
+  const budget = state?.budget ?? AUTOPILOT_BUDGET;
+  const [runs, setRuns] = useState(String(budget.runs));
+  const [minutes, setMinutes] = useState(String(budget.minutes));
+  const [parallel, setParallel] = useState(parallelOf(budget));
+  const [conflicts, setConflicts] = useState(conflictsOf(budget));
+  const valid = /^\d+$/.test(runs) && +runs >= 1 && +runs <= 100 && /^\d+$/.test(minutes) && +minutes >= 1 && +minutes <= 1440;
+  const changed = valid && (+runs !== budget.runs || +minutes !== budget.minutes || parallel !== parallelOf(budget) || conflicts !== conflictsOf(budget));
+  return (
+    <aside className="board-aside board-ap-form" data-board-autopilot-confirm aria-label={t(locale, "boardApLabel")}
+      onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onCancel(); } }}>
+      <div className="board-aside__head"><strong>{t(locale, "boardApLabel")}</strong></div>
+      <div className="board-import">
+        <p className="board-ap-form__hint">{t(locale, "boardApRestartHint")}.</p>
+        <p className="board-ap-form__hint">{t(locale, "boardApToggleWhy")}</p>
+        <div className="board-ap-form__field"><span>{t(locale, "boardApBudget")}</span>
+          <span className="board-ap-form__pair">
+            <label><input type="number" min={1} max={100} value={runs} onChange={(e) => setRuns(e.target.value)} data-board-budget-runs /><small>{t(locale, "boardApBudgetRuns")}</small></label>
+            <label><input type="number" min={1} max={1440} value={minutes} onChange={(e) => setMinutes(e.target.value)} data-board-budget-minutes /><small>{t(locale, "boardApBudgetMinutes")}</small></label>
+          </span></div>
+        <div className="board-ap-form__field" title={t(locale, "boardApParallelHint")}><span>{t(locale, "boardApParallelTitle")}</span>
+          <fieldset className="board-seg board-seg--wide" aria-label={t(locale, "boardApParallelHint")} data-board-budget-parallel={parallel}>
+            {[1, 2, 3, 4].map((n) => <button key={n} type="button" aria-pressed={parallel === n} className={parallel === n ? "board-seg__on" : undefined} data-board-budget-parallel-n={n} onClick={() => setParallel(n)}>{n}</button>)}
+          </fieldset></div>
+        {/* C3 (stage-c3-conflicts.md §8): who resolves a merge conflict */}
+        <div className="board-ap-form__field" title={t(locale, "boardApConflictsHint")}><span>{t(locale, "boardApConflictsTitle")}</span>
+          <fieldset className="board-seg board-seg--wide" aria-label={t(locale, "boardApConflictsHint")} data-board-budget-conflicts={conflicts}>
+            {(["agent", "person"] as const).map((c) => <button key={c} type="button" aria-pressed={conflicts === c} className={conflicts === c ? "board-seg__on" : undefined} data-board-budget-conflicts-to={c} onClick={() => setConflicts(c)}>{t(locale, c === "agent" ? "boardApConflictsAgent" : "boardApConflictsPerson")}</button>)}
+          </fieldset></div>
+        <div className="board-ap-form__actions">
+          <button type="button" className="orch-primary" data-board-autopilot-yes disabled={!valid} onClick={async () => { if (changed) await onBudget({ runs: +runs, minutes: +minutes, parallel, conflicts }); await onStart(); }}>{t(locale, "boardApToggle")}</button>
+          <button type="button" onClick={onCancel}>{t(locale, "cancel")}</button>
+        </div>
+      </div>
+    </aside>
   );
 }
 
@@ -653,21 +729,25 @@ function importText(locale: LocaleId, code: string, detail = "", rowRef: string 
   return tr(locale, key, { ref: ref ?? "", detail, field: /(\S+) is taken from stage/.exec(detail)?.[1] ?? "", name: /are named (.*)$/.exec(detail)?.[1] ?? "",
     path: tasks.find((x) => x.ref === ref)?.project ?? "" });
 }
-const reportLine = (locale: LocaleId, r: ImportReport) =>
-  tr(locale, "boardImportReport", { file: r.file, c: r.created.length, u: r.updated.length, n: r.unchanged.length, r: r.refused.length });
-
 // «Import tasks» and «Import»: what was created, updated, left unchanged and refused (a code and its words)
 function ImportReportView({ locale, report, tasks }: { locale: LocaleId; report: ImportReport; tasks: InboxTask[] }): React.JSX.Element {
+  const none = report.created.length + report.updated.length + report.unchanged.length + report.refused.length === 0;
   return (
     <div className="board-import" data-board-import-report={report.status} data-wheel-owner="local">
-      <p data-board-import-line role="status" aria-live="polite">{reportLine(locale, report)}</p>
+      <div className="board-import__rows" data-board-import-line role="status" aria-live="polite">
+        {(report.created.length > 0 || none) && <p><UiIcon name="status-done" size="1.15em" />{tr(locale, "boardImportAdded", { n: report.created.length })}</p>}
+        {report.updated.length > 0 && <p><UiIcon name="status-done" size="1.15em" />{tr(locale, "boardImportUpdated", { n: report.updated.length })}</p>}
+        {report.unchanged.length > 0 && <p><span className="board-import__gap" />{tr(locale, "boardImportSkipped", { n: report.unchanged.length })}</p>}
+        {report.refused.length > 0 && <p className="board-import__warn"><UiIcon name="error" size="1.15em" />{tr(locale, "boardImportRefusedN", { n: report.refused.length })}</p>}
+      </div>
       <ul className="board-import__list">
         {report.created.map((x) => <li key={`c${x.ref}`} data-board-import-created={x.ref}>+ {x.ref} → {x.key}</li>)}
         {report.updated.map((x) => <li key={`u${x.ref}`} data-board-import-updated={x.ref}>~ {x.ref} → {x.key}</li>)}
         {report.unchanged.map((ref) => <li key={`n${ref}`} data-board-import-unchanged={ref}>= {ref}</li>)}
-        {report.refused.map((x) => <li key={`r${x.ref}|${x.code}|${x.detail}`} className="orch-hint orch-hint--warn" data-board-import-refused={x.code} title={x.detail}>
+        {report.refused.map((x) => <li key={`r${x.ref}|${x.code}|${x.detail}`} className="board-import__warn" data-board-import-refused={x.code} title={x.detail}>
           × {x.ref ? `${x.ref}: ` : ""}{importText(locale, x.code, x.detail, x.ref, tasks)}</li>)}
       </ul>
+      <p className="board-import__source">{tr(locale, "boardImportSource", { file: report.file })}</p>
     </div>
   );
 }

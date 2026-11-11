@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { resolveHomeLauncherProviders, setHomeLauncherProviderEnabled } from "./lib/providers";
 import { useEffectiveTheme } from "./features/settings/useEffectiveTheme";
 import type {
   AgentProviderId,
@@ -228,6 +229,7 @@ export function App(): React.JSX.Element {
   const pluginBrowserOpenQueueRef = useRef(new PluginBrowserOpenQueue());
   const [launchProvider, setLaunchProvider] = useState<AgentProviderId | null>(null);
   const [launchPosition, setLaunchPosition] = useState<Point | null>(null);
+  const [launchAnchor, setLaunchAnchor] = useState<DOMRect | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [homeEditDraft, setHomeEditDraft] = useState<HomeEditDraft | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -243,9 +245,9 @@ export function App(): React.JSX.Element {
     fullscreen: false
   });
 
-  const showToast = useCallback((message: string, kind: ToastKind = "info", action?: ToastAction): void => {
+  const showToast = useCallback((message: string, kind: ToastKind = "info", action?: ToastAction, title?: string): void => {
     toastId.current += 1;
-    dispatchToast({ type: "push", toast: { id: toastId.current, kind, message, action } });
+    dispatchToast({ type: "push", toast: { id: toastId.current, kind, message, action, title } });
   }, []);
   const dismissToast = useCallback((id: number): void => dispatchToast({ type: "dismiss", id }), []);
 
@@ -479,12 +481,13 @@ export function App(): React.JSX.Element {
       await createSession("terminal", "normal", defaultDirectory, position);
       showToast(t(settings.locale, "terminalStarted"), "success");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : t(settings.locale, "launchFailed"), "error");
+      showToast(error instanceof Error ? error.message : t(settings.locale, "launchFailed"), "error", undefined, t(settings.locale, "launchFailed"));
     }
   }, [createSession, defaultDirectory, settings.locale, showToast]);
 
-  const openAgent = useCallback((provider: AgentProviderId, position?: Point): void => {
+  const openAgent = useCallback((provider: AgentProviderId, position?: Point, anchor?: DOMRect): void => {
     setLaunchPosition(position ?? null);
+    setLaunchAnchor(anchor ?? null);
     setLaunchProvider(provider);
   }, []);
 
@@ -513,12 +516,14 @@ export function App(): React.JSX.Element {
     }
   }, [settings.locale, showToast]);
 
-  const acknowledgeDanger = useCallback(async (provider: AgentProviderId): Promise<void> => {
-    if (settings.acknowledgedDangerousProfiles.includes(provider)) return;
-    await saveSettings({
-      acknowledgedDangerousProfiles: [...settings.acknowledgedDangerousProfiles, provider]
-    });
-  }, [saveSettings, settings.acknowledgedDangerousProfiles]);
+  // "Remove the button from the dock" on the card of a CLI that is not found (mock 14)
+  const removeFromDock = useCallback((provider: AgentProviderId): void => {
+    void saveSettings({ homeLauncherProviders: setHomeLauncherProviderEnabled(resolveHomeLauncherProviders(settings), provider, false) });
+  }, [saveSettings, settings]);
+  const recentDirectories = useMemo(
+    () => [...new Set([...sessions].sort((a, b) => b.startedAt - a.startedAt).map((s) => s.cwd))],
+    [sessions]
+  );
 
   const requestMedia = useCallback(async (): Promise<void> => {
     try {
@@ -1332,17 +1337,21 @@ export function App(): React.JSX.Element {
           onStickyNoteTextChange={changeStickyNoteText}
           onDeleteStickyNote={deleteStickyNote}
           onDismissOnboarding={() => void saveSettings({ onboardingDismissed: true })}
+          onShowOnboarding={() => void saveSettings({ onboardingDismissed: false })}
         />
       </main>
 
       <AgentLaunchDialog
         provider={launchProvider}
         settings={workspaceSettings}
+        anchor={launchAnchor}
+        recentDirectories={recentDirectories}
         onClose={() => {
           setLaunchProvider(null);
           setLaunchPosition(null);
+          setLaunchAnchor(null);
         }}
-        onAcknowledge={acknowledgeDanger}
+        onRemoveFromDock={removeFromDock}
         onLaunch={launchAgent}
       />
       <TerminalLinkDialog
