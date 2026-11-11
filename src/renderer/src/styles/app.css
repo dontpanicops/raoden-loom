@@ -2021,3 +2021,23 @@ button { border: 0; }
 .settings-panel .settings-panel__content .setting-group .browser-settings__download { min-height: 0; padding: .35em 0; border: 0; border-radius: 0; background: transparent; }
 .settings-panel .settings-panel__content .setting-group .browser-settings__clear { min-height: 0; padding: .4em .9em; border: .08em solid color-mix(in srgb, var(--danger-fg) 55%, transparent); border-radius: .6em; color: var(--danger-fg); background: transparent; font-size: .96em; font-weight: 500; }
 .settings-panel .settings-panel__content .setting-group .browser-settings__clear.browser-settings__clear--confirm { color: var(--danger-text); background: var(--danger); }
+
+/* R6-B: link popover (mock 18) */
+.terminal-link-dialog.launch-popover { width: 340px; padding: 16px; border-radius: 16px; }
+.terminal-link-dialog__actions { display: flex; flex-direction: column; gap: 8px; }
+.terminal-link-dialog__actions button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; }
+.terminal-link-dialog__copy { min-height: 32px; border: 0; border-radius: var(--radius-sm); color: var(--text-secondary); background: transparent; font: inherit; cursor: pointer; }
+.terminal-link-dialog__copy:hover { color: var(--text-primary); background: var(--surface-hover, var(--surface-sunken)); }
+
+/* R6-B: the orchestration run in "Sessions" is one row (mock 05); the details live in the tooltip */
+.activity-run .usage-row { align-items: center; padding-top: 3px; padding-bottom: 3px; }
+.activity-run__detail, .activity-run__people { display: none; }
+.activity-run__main .usage-row__chip { text-transform: none; }
+/* R6-B: 11 dock buttons fit one row of the default 11-column dock */
+.launcher-dock { grid-template-columns: repeat(auto-fill, minmax(5.6em, 1fr)); }
+
+/* R6-B: the folder stays beside a renamed terminal's name (mock 06) */
+.terminal-card__cwd { min-width: 0; overflow: hidden; color: var(--text-secondary); font: 500 .8em var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+.terminal-link-dialog .terminal-link-dialog__actions .orch-cancel { border: 1px solid var(--border-strong, var(--border)); }
+.terminal-link-dialog .terminal-link-dialog__actions .terminal-link-dialog__copy { border: 0; background: transparent; }
+.launcher-dock { grid-template-columns: repeat(auto-fit, minmax(5.6em, 1fr)); }

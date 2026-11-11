@@ -124,7 +124,7 @@ try {
     const cards = await app.ev(`[${JSON.stringify(ids.lead)}, ${JSON.stringify(ids.exec)}].map((id) => document.querySelector('[data-agent-id="' + id + '"] .agent-card__state')?.textContent ?? null)`);
     expect(cards.every((c) => c === NO_CHECKS), "none: both cards say completed without checks", cards);
     const cardConds = await app.ev(`[...document.querySelectorAll("[data-agent-conditions]")].map((e) => e.textContent)`);
-    expect(cardConds.length === 2 && cardConds.every((c) => c === "1 из 1 критериев выполнено"), "none (A2): both cards say 1 of 1 conditions met", cardConds);
+    expect(cardConds.length === 0, "none (A2, D-029): the card body carries no conditions counter", cardConds);
     await app.clickEl(`[...document.querySelectorAll('[data-agent-link-id="${ids.link}"] button')].find((b) => b.textContent.trim() === "Открыть запуск")`);
     await app.waitFor(`${q(".orch-panel")} && true`, "the run panel");
     await openTab(app, "summary");
@@ -201,7 +201,7 @@ try {
     const runId = (await runs(app))[0].runId;
     await app.waitFor(`window.canvasTTY.orchestration.get(${JSON.stringify(runId)}).then((r) => r.value.view.status === "completed")`, "completed", 120_000);
     const cardLines = await app.ev(`[...document.querySelectorAll("[data-agent-findings]")].map((e) => e.textContent)`);
-    expect(cardLines.length === 2 && cardLines.every((c) => c === "Открыто блокирующих: 0"), "findings (A3): both cards say «Открыто блокирующих: 0»", cardLines);
+    expect(cardLines.length === 0, "findings (A3, D-029): the card body carries no blocking counter", cardLines);
     await app.clickEl(`[...document.querySelectorAll('[data-agent-link-id="${ids.link}"] button')].find((b) => b.textContent.trim() === "Открыть запуск")`);
     await app.waitFor(`${q(".orch-panel")} && true`, "the run panel");
     await openTab(app, "summary");
