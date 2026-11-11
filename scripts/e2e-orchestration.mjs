@@ -144,10 +144,10 @@ async function crash(app, what) {
 
 // ---------- UI helpers ----------
 const launch = () => launchApp({ userData, providers, port: PORT, shots: SHOTS, env: { CANVASTTY_ORCHESTRATION_TEST_DROP_REPLIES: DROP } });
-const panelActions = (app) => app.ev(`[...document.querySelectorAll(".orch-panel__actions button, .orch-panel__section button, .orch-summary > button")].filter((b) => !b.closest(".orch-history, .orch-details")).map((b) => b.textContent.trim())`);
-const panelStatus = (app) => app.ev(`(() => { const s = ${q(".orch-panel__status")}; return s ? { cls: s.className.replace("orch-panel__section", "").trim(), text: s.querySelector("strong")?.textContent, reason: s.querySelector("span")?.textContent ?? null } : null; })()`);
+const panelActions = (app) => app.ev(`[...document.querySelectorAll(".orch-zone__actions button, .orch-panel__foot button, .orch-panel__section button, .orch-zone > button")].filter((b) => !b.closest(".orch-history, .orch-details")).map((b) => b.textContent.trim())`);
+const panelStatus = (app) => app.ev(`(() => { const s = ${q(".orch-panel__status")}; return s ? { cls: s.className.replace("orch-panel__section", "").trim(), text: s.querySelector("[data-orch-what]")?.textContent, reason: s.querySelector("[data-orch-reason]")?.textContent ?? null } : null; })()`);
 const statusIs = (app, status, what, ms = 60_000) => app.waitFor(`${q(`.orch-panel__status--${status}`)} && true`, what, ms);
-const clickAction = (app, label) => app.clickEl(byText(".orch-panel__actions button, .orch-panel__section button, .orch-summary > button", label));
+const clickAction = (app, label) => app.clickEl(byText(".orch-zone__actions button, .orch-panel__foot button, .orch-panel__section button, .orch-zone > button", label));
 const openRun = async (app, linkId) => {
   await app.waitFor(`${byText(`[data-agent-link-id="${linkId}"] button`, "Открыть запуск")} && true`, "open run button");
   await app.clickEl(byText(`[data-agent-link-id="${linkId}"] button`, "Открыть запуск"));
@@ -241,7 +241,7 @@ try {
   expect(JSON.stringify(opsPaused) === JSON.stringify(["plan", "execute"]) && count(runB, "turn.finished") === 2,
     "B: Pause lets the executor's turn end and starts nothing after it", opsPaused);
   const pausedActions = await panelActions(app);
-  expect(["Продолжить", "Один шаг", "Стоп"].every((a) => pausedActions.includes(a)), "B: paused: Resume, Step, Stop", pausedActions);
+  expect(["Продолжить", "Один шаг", "Остановить запуск"].every((a) => pausedActions.includes(a)), "B: paused: Resume, Step, Stop", pausedActions);
   await clickAction(app, "Один шаг");
   await until(() => ops(runB).length === 3 && count(runB, "run.status", (d) => d.status === "paused") >= 2 && journal(runB).at(-1).type === "run.status" ? true : null, "B step done", 60_000);
   await statusIs(app, "paused", "B paused after the step");
@@ -255,7 +255,7 @@ try {
   const opsResumed = ops(runB).map((o) => o.op);
   expect(JSON.stringify(opsResumed) === JSON.stringify(["plan", "execute", "check", "review", "execute"]), "B: Resume continues: review (fix), executor round 2", opsResumed);
   const callsAtStop = calls();
-  await clickAction(app, "Стоп");
+  await clickAction(app, "Остановить запуск");
   await statusIs(app, "stopped", "B stopped");
   const stopSeq = journal(runB).find((r) => r.type === "command.received" && r.data.kind === "stop").seq;
   fs.rmSync(HOLD, { force: true });
@@ -300,7 +300,7 @@ try {
   notes.turnCrashPanel = { statusC, actionsC };
   expect(statusC?.cls.includes("paused") && statusC.text?.includes("Неизвестно, чем закончился ход"),
     "3: the interrupted turn is shown as paused, outcome unknown", statusC);
-  expect(["Принять результат хода", "Повторить ход", "Вернуть к последнему checkpoint", "Стоп"].every((a) => actionsC.includes(a)) && !actionsC.includes("Продолжить"),
+  expect(["Принять результат хода", "Повторить ход", "Вернуть к контрольной точке", "Остановить запуск"].every((a) => actionsC.includes(a)) && !actionsC.includes("Продолжить"),
     "3: the recovery actions are offered (accept, retry, reset, Stop), not Resume", actionsC);
   await openTab(app, "history");
   await app.waitFor(`document.querySelectorAll(".orch-history li").length > 0`, "history tab");
@@ -312,8 +312,9 @@ try {
   fs.writeFileSync(path.join(DROP, "recover"), "");
   await clickAction(app, "Повторить ход");
   await app.waitFor(`${q(".orch-panel__unknown")} && true`, "unknown result shown");
-  const notice = await app.ev(`${q(".dialog-error")}?.textContent ?? null`);
-  expect(notice?.startsWith("Нет связи с приложением") && !fs.existsSync(path.join(DROP, "recover")), "4: the dropped reply is reported; the command is pending", notice);
+  const notice = await app.ev(`${q("[data-orch-offline]")}?.textContent ?? null`);
+  expect(!(await app.ev(`!!${q("[data-orch-refused]")}`)), "4: a lost connection is not drawn as a refusal of main", null);
+  expect(notice?.startsWith("Нет связи с процессом запуска") && !fs.existsSync(path.join(DROP, "recover")), "4: the dropped reply is reported; the command is pending", notice);
   expect(count(runC, "recovery.decided") === 1 && count(runC, "command.received", (d) => d.kind === "recover") === 1, "4: main carried the recover out once", timeline(runC));
   await app.shot("08-reply-lost");
   await app.call("Page.reload", { ignoreCache: false });
@@ -370,7 +371,7 @@ try {
   const actionsD = await panelActions(app);
   notes.checkCrashPanel = { statusD, actionsD };
   expect(statusD?.cls.includes("paused") && statusD.text?.includes("восстановлен"), "3: the run with the interrupted check is shown paused, recovered", statusD);
-  expect(["Продолжить", "Один шаг", "Стоп"].every((a) => actionsD.includes(a)), "3: Resume, Step and Stop are offered", actionsD);
+  expect(["Продолжить", "Один шаг", "Остановить запуск"].every((a) => actionsD.includes(a)), "3: Resume, Step and Stop are offered", actionsD);
   expect(count(runD, "check.started") === 1 && JSON.stringify(calls()) === JSON.stringify(callsD), "3: the interrupted check is not run again by itself", timeline(runD));
   await app.shot("12-run-d-after-restart");
   await clickAction(app, "Продолжить");

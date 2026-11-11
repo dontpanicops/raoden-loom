@@ -208,9 +208,9 @@ try {
   await app.clickEl(byText(`[data-agent-link-id="${link.linkId}"] button`, "Наблюдать"));
   await app.waitFor(`${q("[data-orch-permission]")} && true`, "panel again", 10_000);
   expect((await visibleNow(app, q(`[data-orch-permission] [data-decision="allow_project"]`))).ok, "reopened by Observe: the permission's buttons are in view", await visibleNow(app, q(`[data-orch-permission] [data-decision="allow_project"]`)));
+  await openTab(app, "overview");
   expect((await app.ev(`${q("[data-board=access]")}?.textContent ?? ""`)).includes("Правки файлов без вопросов"), "the board shows the run's rights", null);
   expect(await app.ev(`!!${q("[data-board=access]")}?.closest(".orch-board__terminal")`), "the board shows «Как в моём терминале» in the warning colour", null);
-  await openTab(app, "overview");
   // v2: the reviewer is a participant too, a new session of the lead's CLI with its mode
   const badges = await app.ev(`[...document.querySelectorAll("[data-participant] [data-participant-access]")].map((e) => [e.closest("[data-participant]").dataset.participant, e.dataset.participantAccess])`);
   expect(JSON.stringify(badges) === JSON.stringify([["lead", "terminal"], ["executor", "acceptEdits"], ...(V2 ? [["reviewer", "terminal"]] : [])]), "each participant's card shows its CLI's mode", badges);

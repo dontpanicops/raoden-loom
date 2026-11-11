@@ -131,7 +131,7 @@ try {
     await app.waitFor(`${q("[data-sum-outcome]")} && true`, "the result");
     // what says how the run ended: the headline, the result and the checks of the summary, the chip and the cards
     const result = await app.ev(`({ outcome: ${q("[data-sum-outcome]")}.dataset.sumOutcome, noChecks: ${q("[data-sum-no-checks]")}?.textContent ?? null,
-      text: [".orch-summary__headline", '[data-sum="outcome"]', '[data-sum="checks"]', "[data-board]", ".agent-link__state", ".agent-card__state"]
+      text: [".orch-zone__headline", '[data-sum="outcome"]', '[data-sum="checks"]', "[data-board]", ".agent-link__state", ".agent-card__state"]
         .flatMap((s) => [...document.querySelectorAll(s)].map((el) => el.textContent)).join(" | ") })`);
     expect(result.outcome === "completed_no_checks" && result.noChecks === "Команды проверки не запускались", "none: the result says without checks", result);
     // «ничем не подтверждён» is the warning itself; «Завершён в <time>» is when it ended
@@ -163,8 +163,8 @@ try {
     await startGoal(app, ids.link, { onDialog: () => app.type(q("[data-orch-commands]"), "") });
     await app.waitFor(`${q("[data-orch-check-refused]")} && true`, "«Проверке нужно больше прав»", 120_000);
     const panel = await app.ev(`(() => { const p = ${q("[data-orch-check-refused]")}; return { id: p.dataset.orchCheckRefused, title: p.querySelector("h4").textContent,
-      buttons: [...p.querySelectorAll("button")].map((b) => b.textContent.trim()), actions: [...document.querySelectorAll(".orch-panel__actions button")].map((b) => b.textContent.trim()),
-      headline: document.querySelector(".orch-summary__headline")?.textContent ?? "" }; })()`);
+      buttons: [...p.querySelectorAll("button")].map((b) => b.textContent.trim()), actions: [...document.querySelectorAll(".orch-panel__actions button, .orch-panel__foot button")].map((b) => b.textContent.trim()),
+      headline: document.querySelector(".orch-zone__headline")?.textContent ?? "" }; })()`);
     expect(panel.id === "cmd-1" && panel.title === "Проверке нужно больше прав" && panel.buttons.join("|") === "Изменить команду",
       "refused: the panel offers «Изменить команду» only — no «Запустить без песочницы»", panel);
     expect(!panel.actions.some((b) => /Продолжить|Шаг/.test(b)) && /не хватило прав/.test(panel.headline), "refused: no Resume or Step, the headline says so", panel);
@@ -238,7 +238,7 @@ try {
     const runId = (await runs(app))[0].runId;
     await app.waitFor(`${q("[data-orch-person-decide]")} && true`, "the disputed item", 120_000);
     const shown = await app.ev(`({ item: ${q("[data-orch-disputed]")}.textContent, buttons: [...document.querySelectorAll("[data-orch-person-decide] button")].map((b) => b.textContent.trim()),
-      actions: [...document.querySelectorAll(".orch-panel__actions button")].map((b) => b.textContent.trim()), next: ${q("[data-orch-next]")}?.textContent ?? "" })`);
+      actions: [...document.querySelectorAll(".orch-panel__actions button, .orch-panel__foot button")].map((b) => b.textContent.trim()), next: ${q("[data-orch-next]")}?.textContent ?? "" })`);
     expect(shown.item.includes("LIKE-F1") && shown.item.includes("note is not documented") && shown.buttons.join("|") === "Новый дефект|Повтор замечания 1",
       "disputed (A4): the item and its closed candidate side by side, «Новый дефект» / «Повтор замечания 1»", shown);
     expect(!shown.actions.some((b) => /Продолжить|Шаг/.test(b)) && /Повтор/.test(shown.next), "disputed (A4): no Resume or Step; the next step says what to decide", shown);
@@ -351,6 +351,9 @@ try {
     expect(head.sticky === "sticky" && head.inView && head.drops === 2, "drop (UX PR 2): the proposal's headline and dropped list stay in view by the buttons", head);
     await app.shot("v2-12-plan-proposal");
     await app.clickEl(q("[data-orch-proposal-accept]"));
+    // dropping criteria asks to confirm first (R3b)
+    await app.waitFor(`${q("[data-orch-confirm-do]")} && true`, "the confirmation of the drop");
+    await app.clickEl(q("[data-orch-confirm-do]"));
     await waitView(app, runId, `v.status === "completed"`, "completed after the decision");
     await openTab(app, "summary");
     await app.waitFor(`${q("[data-sum-person]")} && true`, "the person's decisions in the result");

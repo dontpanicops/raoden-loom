@@ -291,7 +291,7 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
   const link = orch.canvas.links.find((l) => l.linkId === ui.goalLinkId);
   const lead = link && orch.canvas.agents.find((a) => a.agentId === link.fromAgentId);
   const profile = useProfile(link?.linkId);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(ui.goalSettings);
   // B2: started from a board task, the goal begins with its text and requirements and names it (goal.task)
   const task = ui.goalTask;
   const [text, setText] = useState(task?.text ?? "");
@@ -595,7 +595,8 @@ export function OrchestrationOverlays({ orch, ui, locale, defaultProject, folder
       {ui.createAt && <AgentCreateDialog key={`${ui.createAt.provider}:${ui.createAt.point.x}:${ui.createAt.point.y}`} ui={ui} locale={locale} defaultProject={defaultProject} />}
       {ui.goalLinkId && <GoalDialog key={ui.goalLinkId} orch={orch} ui={ui} locale={locale} folderBusy={folderBusy} />}
       {ui.panel && (panelLink || ui.panel.runId) && <RunPanel key={panelLink?.linkId ?? ui.panel.runId} orch={orch} runId={panelRunId} locale={locale} panel={ui.panel} liveRunIds={panelLink ? liveRuns(panelLink, orch.runs) : undefined}
-        onClose={ui.closePanel} onNewGoal={panelLink && latestOfLink ? () => ui.openGoal(panelLink.linkId) : null} onView={ui.setPanelView}
+        onClose={ui.closePanel} onNewGoal={panelLink && latestOfLink ? () => ui.openGoal(panelLink.linkId) : null}
+        onProjectSettings={panelLink && latestOfLink ? () => ui.openGoal(panelLink.linkId, null, true) : undefined} onView={ui.setPanelView}
         task={panelRunId ? taskOfRun?.(panelRunId) ?? null : null} onNoteFromText={onNoteFromText} />}
     </>
   );

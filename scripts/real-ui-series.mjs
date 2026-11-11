@@ -130,8 +130,8 @@ const anonCmd = (c) => c.slice(0, 240);
 
 // ---------- UI ----------
 const launch = () => launchApp({ userData, port: PORT, shots: SHOTS, executable: EXECUTABLE ?? undefined, providers: providersFile, hermetic: false }); // the real CLIs
-const panelStatus = (app) => app.ev(`(() => { const s = ${q(".orch-panel__status")}; return s ? { status: [...s.classList].find((c) => c.startsWith("orch-panel__status--"))?.slice(20), reason: s.querySelector("span")?.textContent ?? null } : null; })()`);
-const clickAction = (app, label) => app.clickEl(byText(".orch-panel__actions button, .orch-panel__section button, .orch-summary > button", label));
+const panelStatus = (app) => app.ev(`(() => { const s = ${q(".orch-panel__status")}; return s ? { status: [...s.classList].find((c) => c.startsWith("orch-panel__status--"))?.slice(20), reason: s.querySelector("[data-orch-reason]")?.textContent ?? null } : null; })()`);
+const clickAction = (app, label) => app.clickEl(byText(".orch-zone__actions button, .orch-panel__foot button, .orch-panel__section button, .orch-zone > button", label));
 const setLimits = (app, l) => async () => {
   const inputs = `document.querySelectorAll(".orch-limits input")`;
   for (const [i, v] of [l.turns, l.roundsPerStage, l.replans, l.runMin].entries()) await app.type(`${inputs}[${i}]`, String(v));
@@ -228,7 +228,7 @@ try {
   report.scenarios.R1.timeline = timeline(r1);
   report.scenarios.R1.durationMs = ms(journal(r1)[0].ts, journal(r1).at(-1).ts);
   await app.shot("01-r1-final");
-  if (s1.status !== "completed") { check(false, "R1: run completed", s1); if (s1.status === "paused") await clickAction(app, "Стоп"); halt(`R1 ended ${JSON.stringify(s1)}`); }
+  if (s1.status !== "completed") { check(false, "R1: run completed", s1); if (s1.status === "paused") await clickAction(app, "Остановить запуск"); halt(`R1 ended ${JSON.stringify(s1)}`); }
   verifyCompleted(r1, "R1");
   check(sourceUnchanged(sourceState()), "R1: the source project (HEAD, branch, refs, status, files) is unchanged", sourceState());
   if (report.failures.length) halt("R1 criteria");
@@ -240,7 +240,7 @@ try {
   const started2 = await claudeStarted(app, r2);
   report.scenarios.R2.cliStarted = started2;
   log(`R2: Claude process ${started2.processes.map((p) => p.pid).join(",")} for turn ${started2.turnId.slice(0, 8)}`);
-  await clickAction(app, "Стоп");
+  await clickAction(app, "Остановить запуск");
   const stopSent = Date.now();
   await app.shot("02-r2-stop-clicked");
   const s2 = await waitRun(r2, ["stopped", "completed", "failed"], { ms: 120_000 });
@@ -318,7 +318,7 @@ try {
   report.scenarios.R3.timeline = timeline(r3);
   report.scenarios.R3.durationMs = ms(journal(r3)[0].ts, journal(r3).at(-1).ts);
   await app.shot("05-r3-final");
-  if (s3.status !== "completed") { check(false, "R3: run completed after Resume", s3); if (s3.status === "paused") await clickAction(app, "Стоп"); halt(`R3 ended ${JSON.stringify(s3)}`); }
+  if (s3.status !== "completed") { check(false, "R3: run completed after Resume", s3); if (s3.status === "paused") await clickAction(app, "Остановить запуск"); halt(`R3 ended ${JSON.stringify(s3)}`); }
   verifyCompleted(r3, "R3");
   check(sourceUnchanged(sourceState()), "R3: the source project is unchanged", null);
   const treeEnd = tree(app.child.pid);

@@ -157,8 +157,8 @@ try {
   const workingText = await app.ev(`${q("[data-orch-working]")}.textContent`);
   expect(leadWhile === "Ждёт свой ход" && workingText.startsWith("Claude"), "while the executor works: its card and the panel say so, the lead waits", [leadWhile, workingText]);
   expect(await app.ev(`!${byText(`[data-agent-link-id="${link.linkId}"] button`, "Новая цель")} && !${q(".agent-link__delete")}`), "a busy link offers neither a new goal nor deletion", null);
-  const actions1 = await app.ev(`[...document.querySelectorAll(".orch-panel__actions button")].map((b) => b.textContent)`);
-  expect(JSON.stringify(actions1) === JSON.stringify(["Пауза после хода", "Стоп"]), "running: only Pause and Stop (and clarify)", actions1);
+  const actions1 = await app.ev(`[...document.querySelectorAll(".orch-zone__actions button, .orch-panel__foot button")].map((b) => b.textContent)`);
+  expect(JSON.stringify(actions1) === JSON.stringify(["Пауза после хода", "Остановить запуск"]), "running: only Pause and Stop in the footer (and clarify)", actions1);
   await app.shot("05-executor-working");
   await sleep(1500);
   expect((await cardText(app, exec.agentId, ".agent-card__state")) === "Работает", "the executor stays shown as working for the whole turn", null);
@@ -172,7 +172,7 @@ try {
   await app.waitFor(`document.querySelectorAll(".orch-history li").length > 3`, "history tab");
   expect(true, "completed: the history is in its tab", null);
   await openTab(app, "overview");
-  expect(await app.ev(`document.querySelectorAll(".orch-panel__actions button").length === 0`), "completed: no run command offered", null);
+  expect(await app.ev(`document.querySelectorAll("[data-orch-foot-action], [data-orch-zone-action=resume], [data-orch-zone-action=step], [data-orch-zone-action=stop]").length === 0`), "completed: no run command offered", null);
   expect((await cardText(app, exec.agentId, ".agent-card__state")) === "Запуск завершён", "cards show the completed run", null);
   await app.shot("06-completed");
   await openTab(app, "history");
@@ -238,9 +238,9 @@ try {
   // run 2: the plan review pauses the run; Stop ends it
   await startGoal(app, link.linkId, { reviewPlan: true });
   await app.waitFor(`${q(".orch-panel__status--paused")} && true`, "run 2 paused", 60_000);
-  const reason2 = await app.ev(`${q(".orch-panel__status span")}.textContent`);
-  const actions2 = await app.ev(`[...document.querySelectorAll(".orch-panel__actions button")].map((b) => b.textContent)`);
-  expect(reason2.includes("план") && JSON.stringify(actions2) === JSON.stringify(["Начать работу по плану", "Один шаг", "Стоп"]), "plan review: paused with its reason; Resume (as «Начать работу по плану»), Step, Stop offered", [reason2, actions2]);
+  const reason2 = await app.ev(`${q(".orch-panel__status [data-orch-reason]")}.textContent`);
+  const actions2 = await app.ev(`[...document.querySelectorAll(".orch-panel__actions button, .orch-panel__foot button")].map((b) => b.textContent)`);
+  expect(reason2.includes("план") && JSON.stringify(actions2) === JSON.stringify(["Начать работу по плану", "Открыть план", "Один шаг", "Остановить запуск"]), "plan review: paused with its reason; Resume (as «Начать работу по плану»), Open the plan, Step, Stop (footer) offered", [reason2, actions2]);
   await app.waitFor(`document.querySelectorAll(".orch-plan li").length === 1`, "plan shown for review");
   // review UX-9: the plan to review is also in the pinned summary, in view without scrolling
   const openPlan = await visibleNow(app, q("[data-orch-open-plan]"));
@@ -250,7 +250,7 @@ try {
   expect(true, "plan review: the plan tab shows the stage's task in full", null);
   await openTab(app, "overview"); // the wide plan tab covers the cards
   await app.shot("07-plan-review");
-  await app.clickEl(byText(".orch-panel__actions button", "Стоп"));
+  await app.clickEl(q("[data-orch-stop]"));
   await app.waitFor(`${q(".orch-panel__status--stopped")} && true`, "run 2 stopped", 30_000);
 
   // run 3: Stop while the executor works (the wide plan section of run 2 covers the link chip: the panel is closed first)
@@ -258,7 +258,7 @@ try {
   fs.writeFileSync(HOLD, "");
   await startGoal(app, link.linkId);
   await app.waitFor(`${card(exec.agentId, ".agent-card__state")}?.textContent === "Работает"`, "run 3 executor working", 60_000);
-  await app.clickEl(byText(".orch-panel__actions button", "Стоп"));
+  await app.clickEl(q("[data-orch-stop]"));
   await app.waitFor(`${q(".orch-panel__status--stopped")} && true`, "run 3 stopped", 30_000);
   fs.rmSync(HOLD, { force: true });
   expect((await cardText(app, exec.agentId, ".agent-card__state")) === "Запуск остановлен", "stopping an active run: cards show it stopped", null);

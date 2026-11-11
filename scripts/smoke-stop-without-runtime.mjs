@@ -105,7 +105,7 @@ try {
   const refused = await app.ev(`window.canvasTTY.orchestration.deleteLink(${JSON.stringify(linkId)})`);
   expect(refused?.ok === false && refused.code === "link_active_run" && (await canvasState(app)).links.length === 1, "restart: main keeps the link of a paused run", refused);
 
-  await app.clickEl(byText(".orch-panel__actions button", "Стоп"));
+  await app.clickEl(q("[data-orch-stop]"));
   await app.waitFor(`${q(".orch-panel__status--stopped")} && true`, "stopped", 30_000);
   expect((await runs(app)).find((r) => r.runId === runId)?.status === "stopped", "Stop in the run panel stops the restored run", await runs(app));
   expect((await cardText(app, exec.agentId, ".agent-card__state")) === "Запуск остановлен", "the cards show the run stopped", await cardText(app, exec.agentId, ".agent-card__state"));

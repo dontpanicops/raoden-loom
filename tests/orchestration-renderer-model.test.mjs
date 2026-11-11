@@ -155,7 +155,8 @@ test("every status, reason and refusal main can send has a string in every local
   const commandKinds = [...src("shared/orchestration.ts").match(/export type OrchestrationRunCommand =([\s\S]+?)\n\n/)[1].matchAll(/kind: "([a-z_]+)"/g)].map((m) => m[1]);
   assert.ok(commandKinds.length >= 9);
   const statuses = ["preparing", "running", "pausing", "paused", "stopping", "stopped", "completed", "failed"];
-  const service = src("main/services/orchestration/orchestrationService.ts");
+  // R3b: the sets of reasons main gates on live in shared/orchestrationAdmission.ts
+  const service = src("main/services/orchestration/orchestrationService.ts") + src("shared/orchestrationAdmission.ts");
   const reasons = new Set(["user_request", "step_done", "plan_review", "awaiting_answer", "recovered", "outcome_unknown", "invalid_report",
     "protocol_error", "limit_reached", "permission_denied", "loop_suspected", "lead_modified_tree", "environment_error",
     "shared_git_tampered", "journal_corrupt", "sandbox_unavailable", "stage_done", "external_failure", "needs_user_action", "finish_unconfirmed", "app_closed"]);
