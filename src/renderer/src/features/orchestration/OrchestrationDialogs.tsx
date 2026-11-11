@@ -513,9 +513,8 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
           <span>{t(locale, "orchGoalCommands")}</span>
           <GoalRows text={commandsText} onText={(v) => { edited.current = true; setCommandsText(v); }} locale={locale} attr="data-orch-commands" mono
             placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
-          <small className="orch-hint">{t(locale, "orchGoalCommandsHint")}{commandsText.trim() && !edited.current ? ` ${t(locale, "orchGoalCommandsFilled")}` : ""}</small>
-          {optionalChecks && <small className="orch-hint" data-orch-commands-optional>{t(locale, "orchCommandsOptional")}</small>}
-          <small className="orch-hint" data-orch-commands-vs-req>{t(locale, "orchGoalCommandsVsReq")}</small>
+          {/* D-025: one line — the shell runs the commands (a risk fact); the headings already say the rest */}
+          <small className="orch-hint">{t(locale, "orchGoalCommandsHint")}{optionalChecks && <span data-orch-commands-optional> · {t(locale, "orchCommandsOptional")}</span>}{commandsText.trim() && !edited.current ? ` ${t(locale, "orchGoalCommandsFilled")}` : ""}</small>
         </div>
         <div className="orch-goal__how">
           <fieldset className="orch-field orch-runmode" data-orch-runmode={mode}>
