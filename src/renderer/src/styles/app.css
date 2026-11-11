@@ -1035,14 +1035,12 @@ button { border: 0; }
 
 /* Orchestration agents (stage-8-contract.md): separate cards, not terminals. */
 .agent-card { --card-header-height: calc(var(--card-header-h) * var(--ui-scale, 1)); position: absolute; left: 0; top: 0; display: flex; flex-direction: column; overflow: visible; border: 1px solid color-mix(in srgb, var(--surface-2) 70%, transparent); border-radius: 14px; color: var(--text-primary); background: var(--surface-2); box-shadow: var(--edge), var(--elev-2); font-size: calc(13px * var(--ui-scale, 1)); }
-.agent-card--codex .agent-card__header { background: color-mix(in srgb, var(--status-done) 30%, var(--surface-sunken)); }
-.agent-card--claude .agent-card__header { background: color-mix(in srgb, var(--provider-claude) 26%, var(--surface-sunken)); }
 .agent-card:focus-within, .agent-card--selected { box-shadow: var(--edge), 0 0 0 2px var(--focus), var(--elev-3); }
 .agent-card--linking-target { box-shadow: var(--edge), 0 0 0 2px var(--status-waiting), var(--elev-3); }
 .agent-card__header { height: var(--card-header-height); flex: 0 0 auto; padding: 0 .5em 0 .8em; display: flex; align-items: center; justify-content: space-between; gap: .6em; border-radius: 13px 13px 0 0; cursor: move; touch-action: none; }
 .agent-card__identity { min-width: 0; display: flex; align-items: center; gap: .55em; }
-.agent-card__identity strong { font: 850 .9em/1 var(--font-mono); text-transform: uppercase; }
-.agent-card__identity small { padding: .2em .5em; border-radius: 99px; background: color-mix(in srgb, var(--text-primary) 14%, transparent); font-size: .8em; font-weight: 800; }
+.agent-card__identity strong { font: 600 1em/1 var(--font-ui, inherit); }
+.agent-card__identity small { color: var(--text-secondary); font-size: .92em; font-weight: 500; }
 .agent-card__close { width: 2.15em; height: 2.15em; display: grid; place-items: center; border-radius: .54em; color: var(--text-secondary); background: color-mix(in srgb, var(--text-primary) 8%, transparent); cursor: pointer; }
 .agent-card__close:hover, .agent-card__close:focus-visible { color: var(--danger-text); background: var(--danger); }
 .agent-card__body { min-height: 0; flex: 1; padding: .55em .9em; display: flex; flex-direction: column; gap: .3em; }
@@ -1060,17 +1058,17 @@ button { border: 0; }
 .agent-card__feed-item { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; }
 .agent-card__feed-item time { color: var(--text-secondary); font-family: var(--font-mono); font-size: .92em; }
 .agent-card__feed-empty { margin: 0; color: var(--text-secondary); }
-.agent-card__state { display: inline-flex; align-items: center; gap: .4em; align-self: flex-start; padding: .25em .65em; border-radius: 99px; color: var(--text-primary); background: var(--surface-2-b); font-weight: 800; }
-.agent-card__state--working { color: var(--on-status); background: var(--status-working); animation: agent-pulse 1.4s ease-in-out infinite; }
-.agent-card__state--paused, .agent-card__state--stopping { color: var(--on-status); background: var(--status-waiting); }
-.agent-card__state--needs_you { color: var(--on-status); background: var(--status-waiting); animation: agent-pulse 1.4s ease-in-out infinite; }
+.agent-card__state { display: inline-flex; align-items: center; gap: .4em; align-self: flex-start; color: var(--status-idle); font-size: 1.08em; font-weight: 600; }
+.agent-card__state--working { color: var(--status-working); }
+.agent-card__state--working .ui-icon { animation: spin 1.4s linear infinite; }
+.agent-card__state--paused, .agent-card__state--stopping { color: var(--status-paused); }
+.agent-card__state--needs_you { color: var(--status-waiting); }
 
-.agent-card__state--failed { color: var(--danger-text); background: var(--danger); }
-.agent-card__state--completed { color: var(--accent-text); background: var(--accent); }
-.agent-card__state--completed_no_checks { color: var(--on-status); background: var(--status-waiting); } /* a warning, never the completed mark */
+.agent-card__state--failed { color: var(--status-failed); }
+.agent-card__state--completed { color: var(--status-done); }
+.agent-card__state--completed_no_checks { color: var(--status-waiting); } /* a warning, never the completed mark */
 @keyframes agent-pulse { 50% { opacity: .62; } }
-.agent-card__message { padding: .4em .6em; border-radius: 8px; color: var(--danger-text); background: var(--danger); font-size: .88em; }
-.agent-card__message--info { color: var(--on-status); background: color-mix(in srgb, var(--focus) 70%, var(--text-primary)); }
+.agent-card__message { padding: .5em .7em; border-radius: 8px; color: var(--text-primary); background: color-mix(in srgb, var(--danger) 22%, var(--surface-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger-fg) 55%, transparent); font-size: .88em; line-height: 1.35; }
 .agent-card__confirm { position: absolute; inset: var(--card-header-height) 0 0; z-index: 2; padding: .8em; display: flex; flex-direction: column; gap: .5em; border-radius: 0 0 13px 13px; background: var(--surface-2); }
 .agent-card__actions { margin-top: auto; display: flex; gap: .5em; }
 .agent-card__body button, .agent-link__chip button, .orch-panel button, .orch-form button { padding: .4em .8em; border-radius: 8px; color: var(--text-primary); background: var(--surface-2-b); font-weight: 800; cursor: pointer; }
@@ -1085,7 +1083,7 @@ button { border: 0; }
 .orch-finish-group { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px; }
 .orch-finish-group > legend { padding: 0 6px; font-weight: 800; }
 .orch-field.orch-field--inline { display: inline-flex; flex-direction: row; align-items: center; gap: .4em; }
-.agent-card__port { position: absolute; z-index: 21; right: -.8em; top: 50%; width: 1.6em; height: 1.6em; margin-top: -.8em; border: 3px solid var(--surface-2); border-radius: 50%; background: var(--status-done); cursor: crosshair; touch-action: none; }
+.agent-card__port { position: absolute; z-index: 21; right: -.8em; top: 50%; width: 1.6em; height: 1.6em; margin-top: -.8em; border: 2px solid var(--focus); border-radius: 50%; background: var(--surface-2); cursor: crosshair; touch-action: none; }
 .agent-card__port:hover, .agent-card__port:focus-visible, .agent-card__port[aria-pressed="true"] { background: var(--status-waiting); box-shadow: 0 0 0 3px var(--status-waiting); }
 .agent-links { position: absolute; left: 0; top: 0; z-index: 0; overflow: visible; pointer-events: none; }
 .agent-link__line { fill: none; stroke: var(--canvas-ink-muted); stroke-width: 2px; stroke-linecap: round; pointer-events: none; }
@@ -1628,3 +1626,24 @@ button { border: 0; }
 
 /* First run: the canvas-controls block stands in for the key hints */
 .workspace:has([data-onboarding]) .shortcut-hints { display: none; }
+
+/* R5d: cards as in mock-up 06 — the header is neutral, the provider's colour is the dot only; header buttons stay for the keyboard and fade in on hover */
+.agent-card__dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--status-done); box-shadow: 0 0 0 2px var(--surface-2); }
+.agent-card--claude .agent-card__dot { background: var(--provider-claude); }
+.agent-card__header { background: var(--surface-sunken); }
+.agent-card__header-actions { opacity: 0; transition: opacity .15s ease; }
+.agent-card:hover .agent-card__header-actions, .agent-card:focus-within .agent-card__header-actions, .agent-card--selected .agent-card__header-actions { opacity: 1; }
+.agent-card__expand, .agent-card__close { background: transparent; }
+.agent-card__project { padding-bottom: .5em; border-bottom: 1px solid var(--border); }
+.agent-card__project small { font: .86em/1.3 var(--font-mono); }
+.agent-card__hint { margin: 0; padding-top: .2em; color: var(--text-secondary); font-size: .92em; line-height: 1.4; }
+.terminal-card__status { justify-content: space-between; gap: .6em; }
+.terminal-card__restart { flex: 0 0 auto; display: inline-flex; align-items: center; gap: .6em; padding: .2em .8em; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text-primary); background: var(--surface-2); font: inherit; font-weight: 600; cursor: pointer; }
+.terminal-card__restart kbd { color: var(--text-secondary); font: .85em var(--font-mono); }
+.terminal-card__restart:disabled { opacity: .56; cursor: wait; }
+
+/* R5d: workspace dialogs are 400-440px (mock-up 17); a name already taken is said under the field, in the danger tone */
+.orch-dialog.ws-dialog { width: min(440px, 100%); }
+.orch-field input.orch-input--error { box-shadow: inset 0 0 0 1px var(--danger-fg); }
+.orch-field > .orch-field__error { color: var(--danger-fg); font-size: 12px; font-weight: 500; opacity: 1; }
+.ws-list li > button { flex: 0 0 auto; padding: .25em .8em; border: 1px solid var(--border-strong); border-radius: 6px; color: var(--text-primary); background: transparent; font-weight: 600; cursor: pointer; }

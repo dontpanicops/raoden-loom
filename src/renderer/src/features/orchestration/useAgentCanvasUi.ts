@@ -4,6 +4,7 @@ import type { OrchestrationBaseRef } from "../../../../shared/orchestration";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { LocaleId, Point } from "../../../../shared/contracts";
 import type { OrchestrationAgentLink, OrchestrationProviderKind } from "../../../../shared/orchestration";
+import { t } from "../../lib/i18n";
 import { AGENT_CARD_SIZE } from "./agentCardGeometry";
 import { linkTrace } from "./linkTrace";
 import { createIdKeeper, shownRunId, TERMINAL_STATUSES, type PickedRun } from "./runModel";
@@ -64,8 +65,11 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
     const { outcome } = await orch.createLink({ linkId: ids.idFor(key), fromAgentId, toAgentId });
     linkTrace("createLink.result", { kind: outcome.kind, code: "code" in outcome ? outcome.code : null });
     if (outcome.kind !== "transport") ids.settle(key);
-    const text = outcomeText(locale, outcome);
-    say(fromAgentId, text, outcome.kind === "refused" && outcome.code === "link_duplicate" ? "info" : "error");
+    // a refusal says on the card that the link was not made, then why (mock-up 06); a repeated pair has its own sentence (mock-up 19)
+    const reason = outcomeText(locale, outcome);
+    const text = reason && outcome.kind === "refused" && outcome.code !== "link_duplicate"
+      ? t(locale, "orchLinkNotCreated").replace("{reason}", reason.charAt(0).toLowerCase() + reason.slice(1).replace(/\.$/, "")) : reason;
+    say(fromAgentId, text);
     if (toAgentId !== fromAgentId) say(toAgentId, null);
   }, [ids, locale, orch, say]);
 
