@@ -559,7 +559,6 @@ function ApForm({ locale, state, onCancel, onBudget, onStart }: {
       <div className="board-aside__head"><strong>{t(locale, "boardApLabel")}</strong></div>
       <div className="board-import">
         <p className="board-ap-form__hint">{t(locale, "boardApRestartHint")}.</p>
-        <p className="board-ap-form__hint">{t(locale, "boardApToggleWhy")}</p>
         <div className="board-ap-form__field"><span>{t(locale, "boardApBudget")}</span>
           <span className="board-ap-form__pair">
             <label><input type="number" min={1} max={100} value={runs} onChange={(e) => setRuns(e.target.value)} data-board-budget-runs /><small>{t(locale, "boardApBudgetRuns")}</small></label>

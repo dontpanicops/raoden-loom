@@ -68,6 +68,7 @@ export function AgentHooksSettings({
         <div className="setting-group__copy">
           <h3>{t(locale, "agentHooks")}</h3>
           <p className="setting-group__description">{t(locale, "agentHooksStatusDescription")}</p>
+          <p className="setting-group__description">{t(locale, "canvasTTYStatusHooksDescription")}</p>
         </div>
         <div className="setting-group__control">
           <Switch

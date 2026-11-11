@@ -1326,7 +1326,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           onOpenSettings={onOpenSettings}
           onGoHome={() => { setCommandPaletteOpen(false); onGoHome(); }}
           homeShortcut={settings.shortcuts.home}
-          onShowGettingStarted={() => { setCommandPaletteOpen(false); setOnboardingPinned(true); onShowOnboarding(); }}
+          onShowGettingStarted={() => { setCommandPaletteOpen(false); setOnboardingPinned(true); onShowOnboarding(); onGoHome(); }}
           workspaces={workspace.state.workspaces.filter((w) => !w.closed).map((w) => ({ id: w.id, title: workspaceTitle(settings.locale, w) }))}
           onSwitchWorkspace={(id) => { setCommandPaletteOpen(false); workspace.switchTo(id); }}
           onClose={() => setCommandPaletteOpen(false)}

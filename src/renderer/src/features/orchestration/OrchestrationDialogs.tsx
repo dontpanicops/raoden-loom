@@ -14,6 +14,7 @@ import { ProjectSettings } from "./ProjectSettings";
 import { NO_MODELS, RoleModelsField } from "./RoleModels";
 import { profileGoal } from "../../../../shared/taskBoard";
 import { Differences, RunPanel, Termed } from "./RunPanel";
+import { pasteIntoRows } from "./goalPaste";
 import { accessProblemText, commandLike, dirtyInPlace, failingOnSource, goalLines, goalRows, liveRuns, shownRunId } from "./runModel";
 import type { AgentCanvasUi } from "./useAgentCanvasUi";
 import { outcomeText, type Orchestration } from "./useOrchestration";
@@ -271,8 +272,8 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
 // R5f (D-023): requirements and check commands as rows (the text stays the state, one line per row). Requirements keep an
 // always-present empty input at the end; commands add a row with the "+" button. Enter on the last row goes to / adds the
 // next one, Backspace in an empty row removes it and focuses the previous.
-function GoalRows({ text, onText, locale, attr, placeholder, mono = false, addLabel }: {
-  text: string; onText: (text: string) => void; locale: LocaleId; attr: string; placeholder: string; mono?: boolean; addLabel?: string;
+function GoalRows({ text, onText, locale, attr, placeholder, label, mono = false, addLabel }: {
+  text: string; onText: (text: string) => void; locale: LocaleId; attr: string; placeholder: string; label: string; mono?: boolean; addLabel?: string;
 }): React.JSX.Element {
   const trailing = !addLabel;
   const stored = goalRows(text, trailing);
@@ -299,15 +300,22 @@ function GoalRows({ text, onText, locale, attr, placeholder, mono = false, addLa
     }
   };
   return (
-    <div className="orch-rows" {...{ [attr]: "" }} ref={root}>
+    // biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box
+    <div className="orch-rows" role="group" aria-label={label} {...{ [attr]: "" }} ref={root}>
       {rows.map((row, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional; the trailing input keeps its element (and focus) when it becomes a row
         <div className="orch-rows__row" key={i} data-orch-row>
           <input type="text" value={row} spellCheck={false} placeholder={i === rows.length - 1 && (trailing || !row) ? placeholder : undefined}
-            className={mono ? "orch-rows__mono" : undefined} onKeyDown={(e) => onKey(e, i)}
+            className={mono ? "orch-rows__mono" : undefined} onKeyDown={(e) => onKey(e, i)} aria-label={`${label} ${i + 1}`}
+            onPaste={(e) => {
+              const r = pasteIntoRows(rows, i, e.currentTarget.selectionStart ?? row.length, e.currentTarget.selectionEnd ?? row.length, e.clipboardData.getData("text"));
+              if (!r) return;
+              e.preventDefault();
+              put(r.rows, r.focus);
+            }}
             onChange={(e) => { const next = [...stored]; next[i] = e.target.value; put(next); }} />
           {(i < stored.length) && (
-            <button type="button" className="orch-rows__x" aria-label={t(locale, "orchGoalRowRemove")}
+            <button type="button" className="orch-rows__x" aria-label={`${t(locale, "orchGoalRowRemove")}: ${row}`}
               onClick={() => put(stored.filter((_, k) => k !== i), Math.max(0, i - 1))}>×</button>
           )}
         </div>
@@ -496,7 +504,7 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
         </label>
         <div className="orch-field">
           <span>{t(locale, "orchGoalCriteria")}</span>
-          <GoalRows text={criteria} onText={setCriteria} locale={locale} attr="data-orch-requirements" placeholder={t(locale, "orchGoalAddRequirement")} />
+          <GoalRows text={criteria} onText={setCriteria} locale={locale} attr="data-orch-requirements" label={t(locale, "orchGoalCriteria")} placeholder={t(locale, "orchGoalAddRequirement")} />
           {criteria.split("\n").some(commandLike) && (
             <small className="orch-hint orch-hint--warn" data-orch-req-command>
               {t(locale, "orchGoalReqLooksLikeCommand")}{" "}
@@ -511,7 +519,7 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
         </div>
         <div className="orch-field">
           <span>{t(locale, "orchGoalCommands")}</span>
-          <GoalRows text={commandsText} onText={(v) => { edited.current = true; setCommandsText(v); }} locale={locale} attr="data-orch-commands" mono
+          <GoalRows text={commandsText} onText={(v) => { edited.current = true; setCommandsText(v); }} locale={locale} attr="data-orch-commands" mono label={t(locale, "orchGoalCommands")}
             placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
           {/* D-025: one line — the shell runs the commands (a risk fact); the headings already say the rest */}
           <small className="orch-hint">{t(locale, "orchGoalCommandsHint")}{optionalChecks && <span data-orch-commands-optional> · {t(locale, "orchCommandsOptional")}</span>}{commandsText.trim() && !edited.current ? ` ${t(locale, "orchGoalCommandsFilled")}` : ""}</small>
