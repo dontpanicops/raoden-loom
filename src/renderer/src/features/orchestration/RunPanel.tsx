@@ -650,6 +650,7 @@ function PermissionBlock({ locale, request, more, sending, onDecide }: {
         ))}
         <div className="orch-panel__actions">
           <button type="button" className="orch-primary" data-decision="allow_once" disabled={sending || !answered} onClick={() => onDecide("allow_once", { answers: answers() })}>{t(locale, "orchPause_awaiting_answer_button")}</button>
+          <button type="button" className="orch-textual" data-decision="deny" disabled={sending} onClick={() => onDecide("deny")}>{t(locale, "orchPermDecline")}</button>
         </div>
         {foot}
       </div>
@@ -669,6 +670,7 @@ function PermissionBlock({ locale, request, more, sending, onDecide }: {
           </button>
         ))}
       </div>
+      {(request.options.includes("allow_run") || request.options.includes("allow_project")) && <p className="orch-hint" data-orch-scope-hint>{t(locale, "orchPermScopeHint")}</p>}
       {request.options.includes("allow_readonly_run") && <p className="orch-hint" data-orch-readonly-hint>{t(locale, "orchPermReadOnlyHint")}</p>}
       {request.alwaysAsk && <p className="orch-hint" data-orch-always-ask>{t(locale, "orchPermAlwaysAsk")}</p>}
       {foot}
@@ -870,6 +872,17 @@ function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onO
   const legacyRemarks = !progress?.findings && !!(m.finalFindings || current?.findings);
   const hasReport = !!(m.stages?.some((s) => s.report) || m.lastReport);
   const hasExport = view.export !== undefined && !(view.export === null && view.status !== "completed");
+  // D-027: under «Проверки» — the checks that did not pass, with their class and the reason the journal kept
+  const failedChecks = useMemo(() => {
+    const runCheck = new Map<string, string>();
+    const reasons = new Map<string, string>();
+    for (const r of records) {
+      if (r.type === "check.started" && typeof r.data.checkRunId === "string" && typeof r.data.checkId === "string") runCheck.set(r.data.checkRunId, r.data.checkId);
+      if (r.type === "check.finished") { const id = runCheck.get(r.data.checkRunId as string); if (id) { if (typeof r.data.reason === "string" && r.data.reason) reasons.set(id, r.data.reason); else reasons.delete(id); } }
+    }
+    return m.checks.filter((c) => c.status !== "passed" && c.status !== "not_run" && c.status !== "running")
+      .map((c) => ({ id: c.id, title: c.title, status: c.status, cls: progress?.checks.find((x) => x.id === c.id)?.class ?? null, reason: reasons.get(c.id) ?? null }));
+  }, [m.checks, records, progress?.checks]);
   const person = personDecisionsLine(locale, view);
   const hasPlanDoc = planShas.length > 0 || records.some((r) => r.type.startsWith("decomposition."));
   return (
@@ -882,6 +895,15 @@ function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onO
         {finished && <Row label={reviewed ? t(locale, "orchSumReviewFinal") : t(locale, "orchResult")} mark={reviewed ? "done" : outcome === "failed" ? "failed" : outcome === "paused" || outcome === "active" ? "paused" : "idle"}
           dd={{ "data-sum-outcome": outcome, "data-orch-proof": outcome, "data-orch-result": m.finalVerdict ?? undefined }}>{reviewed ? t(locale, "orchSumAccepted") : said(`orchSumOutcome_${outcome}`)}</Row>}
       </dl>
+      {failedChecks.length > 0 && (
+        <ul className="orch-sum__failed" data-sum-failed-checks>
+          {failedChecks.map((c) => (
+            <li key={c.id} className="orch-hint" data-sum-failed-check={c.id} data-check-class={c.cls ?? undefined}>
+              {c.title} — {tr(locale, `orchCheck_${c.status}`)}{c.cls ? ` · ${tr(locale, `orchClass_${c.cls}`)}` : ""}{c.reason ? ` · ${c.reason}` : ""}
+            </li>
+          ))}
+        </ul>
+      )}
       {person && <p className="orch-hint orch-hint--warn" data-sum-person>{person}</p>}
 
       {alerts}
@@ -1523,13 +1545,17 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
     view ? deliver(orch.commands.request(view.runId, view.revision, commandOf(action, input)), after) : Promise.resolve(false);
   // D-018 (mock-up 10): the person's choices go together; one command per item, each at the revision the run has by then
   const sendPeople = async (list: Omit<OrchestrationPersonDecide, "kind">[]): Promise<void> => {
+    let accepted = 0;
+    // main resumes the run after the first accepted decision: what was not taken waits for the next pause (D-027)
+    const rest = () => { if (accepted > 0 && accepted < list.length) setNotice(fill(t(locale, "orchPersonPartial"), { n: accepted, m: list.length })); };
     for (const [i, person] of list.entries()) {
       const fresh = i === 0 ? view : await api().get(view!.runId).then((r) => (r.ok ? r.value.view : null)).catch(() => null);
-      if (!fresh) return;
+      if (!fresh) return rest();
       // the decisions the person saw (their runKey), never a newer set the run moved to meanwhile: main refuses a stale
       // key, and the first refusal stops the rest
-      if (fresh.decisions && fresh.decisions.runKey !== person.runKey) return;
-      if (!(await deliver(orch.commands.request(fresh.runId, fresh.revision, commandOf("person_decide", { person }))))) return;
+      if (fresh.decisions && fresh.decisions.runKey !== person.runKey) return rest();
+      if (!(await deliver(orch.commands.request(fresh.runId, fresh.revision, commandOf("person_decide", { person }))))) return rest();
+      accepted += 1;
     }
   };
   const unknown = runId ? orch.commands.pending(runId) : [];
@@ -2007,6 +2033,7 @@ function FinishConfirm({ locale, confirm, sending, onConfirm }: {
           </button>
         ))}
       </div>
+      {value && <small className="orch-hint" data-orch-finish-effect>{t(locale, `orchFinishEffect_${step}_${value}` as TranslationKey)}</small>}
     </fieldset>
   );
   return (
@@ -2014,6 +2041,7 @@ function FinishConfirm({ locale, confirm, sending, onConfirm }: {
       <div className="orch-plate">
         {confirm.push && choice("push", push, setPush)}
         {confirm.qa && choice("qa", qa, setQa)}
+        {qa === "confirm" && push === "decline" && <p className="dialog-error" data-orch-qa-unpushed>{t(locale, "orchFinishConfirmQaUnpushed")}</p>}
       </div>
       <FormFoot>
         <button type="button" className="orch-primary" disabled={sending || !ready} data-orch-primary="finish_confirm" data-orch-finish-submit
@@ -2041,7 +2069,18 @@ function PersonDecide({ locale, d, findings, sending, onSubmit }: {
         key: `d:${x.reviewTurnId}:${x.index}`, kind: t(locale, "orchPersonKind_disputed"), text: x.problem, attrs: { "data-orch-disputed": `${x.reviewTurnId}:${x.index}` },
         context: <>
           {x.paths.length > 0 && <small className="orch-hint">{x.paths.join(", ")}</small>}
-          {x.candidates.map((c) => <small key={c.id} className="orch-hint" data-orch-disputed-candidate={c.id}>{fill(t(locale, "orchDisputedCandidate"), { n: idNumber(c.id) })}: {c.problem}</small>)}
+          {x.candidates.map((c) => {
+            const shared = c.paths.filter((f) => x.paths.includes(f));
+            return <small key={c.id} className="orch-hint" data-orch-disputed-candidate={c.id}>{fill(t(locale, "orchDisputedCandidate"), { n: idNumber(c.id) })}: {c.problem}
+              {shared.length > 0 && <span data-orch-disputed-shared> · {fill(t(locale, "orchDisputedShared"), { files: shared.join(", ") })}</span>}</small>;
+          })}
+          {(x.evidence || x.candidates.some((c) => c.paths.length > 0)) && (
+            <details data-orch-disputed-more>
+              <summary>{t(locale, "orchDisputedMore")}</summary>
+              {x.evidence && <p className="orch-hint">{x.evidence}</p>}
+              {x.candidates.filter((c) => c.paths.length > 0).map((c) => <p key={c.id} className="orch-hint"><b>{fill(t(locale, "orchDisputedCandidate"), { n: idNumber(c.id) })}</b>: {c.paths.join(", ")}</p>)}
+            </details>
+          )}
         </>,
         options: [
           { value: "new", label: t(locale, "orchDisputedNew"), attrs: { "data-orch-disputed-new": "" }, person: { subject: "disputed", target, decision: "new", finding: null, runKey: d.runKey } },
@@ -2065,7 +2104,10 @@ function PersonDecide({ locale, d, findings, sending, onSubmit }: {
       ]
     })) : [])
   ];
-  const ready = items.length > 0 && items.every((it) => picked[it.key]);
+  // D-027: a finding's decision is optional (leaving it open is the safe choice); the required ones go first, a finding
+  // after them — main resumes the run after the first accepted decision
+  const required = items.filter((it) => !it.key.startsWith("f:"));
+  const ready = required.every((it) => picked[it.key]) && items.some((it) => picked[it.key]);
   return (
     <Form title={t(locale, "orchPersonTitle")} attrs={{ "data-orch-person-decide": true }}>
       <div className="orch-plate">
@@ -2073,6 +2115,7 @@ function PersonDecide({ locale, d, findings, sending, onSubmit }: {
           <section key={it.key} className="orch-decide" {...it.attrs}>
             <p className="orch-decide__ask"><span>{it.kind} · </span>{it.text}</p>
             {it.context}
+            {it.key.startsWith("f:") && <small className="orch-hint" data-finding-safe>{t(locale, "orchFindingSafeHint")}</small>}
             {/* biome-ignore lint/a11y/useSemanticElements: a button segment, not a form group */}
             <div className="orch-seg orch-seg--field" role="group" aria-label={`${it.kind}: ${it.text}`}>
               {it.options.map((o) => (
@@ -2085,7 +2128,7 @@ function PersonDecide({ locale, d, findings, sending, onSubmit }: {
       </div>
       <FormFoot>
         <button type="button" className="orch-primary" disabled={sending || !ready} data-orch-primary="person_decide" data-orch-person-submit
-          onClick={() => onSubmit(items.map((it) => it.options.find((o) => o.value === picked[it.key])!.person))}>{t(locale, "orchZone_sendDecisions")}</button>
+          onClick={() => onSubmit(items.filter((it) => picked[it.key]).map((it) => it.options.find((o) => o.value === picked[it.key])!.person))}>{t(locale, "orchZone_sendDecisions")}</button>
       </FormFoot>
     </Form>
   );
@@ -2138,6 +2181,9 @@ function PlanProposal({ locale, d, sending, onDecide }: {
               : <small className="orch-hint">{t(locale, "orchProposalIfAccepted")}</small>}
           </section>
         ))}
+        {/* D-027: what the plan leaves without criteria and the new stages stay in view */}
+        {p.uncovered.length > 0 && <p className="dialog-error" data-orch-proposal-uncovered>{fill(t(locale, "orchProposalUncovered"), { list: p.uncovered.map((id) => idLabel(locale, id)).join(", ") })}</p>}
+        <p className="orch-hint" data-orch-proposal-stages>{fill(t(locale, "orchProposalStages"), { stages: p.stages.map((s) => `${s.stage}. ${s.title}`).join("; ") })}</p>
       </div>
       {noting && <textarea rows={2} value={note} placeholder={t(locale, "orchProposalNote")} aria-label={t(locale, "orchProposalNote")} onChange={(e) => setNote(e.target.value)} data-orch-proposal-note />}
       <FormFoot>

@@ -901,7 +901,6 @@ const ru = {
   "orchCommand_check.amend": "решение о проверке, которой нужно больше прав",
   orchClass_sandbox: "песочница не дала прав",
   orchCheckRefusedTitle: "Проверке нужно больше прав",
-  orchCheckRefusedText: "Песочница не дала команде лида выйти в сеть или писать за пределами папки. Проверьте вывод во вкладке «Ход работы → Журнал» и саму команду.",
   orchCheckRefusedEdit: "Изменить команду",
   orchCheckRefusedSave: "Запустить эту команду",
   orchCheckRefusedEditHint: "Команда проверки · станет вашей и пойдёт без песочницы",
@@ -2577,7 +2576,10 @@ const ru = {
   orchError_mcp_present: "У {cli} включены MCP-серверы: {names}; выключите их в своём конфиге {cli} и нажмите «Продолжить»",
   orchError_mcp_unchecked: "Не удалось проверить MCP-серверы {cli} (нет ответа или ответ не разобран): ход не выполнен, повторите",
   orchError_mcp_warning: "У Codex включены MCP-серверы: {names}; выключите их в своём конфиге Codex до запуска",
-  orchError_mcp_warning_unchecked: "MCP-серверы Codex не проверены (нет ответа за 30 с или ответ не разобран): запуск остановится, если они включены"
+  orchError_mcp_warning_unchecked: "MCP-серверы Codex не проверены (нет ответа за 30 с или ответ не разобран): запуск остановится, если они включены",
+  // R5h-A
+  orchPersonPartial: "Принято {n} из {m}, остальные — при следующей паузе",
+  orchDisputedMore: "Доказательства проверяющего"
 } as const;
 
 const en: Record<keyof typeof ru, string> = {
@@ -3479,7 +3481,6 @@ const en: Record<keyof typeof ru, string> = {
   "orchCommand_check.amend": "the decision on a check that needs more permissions",
   orchClass_sandbox: "refused by the sandbox",
   orchCheckRefusedTitle: "A check needs more permissions",
-  orchCheckRefusedText: "The sandbox did not let the lead's command reach the network or write outside the folder. Check its output in Work → Journal and the command itself.",
   orchCheckRefusedEdit: "Change the command",
   orchCheckRefusedSave: "Run this command",
   orchCheckRefusedEditHint: "Check command · becomes yours and runs without the sandbox",
@@ -5150,7 +5151,10 @@ const en: Record<keyof typeof ru, string> = {
   orchError_mcp_present: "{cli} has MCP servers on: {names}; turn them off in your own {cli} config and press «Continue»",
   orchError_mcp_unchecked: "The MCP servers of {cli} could not be checked (no answer, or the answer could not be read): the turn was not made, try again",
   orchError_mcp_warning: "Codex has MCP servers on: {names}; turn them off in your own Codex config before the run",
-  orchError_mcp_warning_unchecked: "The MCP servers of Codex were not checked (no answer in 30 s, or the answer could not be read): the run stops if they are on"
+  orchError_mcp_warning_unchecked: "The MCP servers of Codex were not checked (no answer in 30 s, or the answer could not be read): the run stops if they are on",
+  // R5h-A
+  orchPersonPartial: "Accepted {n} of {m}, the rest at the next pause",
+  orchDisputedMore: "The reviewer's evidence"
 };
 
 export type TranslationKey = keyof typeof ru;
