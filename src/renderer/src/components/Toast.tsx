@@ -22,11 +22,15 @@ function ToastCard({ toast, closeLabel, onDismiss }: { toast: ToastItem; closeLa
   return (
     <div className={`toast toast--${toast.kind} surface-3`} role={urgent ? "alert" : "status"}>
       <UiIcon name={ICON[toast.kind]} size={16} />
-      <span className="toast__message">{toast.message}</span>
-      {toast.action && (
+      <span className="toast__body">
+        {toast.title && <strong className="toast__title">{toast.title}</strong>}
+        <span className="toast__message">{toast.message}</span>
+      </span>
+      {toast.action ? (
         <button type="button" className="toast__action" onClick={() => { toast.action?.run(); onDismiss(toast.id); }}>{toast.action.label}</button>
+      ) : (
+        <button type="button" className="toast__close" aria-label={closeLabel} onClick={() => onDismiss(toast.id)}><UiIcon name="close" size={14} /></button>
       )}
-      <button type="button" className="toast__close" aria-label={closeLabel} onClick={() => onDismiss(toast.id)}><UiIcon name="close" size={14} /></button>
     </div>
   );
 }

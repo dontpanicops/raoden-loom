@@ -9,6 +9,7 @@ import { onboardingSteps, onboardingVisible, type OnboardingPlace } from "./onbo
 interface Props {
   locale: LocaleId;
   dismissed: boolean;
+  pinned?: boolean; // brought back from the palette: shown although every step is done
   hasTerminal: boolean;
   linked: boolean;
   place: OnboardingPlace | null;
@@ -18,11 +19,11 @@ interface Props {
 }
 
 // The repository's own getting-started page; the docs name no per-CLI install commands.
-const installUrl = (locale: LocaleId): string =>
+export const installUrl = (locale: LocaleId): string =>
   `https://github.com/dontpanicops/raoden-loom/blob/main/docs/${locale === "ru" ? "getting-started.ru.md" : "getting-started.md"}`;
 
 // "Getting started": a level-3 card in the canvas overlays, placed clear of HOME and the minimap (onboardingPlacement).
-export function OnboardingCard({ locale, dismissed, hasTerminal, linked, place, wheelKey, onNewTerminal, onDismiss }: Props): React.JSX.Element | null {
+export function OnboardingCard({ locale, dismissed, pinned = false, hasTerminal, linked, place, wheelKey, onNewTerminal, onDismiss }: Props): React.JSX.Element | null {
   const [found, setFound] = useState<AgentProviderId[]>([]);
   const opened = useRef(false);
   if (hasTerminal) opened.current = true; // closing the terminal again does not untick the step
@@ -31,7 +32,7 @@ export function OnboardingCard({ locale, dismissed, hasTerminal, linked, place, 
   }, []);
   useEffect(check, [check]);
   const steps = onboardingSteps({ terminalOpened: opened.current, cliFound: found.length, linked });
-  if (!place || !onboardingVisible(dismissed, steps)) return null;
+  if (!place || !(pinned && !dismissed) && !onboardingVisible(dismissed, steps)) return null;
   const done = (id: string): boolean => steps.find((s) => s.id === id)?.done ?? false;
   const current = steps.find((s) => !s.done)?.id;
   const row = (n: number, id: "terminal" | "cli" | "link", title: string, hint: string, extra?: React.ReactNode, action?: React.ReactNode): React.JSX.Element => (

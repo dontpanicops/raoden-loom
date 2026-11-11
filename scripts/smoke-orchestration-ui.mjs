@@ -280,7 +280,7 @@ try {
   const termSpot = await app.freeRect(80, 80) ?? (await app.panBy({ x: -400, y: 0 }), await app.freeRect(80, 80));
   if (!termSpot) throw new Error("no empty canvas for the terminal");
   await app.click(termSpot.x + 20, termSpot.y + 20, "right");
-  await app.clickEl(byText(".canvas-menu [role=menuitem]", "Запустить агента"));
+  await app.clickEl(byText(".canvas-menu [role=menuitem]", "Запустить"));
   await app.waitFor(`[...document.querySelectorAll(".canvas-menu__submenu [role=menuitem]")].find((el) => /Terminal|Терминал/.test(el.textContent)) && true`, "terminal row");
   await app.clickEl(`[...document.querySelectorAll(".canvas-menu__submenu [role=menuitem]")].find((el) => /Terminal|Терминал/.test(el.textContent))`);
   await app.waitFor(`document.querySelectorAll(".terminal-card").length === 1`, "terminal card", 20_000);

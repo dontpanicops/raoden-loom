@@ -160,7 +160,7 @@ interface WorkspaceCanvasProps {
   onCameraChange(camera: CameraState, workspaceId: string): void;
   onGoHome(): void;
   onOpenSettings(): void;
-  onOpenAgent(provider: AgentProviderId, position?: Point): void;
+  onOpenAgent(provider: AgentProviderId, position?: Point, anchor?: DOMRect): void;
   onOpenTerminal(position?: Point): void;
   onOpenBrowser(position?: Point): void;
   onOpenTerminalUrl(url: string): void;
@@ -198,6 +198,7 @@ interface WorkspaceCanvasProps {
   onStickyNoteTextChange(id: string, text: string): void;
   onDeleteStickyNote(id: string): void;
   onDismissOnboarding(): void;
+  onShowOnboarding(): void;
 }
 
 export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element {
@@ -213,7 +214,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     onRestartSession, onDisposeSession, onBrowserBoundsChange, onFocusBrowser,
     onCloseBrowser, onCreateCanvasRegion, onChangeCanvasRegion,
     onCanvasRegionBoundsChange, onDeleteCanvasRegion, onCreateStickyNote,
-    onStickyNoteBoundsChange, onStickyNoteTextChange, onDeleteStickyNote, onDismissOnboarding
+    onStickyNoteBoundsChange, onStickyNoteTextChange, onDeleteStickyNote, onDismissOnboarding, onShowOnboarding
   } = props;
   const theme = useEffectiveTheme(settings);
   const viewport = useRef<HTMLDivElement>(null);
@@ -488,6 +489,8 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
   }), [settings.homeGridSize]);
   // The first-run card clears the HOME tiles on screen: plain arithmetic from the layout and the camera (no DOM measuring per camera frame)
   const [onboardingPlace, setOnboardingPlace] = useState<OnboardingPlace | null>(null);
+  // "Getting started" from the palette: shown even when every step is done, until it is hidden again
+  const [onboardingPinned, setOnboardingPinned] = useState(false);
   // biome-ignore lint/correctness/useExhaustiveDependencies: camera and home settings are the triggers: the tiles' screen rects move with them
   useLayoutEffect(() => {
     const view = viewport.current;
@@ -939,7 +942,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           plugins={plugins}
           editing={homeEditing}
           onOpenSettings={onOpenSettings}
-          onOpenAgent={onOpenAgent}
+          onOpenAgent={(provider, anchor) => onOpenAgent(provider, undefined, anchor)}
           onOpenTerminal={onOpenTerminal}
           onOpenBrowser={() => {
             if (settings.browserCanvas) {
@@ -1321,6 +1324,9 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           }}
           onOpenBrowser={() => onOpenBrowser(viewportCenterWorldPoint())}
           onOpenSettings={onOpenSettings}
+          onGoHome={() => { setCommandPaletteOpen(false); onGoHome(); }}
+          homeShortcut={settings.shortcuts.home}
+          onShowGettingStarted={() => { setCommandPaletteOpen(false); setOnboardingPinned(true); onShowOnboarding(); }}
           workspaces={workspace.state.workspaces.filter((w) => !w.closed).map((w) => ({ id: w.id, title: workspaceTitle(settings.locale, w) }))}
           onSwitchWorkspace={(id) => { setCommandPaletteOpen(false); workspace.switchTo(id); }}
           onClose={() => setCommandPaletteOpen(false)}
@@ -1337,7 +1343,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
         {/* first: the corner slots below paint over it */}
         <OnboardingCard locale={settings.locale} dismissed={settings.onboardingDismissed} hasTerminal={sessions.some((s) => s.provider === "terminal")}
           linked={orch.canvas.links.length > 0} place={onboardingPlace}
-          wheelKey={settings.canvasWheelCaptureMode === "key" && settings.canvasWheelOverride !== null ? displayCanvasNavigationBinding(settings.canvasWheelOverride, window.canvasTTY.window.isMacOS) : null} onNewTerminal={() => onOpenTerminal()} onDismiss={onDismissOnboarding} />
+          wheelKey={settings.canvasWheelCaptureMode === "key" && settings.canvasWheelOverride !== null ? displayCanvasNavigationBinding(settings.canvasWheelOverride, window.canvasTTY.window.isMacOS) : null} onNewTerminal={() => onOpenTerminal()} pinned={onboardingPinned} onDismiss={() => { setOnboardingPinned(false); onDismissOnboarding(); }} />
         <div className="canvas-overlay-slot canvas-overlay-slot--top-center">
           <WorkspaceBar controls={workspace} counts={counts} locale={settings.locale} onDialog={openWsDialog}
             board={{ shown: !!boardPlace, toggle: () => showBoardRef.current(workspace.activeId) }} />

@@ -74,7 +74,7 @@ interface HomeZoneProps {
   plugins: InstalledPlugin[];
   editing: boolean;
   onOpenSettings(): void;
-  onOpenAgent(provider: AgentProviderId): void;
+  onOpenAgent(provider: AgentProviderId, anchor?: DOMRect): void;
   onOpenTerminal(): void;
   onOpenBrowser(): void;
   onFocusSession(session: SessionSnapshot): void;
@@ -578,7 +578,7 @@ export function HomeZone({
             <UiIcon name="browser" size="1.9em" /><span>{t(locale, "browser")}</span>
           </button>
           {launcherProviders.map((provider) => (
-            <button className="launcher-button" type="button" key={provider} onClick={() => onOpenAgent(provider)} title={PROVIDERS[provider].label}>
+            <button className="launcher-button" type="button" key={provider} onClick={(event) => onOpenAgent(provider, event.currentTarget.getBoundingClientRect())} title={PROVIDERS[provider].label}>
               <ProviderIcon provider={provider} size="small" /><span>{PROVIDERS[provider].label}</span>
             </button>
           ))}

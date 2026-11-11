@@ -195,12 +195,15 @@ test("the redesigned menus use shared tokens, em geometry, and the configured UI
   assert.match(styles, /\.canvas-menu__swatches \{[^}]*gap: \.45em/);
   assert.match(styles, /\.canvas-command-palette__footer \{[^}]*border-top:/);
   assert.match(menuPrimitives, /<span className="canvas-menu__icon">[\s\S]*<UiIcon name=\{icon\} size="1\.05em" \/>/);
-  assert.match(contextMenu, /canvasMenuHere/);
+  assert.match(contextMenu, /"ctxRegion"/); // R5e: mock 10 labels, no "here" hints
+  assert.match(contextMenu, /"ctxConfigureList"/);
   assert.match(contextMenu, /CANVAS_REGION_COLORS\.map/);
   assert.match(contextMenu, /canvas-menu__swatch--selected/);
   assert.match(contextMenu, /canvasMenuRegionContentsStay/);
   assert.match(commandPalette, /CanvasMenuLabel>\{t\(locale, "canvasMenuSessions"\)\}/);
   assert.match(commandPalette, /canvas-command-palette__footer/);
+  assert.match(commandPalette, /"paletteGettingStarted"/); // D-016: the first-run footer points here
+  assert.match(commandPalette, /canvas-palette__chip/);
   assert.match(settings, /className="canvas-menu canvas-launcher-settings-menu"/);
   assert.match(settings, /icon=\{enabled \? "minus" : "plus"\}/);
   assert.match(settings, /layout="stacked"\s+label=\{t\(locale, "canvasLauncherItems"\)\}/);
