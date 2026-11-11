@@ -236,6 +236,14 @@ export function App(): React.JSX.Element {
   const [browserSelected, setBrowserSelected] = useState(false);
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [pendingTerminalUrl, setPendingTerminalUrl] = useState<string | null>(null);
+  // the link popover opens at the last press (the click on the link in the terminal output)
+  const lastPress = useRef({ x: 0, y: 0 });
+  const [linkAnchor, setLinkAnchor] = useState<DOMRect | null>(null);
+  useEffect(() => {
+    const note = (event: PointerEvent): void => { lastPress.current = { x: event.clientX, y: event.clientY }; };
+    document.addEventListener("pointerdown", note, true);
+    return () => document.removeEventListener("pointerdown", note, true);
+  }, []);
   const [toasts, dispatchToast] = useReducer(toastReducer, []);
   const toastId = useRef(0);
   const [ready, setReady] = useState(false);
@@ -250,6 +258,17 @@ export function App(): React.JSX.Element {
     dispatchToast({ type: "push", toast: { id: toastId.current, kind, message, action, title } });
   }, []);
   const dismissToast = useCallback((id: number): void => dispatchToast({ type: "dismiss", id }), []);
+  // R6-C: a driver hook for the frames of mock 10 (scripts/shots-r5.mjs), like linkTrace: inert in a packaged build (devHooks comes
+  // from main as a preload argument); it only shows the toast the driver describes (the app has no source of «waiting» toasts with an action)
+  useEffect(() => {
+    const show = (event: Event): void => {
+      const d = (event as CustomEvent<{ message: string; kind: ToastKind; action?: string; title?: string }>).detail;
+      showToast(d.message, d.kind, d.action ? { label: d.action, run: () => undefined } : undefined, d.title);
+    };
+    if (!window.canvasTTY.window.devHooks) return;
+    window.addEventListener("canvastty:toast", show);
+    return () => window.removeEventListener("canvastty:toast", show);
+  }, [showToast]);
 
   useEffect(() => {
     browserCanvasRef.current = settings.browserCanvas;
@@ -1290,6 +1309,7 @@ export function App(): React.JSX.Element {
           onOpenTerminalUrl={(url) => {
             try {
               setPendingTerminalUrl(normalizeExternalUrl(url));
+              setLinkAnchor(new DOMRect(lastPress.current.x, lastPress.current.y, 0, 0));
             } catch (error) {
               showToast(error instanceof Error ? error.message : t(settings.locale, "browserActionFailed"), "error");
             }
@@ -1357,6 +1377,7 @@ export function App(): React.JSX.Element {
       <TerminalLinkDialog
         locale={settings.locale}
         url={pendingTerminalUrl}
+        anchor={linkAnchor}
         onClose={() => setPendingTerminalUrl(null)}
         onOpenCanvas={(url) => {
           setPendingTerminalUrl(null);

@@ -13,17 +13,18 @@ const focusables = (root: HTMLElement): HTMLElement[] =>
 
 // `anchor` makes it a popover (mock 14): the same card, no scrim, beside the opener; focus trap and Esc are the same.
 // `lead` and `sub` are the mark and the caption of a card header; without them the header is the plain title.
-function popoverStyle(anchor: DOMRect): React.CSSProperties {
-  const width = 420;
+const POPOVER_TOP = 56; // the title bar (44px) and a gap: a popover's title and close cross stay below it
+function popoverStyle(anchor: DOMRect, width: number): React.CSSProperties {
   const left = Math.min(Math.max(12, anchor.left + anchor.width / 2 - width / 2), window.innerWidth - width - 12);
+  // a tall card keeps its place and may cover the opener row: it never climbs under the title bar (the effect slides it down)
   return anchor.top > window.innerHeight / 2
-    ? { left, bottom: window.innerHeight - anchor.top + 10 }
-    : { left, top: anchor.bottom + 10 };
+    ? { left, width, bottom: window.innerHeight - anchor.top + 10, maxHeight: window.innerHeight - POPOVER_TOP - 12, overflowY: "auto" }
+    : { left, width, top: anchor.bottom + 10, maxHeight: window.innerHeight - anchor.bottom - 10 - 12, overflowY: "auto" };
 }
 
-export function Dialog({ label, onClose, children, locale, className = "", backdropClassName = "", anchor = null, lead, sub }: {
+export function Dialog({ label, onClose, children, locale, className = "", backdropClassName = "", anchor = null, width = 420, lead, sub }: {
   label: string; onClose(): void; children: React.ReactNode; locale: LocaleId; className?: string; backdropClassName?: string;
-  anchor?: DOMRect | null; lead?: React.ReactNode; sub?: string;
+  anchor?: DOMRect | null; width?: number; lead?: React.ReactNode; sub?: string;
 }): React.JSX.Element {
   const titleId = useId();
   const root = useRef<HTMLElement>(null);
@@ -45,6 +46,22 @@ export function Dialog({ label, onClose, children, locale, className = "", backd
     const back = opener.current;
     return () => { if (back?.isConnected) back.focus({ preventScroll: true }); };
   }, []);
+
+  // a bottom-anchored popover that grows (the YOLO note) slides down over the opener row instead of under the title bar
+  useLayoutEffect(() => {
+    const node = root.current;
+    const base = node ? parseFloat(node.style.bottom) : Number.NaN;
+    if (!anchor || !node || Number.isNaN(base)) return;
+    const fit = (): void => {
+      node.style.bottom = `${base}px`;
+      const top = node.getBoundingClientRect().top;
+      if (top < POPOVER_TOP) node.style.bottom = `${Math.max(12, base - (POPOVER_TOP - top))}px`;
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [anchor]);
 
   useEffect(() => {
     const me = Symbol("dialog");
@@ -79,7 +96,7 @@ export function Dialog({ label, onClose, children, locale, className = "", backd
   const title = <strong id={titleId} className="orch-dialog__title">{label}</strong>;
   const card = (
     <section ref={root} className={`launch-dialog orch-dialog surface-4 ${anchor ? "launch-popover" : ""} ${className}`.trim()} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
-      {...(anchor ? { style: popoverStyle(anchor), "data-interactive": "true", "data-wheel-owner": "local", "data-canvas-wheel-priority": "local" } : {})}>
+      {...(anchor ? { style: popoverStyle(anchor, width), "data-interactive": "true", "data-wheel-owner": "local", "data-canvas-wheel-priority": "local" } : {})}>
       <div className="launch-dialog__toolbar">
         {lead || sub ? <>{lead}<div className="launch-dialog__titles">{title}{sub && <small>{sub}</small>}</div></> : title}
         <button className="launch-dialog__close dialog__close" type="button" onClick={onClose} aria-label={t(locale, "orchClose")}><UiIcon name="close" size={18} /></button>

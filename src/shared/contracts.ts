@@ -135,13 +135,15 @@ export interface HomeWidgetPlacement {
   rowSpan: number;
 }
 
+// mocks 03 and 05 inside the 12×8 grid: limits | clock with the media under it | sessions as one top band,
+// the dock of 11 buttons in one row and the settings tile under them
 export const DEFAULT_HOME_LAYOUT: HomeWidgetPlacement[] = [
-  { widgetId: "core.limits", column: 0, row: 0, columnSpan: 7, rowSpan: 3 },
-  { widgetId: "core.sessions", column: 7, row: 0, columnSpan: 5, rowSpan: 3 },
-  { widgetId: "core.clock", column: 0, row: 3, columnSpan: 9, rowSpan: 3 },
-  { widgetId: "core.media", column: 9, row: 3, columnSpan: 3, rowSpan: 3 },
-  { widgetId: "core.launcher", column: 0, row: 6, columnSpan: 10, rowSpan: 2 },
-  { widgetId: "core.settings", column: 10, row: 6, columnSpan: 2, rowSpan: 2 }
+  { widgetId: "core.limits", column: 0, row: 0, columnSpan: 5, rowSpan: 5 },
+  { widgetId: "core.clock", column: 5, row: 0, columnSpan: 3, rowSpan: 3 },
+  { widgetId: "core.media", column: 5, row: 3, columnSpan: 3, rowSpan: 2 },
+  { widgetId: "core.sessions", column: 8, row: 0, columnSpan: 4, rowSpan: 5 },
+  { widgetId: "core.launcher", column: 0, row: 5, columnSpan: 11, rowSpan: 3 },
+  { widgetId: "core.settings", column: 11, row: 5, columnSpan: 1, rowSpan: 3 }
 ];
 
 export interface ShortcutBindings {
@@ -1106,6 +1108,8 @@ export interface CanvasTTYApi {
   };
   window: {
     isMacOS: boolean;
+    /** true only in an unpackaged build: the page may then honour test hooks */
+    devHooks: boolean;
     minimize(): void;
     toggleMaximize(): Promise<WindowState>;
     close(): void;

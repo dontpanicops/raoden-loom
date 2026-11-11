@@ -525,9 +525,12 @@ export function TerminalCard({
               }}
             />
           ) : (
-            <strong title={session.titleCustomized ? session.title : session.cwd}>
-              {session.titleCustomized ? session.title : compactPath(session.cwd)}
-            </strong>
+            <>
+              <strong title={session.titleCustomized ? session.title : session.cwd}>
+                {session.titleCustomized ? session.title : compactPath(session.cwd)}
+              </strong>
+              {session.titleCustomized && <small className="terminal-card__cwd" title={session.cwd}>{compactPath(session.cwd)}</small>}
+            </>
           )}
           {session.closeUnconfirmed && session.exitCode === null && <span className="terminal-card__unconfirmed" data-terminal-close-unconfirmed="true">{t(locale, "wsStop_unconfirmed")}</span>}
         </div>

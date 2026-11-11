@@ -124,7 +124,7 @@ try {
     const cards = await app.ev(`[${JSON.stringify(ids.lead)}, ${JSON.stringify(ids.exec)}].map((id) => document.querySelector('[data-agent-id="' + id + '"] .agent-card__state')?.textContent ?? null)`);
     expect(cards.every((c) => c === NO_CHECKS), "none: both cards say completed without checks", cards);
     const cardConds = await app.ev(`[...document.querySelectorAll("[data-agent-conditions]")].map((e) => e.textContent)`);
-    expect(cardConds.length === 2 && cardConds.every((c) => c === "1 из 1 критериев выполнено"), "none (A2): both cards say 1 of 1 conditions met", cardConds);
+    expect(cardConds.length === 0, "none (A2, D-029): the card body carries no conditions counter", cardConds);
     await app.clickEl(`[...document.querySelectorAll('[data-agent-link-id="${ids.link}"] button')].find((b) => b.textContent.trim() === "Открыть запуск")`);
     await app.waitFor(`${q(".orch-panel")} && true`, "the run panel");
     await openTab(app, "summary");
@@ -143,9 +143,9 @@ try {
       reqs: [...document.querySelectorAll("[data-requirement]")].map((e) => e.dataset.requirement + ":" + e.dataset.requirementStatus),
       conds: [...document.querySelectorAll('[data-requirement="R1"] [data-condition]')].map((e) => e.dataset.condition + ":" + e.dataset.conditionStatus),
       proof: ${q('[data-condition-proof="review"]')}?.textContent ?? null })`);
-    expect(conds.count === "1 из 1 критериев выполнено" && conds.reqs.join() === "R1:met,R2:met" && conds.conds.join() === "C1:met" && /src\/note\.mjs/.test(conds.proof ?? ""),
+    expect(conds.count === "1 из 1" && conds.reqs.join() === "R1:met,R2:met" && conds.conds.join() === "C1:met" && /src\/note\.mjs/.test(conds.proof ?? ""),
       "none (A2): «Условия» — R1, R2 met by C1, its evidence the lead's review on src/note.mjs", conds);
-    await app.ev(`${q('[data-sum="conditions"]')}?.scrollIntoView()`);
+    await app.ev(`(() => { const c = ${q('[data-sum="conditions"]')}; if (c) { c.open = true; c.scrollIntoView(); } })()`);
     await app.shot("v2-02b-conditions");
     const lines = fs.readFileSync(path.join(root, "runs", runId, "journal.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
     const goalText = JSON.parse(fs.readFileSync(path.join(root, "runs", runId, "texts", lines[0].data.goal.sha256)));
@@ -187,9 +187,9 @@ try {
     await app.waitFor(`${q("[data-sum-conditions-count]")} && true`, "«Условия»");
     const conds = await app.ev(`({ count: ${q("[data-sum-conditions-count]")}.textContent,
       c2: (() => { const e = ${q('[data-condition="C2"]')}; return e ? { status: e.dataset.conditionStatus, proof: !!e.querySelector('[data-condition-proof="run"]'), text: e.textContent } : null; })() })`);
-    expect(conds.count === "2 из 2 критериев выполнено" && conds.c2?.status === "met" && conds.c2.proof && conds.c2.text.includes("test -f src/note.mjs"),
+    expect(conds.count === "2 из 2" && conds.c2?.status === "met" && conds.c2.proof && conds.c2.text.includes("test -f src/note.mjs"),
       "refused (A2): 2 of 2 conditions met; C2's evidence is the check run of the command as saved", conds);
-    await app.ev(`${q('[data-condition-proof="run"]')}.open = true; ${q('[data-sum="conditions"]')}.scrollIntoView()`);
+    await app.ev(`${q('[data-sum="conditions"]')}.open = true; ${q('[data-condition-proof="run"]')}.open = true; ${q('[data-sum="conditions"]')}.scrollIntoView()`);
     await app.shot("v2-06-conditions-check-evidence");
     await app.shot("v2-05-completed-as-person-command");
   });
@@ -201,7 +201,7 @@ try {
     const runId = (await runs(app))[0].runId;
     await app.waitFor(`window.canvasTTY.orchestration.get(${JSON.stringify(runId)}).then((r) => r.value.view.status === "completed")`, "completed", 120_000);
     const cardLines = await app.ev(`[...document.querySelectorAll("[data-agent-findings]")].map((e) => e.textContent)`);
-    expect(cardLines.length === 2 && cardLines.every((c) => c === "Открыто блокирующих: 0"), "findings (A3): both cards say «Открыто блокирующих: 0»", cardLines);
+    expect(cardLines.length === 0, "findings (A3, D-029): the card body carries no blocking counter", cardLines);
     await app.clickEl(`[...document.querySelectorAll('[data-agent-link-id="${ids.link}"] button')].find((b) => b.textContent.trim() === "Открыть запуск")`);
     await app.waitFor(`${q(".orch-panel")} && true`, "the run panel");
     await openTab(app, "summary");
@@ -360,9 +360,9 @@ try {
     await app.waitFor(`${q("[data-sum-person]")} && true`, "the person's decisions in the result");
     const sum = await app.ev(`({ person: ${q("[data-sum-person]")}.textContent, reqs: [...document.querySelectorAll("[data-requirement]")].map((e) => e.dataset.requirement + ":" + e.dataset.requirementStatus),
       dropped: [...document.querySelectorAll("[data-conditions-dropped] [data-condition]")].map((e) => e.dataset.condition + ":" + e.dataset.conditionStatus), count: ${q("[data-sum-conditions-count]")}?.textContent ?? null })`);
-    expect(sum.person === "Решения человека вместо доказательств: снято: критерий 2, требование 2" && sum.reqs.join() === "R1:met,R2:dropped" && sum.dropped.join() === "C2:dropped" && sum.count === "1 из 1 критериев выполнено",
+    expect(sum.person === "Решения человека вместо доказательств: снято: критерий 2, требование 2" && sum.reqs.join() === "R1:met,R2:dropped" && sum.dropped.join() === "C2:dropped" && sum.count === "1 из 1",
       "drop (A4): the result lists C2 and R2 as dropped by the person, never met", sum);
-    await app.ev(`${q('[data-sum="conditions"]')}?.scrollIntoView()`);
+    await app.ev(`(() => { const c = ${q('[data-sum="conditions"]')}; if (c) { c.open = true; c.scrollIntoView(); } })()`);
     await app.shot("v2-13-dropped");
   }, {
     codex: [plan(C12), { report: { conditions: [{ id: "C1", status: "met", paths: ["src/note.mjs"], note: "exists" }, { id: "C2", status: "not_met", paths: [], note: "no tests" }], findings: [], request: "replan", question: null } },

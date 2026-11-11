@@ -240,8 +240,8 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                   const acts = remote ? [...new Set(splitActions(task, st, true).map((a) => (a === "run" || a === "again" ? "whole" : a)))] : splitActions(task, st);
                   const subs = view ? subtaskInfo(task, tasks, board.statuses, view.facts, view.heads ?? []) : null;
                   const parent = task.parentId ? tasks.find((x) => x.id === task.parentId) : undefined;
-                  // R5f: the card's tone — the person's turn amber, a run going green, a failure red; the glyph says it too
-                  const tone = st.reason === "push_option_field" ? "danger" : st.column === "review" || st.reason === "waits_permission" ? "waiting" : st.column === "work" ? "working" : null;
+                  // R5f: the card's tone — the person's turn (or a run on pause, R6-C) amber, a run going green, a failure red; the glyph says it too
+                  const tone = st.reason === "push_option_field" ? "danger" : st.column === "review" || st.reason === "waits_permission" || (st.column === "work" && run?.view.status === "paused") ? "waiting" : st.column === "work" ? "working" : null;
                   return (
                     <li key={task.id} className={`board-task board-task--${st.column}${st.done ? ` board-task--done-${st.done}` : ""}`}
                       data-board-task={task.key} data-board-task-column={st.column} data-board-done={st.done ?? undefined} data-board-reason={st.reason ?? undefined}>

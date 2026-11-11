@@ -132,7 +132,8 @@ try {
   await app.clickEl(q('[data-orch-access="claude"] [data-orch-access-mode="full"]')); // R5f: the rights are a segment
   expect(await app.ev(`!!${q("[data-orch-full-warning]")}`), "full access shows its warning", null);
   await app.clickEl(q('[data-orch-access="claude"] [data-orch-access-mode="acceptEdits"]'));
-  const mapping = await app.ev(`${q('[data-orch-access="claude"] code')}.textContent`);
+  // R6-C: what the CLI is given is the button's tooltip, not a «Подробнее» block
+  const mapping = await app.ev(`${q('[data-orch-access="claude"] [data-orch-access-mode="acceptEdits"]')}.title`);
   expect(mapping.includes("--permission-mode acceptEdits"), "the mapping says what is passed to Claude", mapping);
   await app.shot("02-settings");
   const settingsPinned = await pinned();
@@ -255,7 +256,7 @@ try {
   await app.shot("08-completed-limits");
   // UX audit Н9: what the run spent — D-018: one row of the «Время, лимиты, окружение» block (the roles' split is the journal's)
   expect(/вызовов моделей: \d+, токенов: [\d,]/.test(await app.ev(`${q('[data-board="cost-total"]')}?.textContent ?? ""`)), "the summary: what the run spent in all, on one line", null);
-  expect(/Вызовы этого агента: \d+ · токенов:/.test(await app.ev(`${q("[data-agent-cost]")}?.textContent ?? ""`)), "the cards: calls and tokens of their agent", await app.ev(`${q("[data-agent-cost]")}?.textContent ?? ""`));
+  expect(!(await app.ev(`!!${q("[data-agent-cost]")}`)), "the cards carry no calls and tokens line (D-029)", null);
   await app.ev(`${q("[data-orch-finish]")}.scrollIntoView({ block: "center" })`);
   await sleep(200);
   await app.shot("09-result");

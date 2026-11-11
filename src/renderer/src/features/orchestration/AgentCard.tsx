@@ -7,7 +7,7 @@ import { CARD_STATUS_ICON, agentCardStatus } from "../../lib/cardStatus";
 import { t, type TranslationKey } from "../../lib/i18n";
 import { AGENT_CARD_EXPANDED, AGENT_CARD_LIMITS as LIMITS, AGENT_CARD_SIZE, agentCardSize, isCompact, withoutHome } from "./agentCardGeometry";
 import type { AgentState } from "./runModel";
-import { entryLabel, FEED_KINDS, structured } from "./RunPanel";
+import { CARD_FEED_KINDS, entryLabel, structured } from "./RunPanel";
 import { isServiceEntry, type StatusLine } from "./runStatus";
 import { RESIZE_DIRECTIONS, useCardFrame } from "./useCardFrame";
 import type { CardMessage } from "./useAgentCanvasUi";
@@ -89,7 +89,6 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
   }, []);
   const doing = status && MOVING.includes(status.state) ? status.doing : null;
   const extra = status ? status.wait ?? status.now : null;
-  const facts = [props.conditions, props.findings].filter(Boolean).join(" · ");
 
   return (
     <article
@@ -133,14 +132,6 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
         {props.task && <div className="agent-card__line agent-card__task" data-agent-task={props.task.key} title={props.task.title}>{props.task.key} · {props.task.title}</div>}
         {doing && <div className="agent-card__line agent-card__doing" data-agent-doing title={doing}>{doing}</div>}
         {extra && <div className="agent-card__line" data-agent-now title={extra}>{extra}</div>}
-        {facts && (
-          <div className="agent-card__line" data-agent-facts title={facts}>
-            {props.conditions && <span data-agent-conditions>{props.conditions}</span>}
-            {props.conditions && props.findings && " · "}
-            {props.findings && <span data-agent-findings>{props.findings}</span>}
-          </div>
-        )}
-        {props.cost && <div className="agent-card__line" data-agent-cost title={props.cost}>{props.cost}</div>}
         {card.role === "lead" && !props.linked && !message && state === "idle" && <p className="agent-card__hint" data-agent-port-hint>{t(locale, "orchCardPortHint")}</p>}
         {message && <div className={`agent-card__message agent-card__message--${message.tone}`} role={message.tone === "error" ? "alert" : "status"}>{message.text}</div>}
         {/* semantic zoom: far out the card keeps its lines and gives the wheel back to the canvas */}
@@ -201,7 +192,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
 function CardFeed({ locale, entries, role, height }: { locale: LocaleId; entries: readonly OrchestrationActivityEntry[]; role: "lead" | "executor"; height: number }): React.JSX.Element {
   // the lead's card is also the reviewer's (the reviewer is a session of the lead's CLI)
   const items = useMemo(() => entries.filter((e) => (role === "lead" ? e.role === "lead" || e.role === "reviewer" : e.role === "executor")
-    && FEED_KINDS.has(e.kind) && !isServiceEntry(e)).slice(-200), [entries, role]);
+    && CARD_FEED_KINDS.has(e.kind) && !isServiceEntry(e)).slice(-200), [entries, role]);
   const box = useRef<HTMLDivElement>(null);
   const [following, setFollowing] = useState(true);
   useLayoutEffect(() => {

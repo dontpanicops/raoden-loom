@@ -200,7 +200,7 @@ try {
   await sleep(500);
   const leadSize = (await stored(lead.agentId)).bounds.size;
   expect(leadSize.width === 460 && leadSize.height === 560, "«Развернуть» without a saved size: the default expanded size", leadSize);
-  await resizeBy(lead.agentId, "s", 0, -260); // 300 high: short enough for the feed to scroll
+  await resizeBy(lead.agentId, "s", 0, -330); // as short as the card goes: the feed has few lines since R5h-A and must still scroll
   let f = await feedState(lead.agentId);
   notes.leadFeed = f;
   expect(f?.overflow && f.atBottom && f.following === "yes", "the lead's feed: at the bottom, following", f);
