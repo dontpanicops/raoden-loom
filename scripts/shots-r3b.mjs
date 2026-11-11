@@ -73,7 +73,9 @@ const STATES = [
   ["15-lead-modified-tree", "lead_modified_tree"],
   ["16-needs-user-action-mcp", "mcp_present"],
   ["17-completed", null, { completed: true }],
-  ["18-failed", null, { failed: true }]
+  ["18-failed", null, { failed: true }],
+  ["19-newer-readonly", null, { newerV: { version: 3, chain: "ok", goal: "Добавить заметки к задачам доски: создание, список, удаление.", compatible: true } }],
+  ["20-newer-fallback", null, { newerV: { version: 3, chain: "ok", goal: "Добавить заметки к задачам доски: создание, список, удаление.", compatible: false, fallback: { line: 41, code: "unknown_kind" } } }]
 ];
 const { fixture, view } = await import(pathToFileURL(path.join(ROOT, "tests/fixtures/orchestration/zone-sets.mjs")).href);
 const { legacyView } = await import(pathToFileURL(path.join(ROOT, "src/renderer/src/features/orchestration/panelTabs.ts")).href);
@@ -169,6 +171,7 @@ const PAUSE_EXTRA = {
   "02-awaiting-answer": { records: REC_PLAN },
   "03-permission": { records: REC_PLAN_PR, texts: { pq: { status: "ready", text: JSON.stringify({ stages: [{ title: "модель заметки", task: "t" }, { title: "PR и описание", task: "t" }] }) } } },
   "05-checks-decision": { records: REC_PLAN },
+  "09-loop-suspected": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "orch.turn", { turnId: "t9", purpose: "execute", stage: 2, round: 4 })] },
   "18-failed": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 })] },
   "07-limit-reached": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "orch.turn", { turnId: "t7", purpose: "execute", stage: 2, round: 3 })] },
   "12-finish-confirmation": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "stage.accepted", { stage: 2 })] },
@@ -194,7 +197,12 @@ const fixtureOf0 = ([, set, o]) => {
   if (set === "awaiting_finish_confirmation") return { ...fixture(set), view: { ...fixture(set).view, confirm: { tree: "t".repeat(40), commit: "c0ffee1234567890".repeat(2).slice(0, 40), push: true, qa: true } } };
   if (set === "check_needs_permissions") return { ...fixture(set), view: { ...fixture(set).view, refused: { checkId: "c1", command: "npm test -- --runInBand && curl http://localhost:3000/health" } } };
   if (set === "limit_reached") { const f = fixture(set); return { ...f, view: { ...f.view, stage: 2, progress: { mode: "autopilot", checks: [], finish: [], budget: budget({ reached: "turns" }) } } }; }
+  if (set === "loop_suspected") return { view: view("paused", set, { stage: 2 }), entries: [], onMac: true };
+  if (set === "finish_unconfirmed") return { view: view("paused", "finish_unconfirmed", { stage: 2, progress: { mode: "autopilot", checks: [], finish: [
+    { step: "commit", asked: true, status: "done", established: true, commit: "a1b2c3d4e5f60718", evidence: null },
+    { step: "push", asked: true, status: "unconfirmed", established: false, commit: "a1b2c3d4e5f60718", evidence: null }] } }), entries: [], onMac: true };
   if (set) return fixture(set === "finish_unconfirmed" ? "awaiting_finish_confirmation" : set);
+  if (o.newerV) return { view: view("paused", "user_request", { stage: 2, newer: o.newerV }), entries: [], onMac: true };
   if (o.running) return { view: view("running", null, o.running), entries: [], onMac: true };
   if (o.completed) return { view: view("completed", null, { stage: 2, turns: 22, workMode: "worktree", workDir: "~/dev/project-b", completion: { kind: "confirmed" }, progress: { ...PROGRESS_17, budget: budget({ used: { turns: 22, replans: 0 } }) } }),
     entries: [{ id: 1, ts: at(1), runId: "r", role: "lead", provider: "codex", turnId: null, kind: "session", text: "", detail: { reported: true, sandbox: "read-only", model: "gpt-5" } },

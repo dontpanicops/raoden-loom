@@ -2589,7 +2589,21 @@ const ru = {
   orchLeadModifiedWhy: "Лид только планирует и проверяет, файлы меняет исполнитель.",
   orchUnitMinShort: "м",
   orchFailedExit: "{agent} CLI завершился с кодом {code} на этапе {n}",
-  orchFailedExitNoStage: "{agent} CLI завершился с кодом {code}"
+  orchFailedExitNoStage: "{agent} CLI завершился с кодом {code}",
+  // R6-A: the run panel brought to the mock-ups 07 and 13
+  orchFeed_thought: "мысль · текст не показывается",
+  orchFeed_toolOk: "ok",
+  orchFeed_toolFailed: "ошибка",
+  orchPause_mcp_present_why: "Выключите MCP-серверы в своём конфиге {cli} и нажмите «Готово, продолжить».",
+  orchPause_mcp_present_mono: "{cli} · включены MCP: {names}",
+  orchZone_newerWhy: "Команды недоступны: продолжить, остановить или изменить запуск можно только в той версии.",
+  orchZone_newerDo: "Чтобы связать эти карточки с новым запуском здесь, отпустите связь.",
+  orchZone_finishWhy: "«Проверить результат» только проверит, повторно ничего не выполнит.",
+  orchZone_finishRowDone: "подтверждён",
+  orchZone_finishRowUnconfirmed: "не подтверждён",
+  orchNewer_goal: "Цель",
+  orchNewer_records: "Записи",
+  orchConditionsFold: "Критерии · {met} из {total}"
 } as const;
 
 const en: Record<keyof typeof ru, string> = {
@@ -5174,7 +5188,20 @@ const en: Record<keyof typeof ru, string> = {
   orchLeadModifiedWhy: "The lead only plans and reviews; the executor changes the files.",
   orchUnitMinShort: "m",
   orchFailedExit: "{agent} CLI exited with code {code} on stage {n}",
-  orchFailedExitNoStage: "{agent} CLI exited with code {code}"
+  orchFailedExitNoStage: "{agent} CLI exited with code {code}",
+  orchFeed_thought: "thought · text is not shown",
+  orchFeed_toolOk: "ok",
+  orchFeed_toolFailed: "failed",
+  orchPause_mcp_present_why: "Turn the MCP servers off in your own {cli} config and press “Done, resume”.",
+  orchPause_mcp_present_mono: "{cli} · MCP servers on: {names}",
+  orchZone_newerWhy: "Commands are unavailable: the run can be continued, stopped or changed only in that version.",
+  orchZone_newerDo: "To link these cards to the new run here, release the link.",
+  orchZone_finishWhy: "“Check the result” only checks; nothing is repeated.",
+  orchZone_finishRowDone: "confirmed",
+  orchZone_finishRowUnconfirmed: "not confirmed",
+  orchNewer_goal: "Goal",
+  orchNewer_records: "Records",
+  orchConditionsFold: "Criteria · {met} of {total}"
 };
 
 export type TranslationKey = keyof typeof ru;

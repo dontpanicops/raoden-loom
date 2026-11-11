@@ -45,7 +45,7 @@ fs.writeFileSync(providers, JSON.stringify({
 }));
 
 const combos = BEFORE ? [{ name: "before", patch: { palette: "sand", canvasColor: "theme" } }]
-  : ["sand", "bay"].map((t) => ({ name: t, patch: { palette: t, canvasColor: "theme" } }));
+  : ["paper", "sand"].map((t) => ({ name: t, patch: { palette: t, canvasColor: "theme" } }));
 const laptop = (app) => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 let app;
 try {
@@ -91,6 +91,7 @@ try {
       await openTab(app, "log"); await shot(c.name, "5-work-journal");
       await openTab(app, "history"); await shot(c.name, "6-work-records");
       await openTab(app, "changes"); await sleep(1500); await shot(c.name, "7-changes");
+      await openTab(app, "summary"); await app.clickEl(q("[data-orch-expand]")); await sleep(800); await shot(c.name, "8-expanded"); await app.clickEl(q("[data-orch-expand]"));
     }
     await app.clickEl(q(".orch-panel__close"));
   }
