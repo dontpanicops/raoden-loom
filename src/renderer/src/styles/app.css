@@ -1226,6 +1226,10 @@ button { border: 0; }
 .orch-limit .orch-field.orch-field--inline { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
 .orch-zone__clarify { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .orch-zone__clarify textarea { width: 100%; box-sizing: border-box; }
+/* mock-up 13: the field and "Send" in one row, the label above both */
+.orch-zone__clarify--inline { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 6px 8px; }
+.orch-zone__clarify--inline .orch-zone__clarify-label { display: contents; }
+.orch-zone__clarify--inline .orch-zone__clarify-label > span { grid-column: 1 / -1; }
 .orch-confirm { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 10px; background: var(--status-failed-bg); }
 .orch-confirm__row { display: flex; flex-wrap: wrap; gap: 8px; }
 /* the footer under the tabs, outside the scroll: pause after the turn, Stop (outlined), copy buttons */

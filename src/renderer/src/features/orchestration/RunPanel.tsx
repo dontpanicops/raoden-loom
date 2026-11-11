@@ -605,7 +605,8 @@ function PermissionBlock({ locale, request, more, sending, onDecide }: {
   const title = question ? "orchPermQuestion" : request.kind === "plan" ? "orchPermPlan" : request.kind === "elicitation" ? "orchPermForm" : "orchPermTitle";
   // R5b: the zone's headline already says "Claude asks for permission": a plain request shows only whose it is
   const head = <h4>{title === "orchPermTitle" ? roleName(locale, request.role) : `${t(locale, title)} · ${roleName(locale, request.role)}`}</h4>;
-  const foot = <p className="orch-hint">{t(locale, "orchPermHint")}{more > 0 ? ` ${t(locale, "orchPermMore")} ${more}.` : ""}</p>;
+  // R5b (D-017): no hint under the buttons (mock-up 03); only the count of the others waiting
+  const foot = more > 0 ? <p className="orch-hint">{t(locale, "orchPermMore")} {more}.</p> : null;
 
   if (request.kind === "plan") {
     return (
@@ -669,7 +670,6 @@ function PermissionBlock({ locale, request, more, sending, onDecide }: {
           </button>
         ))}
       </div>
-      {request.options.includes("allow_run") && <p className="orch-hint">{t(locale, "orchPermScopeHint")}</p>}
       {request.options.includes("allow_readonly_run") && <p className="orch-hint" data-orch-readonly-hint>{t(locale, "orchPermReadOnlyHint")}</p>}
       {request.alwaysAsk && <p className="orch-hint" data-orch-always-ask>{t(locale, "orchPermAlwaysAsk")}</p>}
       {foot}
@@ -2037,7 +2037,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
             {curTab === "work" && panel.mode === "feed" && runId && (
               <ActivityList key={`a:${panel.role}`} locale={locale} entries={activity.entries} gaps={activity.gaps} filter={roleFilter}
                 emptyText={activity.status === "loading" ? t(locale, "orchLoading") : t(locale, "orchFeedEmpty")}
-                silence={selected ? silenceFor(selected) : null} />
+                silence={selected ? silenceFor(selected) : [lead, executor, reviewer].map((x) => (x ? silenceFor(x) : null)).find(Boolean) ?? null} />
             )}
             {curTab === "work" && panel.mode === "journal" && runId && (
               <ActivityList key={`l:${panel.role}`} locale={locale} entries={activity.entries} gaps={activity.gaps} filter={logFilter}

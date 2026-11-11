@@ -174,7 +174,7 @@ try {
   await openTab(app, "activity");
   await app.waitFor(`document.querySelectorAll("[data-activity-kind]").length > 3`, "feed", 10_000);
   await app.shot("07-activity");
-  await app.clickEl(`document.querySelectorAll(".orch-roles button")[1]`);
+  await app.clickEl(`document.querySelector('.orch-roles [data-orch-role="executor"]')`);
   await sleep(300);
   await app.shot("08-activity-executor");
   await openTab(app, "changes");

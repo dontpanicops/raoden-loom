@@ -113,23 +113,28 @@ export function ActionZone(p: ActionZoneProps): React.JSX.Element {
   const dangerRows = zone.dangerous.map((b) => row(b, "dangerous")).filter(Boolean);
   const hint = zone.dangerous.map((b) => DANGER_HINT[b.action]).find(Boolean);
   const label = zone.tone === "neutral" ? zone.eyebrow || null : zone.tone === "waiting" ? tr(locale, "orchPauseYou") : tr(locale, "orchPauseNotYou");
+  // the words of mock-up 13 ("goes to the agents with the next turn"); the plan under review and the loop keep their own (mock-ups 04, 09)
+  const asked = zone.variant === "plan_review" || zone.variant === "loop_suspected";
   const clarifyShown = zone.clarify !== "hidden" && clarifyOpen && !clarifyOff;
+  // the clarify field open: it stands above the row, the main button is the last of the row (the mock-up's loop-suspected)
+  const sendClarify = clarifyShown && (
+    <button type="button" key="clarify-send" disabled={p.sending || clarifyOff || !p.clarify.value.trim()} data-orch-clarify-send onClick={p.clarify.onSend}>{tr(locale, asked ? "orchZone_clarifySend" : "orchZone_clarifySendShort")}</button>
+  );
+  // no other button in the row (a run at work, mock-up 13): "Send" stands beside the field
+  const inlineSend = clarifyShown && rows.length === 0;
   const clarifyBox = zone.clarify === "hidden" ? null : (
-    <div className="orch-zone__clarify" data-orch-clarify={zone.clarify}>
+    <div className={`orch-zone__clarify${inlineSend ? " orch-zone__clarify--inline" : ""}`} data-orch-clarify={zone.clarify}>
       {!clarifyShown
         ? <button type="button" className="orch-textual" disabled={clarifyOff} title={p.clarifyOff ?? undefined} aria-describedby={clarifyOff ? reasonId : undefined} aria-expanded={false} data-orch-clarify-open onClick={() => setClarifyOpen(true)}>{tr(locale, zone.variant === "plan_review" ? "orchZone_clarifyTask" : "orchClarify")}</button>
-        : <label className="orch-zone__clarify-label">{tr(locale, "orchZone_clarifyLabel")}
+        : <label className="orch-zone__clarify-label"><span>{tr(locale, asked ? "orchZone_clarifyLabel" : "orchZone_clarifyLabelNext")}</span>
           <textarea rows={3} value={p.clarify.value} placeholder={tr(locale, "orchClarifyPlaceholder")} onChange={(e) => p.clarify.onChange(e.target.value)} />
         </label>}
+      {inlineSend && sendClarify}
       {zone.clarify === "disabled" && <small className="orch-hint" id={reasonId} data-orch-proposal-waits>{tr(locale, "orchProposalWaitsHint")}</small>}
       {zone.clarify !== "disabled" && p.clarifyOff && <small className="orch-hint" id={reasonId} data-orch-platform-hint>{p.clarifyOff}</small>}
     </div>
   );
-  // the clarify field open: it stands above the row, the main button is the last of the row (the mock-up's loop-suspected)
-  const sendClarify = clarifyShown && (
-    <button type="button" key="clarify-send" disabled={p.sending || clarifyOff || !p.clarify.value.trim()} data-orch-clarify-send onClick={p.clarify.onSend}>{tr(locale, "orchZone_clarifySend")}</button>
-  );
-  const rowButtons = clarifyShown && zone.primary && !FORM_ACTIONS.has(zone.primary.action) ? [sendClarify, ...rows.slice(1), rows[0]] : clarifyShown ? [sendClarify, ...rows] : rows;
+  const rowButtons = inlineSend ? [] : clarifyShown && zone.primary && !FORM_ACTIONS.has(zone.primary.action) ? [sendClarify, ...rows.slice(1), rows[0]] : clarifyShown ? [sendClarify, ...rows] : rows;
   return (
     <section ref={p.zoneRef} tabIndex={-1} role="status" aria-live="polite" data-orch-summary data-headline={p.headline} data-orch-zone={zone.variant} data-orch-tone={zone.tone}
       className={`orch-zone orch-zone--${zone.tone} orch-zone--${p.headline} orch-panel__status orch-panel__status--${p.status}${p.flash ? " orch-zone--flash" : ""}${p.compact ? " orch-zone--compact" : ""}`}>

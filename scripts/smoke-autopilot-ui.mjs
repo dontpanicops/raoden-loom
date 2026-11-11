@@ -277,10 +277,10 @@ try {
   expect((await app.ev(`${q("[data-orch-env-session]")}.textContent`)).includes("mock-mcp (connected)"), "the run shows what the CLIs reported they loaded", null);
   await app.shot("10-session-environment");
   await openTab(app, "activity");
-  await app.clickEl(`document.querySelectorAll(".orch-roles button")[1]`);
+  await app.clickEl(`document.querySelector('.orch-roles [data-orch-role="executor"]')`);
   await app.waitFor(`document.querySelectorAll('[data-activity-kind="subagent"]').length > 0`, "sub-agent in the feed", 10_000);
   await app.shot("11-activity-executor");
-  await app.clickEl(`document.querySelectorAll(".orch-roles button")[2]`);
+  await app.clickEl(`document.querySelector('.orch-roles [data-orch-role="check"]')`);
   await app.waitFor(`document.querySelectorAll('[data-activity-kind="prepare_finished"]').length > 0 && document.querySelectorAll('[data-activity-kind="external_action"]').length > 0`, "prepare and finish in the feed", 10_000);
   await app.shot("12-activity-canvastty");
 

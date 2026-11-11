@@ -84,7 +84,8 @@ const PLAN_RECORDS = [{ seq: 1, ts: "2026-11-11T10:00:00.000Z", type: "plan.reco
 const PLAN_TEXTS = { pp: { status: "ready", text: JSON.stringify({ stages: [{ title: "Модель заметки и хранилище", task: "t" }, { title: "API и список заметок в UI", task: "t" }] }) } };
 async function renderer() { // the built RunPanel to static markup (as tests/orchestration-action-zone-render.test.mjs does)
   const out = await requireApp("esbuild").build({
-    entryPoints: [path.join(ROOT, "src/renderer/src/features/orchestration/RunPanel.tsx")], bundle: true, write: false, platform: "node", format: "cjs", jsx: "automatic", logLevel: "silent",
+    // R5b (D-017): the entry also exports ActionZone and the zone model, for the frame of the open "Уточнить" field
+    stdin: { contents: 'export * from "./RunPanel"; export { ActionZone } from "./ActionZone"; export { actionZone } from "./runModel";', resolveDir: path.join(ROOT, "src/renderer/src/features/orchestration"), loader: "ts" }, bundle: true, write: false, platform: "node", format: "cjs", jsx: "automatic", logLevel: "silent",
     loader: { ".png": "dataurl", ".ico": "dataurl", ".webp": "dataurl", ".jpg": "dataurl" },
     plugins: [{ name: "svg-base64", setup(b) { // esbuild's dataurl leaves raw quotes inside url("..."): the icons drew as squares
       b.onLoad({ filter: /\.svg$/ }, (a) => ({ contents: `export default "data:image/svg+xml;base64,${fs.readFileSync(a.path).toString("base64")}"`, loader: "js" })); } },
@@ -97,7 +98,14 @@ async function renderer() { // the built RunPanel to static markup (as tests/orc
   mod._compile(out.outputFiles[0].text, file);
   const React = requireApp("react");
   const { renderToStaticMarkup } = requireApp("react-dom/server");
-  return (f) => {
+  const clarifyOpen = (f) => { // the real ActionZone of a working run with the clarify field opened (its initial state when the zone says "open")
+    const zone = { ...mod.exports.actionZone("ru", f.view, f.entries, true), title: "Claude делает этап 2 из 2", clarify: "open" };
+    const noop = () => {};
+    return renderToStaticMarkup(React.createElement(mod.exports.ActionZone, { locale: "ru", zone, runKey: "25931336", headline: "working", status: f.view.status, task: null, compact: true, flash: false, zoneRef: null,
+      sending: false, disabled: () => false, onButton: noop, confirmText: () => null, clarify: { value: "Список заметок без пагинации, до 200 записей.", onChange: noop, onSend: noop }, who: "Claude",
+      words: (x) => x }));
+  };
+  const render = (f) => {
     const v = { ...f.view };
     if (v.progress) v.progress = { mode: "autopilot", checks: [], finish: [], ...v.progress };
     return renderToStaticMarkup(React.createElement(mod.exports.RunPanel, {
@@ -105,19 +113,22 @@ async function renderer() { // the built RunPanel to static markup (as tests/orc
         runErrors: {}, canvas: { links: [{ linkId: "L", fromAgentId: "a1", toAgentId: "a2", createdAt: "2026-11-11T10:00:00.000Z", runIds: ["25931336"] }],
           agents: [{ agentId: "a1", provider: "codex", role: "lead", project: "/work/project-b" }, { agentId: "a2", provider: "claude", role: "executor", project: "/work/project-b" }] }, journals: { "25931336": { records: PLAN_RECORDS, next: 1, status: "ready" } }, texts: PLAN_TEXTS,
         commands: { pending: () => [] }, catalog: { checks: [] }, loadText() {}, syncJournal() {}, retry() {}, stageTitles: () => ({}) },
-      runId: "25931336", locale: "ru", liveRunIds: f.live ? ["25931336", "7c41e09a", "b2e0f115"] : undefined, panel: { linkId: "L", mode: "feed", ...(f.work ? { tab: "work", role: "all" } : legacyView("overview")), role: f.work ? "all" : "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {},
+      runId: "25931336", locale: "ru", liveRunIds: f.live ? ["25931336", "7c41e09a", "b2e0f115"] : undefined, panel: { linkId: "L", mode: "feed", ...(f.tab ? { tab: f.tab, role: "all" } : f.work ? { tab: "work", role: "all" } : legacyView("overview")), role: f.work || f.tab ? "all" : "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {},
       onProjectSettings: () => {}
     }));
   };
+  render.clarifyOpen = clarifyOpen;
+  return render;
 }
 const cssFile = () => { const dir = path.join(ROOT, "out/renderer/assets"); return path.join(dir, fs.readdirSync(dir).find((f) => /^index-.*\.css$/.test(f))); };
 // the mock-up opens a run that works (and most pauses) on "Work" and the checks / finish / refused ones on "Summary"
 const SUMMARY_STATES = ["05-checks-decision", "06-checks-none", "12-finish-confirmation", "13-finish-unconfirmed", "14-check-needs-permissions", "17-completed", "11-coverage-lost"];
 const TURN = (id, kind, text) => ({ id, ts: "2026-11-11T07:31:0" + id + ".000Z", turnId: "t1", role: "executor", provider: "claude", kind, text });
 const WORKING_ENTRIES = [TURN(1, "thinking", ""), TURN(2, "tool_started", "Edit src/api/notes.ts"), TURN(3, "tool_started", "Bash npm test")];
-const fixtureOf = (state) => { const f = fixtureOf0(state); return SUMMARY_STATES.includes(state[0]) ? f : { ...f, work: true, live: state[0] === "01-working", entries: state[0] === "01-working" ? WORKING_ENTRIES : f.entries }; };
+const CHANGES_STATES = ["08-outcome-unknown", "15-lead-modified-tree"]; // D-017: the pauses about the tree open on "Changes"
+const fixtureOf = (state) => { const f = fixtureOf0(state); return CHANGES_STATES.includes(state[0]) ? { ...f, tab: "changes" } : SUMMARY_STATES.includes(state[0]) ? f : { ...f, work: true, live: state[0] === "01-working", entries: state[0] === "01-working" ? WORKING_ENTRIES : f.entries }; };
 const fixtureOf0 = ([, set, o]) => {
-  if (set === "awaiting_answer") return { view: view("paused", "awaiting_answer", { stage: 1, permission: { ...permission, kind: "question", tool: "AskUserQuestion", summary: "Где хранить заметки?", detail: null, options: [],
+  if (set === "awaiting_answer") return { view: view("paused", "awaiting_answer", { stage: 1, permission: { ...permission, kind: "question", tool: "AskUserQuestion", summary: "Где хранить заметки?", detail: null, options: ["allow_once", "deny"],
     questions: [{ id: "q1", question: "Где хранить заметки: в SQLite (~/.loom/notes.db) или JSON-файлами в папке проекта?", options: [], multiple: false, other: true }] } }), entries: [], onMac: true };
   if (set === "awaiting_person_decision") return { view: view("paused", set, { stage: 1, decisions: { runKey: "k".repeat(64), tree: "t".repeat(40), findings: true,
     disputed: [{ reviewTurnId: "t1", index: 0, problem: "Заметка не проверяет пустое имя", evidence: "src/note.mjs:4", paths: ["src/note.mjs"], candidates: [{ id: "F1", problem: "Пустое имя принимается", paths: ["src/note.mjs"] }] }],
@@ -196,6 +207,11 @@ try {
         try { html = render(fixtureOf(s)); } catch (e) { console.error(`[shots-r3b] ${s[0]} not drawn: ${e.message}`); continue; }
         await draw(s[0], html, theme === "sand" && BEFORE ? "sand" : theme, 1);
       }
+    }
+    if (!BEFORE && !FORMS) { // mock-up 13, "Поле Уточнить в зоне действия": the working run with the field open
+      const f = fixtureOf(STATES[0]);
+      const html = render(f).replace(/<section[^>]*data-orch-summary[\s\S]*?<\/section>/, render.clarifyOpen(f));
+      await draw("13-clarify", html, "sand", 1);
     }
     if (!BEFORE) for (const name of FORMS ? FORM_STATES : ["07-limit-reached", "10-person-decision", "11-coverage-lost", "05-checks-decision"]) {
       const s = STATES.find((x) => x[0] === name);

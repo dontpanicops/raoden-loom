@@ -25,6 +25,15 @@ import { STEP_ONLY, STOP_ONLY, RESUMABLE, admits, type AdmissionKind } from "../
 export { admits, RESUMABLE, STEP_ONLY, STOP_ONLY, type AdmissionKind };
 export const ACTIVE_STATUSES = ["preparing", "running", "pausing", "paused", "stopping"];
 export const TERMINAL_STATUSES = ["stopped", "completed", "failed"];
+// R5b (D-017): the tab a run opens on, as the mock-ups have it: a finished run and the decisions of the checks and the
+// finish on the summary, the pauses about the tree on the changes, the work on "Work"
+const SUMMARY_PAUSES = ["awaiting_checks_decision", "awaiting_finish_confirmation", "check_needs_permissions"];
+const CHANGES_PAUSES = ["outcome_unknown", "lead_modified_tree"];
+export function openingTab(view: { status: string; reason?: string | null } | undefined): "summary" | "work" | "changes" {
+  if (!view || TERMINAL_STATUSES.includes(view.status)) return "summary";
+  if (view.status !== "paused") return "work";
+  return SUMMARY_PAUSES.includes(view.reason ?? "") ? "summary" : CHANGES_PAUSES.includes(view.reason ?? "") ? "changes" : "work";
+}
 
 // C1 (stage-c-parallel.md §6.2): a link may run several tasks at once. Its live runs (at most the last four), the one
 // shown — the picked one while it is the link's, else the latest that goes on, else the latest. Chip and panel use the same.
@@ -692,8 +701,6 @@ export function zoneSet(view: OrchestrationRunView, entries: readonly Orchestrat
   return pauseSet(reason, onMac, view.proposal?.checks.length === 0);
 }
 
-const CLARIFY_IN_ZONE: ReadonlySet<string> = new Set(["plan_review", "loop_suspected"]);
-
 export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[], onMac = orchestrationAvailableHere()): ZoneModel {
   const L = (key: string) => t(locale, key as TranslationKey);
   const b = (action: ZoneAction, label: string, commands: AdmissionKind[] = [], danger = false, after?: AdmissionKind): ZoneButton =>
@@ -706,9 +713,8 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
   // Clarify is main's own gate: a state that denies it hides it, except the one denial that passes (a waiting proposal)
   const clarifyOpen = !view.halted && !view.newer && admits("clarify", { ...ctx, proposalWaits: false }) === null;
   const done = (z: Omit<ZoneModel, "commands" | "clarify"> & { clarify?: ZoneModel["clarify"] }): ZoneModel => {
-    // R5b (D-015): the field stands in the zone only where the mock-up has it: a plan under review and a suspected loop;
-    // elsewhere the command is not offered by the zone
-    const clarify = z.clarify ?? (clarifyOpen && CLARIFY_IN_ZONE.has(z.variant) ? (view.proposalWaits ? "disabled" : "collapsed") : "hidden");
+    // R5b (D-017, mock-up 13): the field stands in the zone wherever main takes clarify; the pauses with a decision of their own hide it
+    const clarify = z.clarify ?? (clarifyOpen ? (view.proposalWaits ? "disabled" : "collapsed") : "hidden");
     const all = [z.primary, ...z.secondary, ...z.dangerous, ...z.footer].flatMap((x) => x?.commands ?? []);
     return { ...z, clarify, commands: [...new Set<AdmissionKind>([...all, ...(clarify === "collapsed" || clarify === "open" ? (["clarify"] as AdmissionKind[]) : [])])] };
   };
@@ -723,7 +729,7 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
     return state("halted", "halted", { tone: "waiting", why: L("orchNext_halted"), primary: b("open_journal", L("orchZone_openJournal")) });
   }
   if (view.permission && ["preparing", "running", "pausing"].includes(status)) {
-    return state("permission", "awaiting_permission", { tone: "waiting", title: L("orchZone_permissionTitle").replace("{agent}", providerName(view.permission.provider)),
+    return state("permission", "awaiting_permission", { ...(view.permission.kind === "plan" ? { clarify: "hidden" as const } : {}), tone: "waiting", title: L("orchZone_permissionTitle").replace("{agent}", providerName(view.permission.provider)),
       why: L("orchZone_permissionWhy"), footer: [stop()] });
   }
   const text = pauseText(locale, view, entries, onMac);
@@ -749,7 +755,7 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
   // paused
   const set = zoneSet(view, entries, onMac);
   const title = text?.what ?? L(`orchHeadline_${runHeadline(view).headline}`);
-  const base = { variant: set, tone: (text?.you === false ? "calm" : "waiting") as ZoneTone, eyebrow: "", title, why: text?.why ?? "", todo: set === "plan_review" ? "" : text?.todo ?? "" }; // plan_review: the "why" alone (the mock-up 04)
+  const base = { variant: set, tone: (text?.you === false ? "calm" : "waiting") as ZoneTone, eyebrow: "", title, why: text?.why ?? "", todo: ["plan_review", "awaiting_checks_decision", "awaiting_checks_none", "loop_suspected"].includes(set) ? "" : text?.todo ?? "" }; // the "why" alone (mock-ups 04, 05, 06, 09)
   const resume = (label = text?.button ?? L("orchResume")) => b("resume", label, ["resume"]);
   const step = () => b("step", L("orchStep"), ["step"]);
   const secondary: ZoneButton[] = [];
@@ -779,6 +785,7 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
         if (view.workMode === "copy") dangerous.push(b("recover_reset", L("orchRecoverReset"), ["recover", "recover.reset"], true));
         break;
       case "awaiting_checks_decision":
+        clarify = "hidden";
         if (set === "awaiting_checks_none") {
           primary = b("checks_edit", L("orchChecksSave"), ["checks.decide"]);
           dangerous.push(b("checks_accept", L("orchChecksNoChecks"), ["checks.decide"], true));
@@ -787,10 +794,11 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
           secondary.push(b("checks_edit", L("orchChecksEdit"), ["checks.decide"]));
         }
         break;
-      case "awaiting_finish_confirmation": primary = b("finish_confirm", L("orchZone_sendDecisions"), ["finish.confirm"]); break;
-      case "check_needs_permissions": primary = b("check_amend", L("orchZone_saveOwn"), ["check.amend"]); break;
-      case "awaiting_person_decision": primary = b("person_decide", L("orchZone_sendDecisions"), ["person.decide"]); break;
+      case "awaiting_finish_confirmation": clarify = "hidden"; primary = b("finish_confirm", L("orchZone_sendDecisions"), ["finish.confirm"]); break;
+      case "check_needs_permissions": clarify = "hidden"; primary = b("check_amend", L("orchZone_saveOwn"), ["check.amend"]); break;
+      case "awaiting_person_decision": clarify = "hidden"; primary = b("person_decide", L("orchZone_sendDecisions"), ["person.decide"]); break;
       case "coverage_lost":
+        clarify = "hidden";
         primary = b("plan_return", L("orchProposalReturn"), ["plan.decide"]);
         dangerous.push(b("plan_accept", L("orchProposalAcceptDrop"), ["plan.decide"], true));
         break;
