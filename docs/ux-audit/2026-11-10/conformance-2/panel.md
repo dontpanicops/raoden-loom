@@ -108,3 +108,45 @@
 Сильные С1–С3 и средние М1–М6 доделаны; М4 закрыта частично (нет второй кнопки «Повторить», вопрос владельцу), М1 — без «+N −M» (D-030).
 Прежние мелкие (чипы запусков, ряды режимов, значки этапов, строки статусов, предзаполнение 12, заливки paper) не трогались.
 Вердикты по строкам: сильных 0, средних 0 (в М4 и М1 остаток — решение владельца), мелких как раньше.
+
+
+## Итог после сведения R6 (2026-11-11)
+
+Ветка feat/r6-conformance, сборка на сведённом коде (12a902b): `scripts/shots-r3b.mjs --themes sand,paper` и `scripts/shots-r3a.mjs`, все 32 app-кадра пересобраны (JPEG 1440, q70; фикстурные кадры побайтно те же, что после R6-A, изменились живые: лента, план-review, loop-suspected, MCP, итог, записи, развернуть). Соответствие кадров: 07-NN — `<тема>-fx-NN-*`; 07-01-feed-live — r3a `4-work-feed`; 07-04-plan-review-live — `live-plan-review`; 13-summary — `1-summary`, 13-summary-wide — `2-summary-plan`, 13-records — `6-work-records`, 13-expanded — `8-expanded`, 13-clarify/newer — `fx-13-clarify`, `fx-19`, `fx-20`. Сверено Read-ом по склейкам «макет | приложение». Остатков среднего и сильного нет.
+
+| пара | вердикт | что осталось | где записано |
+|---|---|---|---|
+| 07-01-feed-live-sand | мелкое | без «+N −M» и текста рассуждений | D-030 |
+| 07-01-working-sand | мелкое | ряды режимов и роли, чипы запусков | — |
+| 07-02-awaiting-answer-sand | совпадает | — | — |
+| 07-03-permission-paper | мелкое | — | — |
+| 07-03-permission-sand | совпадает | — | — |
+| 07-04-plan-review-live-sand | совпадает | — | — |
+| 07-04-plan-review-sand | мелкое | — | — |
+| 07-05-checks-decision-sand | мелкое | — | — |
+| 07-06-checks-none-sand | мелкое | — | — |
+| 07-07-limit-reached-sand | мелкое | — | — |
+| 07-08-outcome-unknown-paper | совпадает | — | — |
+| 07-08-outcome-unknown-sand | совпадает | — | — |
+| 07-09-loop-suspected-sand | мелкое | — | — |
+| 07-10-person-decision-sand | мелкое | — | — |
+| 07-11-coverage-lost-sand | совпадает | — | — |
+| 07-12-finish-confirmation-sand | мелкое | — | — |
+| 07-13-finish-unconfirmed-sand | мелкое | нет второй кнопки «Повторить» (вопрос владельцу) | не записано |
+| 07-14-check-needs-permissions-sand | совпадает | — | — |
+| 07-15-lead-modified-tree-sand | мелкое | — | — |
+| 07-16-needs-user-action-mcp-sand | совпадает | — | — |
+| 07-17-completed-paper | совпадает | — | — |
+| 07-17-completed-sand | совпадает | — | — |
+| 07-18-failed-sand | мелкое | — | — |
+| 13-clarify-sand | совпадает | — | — |
+| 13-expanded-sand | совпадает | — | — |
+| 13-newer-fallback-sand | совпадает | — | — |
+| 13-newer-readonly-sand | совпадает | — | — |
+| 13-records-paper | совпадает | — | — |
+| 13-records-sand | совпадает | — | — |
+| 13-summary-paper | мелкое | то же | — |
+| 13-summary-sand | мелкое | ярко-синяя рамка зоны «Завершён» | — |
+| 13-summary-wide-sand | мелкое | строка «Расход» под рядом вкладок | — |
+
+Итого пар 32: совпадает 16, мелкое 16, среднее 0, сильное 0.
