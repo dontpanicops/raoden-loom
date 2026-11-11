@@ -10,7 +10,8 @@ import type {
   OrchestrationProjectProfile
 } from "../../../../shared/orchestration";
 import { t, type TranslationKey } from "../../lib/i18n";
-import { outcomeOf, probeText } from "./runModel";
+import { goalLines, outcomeOf, probeText } from "./runModel";
+import { GoalRows } from "./OrchestrationDialogs";
 import { Termed } from "./RunPanel";
 import { NO_MODELS, RoleModelsField } from "./RoleModels";
 import { outcomeText } from "./useOrchestration";
@@ -163,25 +164,20 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
     const options = (caps ?? info.capabilities)[provider];
     const current = p.access[provider];
     const all = options.some((o) => o.mode === current) ? options : [...options, { mode: current, mapping: "" }];
-    const mapping = current === "terminal" ? null : all.find((o) => o.mode === current)?.mapping ?? "";
     return (
       <div className="orch-access" data-orch-access={provider}>
         <div className="orch-access__row">
           <span className="orch-access__name">{provider === "claude" ? "Claude" : "Codex"}</span>
           {/* biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box */}
-          <div className="orch-seg2 orch-seg2--wrap" role="group" aria-label={provider === "claude" ? "Claude" : "Codex"} data-orch-access-value={current}>
+          <div className="orch-seg2 orch-access__seg" role="group" aria-label={provider === "claude" ? "Claude" : "Codex"} data-orch-access-value={current}>
             {all.map((o) => (
+              // R6-C (M6): one row of short labels; the full name and what the CLI is given are the tooltip, not a «Подробнее» paragraph
               <button key={o.mode} type="button" aria-pressed={current === o.mode} className={current === o.mode ? "orch-seg2__on" : undefined} data-orch-access-mode={o.mode}
-                onClick={() => set({ access: { ...p.access, [provider]: o.mode } })}>{tr(locale, `orchAccess_${o.mode}`)}</button>
+                title={`${tr(locale, `orchAccess_${o.mode}`)}${o.mode === "terminal" ? "" : ` — ${t(locale, "orchAccessMaps")} ${o.mapping || t(locale, "orchAccessMapsNone")}`}`}
+                onClick={() => set({ access: { ...p.access, [provider]: o.mode } })}>{tr(locale, `orchAccessShort_${o.mode}`)}</button>
             ))}
           </div>
         </div>
-        {/* the CLI's own flags are a detail: folded under «Подробнее» */}
-        <details className="orch-hint" data-orch-access-details>
-          <summary>{t(locale, "orchMore")}</summary>
-          {t(locale, "orchAccessMaps")} {mapping === null ? t(locale, "orchAccessMapsNone") : <code>{mapping}</code>}
-        </details>
-        {current === "workspace" && <small className="orch-hint">{t(locale, "orchAccessWorkspaceHint")}</small>}
         {current === "terminal" && <small className="orch-hint orch-hint--warn" data-orch-terminal-warning>{t(locale, "orchAccessTerminalWarn")}</small>}
         {current === "full" && <small className="dialog-error" data-orch-full-warning>{t(locale, "orchAccessFullWarn")}</small>}
       </div>
@@ -208,11 +204,9 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
               <RoleModelsField bare locale={locale} linkId={linkId} value={p.models ?? NO_MODELS} hint={t(locale, "orchModelsSettingsHint")} onChange={(models) => set({ models })} />
             </Card>
           )}
-          <Card title={t(locale, "projCardPrepare")}>
-            <label className="orch-field">
-              <span>{t(locale, "orchSettingsPrepareSteps")}</span>
-              <textarea rows={3} spellCheck={false} value={steps} data-orch-settings-steps onChange={(e) => setSteps(e.target.value)} />
-            </label>
+          <Card title={t(locale, "projCardPrepare")} hint={t(locale, "projPrepareHint")}>
+            <GoalRows text={steps} onText={setSteps} locale={locale} attr="data-orch-settings-steps" mono label={t(locale, "projCardPrepare")}
+              placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
             <label className="orch-check">
               <input type="checkbox" checked={p.prepare.auto} data-orch-settings-prepare onChange={(e) => set({ prepare: { ...p.prepare, auto: e.target.checked } })} />
               <span>{t(locale, "orchSettingsPrepareAuto")}</span>
@@ -221,16 +215,14 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
               <input type="checkbox" checked={p.env.direnv} onChange={(e) => set({ env: { direnv: e.target.checked } })} />
               <span>{t(locale, "orchSettingsDirenv")}</span>
             </label>
-            {/* the commands themselves under «More» (UX audit PR 2: technical details folded) */}
-            {info.facts.needed.length ? <details className="orch-hint" data-orch-needed><summary>{t(locale, "orchSettingsNeeded")} {info.facts.needed.length} · {t(locale, "orchMore")}</summary>{info.facts.needed.join(" · ")}</details>
-              : <p className="orch-hint" data-orch-needed>{t(locale, "orchSettingsNothingNeeded")}</p>}
+            {/* R6-C (M6): what preparation would run — one line, the whole list in the tooltip */}
+            <p className="orch-hint orch-hint--line" data-orch-needed title={info.facts.needed.join(" · ")}>{info.facts.needed.length ? `${t(locale, "projPrepareWill")} ${info.facts.needed.join(" · ")}` : t(locale, "orchSettingsNothingNeeded")}</p>
           </Card>
-          <Card title={t(locale, "projCardChecks")}>
-            <label className="orch-field">
-              <span>{t(locale, "orchSettingsChecks")}</span>
-              <textarea rows={2} spellCheck={false} value={checks} data-orch-settings-checks onChange={(e) => setChecks(e.target.value)} />
-            </label>
-            {check?.({ checks: checks.split("\n").map((c) => c.trim()).filter(Boolean), workMode: p.workMode, access: p.access })}
+          <Card title={t(locale, "projCardChecks")} hint={t(locale, "projChecksHint")}>
+            <GoalRows text={checks} onText={setChecks} locale={locale} attr="data-orch-settings-checks" mono label={t(locale, "projCardChecks")}
+              placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
+            <small className="orch-hint">{t(locale, "orchGoalCommandsHint")}</small>
+            {check?.({ checks: goalLines(checks), workMode: p.workMode, access: p.access })}
           </Card>
           {/* F3 (stage-f-external-projects.md §10): the board's tasks in a worktree — the branch name, the remote base; main
               refuses them in another mode (work_mode_not_worktree, remote_base_mode) and reads the remote's address.

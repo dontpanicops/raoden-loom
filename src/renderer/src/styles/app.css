@@ -2021,3 +2021,12 @@ button { border: 0; }
 .settings-panel .settings-panel__content .setting-group .browser-settings__download { min-height: 0; padding: .35em 0; border: 0; border-radius: 0; background: transparent; }
 .settings-panel .settings-panel__content .setting-group .browser-settings__clear { min-height: 0; padding: .4em .9em; border: .08em solid color-mix(in srgb, var(--danger-fg) 55%, transparent); border-radius: .6em; color: var(--danger-fg); background: transparent; font-size: .96em; font-weight: 500; }
 .settings-panel .settings-panel__content .setting-group .browser-settings__clear.browser-settings__clear--confirm { color: var(--danger-text); background: var(--danger); }
+
+/* R6-C (M6, M9): the rights of an agent are one row of short labels (the full name is the tooltip); the steps and checks are rows
+   as in the goal dialog; «Скрыть пространство» keeps the labels of its buttons on one line (mock 17) */
+.orch-access__row { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+.orch-access__name { flex: 0 0 auto; }
+.orch-access__seg.orch-seg2 { flex: 1 1 auto; display: flex; }
+.orch-access__seg.orch-seg2 > button { flex: 1 1 0; min-width: 0; padding-inline: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.orch-hint--line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ws-dialog .orch-form__actions button { white-space: nowrap; }

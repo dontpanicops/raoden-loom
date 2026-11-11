@@ -2135,8 +2135,8 @@ const ru = {
   wsShow: "Показать",
   wsHiddenHint: "Скрытые продолжают работать. Если там кто-то ждёт вас — появится баннер.",
   wsHiddenClose: "Закрыть",
-  wsCloseTitle: "Скрыть «{name}»",
-  wsCloseWork: "Здесь идёт работа. Скрытие ничего не останавливает: работа продолжится и останется в общем виджете активности.",
+  wsCloseTitle: "Скрыть «{name}»?",
+  wsCloseWork: "Здесь идёт работа. Скрытие ничего не останавливает: работа продолжится и останется в общем виджете активности. Вернуть пространство — из «Скрытых».",
   wsCloseRun: "Запуск {id} · {project}",
   wsCloseTerminal: "Терминал «{title}»",
   wsStopPartial: "Остановлено не всё. Продолжающие работу доступны кнопкой «Открыть»; пространство не скрыто.",
@@ -2144,8 +2144,8 @@ const ru = {
   wsCloseNewWork: "Пока шла остановка, здесь появилась новая работа. Пространство не скрыто.",
   wsStopWaiting: "Ждём остановки…",
   wsStopAndHide: "Остановить и скрыть",
-  wsHideRest: "Скрыть, остальные продолжат работу",
-  wsHideKeep: "Скрыть, работа продолжится",
+  wsHideRest: "Скрыть",
+  wsHideKeep: "Скрыть",
   wsHistoryTitle: "История запусков — {name}",
   wsHistoryFailed: "Не удалось загрузить список запусков.",
   wsHistoryEmpty: "В этом пространстве ещё не было запусков.",
@@ -2589,7 +2589,18 @@ const ru = {
   orchLeadModifiedWhy: "Лид только планирует и проверяет, файлы меняет исполнитель.",
   orchUnitMinShort: "м",
   orchFailedExit: "{agent} CLI завершился с кодом {code} на этапе {n}",
-  orchFailedExitNoStage: "{agent} CLI завершился с кодом {code}"
+  orchFailedExitNoStage: "{agent} CLI завершился с кодом {code}",
+  // R6-C
+  orchAccessShort_terminal: "Терминал",
+  orchAccessShort_acceptEdits: "Правки",
+  orchAccessShort_auto: "Авто",
+  orchAccessShort_workspace: "Рабочая папка",
+  orchAccessShort_full: "Полный",
+  projPrepareHint: "Один раз перед первым этапом; сбой — пауза с названием шага.",
+  projPrepareWill: "Подготовка выполнит:",
+  projChecksHint: "Подставляются в новую цель, там их можно поменять.",
+  wsHideKeepHint: "Скрыть, работа продолжится",
+  wsHideRestHint: "Скрыть, остальные продолжат работу"
 } as const;
 
 const en: Record<keyof typeof ru, string> = {
@@ -4725,8 +4736,8 @@ const en: Record<keyof typeof ru, string> = {
   wsShow: "Show",
   wsHiddenHint: "Hidden workspaces keep working. If one of them waits for you, a banner appears.",
   wsHiddenClose: "Close",
-  wsCloseTitle: "Hide “{name}”",
-  wsCloseWork: "Work goes on here. Hiding stops nothing: the work continues and stays in the common activity widget.",
+  wsCloseTitle: "Hide “{name}”?",
+  wsCloseWork: "Work goes on here. Hiding stops nothing: the work continues and stays in the common activity widget. Bring the space back from “Hidden”.",
   wsCloseRun: "Run {id} · {project}",
   wsCloseTerminal: "Terminal “{title}”",
   wsStopPartial: "Not everything stopped. What still works can be opened with “Open”; the workspace is not hidden.",
@@ -4734,8 +4745,8 @@ const en: Record<keyof typeof ru, string> = {
   wsCloseNewWork: "New work started here while stopping. The workspace was not hidden.",
   wsStopWaiting: "Waiting for the stop…",
   wsStopAndHide: "Stop and hide",
-  wsHideRest: "Hide, the rest keeps working",
-  wsHideKeep: "Hide, work continues",
+  wsHideRest: "Hide",
+  wsHideKeep: "Hide",
   wsHistoryTitle: "Run history — {name}",
   wsHistoryFailed: "The list of runs could not be loaded.",
   wsHistoryEmpty: "No runs in this workspace yet.",
@@ -5174,7 +5185,18 @@ const en: Record<keyof typeof ru, string> = {
   orchLeadModifiedWhy: "The lead only plans and reviews; the executor changes the files.",
   orchUnitMinShort: "m",
   orchFailedExit: "{agent} CLI exited with code {code} on stage {n}",
-  orchFailedExitNoStage: "{agent} CLI exited with code {code}"
+  orchFailedExitNoStage: "{agent} CLI exited with code {code}",
+  // R6-C
+  orchAccessShort_terminal: "Terminal",
+  orchAccessShort_acceptEdits: "Edits",
+  orchAccessShort_auto: "Auto",
+  orchAccessShort_workspace: "Work folder",
+  orchAccessShort_full: "Full",
+  projPrepareHint: "Once before the first stage; a failure pauses the run with the step's name.",
+  projPrepareWill: "Preparation will run:",
+  projChecksHint: "Put into a new goal, where they can be changed.",
+  wsHideKeepHint: "Hide, the work continues",
+  wsHideRestHint: "Hide, the rest keeps working"
 };
 
 export type TranslationKey = keyof typeof ru;

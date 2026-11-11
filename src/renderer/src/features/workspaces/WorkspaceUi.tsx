@@ -377,7 +377,7 @@ export function CloseDialog({ controls, orch, locale, id, onClose, onOpenRun }: 
         <div className="orch-form__actions">
           <button type="button" className="orch-cancel" data-ws-close-cancel onClick={onClose}>{t(locale, stops ? "orchClose" : "orchCancel")}</button>
           {!stops && <button type="button" className="orch-danger" data-ws-close-stop onClick={() => void stopAll()}>{tk(locale, "wsStopAndHide")}</button>}
-          <button type="button" className="orch-primary" data-ws-close-hide autoFocus onClick={() => void hide()}>{tk(locale, stops ? "wsHideRest" : "wsHideKeep")}</button>
+          <button type="button" className="orch-primary" data-ws-close-hide autoFocus title={tk(locale, stops ? "wsHideRestHint" : "wsHideKeepHint")} onClick={() => void hide()}>{tk(locale, stops ? "wsHideRest" : "wsHideKeep")}</button>
         </div>
         {error && <div className="dialog-error" role="alert">{error}</div>}
       </div>
