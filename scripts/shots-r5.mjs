@@ -273,7 +273,7 @@ try {
       await app.clickEl(q("[data-board-autopilot-start]")); await sleep(500);
       await shot("board-autopilot");
     });
-    await scene("board-close", async () => { if (await app.ev(`!!${q("[data-board]")}`)) await app.clickEl(q("[data-board-hide]")); await sleep(500); });
+    await scene("board-close", async () => { if (await app.ev(`!!${q("[data-board]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); } await sleep(500); });
 
     // goal dialog and project settings
     await scene("goal", async () => {

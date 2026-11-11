@@ -169,7 +169,7 @@ try {
   await app.waitFor(`${q("[data-board-autopilot-start]")} && true`, "the board with «Вести доску»", 30_000);
   await app.clickEl(q("[data-board-autopilot-start]"));
   await app.type(q("[data-board-budget-runs]"), "3");
-  await app.type(q("[data-board-budget-parallel]"), "2");
+  await app.clickEl(q('[data-board-budget-parallel] [data-board-budget-parallel-n="2"]'));
   await app.type(q("[data-board-budget-minutes]"), String(Math.round(LIMIT_MS / 60_000)));
   await app.shot("c2-01-autopilot-asked").catch(() => {});
   await app.clickEl(q("[data-board-autopilot-yes]"));

@@ -114,8 +114,8 @@ try {
   await app.shot("01-goal-dialog");
   // UX audit PR 2: Start / Save pinned at the dialog's bottom, in view without scrolling; the dialog's controls are light
   const pinned = () => app.ev(`(() => { const d = [...document.querySelectorAll(".orch-dialog")].at(-1); const a = d.querySelector(".orch-form__actions");
-    const b = a.querySelector('button[type="submit"]'); const r = b.getBoundingClientRect(), dr = d.getBoundingClientRect();
-    return { sticky: getComputedStyle(a).position, visible: r.top >= dr.top && r.bottom <= dr.bottom + 1, scrolls: d.scrollHeight > d.clientHeight, scheme: getComputedStyle(d).colorScheme, appScheme: getComputedStyle(document.body).colorScheme }; })()`);
+    const b = a.querySelector('button[type="submit"]'); const r = b.getBoundingClientRect(), dr = d.getBoundingClientRect(); const body = d.querySelector(".orch-form__body");
+    return { sticky: getComputedStyle(body).overflowY === "auto" ? "sticky" : "no", visible: r.top >= dr.top && r.bottom <= dr.bottom + 1, scrolls: body.scrollHeight > body.clientHeight, scheme: getComputedStyle(d).colorScheme, appScheme: getComputedStyle(document.body).colorScheme }; })()`);
   const goalPinned = await pinned();
   expect(goalPinned.sticky === "sticky" && goalPinned.visible && goalPinned.scrolls && goalPinned.scheme === goalPinned.appScheme, "goal dialog (R1, Н10: native controls follow the theme): «Старт» pinned and in view while the dialog scrolls", goalPinned);
   await app.clickEl(q("[data-orch-open-settings]"));
@@ -123,15 +123,15 @@ try {
   const needed = await app.ev(`${q("[data-orch-needed]")}.textContent`);
   expect(needed.includes("composer install") && needed.includes("key:generate"), "settings: what is missing now is listed", needed);
   // more than the suggested mode and "terminal": the modes read from the CLI's --help have arrived
-  await app.waitFor(`document.querySelectorAll('[data-orch-access="claude"] option').length > 2`, "the CLI's own modes", 20_000);
-  const claudeModes = await app.ev(`[...document.querySelectorAll('[data-orch-access="claude"] option')].map((o) => o.value)`);
+  await app.waitFor(`document.querySelectorAll('[data-orch-access="claude"] [data-orch-access-mode]').length > 2`, "the CLI's own modes", 20_000);
+  const claudeModes = await app.ev(`[...document.querySelectorAll('[data-orch-access="claude"] [data-orch-access-mode]')].map((o) => o.dataset.orchAccessMode)`);
   expect(JSON.stringify(claudeModes) === JSON.stringify(["terminal", "workspace", "acceptEdits", "auto", "full"]), "settings: Claude modes from the installed CLI's --help", claudeModes);
   // the stage A gate: a new project starts in the work folder for both CLIs
-  const suggested = await app.ev(`["claude", "codex"].map((p) => document.querySelector(\`[data-orch-access="\${p}"] select\`).value)`);
+  const suggested = await app.ev(`["claude", "codex"].map((p) => document.querySelector(\`[data-orch-access="\${p}"] [data-orch-access-value]\`).dataset.orchAccessValue)`);
   expect(JSON.stringify(suggested) === JSON.stringify(["workspace", "workspace"]), "settings: a new project suggests «Рабочая папка» for both CLIs", suggested);
-  await setValue(q('[data-orch-access="claude"] select'), "full");
+  await app.clickEl(q('[data-orch-access="claude"] [data-orch-access-mode="full"]')); // R5f: the rights are a segment
   expect(await app.ev(`!!${q("[data-orch-full-warning]")}`), "full access shows its warning", null);
-  await setValue(q('[data-orch-access="claude"] select'), "acceptEdits");
+  await app.clickEl(q('[data-orch-access="claude"] [data-orch-access-mode="acceptEdits"]'));
   const mapping = await app.ev(`${q('[data-orch-access="claude"] code')}.textContent`);
   expect(mapping.includes("--permission-mode acceptEdits"), "the mapping says what is passed to Claude", mapping);
   await app.shot("02-settings");
@@ -159,9 +159,9 @@ try {
   await app.shot("03-environment-probe");
   // a new project starts in a separate copy (PR 5); this one works in the project folder, where commit and QA are offered
   expect(await app.ev(`${q("[data-orch-settings-workmode]")}.dataset.orchSettingsWorkmode`) === "copy", "settings: a new project's work place is a separate copy", null);
-  await app.clickEl(`document.querySelectorAll("[data-orch-settings-workmode] input")[2]`);
+  await app.clickEl(q(`[data-orch-settings-workmode-to="project"]`));
   // «Как в моём терминале» for Codex: shown with its warning, saved only once the warning is confirmed
-  await setValue(q('[data-orch-access="codex"] select'), "terminal");
+  await app.clickEl(q('[data-orch-access="codex"] [data-orch-access-mode="terminal"]'));
   expect(await app.ev(`!!${q("[data-orch-terminal-warning]")} && !!${q("[data-orch-terminal-confirm]")}`), "terminal mode shows its warning and a confirmation", null);
   await app.clickEl(q(".orch-settings button[type=submit]"));
   await app.waitFor(`${q(".orch-settings .dialog-error")} && true`, "terminal mode refused without the confirmation", 10_000);

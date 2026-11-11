@@ -106,13 +106,12 @@ try {
   // ---------- 2. «Run the board», 2 at once ----------
   await app.clickEl(q("[data-board-autopilot-start]"));
   await app.waitFor(`${q("[data-board-autopilot-confirm]")} && true`, "the autopilot's explanation");
-  const parallel = await app.ev(`${q("[data-board-budget-parallel]")}?.value ?? null`);
+  const parallel = await app.ev(`${q("[data-board-budget-parallel]")}?.dataset.boardBudgetParallel ?? null`);
   expect(parallel === "2", "«Run the board» offers 2 tasks at once by default", parallel);
   // C3: a conflict goes to an agent by default; this smoke is about the person's way — «Конфликты: решать мне»
-  const conflictsDefault = await app.ev(`${q("[data-board-budget-conflicts]")}?.value ?? null`);
+  const conflictsDefault = await app.ev(`${q("[data-board-budget-conflicts]")}?.dataset.boardBudgetConflicts ?? null`);
   expect(conflictsDefault === "agent", "«Конфликты» offers «hand to an agent» by default", conflictsDefault);
-  await app.ev(`(() => { const s = ${q("[data-board-budget-conflicts]")}; const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
-    set.call(s, "person"); s.dispatchEvent(new Event("change", { bubbles: true })); return s.value; })()`);
+  await app.clickEl(q('[data-board-budget-conflicts-to="person"]')); // R5f: the segment «Агент | Человек»
   await boardShot("par-01-autopilot-ask-board");
   await app.clickEl(q("[data-board-autopilot-yes]"));
   await app.waitFor(`${q('[data-board-autopilot="on"]')} && true`, "the autopilot on");

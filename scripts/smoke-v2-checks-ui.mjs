@@ -270,7 +270,7 @@ try {
     await startGoal(app, ids.link, { onDialog: async () => {
       await app.type(q("[data-orch-commands]"), "");
       await app.ev(`${q(".orch-dialog .orch-advanced")}.open = true`);
-      await app.type(`document.querySelectorAll(".orch-dialog .orch-advanced input[type=number]")[1]`, "1");
+      await app.type(`document.querySelectorAll(".orch-dialog .orch-limits input[type=number]")[1]`, "1");
     } });
     const runId = (await runs(app))[0].runId;
     // until the review has opened F1; the pauses on the way are not this scenario's: answered through main
