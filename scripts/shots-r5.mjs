@@ -453,16 +453,18 @@ try {
       if (!world.leftLead) {
         const l = await mkAgent("codex", other, B(700, 610, 201, 149), WS.beta), e = await mkAgent("claude", other, B(420, 730, 201, 149), WS.beta);
         world.leftLead = l.agentId; world.leftExec = e.agentId; await link(l.agentId, e.agentId);
+        // a lone lead: a free executor of its folder (lit) and one of another folder (dim, with the reason), for the linking mode
+        const m = await mkAgent("codex", other, B(1000, 330, 201, 149), WS.beta);
+        await mkAgent("claude", other, B(1230, 450, 201, 149), WS.beta); await mkAgent("claude", projB, B(1000, 560, 201, 149), WS.beta);
+        world.modeLead = m.agentId;
+        await app.call("Page.reload", {}); await sleep(2500); await laptop();
+        await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
       }
       await app.key("Home", "Home", 36); await sleep(800);
+      await app.waitFor(`${card(world.leftLead)} && true`, "the pair's cards", 10_000);
       await shot("link-executor-left");
     });
     await scene("link-mode", async () => {
-      if (!world.modeLead) { // a lone lead: a free executor of its folder (lit) and one of another folder (dim, with the reason)
-        const l = await mkAgent("codex", other, B(1000, 330, 201, 149), WS.beta);
-        await mkAgent("claude", other, B(1230, 450, 201, 149), WS.beta); await mkAgent("claude", projB, B(1000, 560, 201, 149), WS.beta);
-        world.modeLead = l.agentId;
-      }
       await app.key("Home", "Home", 36); await sleep(800);
       await app.waitFor(`${card(world.modeLead, ".agent-card__port")} && true`, "the lead's port", 10_000);
       const from = await app.center(card(world.modeLead, ".agent-card__port"));
