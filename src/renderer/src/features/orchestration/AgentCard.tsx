@@ -68,7 +68,6 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
   const { bounds, live, apply } = frame;
   const { position, size } = bounds;
   const compact = isCompact(size);
-  const name = card.project.split("/").filter(Boolean).at(-1) ?? card.project;
   // compact <-> the size it had last time it was larger
   const toggle = (): void => {
     const larger = live.current.size; // kept to come back to, read before the card shrinks
@@ -105,6 +104,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
       <header className="agent-card__header" {...frame.header} ref={header}>
         <span className="agent-card__identity">
           <ProviderIcon provider={card.provider} size="small" />
+          <i className="agent-card__dot" aria-hidden="true" />
           <strong>{card.provider === "codex" ? "Codex" : "Claude"}</strong>
           <small title={t(locale, card.role === "lead" ? "orchTerm_lead" : "orchTerm_executor")} data-term={card.role}>{t(locale, card.role === "lead" ? "orchRoleLead" : "orchRoleExecutor")}</small>
         </span>
@@ -121,10 +121,6 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
       </header>
       <div className="agent-card__body">
         {/* every line is one line: a long one ends with "…" and says all of it in its tooltip (1.5.13) */}
-        <div className="agent-card__project" title={card.project}>
-          <UiIcon name="folder" size="1.1em" />
-          <strong>{name}</strong><small>{card.project}</small>
-        </div>
         <div className="agent-card__status" role="status">
           <span className={`agent-card__state agent-card__state--${state}`} data-agent-pause={props.pause && (state === "paused" || state === "needs_you") ? "yes" : undefined}
             title={props.pause && (state === "paused" || state === "needs_you") ? props.pause : t(locale, STATE_KEY[state])}>
@@ -132,7 +128,8 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
             <span>{props.pause && (state === "paused" || state === "needs_you") ? props.pause : t(locale, STATE_KEY[state])}</span></span>
           {props.statusTime && <span className="agent-card__time" data-agent-time title={props.statusTime}>{props.statusTime}</span>}
         </div>
-        {/* the pill already names a held state (paused, ended, waiting for you); the sentence adds what moves */}
+        <div className="agent-card__project" title={card.project}><small>{withoutHome(card.project)}</small></div>
+        {/* the status already names a held state (paused, ended, waiting for you); the sentence adds what moves */}
         {props.task && <div className="agent-card__line agent-card__task" data-agent-task={props.task.key} title={props.task.title}>{props.task.key} · {props.task.title}</div>}
         {doing && <div className="agent-card__line agent-card__doing" data-agent-doing title={doing}>{doing}</div>}
         {extra && <div className="agent-card__line" data-agent-now title={extra}>{extra}</div>}
@@ -144,6 +141,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
           </div>
         )}
         {props.cost && <div className="agent-card__line" data-agent-cost title={props.cost}>{props.cost}</div>}
+        {card.role === "lead" && !props.linked && !message && state === "idle" && <p className="agent-card__hint" data-agent-port-hint>{t(locale, "orchCardPortHint")}</p>}
         {message && <div className={`agent-card__message agent-card__message--${message.tone}`} role={message.tone === "error" ? "alert" : "status"}>{message.text}</div>}
         {/* semantic zoom: far out the card keeps its lines and gives the wheel back to the canvas */}
         {!compact && zoom >= 0.5 && props.hasRun && <CardFeed locale={locale} entries={props.activity} role={card.role} height={size.height} />}

@@ -155,8 +155,10 @@ function WorkspaceForm({ controls, locale, id, onClose }: { controls: WorkspaceC
   const [confirmedTwin, setConfirmedTwin] = useState(false);
   const folder = root.trim();
   const twin = folder ? controls.state.workspaces.find((w) => w.root === folder && w.id !== id) ?? null : null;
+  const wanted = title.trim();
+  const taken = wanted ? controls.state.workspaces.find((w) => w.id !== id && !w.closed && workspaceTitle(locale, w).toLowerCase() === wanted.toLowerCase()) ?? null : null;
   const submit = async (): Promise<void> => {
-    if (twin && !confirmedTwin && !id) return;
+    if ((twin && !confirmedTwin && !id) || taken) return;
     setBusy(true);
     const name = title.trim() || folderName(folder);
     const text = id
@@ -167,8 +169,13 @@ function WorkspaceForm({ controls, locale, id, onClose }: { controls: WorkspaceC
     else onClose();
   };
   return (
-    <Dialog label={tk(locale, id ? "wsSettings" : "wsNew")} onClose={onClose} locale={locale}>
+    <Dialog label={current ? tr(locale, "wsRenameTitle", { name: workspaceTitle(locale, current) }) : tk(locale, "wsNew")} onClose={onClose} locale={locale} className="ws-dialog">
       <form className="orch-form" data-ws-form onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+        <label className="orch-field"><span>{tk(locale, "wsName")}</span>
+          <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={folderName(folder) || tk(locale, "wsName")} data-ws-title
+            className={taken ? "orch-input--error" : undefined} aria-invalid={taken ? true : undefined} />
+          {taken && <span className="orch-field__error" role="alert" data-ws-name-taken>{tr(locale, "wsNameTaken", { name: workspaceTitle(locale, taken) })}</span>}
+        </label>
         <label className="orch-field"><span>{tk(locale, "wsFolder")}</span>
           <span className="orch-field__row">
             <input value={root} onChange={(event) => { setRoot(event.target.value); setConfirmedTwin(false); }} placeholder="/" data-ws-root spellCheck={false} />
@@ -179,9 +186,6 @@ function WorkspaceForm({ controls, locale, id, onClose }: { controls: WorkspaceC
               if (!title.trim()) setTitle(folderName(picked));
             })}>{tk(locale, "wsPickFolder")}</button>
           </span>
-        </label>
-        <label className="orch-field"><span>{tk(locale, "wsName")}</span>
-          <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={folderName(folder) || tk(locale, "wsName")} data-ws-title />
         </label>
         <p className="orch-hint">{tk(locale, "wsFolderHint")}</p>
         {twin && !id && (
@@ -195,7 +199,7 @@ function WorkspaceForm({ controls, locale, id, onClose }: { controls: WorkspaceC
         )}
         <div className="orch-form__actions">
           <button type="button" className="orch-cancel" onClick={onClose}>{t(locale, "orchCancel")}</button>
-          <button type="submit" className="orch-primary" data-ws-submit disabled={busy || (!title.trim() && !folder) || (!!twin && !confirmedTwin && !id)}>
+          <button type="submit" className="orch-primary" data-ws-submit disabled={busy || !!taken || (!title.trim() && !folder) || (!!twin && !confirmedTwin && !id)}>
             {tk(locale, id ? "wsSave" : "wsCreate")}
           </button>
         </div>
@@ -225,7 +229,7 @@ function MoveDialog({ controls, orch, locale, layout, item, id, label, onClose }
     else onClose();
   };
   return (
-    <Dialog label={tk(locale, "wsMoveTitle")} onClose={onClose} locale={locale}>
+    <Dialog label={tk(locale, "wsMoveTitle")} onClose={onClose} locale={locale} className="ws-dialog">
       <form className="orch-form" data-ws-move onSubmit={(event) => { event.preventDefault(); void submit(); }}>
         {item === "agents" ? (
           <div className="orch-field"><span>{tk(locale, "wsMoveGroup")}</span>
@@ -357,7 +361,7 @@ export function CloseDialog({ controls, orch, locale, id, onClose, onOpenRun }: 
   };
   const w = controls.state.workspaces.find((x) => x.id === id);
   return (
-    <Dialog label={tr(locale, "wsCloseTitle", { name: workspaceTitle(locale, w) })} onClose={onClose} locale={locale}>
+    <Dialog label={tr(locale, "wsCloseTitle", { name: workspaceTitle(locale, w) })} onClose={onClose} locale={locale} className="ws-dialog">
       <div className="orch-form" data-ws-close>
         <p className="orch-hint">{tk(locale, "wsCloseWork")}</p>
         <ul className="ws-list">
@@ -400,7 +404,7 @@ function HistoryDialog({ controls, orch, locale, id, onClose, onOpenRun }: {
   useEffect(load, [id]);
   const w = controls.state.workspaces.find((x) => x.id === id);
   return (
-    <Dialog label={tr(locale, "wsHistoryTitle", { name: workspaceTitle(locale, w) })} onClose={onClose} locale={locale}>
+    <Dialog label={tr(locale, "wsHistoryTitle", { name: workspaceTitle(locale, w) })} onClose={onClose} locale={locale} className="ws-dialog">
       <div className="orch-form" data-ws-history>
         {failed && <div className="dialog-error" role="alert">{tk(locale, "wsHistoryFailed")} <button type="button" onClick={load}>{t(locale, "orchRepeat")}</button></div>}
         {!failed && runs === null && <p className="orch-hint">{t(locale, "loading")}</p>}
@@ -458,7 +462,7 @@ function ArrangeDialog({ controls, orch, locale, layout, id, onClose }: {
     if (!errs.length) onClose();
   };
   return (
-    <Dialog label={tk(locale, "wsArrange")} onClose={onClose} locale={locale}>
+    <Dialog label={tk(locale, "wsArrange")} onClose={onClose} locale={locale} className="ws-dialog">
       <form className="orch-form" data-ws-arrange onSubmit={(event) => { event.preventDefault(); void submit(); }}>
         <p className="orch-hint">{tk(locale, "wsArrangeHint")}</p>
         {groups.length === 0 && <p className="orch-hint" data-ws-arrange-empty>{tk(locale, "wsArrangeEmpty")}</p>}
@@ -494,15 +498,19 @@ function ArrangeDialog({ controls, orch, locale, layout, id, onClose }: {
 function HiddenDialog({ controls, locale, onClose }: { controls: WorkspaceControls; locale: LocaleId; onClose(): void }): React.JSX.Element {
   const hidden = controls.state.workspaces.filter((w) => w.closed);
   return (
-    <Dialog label={tk(locale, "wsHidden")} onClose={onClose} locale={locale}>
-      <ul className="ws-list" data-ws-hidden>
-        {hidden.map((w) => (
-          <li key={w.id} data-ws-hidden-item={w.id}>
-            <span>{workspaceTitle(locale, w)}</span>
-            <button type="button" onClick={() => { controls.switchTo(w.id); onClose(); }}>{tk(locale, "wsOpen")}</button>
-          </li>
-        ))}
-      </ul>
+    <Dialog label={tk(locale, "wsHidden")} onClose={onClose} locale={locale} className="ws-dialog">
+      <div className="orch-form">
+        <ul className="ws-list" data-ws-hidden>
+          {hidden.map((w) => (
+            <li key={w.id} data-ws-hidden-item={w.id}>
+              <span>{workspaceTitle(locale, w)}</span>
+              <button type="button" onClick={() => { controls.switchTo(w.id); onClose(); }}>{tk(locale, "wsShow")}</button>
+            </li>
+          ))}
+        </ul>
+        <p className="orch-hint">{tk(locale, "wsHiddenHint")}</p>
+        <div className="orch-form__actions"><button type="button" className="orch-cancel" onClick={onClose}>{tk(locale, "wsHiddenClose")}</button></div>
+      </div>
     </Dialog>
   );
 }
@@ -511,7 +519,7 @@ export function BrowserElsewhereDialog({ controls, locale }: { controls: Workspa
   if (!controls.browserElsewhere) return null;
   const w = controls.state.workspaces.find((x) => x.id === controls.browserElsewhere);
   return (
-    <Dialog label={tk(locale, "wsBrowserTitle")} onClose={controls.closeBrowserNotice} locale={locale}>
+    <Dialog label={tk(locale, "wsBrowserTitle")} onClose={controls.closeBrowserNotice} locale={locale} className="ws-dialog">
       <div className="orch-form" data-ws-browser-elsewhere={controls.browserElsewhere}>
         <p>{tr(locale, "wsBrowserElsewhere", { name: workspaceTitle(locale, w) })}</p>
         <div className="orch-form__actions">

@@ -293,6 +293,14 @@ try {
       await esc(); await sleep(300); await esc();
     });
 
+    // a lead without a link: the hint under the path and the port as a ring
+    await scene("cards-agents-idle", async () => {
+      await createAgent(app, "Агент Codex (лид)", node);
+      const lone = (await canvasState(app)).agents.find((x) => x.provider === "codex" && x.agentId !== lead.agentId);
+      await app.reveal(card(lone.agentId)); await sleep(600); await shot("cards-agents-idle");
+      await app.clickEl(card(lone.agentId, ".agent-card__close")); await sleep(500);
+    });
+
     // links: repeated pair refused, executor to the left, zoom 0.2
     await scene("link-repeat", async () => {
       await app.reveal(card(lead.agentId)); await fit();
@@ -317,6 +325,8 @@ try {
       const mk = async (x, y, cmd) => {
         const tt = await app.ev(`window.canvasTTY.terminal.create({ provider: "terminal", profile: "normal", cwd: ${JSON.stringify(termDir)}, position: { x: ${x}, y: ${y} } })`);
         await sleep(1500);
+        // a neutral prompt: the default one carries the user name
+        await app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(tt.id)}, ${JSON.stringify("PS1='$ ' PROMPT='$ '; clear\r")})`); await sleep(500);
         await app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(tt.id)}, ${JSON.stringify(cmd + "\r")})`);
         return tt.id;
       };
