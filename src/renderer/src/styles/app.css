@@ -23,8 +23,8 @@ button { border: 0; }
 .titlebar__build--dev { border-color: color-mix(in srgb, var(--status-waiting) 34%, transparent); color: var(--status-waiting); background: color-mix(in srgb, var(--status-waiting) 9%, transparent); }
 .titlebar__build--release { border-color: color-mix(in srgb, var(--status-working) 34%, transparent); color: var(--focus); background: color-mix(in srgb, var(--status-working) 9%, transparent); }
 .titlebar__subtitle { color: var(--text-muted); font-size: 11px; }
-.titlebar__logo { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 7px; color: var(--accent-text); background: var(--accent-bg); }
-.titlebar__logo .provider-icon { width: 20px; height: 20px; }
+.titlebar__logo { width: 16px; height: 16px; display: grid; place-items: center; color: var(--text-secondary); }
+.titlebar__logo .app-mark { width: 16px; height: 16px; }
 .titlebar__drag { flex: 1; height: 100%; -webkit-app-region: drag; }
 .titlebar__controls { height: 100%; display: flex; -webkit-app-region: no-drag; }
 .titlebar__controls button { width: 46px; display: grid; place-items: center; color: var(--text-secondary); background: transparent; cursor: pointer; transition: background .15s ease, color .15s ease; }
@@ -34,8 +34,6 @@ button { border: 0; }
 .titlebar__macos-controls-space { flex: 0 0 72px; height: 100%; -webkit-app-region: no-drag; }
 .titlebar--macos .titlebar__brand { padding-left: 0; gap: 7px; }
 .titlebar--macos .titlebar__brand strong { font-size: 12px; }
-.titlebar--macos .titlebar__logo { width: 21px; height: 21px; border-radius: 6px; }
-.titlebar--macos .titlebar__logo .provider-icon { width: 17px; height: 17px; }
 
 .workspace {
   position: absolute;
@@ -669,7 +667,8 @@ button { border: 0; }
 .shortcut-editor__warning { margin: 9px 0 0; color: var(--status-waiting); font-size: 12px; font-weight: 750; line-height: 1.35; }
 .about-settings { display: grid; gap: 24px; }
 .about-settings__header { min-height: 132px; padding: 20px; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; border-radius: 18px; color: var(--text-primary); background: var(--surface-2); }
-.about-settings__header > span { display: flex; align-items: baseline; gap: 9px; }
+.about-settings__header > span { display: flex; align-items: center; gap: 9px; }
+.about-settings__header .app-mark { flex: none; color: var(--text-secondary); }
 .about-settings__header strong { font: 900 27px/1 var(--font-mono); letter-spacing: -.045em; }
 .about-settings__header small { color: var(--focus); font: 850 10px/1 var(--font-mono); }
 .about-settings__header p { max-width: 46ch; margin: 0; color: var(--text-secondary); font-size: 11px; font-weight: 720; line-height: 1.45; }
