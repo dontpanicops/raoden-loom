@@ -1411,10 +1411,12 @@ function RaiseLimit({ locale, cost, budget, sending, onRaise }: {
         <label className="orch-field orch-field--inline"><span>{t(locale, "orchLimitNew")}</span>
           <input type="number" min={1} value={value} data-orch-limit-value onChange={(e) => setValue(e.target.value)} /> <span data-orch-limit-unit>{unit}</span></label>
         {current !== null && <small className="orch-hint" data-orch-limit-current>{t(locale, "orchZone_limitNow").replace("{n}", String(current)).replace("{unit}", unit)}</small>}
+      </div>
+      {!valid && value !== "" && current !== null && <small className="orch-hint orch-hint--warn" data-orch-limit-invalid>{t(locale, tooSmall ? "orchZone_limitElapsed" : "orchLimitMore").replace("{now}", String(tooSmall ? spent : current))}</small>}
+      <div className="orch-panel__actions orch-form__submit">
         <button type="button" className="orch-primary" data-orch-primary="raise_limit" data-orch-raise
           disabled={sending || !valid} onClick={() => onRaise(kind, kind === "runMs" ? n * 60_000 : n)}>{t(locale, "orchRaiseLimitContinue")}</button>
       </div>
-      {!valid && value !== "" && current !== null && <small className="orch-hint orch-hint--warn" data-orch-limit-invalid>{t(locale, tooSmall ? "orchZone_limitElapsed" : "orchLimitMore").replace("{now}", String(tooSmall ? spent : current))}</small>}
     </div>
   );
 }

@@ -1166,14 +1166,13 @@ button { border: 0; }
 .orch-panel__unknown { padding: 8px 10px; border-radius: 10px; color: var(--status-waiting); background: var(--status-waiting-bg); }
 /* R3b: the action zone, always above the tabs (what happened, why, what to do, one main button); on short windows its body scrolls
    and the button row stays pinned at its foot. The panel is level 3 itself: no backdrop-filter inside it. */
-.orch-zone { flex: 0 0 auto; max-height: 46vh; overflow: auto; margin: 12px 12px 0; padding: 12px; display: flex; flex-direction: column; gap: 8px; border-radius: 12px; background: var(--surface-sunken); box-shadow: inset 4px 0 0 var(--status-done); outline: none; transition: box-shadow .25s; }
+.orch-zone { --zone-bg: var(--surface-sunken); --zone-solid: linear-gradient(var(--zone-bg), var(--zone-bg)), var(--surface-3-solid); --zone-tint: linear-gradient(color-mix(in srgb, var(--status-waiting) 22%, transparent), color-mix(in srgb, var(--status-waiting) 22%, transparent)), var(--zone-solid); flex: 0 0 auto; max-height: 46vh; overflow: auto; margin: 12px 12px 0; padding: 12px; display: flex; flex-direction: column; gap: 8px; border-radius: 12px; background: var(--zone-bg); box-shadow: inset 4px 0 0 var(--status-done); outline: none; transition: box-shadow .25s; }
 .orch-zone--neutral.orch-zone--working, .orch-zone--neutral.orch-zone--stopping_after_turn { box-shadow: inset 4px 0 0 var(--focus); }
-.orch-zone--waiting { background: color-mix(in srgb, var(--status-waiting) 10%, var(--surface-sunken)); box-shadow: inset 4px 0 0 var(--status-waiting), 0 0 0 1px color-mix(in srgb, var(--status-waiting) 45%, transparent), 0 0 14px color-mix(in srgb, var(--status-waiting) 28%, transparent); }
+.orch-zone--waiting { --zone-bg: color-mix(in srgb, var(--status-waiting) 10%, var(--surface-sunken)); background: var(--zone-bg); box-shadow: inset 4px 0 0 var(--status-waiting), 0 0 0 1px color-mix(in srgb, var(--status-waiting) 45%, transparent), 0 0 14px color-mix(in srgb, var(--status-waiting) 28%, transparent); }
 .orch-zone--calm { box-shadow: inset 4px 0 0 var(--text-secondary); }
 .orch-zone--failed, .orch-zone--halted, .orch-zone--needs_setup { box-shadow: inset 4px 0 0 var(--status-failed); }
 .orch-zone--completed { box-shadow: inset 4px 0 0 var(--status-done); }
 .orch-zone--flash { box-shadow: inset 4px 0 0 var(--focus), 0 0 0 3px var(--focus); }
-.orch-zone:focus-visible { box-shadow: inset 4px 0 0 var(--focus), 0 0 0 2px var(--focus); }
 .orch-zone__label { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .orch-zone--waiting .orch-zone__label { color: var(--status-waiting); }
 .orch-zone--calm .orch-zone__label { color: var(--text-secondary); }
@@ -1182,7 +1181,13 @@ button { border: 0; }
 .orch-zone__headline span { opacity: .8; }
 .orch-zone__who, .orch-zone__next, .orch-summary__who { margin: 0; }
 .orch-zone__task { color: var(--text-secondary); font-weight: 800; }
-.orch-zone__actions { position: sticky; bottom: -12px; z-index: 1; margin: 0 -12px -12px; padding: 8px 12px; background: inherit; }
+.orch-zone__actions { position: sticky; bottom: -12px; z-index: 1; margin: 0 -12px -12px; padding: 8px 12px; background: var(--zone-solid); }
+/* a form in the zone: its submit row stays in view while the zone scrolls */
+.orch-zone:has([data-orch-form], [data-orch-limit]) { max-height: 64vh; }
+.orch-zone .orch-question > button:last-child, .orch-zone .orch-question > .orch-panel__row:last-child, .orch-zone .orch-question > .orch-panel__actions:last-child, .orch-zone .orch-form__submit, .orch-zone [data-orch-person-decide] .orch-panel__actions { position: sticky; bottom: -12px; z-index: 1; padding: 8px 0; background: var(--zone-solid); }
+.orch-zone .orch-question > button:last-child, .orch-zone .orch-question > .orch-panel__row:last-child, .orch-zone .orch-question > .orch-panel__actions:last-child, .orch-zone [data-orch-person-decide] .orch-panel__actions { background: var(--zone-tint); }
+.orch-limit .orch-panel__row { flex-direction: column; align-items: stretch; }
+.orch-limit .orch-field.orch-field--inline { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
 .orch-zone__clarify { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .orch-zone__clarify textarea { width: 100%; }
 .orch-confirm { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 10px; background: var(--status-failed-bg); }
@@ -1279,7 +1284,7 @@ button { border: 0; }
 .orch-permission--plan .orch-permission__plan { max-height: 160px; }
 /* the decision buttons stay in view while a long request scrolls in the summary (1280×800 and smaller) */
 .orch-permission > .orch-panel__actions { position: sticky; bottom: 0; z-index: 1; margin: 0 -10px; padding: 8px 10px; background: color-mix(in srgb, var(--status-waiting) 22%, var(--surface-sunken)); }
-.orch-zone--compact:not(:has(.orch-permission)) { max-height: 30vh; }
+.orch-zone--compact:not(:has(.orch-permission, [data-orch-form], [data-orch-limit])) { max-height: 30vh; }
 .orch-board__full dd { color: var(--danger-fg); font-weight: 800; }
 .orch-board__terminal dd { color: var(--status-waiting); font-weight: 800; }
 .orch-access-badge { padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; background: color-mix(in srgb, var(--status-working) 18%, transparent); }

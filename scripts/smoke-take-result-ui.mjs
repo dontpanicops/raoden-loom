@@ -104,7 +104,7 @@ try {
   await waitView(runA, (v) => v.status === "completed", "A completed");
   await app.waitFor(`!!${q("[data-orch-take-open]")}`, "the take button", 20_000);
   expect(await app.ev(`${q("[data-orch-take-open]")}.dataset.orchPrimary === "take" && ${q("[data-orch-take-open]")}.textContent === "Забрать результат"`), "completed in a copy: «Забрать результат» is the main button", null);
-  expect(!(await app.ev(`!!${q("[data-orch-view-changes]")}`)), "«Посмотреть изменения» is no longer the main button", null);
+  expect(!(await app.ev(`${q("[data-orch-view-changes]")}?.hasAttribute("data-orch-primary") ?? false`)), "«Посмотреть изменения» is no longer the main button", null);
   await app.clickEl(q("[data-orch-take-open]"));
   await app.waitFor(`!!${q("[data-orch-take]")}`, "the take panel");
   const from = await app.ev(`${q("[data-orch-take-from]")}.textContent`);

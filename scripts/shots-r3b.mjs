@@ -130,7 +130,7 @@ try {
     await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas after reload", 30_000);
     await app.key("Home", "Home", 36); await sleep(1200);
   };
-  const shot = async (name, screen) => { await sleep(600); await app.shot(`${name}-${screen}`); };
+  const shot = async (name, screen) => { await sleep(1800); await app.shot(`${name}-${screen}`); };
 
   if (ONLY !== "fixtures") {
     await createAgent(app, "Агент Codex (лид)", node);
