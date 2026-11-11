@@ -377,6 +377,7 @@ export function SettingsPanel({
             <>
               <SettingGroup label={t(locale, "palette")} description={settings.followSystem ? `${t(locale, "paletteBySystem")} ${t(locale, "paletteDescription")}` : t(locale, "paletteDescription")}>
                 <ThemeChoices
+                  label={t(locale, "palette")}
                   value={settings.followSystem ? theme : settings.palette}
                   options={([
                     ["sand", t(locale, "themeSand")],
@@ -406,6 +407,7 @@ export function SettingsPanel({
               </SettingGroup>
               <SettingGroup label={t(locale, "canvasColor")} description={t(locale, "canvasColorDescription")}>
                 <ColorDots
+                  label={t(locale, "canvasColor")}
                   value={appearance.canvasColor}
                   options={([
                     ["theme", t(locale, "canvasColorTheme")],
@@ -1130,16 +1132,18 @@ function SettingSwitch({
 }
 
 function ThemeChoices({
+  label,
   value,
   options,
   onChange
 }: {
+  label: string;
   value: PaletteId;
   options: [PaletteId, string][];
   onChange(value: PaletteId): void;
 }): React.JSX.Element {
   return (
-    <div className="theme-choices">
+    <div className="theme-choices" role="group" aria-label={label}>
       {options.map(([id, label]) => (
         <button
           className={value === id ? "theme-choice theme-choice--active" : "theme-choice"}
@@ -1161,16 +1165,18 @@ function ThemeChoices({
 }
 
 function ColorDots({
+  label,
   value,
   options,
   onChange
 }: {
+  label: string;
   value: string;
   options: [string, string, string][];
   onChange(value: string): void;
 }): React.JSX.Element {
   return (
-    <div className="color-dots">
+    <div className="color-dots" role="group" aria-label={label}>
       {options.map(([optionValue, label, color]) => (
         <button
           className={`color-dot${optionValue === "theme" ? " color-dot--theme" : ""}${value === optionValue ? " color-dot--active" : ""}`}
@@ -1202,14 +1208,15 @@ function AgentProviderTable({
   onLimits(provider: LimitProviderId, enabled: boolean): void;
 }): React.JSX.Element {
   const [found, setFound] = useState<AgentProviderId[] | null>(null);
+  const [failed, setFailed] = useState(false); // a failed lookup is not «CLI not found»: the cell stays empty
   useEffect(() => {
     let active = true;
-    window.canvasTTY.providers.available().then((list: AgentProviderId[]) => { if (active) setFound(list); }).catch(() => { if (active) setFound([]); });
+    window.canvasTTY.providers.available().then((list: AgentProviderId[]) => { if (active) setFound(list); }).catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
   }, []);
   const install = (): void => void window.canvasTTY.external.openUrl(installUrl(locale));
   return (
-    <table className="agent-table">
+    <table className="agent-table" aria-busy={found === null && !failed}>
       <thead>
         <tr>
           <th scope="col">{t(locale, "agentTableProvider")}</th>
