@@ -48,7 +48,7 @@ export function HomeMediaWidget({
         aria-label={label}
         style={backgroundStyle}
       >
-        {!dataUrl && <span className="mini-media__empty-icon"><UiIcon name="image-plus" size={44} /></span>}
+        {!dataUrl && <span className="mini-media__empty-icon"><UiIcon name="image-plus" size={16} /><span>{t(locale, "mediaPick")}</span></span>}
       </button>
 
       {dataUrl && (

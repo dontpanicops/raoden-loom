@@ -534,7 +534,7 @@ test("fresh installs default to scroll pan and key-gated widget wheel input", as
     assert.equal(store.get().showShortcutHints, true);
     assert.equal(store.get().minimapPlacement, "top-right");
     assert.equal(store.get().minimapInteractionMode, "click");
-    assert.equal(store.get().shortcutHintsPlacement, "bottom-right");
+    assert.equal(store.get().shortcutHintsPlacement, "top-right");
     assert.equal(store.get().canvasControlsPlacement, "bottom-left");
     assert.equal(store.get().homeAccentPreset, "theme");
     assert.equal(store.get().sessionRowColorMode, "status");

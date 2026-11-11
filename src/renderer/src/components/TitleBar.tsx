@@ -1,11 +1,10 @@
 import type { LocaleId, WindowState } from "../../../shared/contracts";
-import appManifest from "../../../../package.json";
 import { AppMark } from "./AppMark";
 import { UiIcon } from "./UiIcon";
 import { t } from "../lib/i18n";
 
-const BUILD_CHANNEL = import.meta.env.DEV ? "DEV" : "RELEASE";
-const BUILD_LABEL = `${BUILD_CHANNEL} v${appManifest.version}`;
+// The canvas owns the command palette; the button asks it to open (WorkspaceCanvas listens).
+export const OPEN_PALETTE_EVENT = "loom:open-palette";
 
 interface TitleBarProps {
   locale: LocaleId;
@@ -31,6 +30,14 @@ export function TitleBar({ locale, windowState, onWindowStateChange }: TitleBarP
     </div>
   );
 
+  const palette = (
+    <button className="titlebar__palette" type="button" onClick={() => window.dispatchEvent(new Event(OPEN_PALETTE_EVENT))}>
+      <UiIcon name="search" size={14} />
+      <span>{t(locale, "paletteButton")}</span>
+      <kbd>{windowState.isMacOS ? "\u2318K" : "Ctrl+K"}</kbd>
+    </button>
+  );
+
   if (windowState.isMacOS) {
     return (
       <header className="titlebar titlebar--macos surface-3">
@@ -38,10 +45,9 @@ export function TitleBar({ locale, windowState, onWindowStateChange }: TitleBarP
         <div className="titlebar__brand">
           <span className="titlebar__logo"><AppMark /></span>
           <strong>Raoden Loom</strong>
-          <span className={`titlebar__build titlebar__build--${BUILD_CHANNEL.toLowerCase()}`}>{BUILD_LABEL}</span>
-          <span className="titlebar__subtitle">{t(locale, "appSubtitle")}</span>
         </div>
         <div className="titlebar__drag" />
+        {palette}
       </header>
     );
   }
@@ -51,10 +57,9 @@ export function TitleBar({ locale, windowState, onWindowStateChange }: TitleBarP
       <div className="titlebar__brand">
         <span className="titlebar__logo"><AppMark /></span>
         <strong>Raoden Loom</strong>
-        <span className={`titlebar__build titlebar__build--${BUILD_CHANNEL.toLowerCase()}`}>{BUILD_LABEL}</span>
-        <span className="titlebar__subtitle">{t(locale, "appSubtitle")}</span>
       </div>
       <div className="titlebar__drag" />
+      {palette}
       {controls}
     </header>
   );

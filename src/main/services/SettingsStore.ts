@@ -311,7 +311,7 @@ function createDefaults(systemLocale: string, platform: CanvasNavigationPlatform
     showShortcutHints: true,
     minimapPlacement: "top-right",
     minimapInteractionMode: "click",
-    shortcutHintsPlacement: "bottom-right",
+    shortcutHintsPlacement: "top-right",
     canvasControlsPlacement: "bottom-left",
     shortcuts: { ...DEFAULT_SHORTCUTS },
     mediaPath: null,

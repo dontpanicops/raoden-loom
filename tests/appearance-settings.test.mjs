@@ -69,10 +69,11 @@ test("R1: the dark themes' glass over a light canvas overrides only the two glas
   }
 });
 
-test("HOME state accents use bounded rails instead of rounded inset shadows", () => {
+test("HOME rows carry their state in a glyph and a label, never a side stripe (D-007)", () => {
   const styles = readFileSync(new URL("../src/renderer/src/styles/app.css", import.meta.url), "utf8");
-  assert.match(styles, /\.limit-row--stale::before[^}]+top:\s*10px;[^}]+bottom:\s*10px;/u);
-  assert.match(styles, /\.limit-row--error::before[^}]+background:\s*var\(--danger\);/u);
+  assert.doesNotMatch(styles, /\.limit-row[^{,]*::before|\.usage-row[^{,]*::before/u);
+  assert.match(styles, /\.limit-row--stale \.limit-row__value/u);
+  assert.match(styles, /\.usage-row\[data-session-tone="waiting"\] \.usage-row__chip/u);
   assert.doesNotMatch(styles, /\.limit-row--(?:stale|error)\s*\{[^}]*box-shadow:/u);
 });
 
@@ -83,22 +84,11 @@ test("segmented settings keep focus inside the button and separate conditional e
   assert.match(styles, /\.setting-group__control\s*>\s*\.segmented\s*\+\s*\.shortcut-editor\s*\{[^}]*margin-top:\s*\.6em;/u);
 });
 
-test("the HOME limits grid follows the selected provider count", () => {
-  const styles = readFileSync(new URL("../src/renderer/src/styles/app.css", import.meta.url), "utf8");
-  assert.match(styles, /\.limits-list\s*\{[^}]*repeat\(var\(--limit-rows,\s*3\),\s*minmax\(0,\s*1fr\)\)/u);
-  assert.doesNotMatch(styles, /\.limits-list\s*\{[^}]*repeat\(3,\s*minmax\(0,\s*1fr\)\)/u);
-});
-
-test("four or more HOME limit rows switch to bounded compact geometry", () => {
+test("the HOME limits tile lists the provider rows under a header and one note when no CLI is found", () => {
   const styles = readFileSync(new URL("../src/renderer/src/styles/app.css", import.meta.url), "utf8");
   const source = readFileSync(new URL("../src/renderer/src/features/home/HomeZone.tsx", import.meta.url), "utf8");
-  assert.match(source, /home\.limitRows\.length\s*>=\s*4\s*\?\s*"limits-list--dense"/u);
-  assert.match(styles, /\.limits-list--dense\s*\{[^}]*padding:\s*10px;[^}]*gap:\s*6px;/u);
-  assert.match(styles, /\.limit-row\s*\{[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;[^}]*container:\s*limit-row\s*\/\s*size;/u);
-  assert.match(styles, /@container\s+limit-row\s*\(max-height:\s*48px\)/u);
-  assert.match(styles, /\.limit-row\s*>\s*\.provider-icon--medium\s*\{[^}]*--provider-icon-art-size:\s*24px;[^}]*height:\s*32px;/u);
-  assert.match(source, /formatPercent\(row\.window\.usedPercent,\s*locale\)[\s\S]*formatResetCountdown\(row\.window\.resetsAt,\s*now,\s*locale\)/u);
-  assert.match(styles, /\.limit-row__summary strong\s*\{[^}]*font-size:\s*22px;/u);
-  assert.match(styles, /\.limit-row__summary\s*>\s*span\s*\{[^}]*font-size:\s*11px;/u);
-  assert.match(styles, /\.limit-row__track\s*\{[^}]*height:\s*4px;/u);
+  assert.match(styles, /\.agent-overview\s*\{[^}]*flex-direction:\s*column;[^}]*overflow-y:\s*auto;/u);
+  assert.match(styles, /\.limit-row__track\s*\{[^}]*height:\s*6px;/u);
+  assert.match(source, /every\(\(row\) => row\.reason === "cli-not-found"\)/u);
+  assert.match(source, /formatResetCountdown\(row\.window\.resetsAt,\s*now,\s*locale\)/u);
 });

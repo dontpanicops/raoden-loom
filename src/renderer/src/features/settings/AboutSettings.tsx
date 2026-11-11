@@ -18,7 +18,7 @@ export function AboutSettings({ locale }: { locale: LocaleId }): React.JSX.Eleme
         <span>
           <AppMark size={28} />
           <strong>Raoden Loom</strong>
-          <small>v{appManifest.version}</small>
+          <small>v{appManifest.version} · {import.meta.env.DEV ? "DEV" : "RELEASE"}</small>
         </span>
         <p>{t(locale, "aboutDescription")}</p>
       </header>

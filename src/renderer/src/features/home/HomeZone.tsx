@@ -9,7 +9,8 @@ import type {
   LimitsSnapshot,
   LocaleId,
   ProviderId,
-  SessionSnapshot
+  SessionSnapshot,
+  SessionStatus
 } from "../../../../shared/contracts";
 import {
   HOME_GRID_CELL_HEIGHT,
@@ -105,6 +106,8 @@ interface GridPointerState {
   scale: { x: number; y: number };
 }
 
+// Waiting first, then working, failed, the rest (mock 05: "by status").
+const SESSION_ORDER: Record<SessionStatus, number> = { needs_approval: 0, working: 1, failed: 2, done: 3, idle: 4, unavailable: 5 };
 const HOME_RESIZE_DIRECTIONS: HomeResizeDirection[] = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
 const FAILURE_TOOLTIP_GAP = 6;
 const FAILURE_TOOLTIP_MARGIN = 16;
@@ -223,7 +226,7 @@ function SessionFailureDetails({ sessionId, details, locale }: SessionFailureDet
         onBlur={scheduleClose}
         onKeyDown={handleEscape}
       >
-        <UiIcon name="error" size={24} />
+        <UiIcon name="error" size={16} />{sessionStatusLabel(locale, "failed")}
       </button>
       <div
         ref={tooltipRef}
@@ -440,14 +443,21 @@ export function HomeZone({
 
   const widgetContent = (widgetId: string): React.ReactNode => {
     if (widgetId === "core.limits") {
+      const noneFound = home.limitRows.length > 0 && home.limitRows.every((row) => row.reason === "cli-not-found");
       return (
-        <section
-          className={`tile agent-overview limits-list ${home.limitRows.length >= 4 ? "limits-list--dense" : ""}`}
-          aria-label={t(locale, "modelLimits")}
-          style={{ "--limit-rows": Math.max(home.limitRows.length, 1) } as React.CSSProperties}
-        >
+        <section className="tile agent-overview limits-list" aria-label={t(locale, "modelLimits")}>
+          <header className="home-tile__head">
+            <span>{t(locale, "homeLimitsHead")}</span>
+            {!noneFound && <span>{t(locale, "homeLimitsReset")}</span>}
+          </header>
           {home.limitRows.length === 0 ? (
-            <div className="limits-list__empty">{t(locale, "noVisibleLimits")}</div>
+            <div className="home-tile__note">{t(locale, "noVisibleLimits")}</div>
+          ) : noneFound ? (
+            <div className="home-tile__note limits-list__missing">
+              <strong><UiIcon name="info" size={14} />{t(locale, "homeCliMissing")}</strong>
+              <span>{t(locale, "homeCliMissingHint")}</span>
+              <InstallLink locale={locale} />
+            </div>
           ) : home.limitRows.map((row) => (
             <LimitRow key={row.provider} row={row} locale={locale} now={now.getTime()} />
           ))}
@@ -471,6 +481,10 @@ export function HomeZone({
           data-activity-load={failed.length ? "error" : loading ? "loading" : "ready"}
           aria-label={t(locale, "activeSessions")}
         >
+          <header className="home-tile__head">
+            <span>{t(locale, "homeSessionsHead")}{!nothing && ` · ${runs.active.length + home.sessionRows.length}`}</span>
+            {!nothing && <span>{t(locale, "homeSessionsSort")}</span>}
+          </header>
           {failed.length > 0 && (
             <div className="activity-list__error" role="alert">
               <span>{failed.join(". ")}</span>
@@ -480,14 +494,14 @@ export function HomeZone({
           {/* "No sessions" only when every source answered and is empty; never while loading or after a failure. */}
           {nothing && !failed.length && (
             loading
-              ? <div className="home-empty" aria-busy="true">{t(locale, "actLoading")}</div>
-              : <div className="home-empty">{t(locale, "noActiveSessions")}</div>
+              ? <div className="home-tile__note" aria-busy="true">{t(locale, "actLoading")}</div>
+              : <div className="home-tile__note">{t(locale, "noActiveSessions")}</div>
           )}
           {!nothing && loading && <div className="activity-list__hint" aria-busy="true">{t(locale, "actLoading")}</div>}
           {runs.active.map((row) => (
             <RunActivityRow key={row.runId} row={row} locale={locale} onOpen={() => onOpenRun(row.linkId)} />
           ))}
-          {home.sessionRows.map((session) => {
+          {[...home.sessionRows].sort((a, b) => SESSION_ORDER[a.status] - SESSION_ORDER[b.status]).map((session) => {
             const statusIcon = sessionStatusIcon(session.status);
             const failureDetails = session.status === "failed"
               ? session.failureDetails ?? `${t(locale, "failureOutputUnavailable")}${session.exitCode ?? "unknown"}`
@@ -502,12 +516,13 @@ export function HomeZone({
                   aria-label={`${session.title}, ${sessionStatusLabel(locale, session.status, session.provider)}`}
                   title={failureDetails ? undefined : session.title}
                 >
-                  <ProviderIcon provider={session.provider} size="medium" />
-                  <span className="usage-row__copy">
-                    <strong>{sessionStatusLabel(locale, session.status, session.provider)}</strong>
-                    <span><em className="activity-kind">{t(locale, "actTerminal")}</em> {session.title}</span>
-                  </span>
-                  {!failureDetails && statusIcon && <UiIcon name={statusIcon} size={24} />}
+                  <ProviderIcon provider={session.provider} size="small" />
+                  <span className="usage-row__name">{session.title}</span>
+                  {!failureDetails && (
+                    <span className="usage-row__chip">
+                      <UiIcon name={statusIcon ?? "status-idle"} size={14} />{sessionStatusLabel(locale, session.status, session.provider)}
+                    </span>
+                  )}
                 </button>
                 {failureDetails && (
                   <SessionFailureDetails sessionId={session.id} details={failureDetails} locale={locale} />
@@ -551,13 +566,8 @@ export function HomeZone({
           style={{ "--launcher-columns": homeLauncherColumnCount(launcherProviders) } as React.CSSProperties}
         >
           <button className="launcher-button launcher-button--terminal" type="button" onClick={() => onOpenTerminal()} title={t(locale, "terminal")}>
-            <ProviderIcon provider="terminal" size="large" />
+            <ProviderIcon provider="terminal" size="small" /><span>{t(locale, "terminal")}</span>
           </button>
-          {launcherProviders.map((provider) => (
-            <button className="launcher-button" type="button" key={provider} onClick={() => onOpenAgent(provider)} title={PROVIDERS[provider].label}>
-              <ProviderIcon provider={provider} size="large" />
-            </button>
-          ))}
           <button
             className="launcher-button launcher-button--browser"
             type="button"
@@ -565,15 +575,20 @@ export function HomeZone({
             title={t(locale, "browser")}
             aria-label={t(locale, "browser")}
           >
-            <UiIcon name="browser" size="3.23em" />
+            <UiIcon name="browser" size="1.9em" /><span>{t(locale, "browser")}</span>
           </button>
+          {launcherProviders.map((provider) => (
+            <button className="launcher-button" type="button" key={provider} onClick={() => onOpenAgent(provider)} title={PROVIDERS[provider].label}>
+              <ProviderIcon provider={provider} size="small" /><span>{PROVIDERS[provider].label}</span>
+            </button>
+          ))}
         </section>
       );
     }
     if (widgetId === "core.settings") {
       return (
         <button className="tile settings-button" type="button" onClick={onOpenSettings} aria-label={t(locale, "settings")}>
-          <UiIcon name="settings" size={48} />
+          <UiIcon name="settings" size={22} /><span>{t(locale, "settings")}</span>
         </button>
       );
     }
@@ -766,10 +781,12 @@ function isFocusableHomeWidget(widgetId: string, plugins: readonly InstalledPlug
 function ClockWidget({ locale, now }: { locale: LocaleId; now: Date }): React.JSX.Element {
   const formatLocale = locale === "ru" ? "ru-RU" : "en-GB";
   const time = now.toLocaleTimeString(formatLocale, { hour: "2-digit", minute: "2-digit" });
+  const date = now.toLocaleDateString(formatLocale, { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <section className="tile clock-tile">
       <time className="clock-tile__time">{time}</time>
+      <span className="clock-tile__date">{date}</span>
     </section>
   );
 }
@@ -794,21 +811,32 @@ function LimitRow({ row, locale, now }: { row: HomeLimitRow; locale: LocaleId; n
     .filter(Boolean)
     .join(", ");
 
+  const staleNote = row.state === "stale" || row.state === "error";
   return (
     <article className={`limit-row limit-row--${row.state}`} aria-label={accessibleLabel} title={accessibleLabel}>
-      <ProviderIcon provider={row.provider} size="medium" />
+      <ProviderIcon provider={row.provider} size="small" />
+      <span className="limit-row__name">{providerLabel}</span>
       {row.window ? (
-        <span className="limit-row__metric">
-          <span className="limit-row__summary">
-            <strong>{formatPercent(row.window.usedPercent, locale)}</strong>
-            <span>{formatResetCountdown(row.window.resetsAt, now, locale)}</span>
-          </span>
+        <>
+          <span className="limit-row__value">{formatResetCountdown(row.window.resetsAt, now, locale)}</span>
           <span className="limit-row__track" aria-hidden="true">
             <i className="limit-row__fill" style={{ width: `${row.window.usedPercent}%` }} />
           </span>
-        </span>
-      ) : <span className="limit-row__empty">{stateLabel}</span>}
+          {staleNote && <span className="limit-row__note">{stateLabel}</span>}
+        </>
+      ) : <span className="limit-row__value">{stateLabel}</span>}
     </article>
+  );
+}
+
+function InstallLink({ locale }: { locale: LocaleId }): React.JSX.Element {
+  // The repository's own getting-started page; the docs name no per-CLI install commands.
+  const page = locale === "ru" ? "getting-started.ru.md" : "getting-started.md";
+  return (
+    <button type="button" className="home-tile__link"
+      onClick={() => void window.canvasTTY.external.openUrl(`https://github.com/dontpanicops/raoden-loom/blob/main/docs/${page}`)}>
+      {t(locale, "howToInstall")}
+    </button>
   );
 }
 

@@ -11,7 +11,7 @@ test("Home exposes failed session details from the error mark with a Copy action
   assert.match(source, /session\.failureDetails \?\? `\$\{t\(locale, "failureOutputUnavailable"\)\}\$\{session\.exitCode \?\? "unknown"\}`/);
   assert.match(source, /className="usage-row__failure-tooltip"/);
   assert.match(source, /className="usage-row__failure-trigger"/);
-  assert.match(source, /<UiIcon name="error" size=\{24\} \/>/);
+  assert.match(source, /<UiIcon name="error" size=\{16\} \/>/);
   assert.match(source, /window\.canvasTTY\.clipboard\.writeText\(details\)/);
   assert.match(source, /<UiIcon name="copy" size=\{16\} \/>/);
 });
@@ -28,7 +28,7 @@ test("Home opens failure details from hover or keyboard focus in a top-layer pop
   assert.match(styles, /\.usage-row__failure-tooltip:popover-open \{ display: grid; \}/);
 });
 
-test("failure popover preserves the three-row scroll viewport and danger rail", async () => {
+test("failure popover preserves the scroll viewport and no side stripe", async () => {
   const [source, styles] = await Promise.all([
     readFile(homeZonePath, "utf8"),
     readFile(appStylesPath, "utf8")
@@ -38,5 +38,5 @@ test("failure popover preserves the three-row scroll viewport and danger rail", 
   assert.match(styles, /\.usage-list \{[^}]*overscroll-behavior: contain;/);
   assert.match(source, /className="tile usage-list"[\s\S]*?data-canvas-wheel-priority="local"/);
   assert.doesNotMatch(styles, /\.usage-list:has\([^}]+overflow: visible;/);
-  assert.match(styles, /\.usage-row-wrap:has\(\.ui-icon--error\) \.usage-row::before \{ background: var\(--danger\); \}/);
+  assert.doesNotMatch(styles, /\.usage-row[^{]*::before|\.limit-row[^{]*::before/, "no side stripes on HOME rows (D-007)");
 });
