@@ -1,6 +1,6 @@
 import type { LocaleId, WindowState } from "../../../shared/contracts";
 import appManifest from "../../../../package.json";
-import { ProviderIcon } from "./ProviderIcon";
+import { AppMark } from "./AppMark";
 import { UiIcon } from "./UiIcon";
 import { t } from "../lib/i18n";
 
@@ -36,7 +36,7 @@ export function TitleBar({ locale, windowState, onWindowStateChange }: TitleBarP
       <header className="titlebar titlebar--macos surface-3">
         <div className="titlebar__macos-controls-space" aria-hidden="true" />
         <div className="titlebar__brand">
-          <span className="titlebar__logo"><ProviderIcon provider="terminal" size="small" /></span>
+          <span className="titlebar__logo"><AppMark /></span>
           <strong>Raoden Loom</strong>
           <span className={`titlebar__build titlebar__build--${BUILD_CHANNEL.toLowerCase()}`}>{BUILD_LABEL}</span>
           <span className="titlebar__subtitle">{t(locale, "appSubtitle")}</span>
@@ -49,7 +49,7 @@ export function TitleBar({ locale, windowState, onWindowStateChange }: TitleBarP
   return (
     <header className="titlebar surface-3">
       <div className="titlebar__brand">
-        <span className="titlebar__logo"><ProviderIcon provider="terminal" size="small" /></span>
+        <span className="titlebar__logo"><AppMark /></span>
         <strong>Raoden Loom</strong>
         <span className={`titlebar__build titlebar__build--${BUILD_CHANNEL.toLowerCase()}`}>{BUILD_LABEL}</span>
         <span className="titlebar__subtitle">{t(locale, "appSubtitle")}</span>

@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/logo/lockup-dark.svg">
+    <img src="docs/brand/logo/lockup-light.svg" alt="Raoden Loom" width="360">
+  </picture>
+</p>
+
 https://github.com/user-attachments/assets/444612f7-cda1-4fd6-8514-2f4fac9cc520
 
 <p align="center">

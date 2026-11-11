@@ -1,6 +1,7 @@
 import appManifest from "../../../../../package.json";
 import type { LocaleId } from "../../../../shared/contracts";
 import { t, type TranslationKey } from "../../lib/i18n";
+import { AppMark } from "../../components/AppMark";
 
 const FAQ: ReadonlyArray<readonly [TranslationKey, TranslationKey]> = [
   ["aboutFaqStatusQuestion", "aboutFaqStatusAnswer"],
@@ -15,6 +16,7 @@ export function AboutSettings({ locale }: { locale: LocaleId }): React.JSX.Eleme
     <section className="about-settings">
       <header className="about-settings__header">
         <span>
+          <AppMark size={28} />
           <strong>Raoden Loom</strong>
           <small>v{appManifest.version}</small>
         </span>
