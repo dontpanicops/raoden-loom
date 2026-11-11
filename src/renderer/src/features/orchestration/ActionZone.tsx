@@ -3,7 +3,7 @@
 // to confirm) and the clarify field. The forms of a decision (a question, commands, a limit, ...) are the body: they
 // bring their own submit button, so the model's buttons for those actions are not drawn twice. The panel's footer
 // (outside the scroll) holds Pause / Stop and the local copy buttons.
-import { useEffect, useId, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useRef, useState } from "react";
 import type { LocaleId } from "../../../../shared/contracts";
 import { UiIcon } from "../../components/UiIcon";
 import { t, type TranslationKey } from "../../lib/i18n";
@@ -18,7 +18,7 @@ export const FORM_ACTIONS: ReadonlySet<ZoneAction> = new Set<ZoneAction>(["answe
 // the words that tell One step from Resume apart, on the buttons themselves
 const HINT: Partial<Record<ZoneAction, TranslationKey>> = { resume: "orchResumeHint", step: "orchStepHint" };
 // the attribute the scripts reach a local button by
-const LOCAL: Partial<Record<ZoneAction, string>> = { open_plan: "data-orch-open-plan", open_changes: "data-orch-view-changes", new_goal: "data-orch-new-goal", open_journal: "data-orch-open-journal" };
+const LOCAL: Partial<Record<ZoneAction, string>> = { open_plan: "data-orch-open-plan", open_changes: "data-orch-view-changes", new_goal: "data-orch-new-goal", open_journal: "data-orch-open-journal", take: "data-orch-take-open" };
 const ATTR: Partial<Record<ZoneAction, string>> = { recover_accept: "recover" };
 // the words under a dangerous button (R5a, the mock-up's "with a confirmation; hidden in the in-project mode")
 const DANGER_HINT: Partial<Record<ZoneAction, TranslationKey>> = { recover_reset: "orchZone_hint_recover_reset" };
@@ -78,6 +78,7 @@ export interface ActionZoneProps {
   stages?: readonly string[]; // R5a: the plan's stage titles, a numbered list in the body of the plan-review zone
   words(text: string): React.ReactNode; // the glossary marks the terms of a text (RunPanel Termed)
   children?: React.ReactNode; // the body: the forms
+  rowStart?: React.ReactNode; // R6-A: a button the panel draws itself (Release link) first in the row of buttons
   notices?: React.ReactNode; // the refusal, the offline banner, the pending commands
 }
 
@@ -134,7 +135,7 @@ export function ActionZone(p: ActionZoneProps): React.JSX.Element {
       {zone.clarify !== "disabled" && p.clarifyOff && <small className="orch-hint" id={reasonId} data-orch-platform-hint>{p.clarifyOff}</small>}
     </div>
   );
-  const rowButtons = inlineSend ? [] : clarifyShown && zone.primary && !FORM_ACTIONS.has(zone.primary.action) ? [sendClarify, ...rows.slice(1), rows[0]] : clarifyShown ? [sendClarify, ...rows] : rows;
+  const rowButtons = p.rowStart ? [<Fragment key="row-start">{p.rowStart}</Fragment>, ...(inlineSend ? [] : clarifyShown ? [sendClarify, ...rows] : rows)] : inlineSend ? [] : clarifyShown && zone.primary && !FORM_ACTIONS.has(zone.primary.action) ? [sendClarify, ...rows.slice(1), rows[0]] : clarifyShown ? [sendClarify, ...rows] : rows;
   return (
     <section ref={p.zoneRef} tabIndex={-1} role="status" aria-live="polite" data-orch-summary data-headline={p.headline} data-orch-zone={zone.variant} data-orch-tone={zone.tone}
       className={`orch-zone orch-zone--${zone.tone} orch-zone--${p.headline} orch-panel__status orch-panel__status--${p.status}${p.flash ? " orch-zone--flash" : ""}${p.compact ? " orch-zone--compact" : ""}`}>
@@ -151,6 +152,7 @@ export function ActionZone(p: ActionZoneProps): React.JSX.Element {
         )}
       </div>
       {zone.detail && <pre className="orch-zone__error" data-orch-error>{zone.detail}</pre>}
+      {zone.mono && <pre className="orch-zone__mono" data-orch-mono>{zone.mono}</pre>}
       {p.stages && p.stages.length > 0 && zone.variant === "plan_review" && <ol className="orch-zone__stages" data-orch-stages>{p.stages.map((x) => <li key={x}>{x}</li>)}</ol>}
       {p.children}
       {p.notices}

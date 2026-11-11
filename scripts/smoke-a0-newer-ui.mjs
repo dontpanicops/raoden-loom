@@ -165,7 +165,7 @@ try {
   expect(panel.version === "3" && panel.title.includes("более новой версией Raoden Loom"), "second: the panel names the newer version", panel);
   expect(panel.goal.includes(GOAL), "second: the goal of run.created is shown", panel.goal);
   expect(same(panel.types, ["run.created", "plan.recorded", "review.assessed", "plan.proposed"]), "second: the raw records are the history", panel.types);
-  expect(same(panel.buttons, ["Закрыть", "Отпустить связь"]), "second: no action but closing and Release link", panel.buttons);
+  expect(same(panel.buttons, ["Закрыть", "Отпустить связь", "Скопировать id"]), "second: no action but closing, Release link and Copy id", panel.buttons);
   expect(!/поврежд/i.test(panel.text), "second: not called damaged", panel.text);
   await app.shot("a0-02-newer-panel");
   const refused = await app.ev(`Promise.all(["stop", "resume", "step"].map((kind) => window.canvasTTY.orchestration.command({ runId: ${JSON.stringify(newerId)}, commandId: crypto.randomUUID(), expectedRevision: 0, command: { kind } }).then((r) => r.ok ? "accepted" : r.code)))`);

@@ -2021,3 +2021,21 @@ button { border: 0; }
 .settings-panel .settings-panel__content .setting-group .browser-settings__download { min-height: 0; padding: .35em 0; border: 0; border-radius: 0; background: transparent; }
 .settings-panel .settings-panel__content .setting-group .browser-settings__clear { min-height: 0; padding: .4em .9em; border: .08em solid color-mix(in srgb, var(--danger-fg) 55%, transparent); border-radius: .6em; color: var(--danger-fg); background: transparent; font-size: .96em; font-weight: 500; }
 .settings-panel .settings-panel__content .setting-group .browser-settings__clear.browser-settings__clear--confirm { color: var(--danger-text); background: var(--danger); }
+
+/* R6-A: the run panel brought to the mock-ups 07 and 13 */
+.orch-feed__text--mono { font: 12px/1.5 var(--font-mono); overflow-wrap: anywhere; }
+.orch-zone__mono { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--surface-sunken); font: 12px/1.5 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.orch-zone__steps { background: color-mix(in srgb, var(--surface-sunken) 80%, transparent); }
+.orch-zone__warn { color: var(--status-waiting); font-weight: 700; }
+.orch-proposal__lost { margin: 0; color: var(--danger-fg); font-weight: 600; }
+.orch-zone .orch-proposal__head { margin: 0; padding: 4px 12px; border-radius: 12px; background: var(--surface-sunken); }
+.orch-zone[data-orch-zone="newer_version"] [data-orch-zone-action="copy_id"] { padding-inline: 0; background: transparent; box-shadow: none; font-weight: 600; }
+.orch-zone .orch-release { display: inline-flex; flex-direction: column; gap: 6px; }
+.orch-sum-fold > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; list-style: none; }
+.orch-sum-fold > summary::-webkit-details-marker { display: none; }
+.orch-sum-fold > summary h4 { margin: 0; color: var(--text-secondary); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.orch-sum-fold > summary span { color: var(--text-secondary); }
+.orch-sum-fold > summary::after { content: "\25B8"; margin-left: 6px; color: var(--text-secondary); }
+.orch-sum-fold[open] > summary::after { content: "\25BE"; }
+.orch-sum-fold[open] > summary { margin-bottom: 6px; }
+.orch-zone__actions + .orch-zone__danger { margin-top: 12px; } /* the sticky row of buttons overlaps by -12px: the divider must stay visible (mock-up 08) */

@@ -654,7 +654,7 @@ export function pauseText(locale: LocaleId, view: OrchestrationRunView, entries:
   const button = pending?.status === "failed" ? `${t(locale, "orchFinishRetry")}: ${t(locale, `orchFinishStep_${pending.step}` as TranslationKey)}`
     : cause.kind === "push" ? t(locale, "orchPause_push_protected_button")
     : cause.kind === "prepare" ? t(locale, "orchPause_prepare_failed_button")
-    : cause.kind === "mcp" ? t(locale, "orchResume") : t(locale, pauseKey(set, "button"));
+    : cause.kind === "mcp" ? t(locale, cause.code === "mcp_present" ? "orchPause_needs_user_action_button" : "orchResume") : t(locale, pauseKey(set, "button"));
   return {
     what: pauseWhat(locale, cause, onMac, view.proposal?.checks.length === 0),
     why: pauseWhy(locale, cause, onMac, view.proposal?.checks.length === 0),
@@ -676,7 +676,7 @@ export function primaryAction(view: OrchestrationRunView): RunAction | null {
 // ---------- the action zone: what happened, what to do, one main button (R3b) ----------
 
 // Buttons that send nothing to main (a tab, a clipboard, the project's settings, a screen of the app) are local.
-export type ZoneLocal = "open_plan" | "open_changes" | "open_feed" | "open_journal" | "project_settings" | "copy_id" | "copy_journal" | "release_newer" | "new_goal";
+export type ZoneLocal = "open_plan" | "open_changes" | "open_feed" | "open_journal" | "project_settings" | "copy_id" | "copy_journal" | "release_newer" | "new_goal" | "take";
 export type ZoneAction = RunAction | "recover_accept" | "recover_retry" | "recover_reset" | "checks_accept" | "checks_edit" | "plan_return" | "plan_accept" | ZoneLocal;
 // commands: what main is asked (AdmissionKind), [] for a local button; after: the command sent once main has answered the
 // first (a raised limit pauses the run on user_request, and "resume" follows)
@@ -698,6 +698,7 @@ export interface ZoneModel {
   clarify: "hidden" | "collapsed" | "open" | "disabled"; // disabled: a waiting plan proposal is the person's first
   footer: ZoneButton[]; // under the tabs, outside the scroll: pause after the turn, Stop, copy id / journal
   detail?: string; // a failed run: the last error the activity quotes (mock-up 18)
+  mono?: string; // R6-A (mock-up 16): a line in mono under the words, what the person is to look at (the MCP servers that are on)
   commands: AdmissionKind[]; // every command the zone can send, for the test against admits()
 }
 
@@ -735,8 +736,10 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
   const state = (variant: string, headline: string, extra: Partial<ZoneModel> = {}) => done({ ...none, variant, title: L(`orchHeadline_${headline}`), ...extra });
 
   if (view.newer) {
-    return done({ variant: "newer_version", tone: "calm", eyebrow: "", title: L("orchPause_newer_version_what"), why: L("orchPause_newer_version_why"), todo: L("orchPause_newer_version_do"), primary: null,
-      secondary: [b("release_newer", L("orchReleaseLink"))], dangerous: [], footer: [b("copy_id", L("orchZone_copyId"))] });
+    // R6-A (mock-up 13): "Read only", one short why, "Release link" and "Copy id" in one row
+    return done({ variant: "newer_version", tone: "neutral", eyebrow: L("orchReadOnly"), title: L("orchPause_newer_version_what"),
+      why: view.newer.preview ? L("orchReadOnlyPreview") : L("orchZone_newerWhy"), todo: view.newer.preview ? "" : L("orchZone_newerDo"), primary: null,
+      secondary: [b("release_newer", L("orchReleaseLink")), b("copy_id", L("orchZone_copyId"))], dangerous: [], footer: [] });
   }
   if (view.halted) {
     return state("halted", "halted", { tone: "waiting", why: L("orchNext_halted"), primary: b("open_journal", L("orchZone_openJournal")) });
@@ -772,7 +775,15 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
   // paused
   const set = zoneSet(view, entries, onMac);
   const title = text?.what ?? L(`orchHeadline_${runHeadline(view).headline}`);
-  const base = { variant: set, tone: (text?.you === false ? "calm" : "waiting") as ZoneTone, eyebrow: "", title, why: (set === "limit_reached" && view.progress?.budget?.reached ? L(`orchPause_limit_reached_why_${view.progress.budget.reached}` as TranslationKey) : text?.why) ?? "", todo: ["plan_review", "awaiting_checks_decision", "awaiting_checks_none", "loop_suspected", "awaiting_answer", "awaiting_finish_confirmation", "check_needs_permissions", "limit_reached"].includes(set) ? "" : text?.todo ?? "" }; // the "why" alone (mock-ups 02, 04, 05, 06, 07, 09, 12, 14)
+  const base = { variant: set, tone: (text?.you === false ? "calm" : "waiting") as ZoneTone, eyebrow: "", title, why: (set === "limit_reached" && view.progress?.budget?.reached ? L(`orchPause_limit_reached_why_${view.progress.budget.reached}` as TranslationKey) : text?.why) ?? "", todo: ["plan_review", "awaiting_checks_decision", "awaiting_checks_none", "loop_suspected", "awaiting_answer", "awaiting_finish_confirmation", "check_needs_permissions", "limit_reached", "finish_unconfirmed", "mcp_present", "mcp_unchecked"].includes(set) ? "" : text?.todo ?? "" }; // the "why" alone (mock-ups 02, 04, 05, 06, 07, 09, 12, 14, 13, 16)
+  // R6-A: mock-up 13 says the check in one line; mock-up 16 names the servers in mono, the text says what to do and no more
+  const mcp = viewCause(view, entries);
+  if (set === "finish_unconfirmed") base.why = L("orchZone_finishWhy");
+  let mono: string | undefined;
+  if (set === "mcp_present" && mcp?.kind === "mcp") {
+    base.why = L("orchPause_mcp_present_why").replaceAll("{cli}", providerName(mcp.cli));
+    mono = L("orchPause_mcp_present_mono").replaceAll("{cli}", providerName(mcp.cli)).replace("{names}", mcp.names);
+  }
   const resume = (label = text?.button ?? L("orchResume")) => b("resume", label, ["resume"]);
   const step = () => b("step", L("orchStep"), ["step"]);
   const secondary: ZoneButton[] = [];
@@ -830,7 +841,7 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
         if (reason === "loop_suspected") clarify = view.proposalWaits ? "disabled" : "open";
     }
   }
-  return done({ ...base, primary, secondary, dangerous, footer, ...(clarify ? { clarify } : {}) });
+  return done({ ...base, primary, secondary, dangerous, footer, ...(mono ? { mono } : {}), ...(clarify ? { clarify } : {}) });
 }
 
 // ---------- why a preparation failed ----------

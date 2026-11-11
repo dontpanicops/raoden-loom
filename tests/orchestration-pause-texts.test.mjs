@@ -217,20 +217,21 @@ test("the zone's headline is unique among the 37 sets, in both languages, and ea
       titles.set(z.title, set);
       assert.ok(!z.why.toLowerCase().includes(z.title.toLowerCase()), `${locale}: ${set}: the why repeats the headline`);
       // R5b (D-015, D-017): the plan under review and the checks' forms say only why (the mock-ups 04, 05, 06)
-      assert.ok((["plan_review", "awaiting_checks_decision", "awaiting_checks_none", "loop_suspected", "awaiting_answer", "awaiting_finish_confirmation", "check_needs_permissions", "limit_reached"].includes(set) || z.todo.trim().length > 1) && z.why.trim().length > 1, `${locale}: ${set}: why and what to do are said`);
+      assert.ok((["plan_review", "awaiting_checks_decision", "awaiting_checks_none", "loop_suspected", "awaiting_answer", "awaiting_finish_confirmation", "check_needs_permissions", "limit_reached", "finish_unconfirmed", "mcp_present", "mcp_unchecked"].includes(set) || z.todo.trim().length > 1) && z.why.trim().length > 1, `${locale}: ${set}: why and what to do are said`);
     }
     for (const set of [...DERIVED, "mcp_present", "mcp_unchecked", "push_protected"]) assert.ok(t(locale, `orchPause_${set}_what`), `${locale}: orchPause_${set}_what`);
   }
   assert.match(zoneOf("ru", "provider_limit").title, /Codex/);
   assert.match(zoneOf("ru", "model_unsupported").title, /gpt-6\.1-sol/);
-  assert.match(zoneOf("ru", "mcp_present").why, /files, git/);
+  assert.match(zoneOf("ru", "mcp_present").mono, /files, git/, "R6-A: the servers are named in the mono line");
+  assert.match(zoneOf("ru", "mcp_present").why, /Готово, продолжить/);
   assert.match(zoneOf("ru", "push_protected").why, /main/, "the protected branch is named");
 });
 
 test("every set has exactly one main button, never the danger fill unless Stop is all main allows, and the tone of PAUSES", () => {
   for (const locale of ["ru", "en"]) for (const set of SETS37) {
     const z = zoneOf(locale, set);
-    if (set === "newer_version") { assert.equal(z.primary, null); assert.equal(z.tone, "calm"); continue; }
+    if (set === "newer_version") { assert.equal(z.primary, null); assert.equal(z.tone, "neutral"); assert.equal(z.eyebrow, locale === "ru" ? "Только просмотр" : "Read only"); continue; }
     assert.ok(z.primary, `${set}: one main button`);
     assert.equal(z.primary.danger, STOP_MAIN.includes(set), `${set}: the danger fill only where Stop is the main action`);
     if (STOP_MAIN.includes(set)) {

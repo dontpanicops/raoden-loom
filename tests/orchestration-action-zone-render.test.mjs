@@ -154,7 +154,7 @@ test("the states without a pause draw their zone: working, ended, newer version"
   const newer = panel("newer_version", { extra: { newer: { chain: "ok", goal: null, compatible: true, fallback: null, version: 2 } } });
   assert.match(newer, /data-orch-zone="newer_version"/);
   assert.equal(mainOf(newer).length, 0, "a newer run offers no command");
-  assert.match(footOf(newer), /copy_id/);
+  assert.match(zoneOf(newer), /copy_id/, "R6-A: Copy id stands in the zone row beside Release link");
 });
 
 test("R4.1: every decision form is a labelled group with exactly one main button, in its pinned row", async () => {
