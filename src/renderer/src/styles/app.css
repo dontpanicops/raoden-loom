@@ -1122,7 +1122,12 @@ button { border: 0; }
 .orch-dialog .orch-form__actions { position: sticky; bottom: -28px; z-index: 2; margin: 0 -28px -28px; padding: 12px 28px 20px; background: var(--surface-4-solid); box-shadow: var(--elev-2); }
 .orch-dialog .launch-dialog__toolbar { justify-content: space-between; align-items: center; }
 .orch-dialog__title { font-size: 18px; }
-.orch-form { display: flex; flex-direction: column; gap: 12px; }
+.orch-form { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+/* R4c (Н8): one vertical flow — no field, hint, command or path is wider than the dialog */
+.orch-dialog .orch-form :is(input, textarea, select) { max-width: 100%; box-sizing: border-box; }
+.orch-dialog .orch-form :is(.orch-hint, .dialog-error, .orch-check > span, .orch-rights, .orch-profile, legend) { min-width: 0; overflow-wrap: anywhere; }
+.orch-dialog .orch-form textarea[data-orch-commands] { font: 12px/1.45 var(--font-mono); }
+.orch-dialog .orch-form :is(code, kbd) { overflow-wrap: anywhere; }
 .orch-field { min-width: 0; display: flex; flex-direction: column; gap: 6px; border: 0; padding: 0; margin: 0; }
 .orch-field > span:first-child, .orch-field legend { font-size: 13px; font-weight: 600; opacity: .85; }
 .orch-field input, .orch-field textarea, .orch-panel textarea, .orch-panel input, .orch-panel select { width: 100%; padding: 9px 11px; border: 0; border-radius: 10px; color: var(--text-primary); background: var(--surface-sunken); font: inherit; }
@@ -1133,9 +1138,9 @@ button { border: 0; }
 .orch-field__row button { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
 .orch-check { display: flex; align-items: center; gap: 8px; }
 .orch-check input { width: auto; }
-.orch-limits { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.orch-limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9em), 1fr)); gap: 8px; }
 .orch-limits legend { grid-column: 1 / -1; margin-bottom: 4px; }
-.orch-limits label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.orch-limits label { min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; overflow-wrap: anywhere; }
 .orch-form__actions { display: flex; justify-content: flex-end; gap: 8px; }
 .orch-hint { opacity: .7; font-size: 12px; }
 .orch-panel { position: absolute; right: 16px; top: 16px; bottom: 16px; z-index: 510; width: min(calc(400px * var(--ui-scale, 1)), calc(100% - 32px)); display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-xl); color: var(--text-primary); background: var(--surface-3-solid); box-shadow: var(--elev-4); font-size: calc(13px * var(--ui-scale, 1)); }
@@ -1265,8 +1270,8 @@ button { border: 0; }
 .orch-take p { margin: 0; }
 .orch-panel .agent-card__observe, .agent-card__body button.agent-card__observe { background: var(--status-done); color: var(--on-status); }
 .orch-ready ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
-.orch-ready__item { padding: 6px 8px; display: grid; grid-template-columns: 1.4em 1fr; gap: 6px; border-radius: 8px; background: color-mix(in srgb, var(--text-primary) 8%, transparent); font-size: 12px; }
-.orch-ready__item > span:last-child { display: flex; flex-direction: column; gap: 4px; }
+.orch-ready__item { padding: 8px 10px; min-width: 0; overflow-wrap: anywhere; display: grid; grid-template-columns: 1.4em minmax(0, 1fr); gap: 6px; border-radius: 8px; background: color-mix(in srgb, var(--text-primary) 8%, transparent); font-size: 12px; }
+.orch-ready__item > span:last-child { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .orch-ready__mark { font-weight: 900; text-align: center; }
 .orch-ready__item--ok .orch-ready__mark { color: var(--status-done); }
 .orch-ready__item--blocker { box-shadow: inset 3px 0 0 var(--status-failed); }
@@ -1471,7 +1476,16 @@ button { border: 0; }
 .board-card__header-actions { margin-left: auto; display: flex; gap: .4em; }
 .board-card__autopilot { display: flex; flex-wrap: wrap; align-items: center; gap: .5em; margin: .4em .9em 0; font-size: .9em; color: var(--text-secondary); }
 .board-card__autopilot strong { color: var(--text-primary); }
-.board-card__autopilot-ask { display: flex; flex-wrap: wrap; align-items: center; gap: .5em; }
+.board-card__autopilot-ask { display: flex; flex-wrap: wrap; align-items: center; gap: .5em 1em; }
+.board-card__autopilot-ask > span:first-child { flex: 1 0 100%; }
+.board-card__autopilot-ask label { display: inline-flex; align-items: center; gap: .4em; min-width: 0; }
+.board-card__autopilot-hint { color: var(--text-secondary); font-size: .92em; }
+/* R4c: the autopilot's chips — amber waits for the person or a limit, green works, neutral and red are its stops */
+.board-chip { padding: .15em .65em; border-radius: 99px; font-weight: 700; color: var(--text-primary); background: var(--surface-sunken); box-shadow: inset 0 0 0 1px var(--border-strong); overflow-wrap: anywhere; }
+.board-chip--working { color: var(--status-working); background: var(--status-working-bg); box-shadow: none; }
+.board-chip--waiting { color: var(--status-waiting); background: var(--status-waiting-bg); box-shadow: none; }
+.board-chip--danger { color: var(--danger-fg); background: var(--status-failed-bg); box-shadow: none; }
+.board-card__autopilot strong.board-chip { color: var(--status-working); }
 .board-card__autopilot-ask input { width: 4.5em; }
 .board-card__autopilot-stop { color: var(--text-primary); }
 .board-card__head { margin: .4em .9em 0; font-size: .9em; color: var(--text-secondary); }
@@ -1495,20 +1509,26 @@ button { border: 0; }
 .board-card button.orch-primary { color: var(--accent-text); background: var(--accent); }
 .board-card button.board-card__hide { width: 2.15em; height: 2.15em; padding: 0; display: grid; place-items: center; color: var(--text-secondary); background: color-mix(in srgb, var(--text-primary) 8%, transparent); }
 .board-card__message, .board-card__empty { margin: .5em .9em 0; color: var(--text-secondary); }
-.board-card__message { color: var(--text-primary); }
+.board-card__message { padding: .5em .7em; border-radius: 9px; color: var(--text-primary); background: var(--status-waiting-bg); }
+/* R4c: the import's report is a plate beside the card, not a modal */
+.board-aside { position: absolute; left: calc(100% + 12px); top: 0; z-index: 2; width: min(22em, 90vw); max-height: 100%; overflow-y: auto; border-radius: 14px; color: var(--text-primary); background: var(--surface-3-solid); box-shadow: var(--edge), var(--elev-3); }
+.board-aside__head { padding: .7em .8em .2em 1em; display: flex; align-items: center; justify-content: space-between; gap: .5em; }
+.board-card .board-aside__close { width: 2em; height: 2em; padding: 0; display: grid; place-items: center; color: var(--text-secondary); background: transparent; }
+.board-aside .board-import { padding: 0 1em 1em; font-size: .92em; overflow-wrap: anywhere; }
 .board-card__columns { min-height: 0; flex: 1; padding: .6em; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6em; }
-.board-card__column { min-height: 0; display: flex; flex-direction: column; border-radius: 10px; background: color-mix(in srgb, var(--surface-sunken) 70%, transparent); }
+.board-card__column { min-height: 0; display: flex; flex-direction: column; border-radius: 12px; background: var(--surface-sunken); }
 .board-card__column h3 { margin: 0; padding: .55em .7em; font-size: .9em; font-weight: 850; }
 .board-card__column h3 span { margin-left: .3em; padding: .05em .5em; border-radius: 99px; background: color-mix(in srgb, var(--text-primary) 12%, transparent); font-weight: 800; }
 .board-card__list { margin: 0; list-style: none; min-height: 0; flex: 1; padding: 0 .5em .5em; display: flex; flex-direction: column; gap: .5em; overflow-y: auto; }
 .board-card__column-empty { margin: .2em .2em; color: var(--text-secondary); font-size: .86em; }
 /* a task card: every line whole (1.5.13: no cut by height), long ones end with «…» and say all in the tooltip */
-.board-task { flex: 0 0 auto; padding: .55em .65em; display: flex; flex-direction: column; gap: .25em; border-radius: 9px; border-left: 4px solid var(--status-done); background: var(--surface-2); }
-.board-task--work { border-left-color: var(--status-done); }
-.board-task--review { border-left-color: var(--status-waiting); }
-.board-task--done-confirmed { border-left-color: var(--status-done); }
+.board-task { flex: 0 0 auto; padding: .6em .7em; display: flex; flex-direction: column; gap: .3em; border-radius: 10px; background: var(--surface-2); box-shadow: var(--edge), var(--elev-1); }
+/* R4c: a task waiting for the person wears the waiting ring; a failure of a push field, the danger one */
+.board-task--review, .board-task[data-board-reason="waits_permission"] { box-shadow: 0 0 0 1.5px var(--status-waiting), var(--elev-2); }
+.board-task[data-board-reason="push_option_field"] { background: color-mix(in srgb, var(--status-failed) 12%, var(--surface-2)); box-shadow: 0 0 0 1.5px var(--status-failed), var(--elev-1); }
+.board-task[data-board-reason="push_option_field"] [data-board-line] { color: var(--danger-fg); }
 /* accepted without checks: its own mark and words, never the confirmed green tick */
-.board-task--done-accepted { border-left-color: var(--status-done); border-left-style: dashed; }
+.board-task--done-accepted { box-shadow: 0 0 0 1px var(--border-strong); }
 .board-card .board-task__title { padding: 0; color: var(--text-primary); background: none; text-align: left; font-weight: 800; white-space: normal; overflow-wrap: anywhere; }
 .board-task__key { font: 800 .85em/1 var(--font-mono); color: var(--text-secondary); }
 .board-task__line { min-width: 0; overflow-wrap: anywhere; color: var(--text-secondary); font-size: .86em; }

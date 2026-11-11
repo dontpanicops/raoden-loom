@@ -99,7 +99,7 @@ async function importFile(tasks) {
   fs.writeFileSync(BUTTON_FILE, file(tasks));
   await app.clickEl(q("[data-board-import]"));
   const r = await waitForValue(() => app.ev(`${q("[data-board-import-report]")}?.dataset.boardImportReport ?? null`), "the import's report");
-  await app.clickEl(q(".launch-dialog__close"));
+  await app.clickEl(q("[data-board-import-close]"));
   await app.waitFor(`!${q("[data-board-import-report]")}`, "the report window closed");
   return r;
 }
