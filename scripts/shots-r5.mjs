@@ -464,6 +464,7 @@ try {
         world.modeLead = l.agentId;
       }
       await app.key("Home", "Home", 36); await sleep(800);
+      await app.waitFor(`${card(world.modeLead, ".agent-card__port")} && true`, "the lead's port", 10_000);
       const from = await app.center(card(world.modeLead, ".agent-card__port"));
       await app.mouse("mouseMoved", from.x, from.y); await app.mouse("mousePressed", from.x, from.y, "left", 1);
       for (let i = 1; i <= 8; i++) { await app.mouse("mouseMoved", from.x + 18 * i, from.y + 10 * i, "left", 1); await sleep(40); }

@@ -2600,7 +2600,8 @@ const ru = {
   projPrepareWill: "Подготовка выполнит:",
   projChecksHint: "Подставляются в новую цель, там их можно поменять.",
   wsHideKeepHint: "Скрыть, работа продолжится",
-  wsHideRestHint: "Скрыть, остальные продолжат работу"
+  wsHideRestHint: "Скрыть, остальные продолжат работу",
+  wsBrowserGoTo: "Перейти"
 } as const;
 
 const en: Record<keyof typeof ru, string> = {
@@ -5196,7 +5197,8 @@ const en: Record<keyof typeof ru, string> = {
   projPrepareWill: "Preparation will run:",
   projChecksHint: "Put into a new goal, where they can be changed.",
   wsHideKeepHint: "Hide, the work continues",
-  wsHideRestHint: "Hide, the rest keeps working"
+  wsHideRestHint: "Hide, the rest keeps working",
+  wsBrowserGoTo: "Go there"
 };
 
 export type TranslationKey = keyof typeof ru;

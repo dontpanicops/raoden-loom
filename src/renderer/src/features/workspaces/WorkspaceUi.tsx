@@ -525,7 +525,7 @@ export function BrowserElsewhereDialog({ controls, locale }: { controls: Workspa
         <div className="orch-form__actions">
           <button type="button" className="orch-cancel" onClick={controls.closeBrowserNotice}>{t(locale, "orchCancel")}</button>
           <button type="button" data-ws-browser-bring onClick={() => void controls.bringBrowserHere()}>{tk(locale, "wsBrowserBring")}</button>
-          <button type="button" className="orch-primary" data-ws-browser-go onClick={controls.goToBrowser}>{tr(locale, "wsOpenNamed", { name: workspaceTitle(locale, w) })}</button>
+          <button type="button" className="orch-primary" data-ws-browser-go title={tr(locale, "wsOpenNamed", { name: workspaceTitle(locale, w) })} onClick={controls.goToBrowser}>{tk(locale, "wsBrowserGoTo")}</button>
         </div>
       </div>
     </Dialog>
