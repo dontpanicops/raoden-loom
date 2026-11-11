@@ -168,6 +168,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
       <div className="orch-access" data-orch-access={provider}>
         <div className="orch-access__row">
           <span className="orch-access__name">{provider === "claude" ? "Claude" : "Codex"}</span>
+          {/* biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box */}
           <div className="orch-seg2 orch-seg2--wrap" role="group" aria-label={provider === "claude" ? "Claude" : "Codex"} data-orch-access-value={current}>
             {all.map((o) => (
               <button key={o.mode} type="button" aria-pressed={current === o.mode} className={current === o.mode ? "orch-seg2__on" : undefined} data-orch-access-mode={o.mode}
@@ -307,6 +308,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
           </Card>
           </div>
           <Card title={t(locale, "orchWorkMode")} data-orch-settings-workmode={p.workMode}>
+            {/* biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box */}
             <div className="orch-seg2" role="group" aria-label={t(locale, "orchWorkMode")}>
               {(["copy", "worktree", "project"] as const).map((m) => (
                 <button key={m} type="button" aria-pressed={p.workMode === m} className={p.workMode === m ? "orch-seg2__on" : undefined} data-orch-settings-workmode-to={m}

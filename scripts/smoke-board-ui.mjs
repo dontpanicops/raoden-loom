@@ -262,7 +262,7 @@ try {
   await app.clickEl(q("[data-board-autopilot-start]"));
   await app.waitFor(`${q("[data-board-autopilot-confirm]")} && true`, "the autopilot's explanation");
   const apWhy = await app.ev(`${q("[data-board-autopilot-confirm]")}.textContent`);
-  expect(apWhy.includes("На вопросы не отвечает и права не расширяет") && apWhy.includes("После перезапуска приложения выключен"), "«Run the board» says what it does first", apWhy);
+  expect(apWhy.includes("Включается вручную после каждого старта приложения") && apWhy.includes("Бюджет на включение"), "«Run the board» says it is manual and shows the budget", apWhy);
   await boardShot("board-09-autopilot-explained-board");
   await app.clickEl(q("[data-board-autopilot-yes]"));
   await app.waitFor(`${q('[data-board-autopilot="on"]')} && true`, "the autopilot on");

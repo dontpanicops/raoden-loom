@@ -2004,3 +2004,11 @@ button { border: 0; }
 .orch-rows button.orch-rows__add { align-self: flex-start; min-height: var(--control-h-m); padding: 0 8px; }
 .orch-rows button.orch-rows__x:hover, .orch-rows button.orch-rows__add:hover { background: transparent; color: var(--text-primary); }
 .orch-rows button.orch-rows__x:focus-visible, .orch-rows button.orch-rows__add:focus-visible { outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 30%, transparent); }
+
+/* R5h-B (D-026): the browser section of the settings as in mock 11: empty states and the log are plain lines, «Очистить…» is a danger button.
+   The :is() lists of «Settings v3» above count as (0,2,1), so these selectors are one class deeper. */
+.settings-panel .settings-panel__content .setting-group .browser-settings__empty { padding: 0; border-radius: 0; color: var(--text-secondary); background: transparent; font-size: .92em; font-weight: 400; text-align: left; }
+.settings-panel .settings-panel__content .setting-group .browser-settings__activity,
+.settings-panel .settings-panel__content .setting-group .browser-settings__download { min-height: 0; padding: .35em 0; border: 0; border-radius: 0; background: transparent; }
+.settings-panel .settings-panel__content .setting-group .browser-settings__clear { min-height: 0; padding: .4em .9em; border: .08em solid color-mix(in srgb, var(--danger-fg) 55%, transparent); border-radius: .6em; color: var(--danger-fg); background: transparent; font-size: .96em; font-weight: 500; }
+.settings-panel .settings-panel__content .setting-group .browser-settings__clear.browser-settings__clear--confirm { color: var(--danger-text); background: var(--danger); }

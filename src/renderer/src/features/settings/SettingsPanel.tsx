@@ -1143,6 +1143,7 @@ function ThemeChoices({
   onChange(value: PaletteId): void;
 }): React.JSX.Element {
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box
     <div className="theme-choices" role="group" aria-label={label}>
       {options.map(([id, label]) => (
         <button
@@ -1176,6 +1177,7 @@ function ColorDots({
   onChange(value: string): void;
 }): React.JSX.Element {
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box
     <div className="color-dots" role="group" aria-label={label}>
       {options.map(([optionValue, label, color]) => (
         <button
