@@ -145,8 +145,8 @@ export function AgentLaunchDialog({
         </div>
 
         {yolo && (
-          <div className="danger-note" title={t(locale, PROVIDERS[provider].dangerKey!)}>
-            <p><UiIcon name="status-failed" size={16} />{t(locale, "launchYoloWarn")}</p>
+          <div className="danger-note">
+            <p><UiIcon name="status-failed" size={16} />{PROVIDERS[provider].dangerKey ? t(locale, PROVIDERS[provider].dangerKey) : t(locale, "launchYoloWarn")}</p>
             <label className="danger-note__ack"><input type="checkbox" checked={understood} onChange={(event) => setUnderstood(event.currentTarget.checked)} />{t(locale, "launchYoloAck")}</label>
           </div>
         )}

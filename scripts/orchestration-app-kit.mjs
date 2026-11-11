@@ -92,7 +92,7 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
   step(`launch ${userData}`);
   // the first-run card and its key guide float over the canvas where a board's dialog opens (since R5c): a smoke is not about them
   fs.mkdirSync(userData, { recursive: true });
-  if (!fs.existsSync(path.join(userData, "settings.json"))) fs.writeFileSync(path.join(userData, "settings.json"), JSON.stringify({ onboardingDismissed: true }));
+  if (!fs.existsSync(path.join(userData, "settings.json"))) fs.writeFileSync(path.join(userData, "settings.json"), JSON.stringify({ onboardingDismissed: true, useScrollWheelToZoom: false }));
   const extra = { ...(providers ? { CANVASTTY_ORCHESTRATION_TEST_PROVIDERS: providers } : {}), ...env };
   const flags = [...new Set([...PAINTED, ...switches])];
   console.log("occluded-window throttling disabled for smoke");

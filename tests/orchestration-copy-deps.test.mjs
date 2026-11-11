@@ -268,7 +268,7 @@ async function loadRunPanel() {
   const { renderToStaticMarkup } = require("react-dom/server");
   return (locale, view, entries) => renderToStaticMarkup(React.createElement(mod.exports.RunPanel, {
     orch: { runs: { r: { view, open: true, seq: 9, tick: 0 } }, activity: { r: { entries, gaps: [], firstId: entries[0]?.id ?? 0, status: "ready", resyncs: 0 } },
-      runErrors: {}, canvas: { links: [], agents: [] }, journals: { r: { records: [], next: 0, status: "ready" } }, texts: {},
+      runErrors: {}, canvas: { links: [], agents: [] }, journals: { r: { records: [{ seq: 1, ts: "2026-01-01T00:00:00Z", type: "run.created", data: {} }], next: 1, status: "ready" } }, texts: {},
       commands: { pending: () => [] }, catalog: { checks: [] }, loadText() {}, syncJournal() {}, retry() {} },
     runId: "r", locale, panel: { linkId: "L", mode: "feed", ...legacyView("overview"), role: "lead", focus: 1 }, onClose() {}, onNewGoal() {}, onView() {}
   }));
@@ -278,8 +278,8 @@ test("the run panel: «Зависимости: склонированы из п�
   const render = await loadRunPanel();
   const cloned = await runIn(nodeProject(), "copy", [NODE_CHECK]);
   if (!APFS) assert.match(render("ru", cloned.done, cloned.entries), /data-board="deps">установлены в копии</);
-  else assert.match(render("ru", cloned.done, cloned.entries), /Зависимости:<\/dt><dd data-board="deps">склонированы из проекта</);
-  if (APFS) assert.match(render("en", cloned.done, cloned.entries), /Dependencies:<\/dt><dd data-board="deps">cloned from the project</);
+  else assert.match(render("ru", cloned.done, cloned.entries), /Зависимости<\/dt><dd data-board="deps">склонированы из проекта</);
+  if (APFS) assert.match(render("en", cloned.done, cloned.entries), /Dependencies<\/dt><dd data-board="deps">cloned from the project</);
   const installed = await runIn(nodeProject(), "worktree", ["true"], { cloneDir: async () => { throw new Error("x"); } });
   assert.match(render("ru", installed.done, installed.entries), /data-board="deps">установлены в копии</);
   const project = await runIn(nodeProject(), "project", ["true"]);

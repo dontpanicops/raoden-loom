@@ -1640,6 +1640,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
   // D-018: the people and the time/limits/environment of the summary (mock-up 13), only from what the run has
   const roleList = byReviewer(view) ? ["lead", "executor", "reviewer"] as const : ["lead", "executor"] as const;
   const envReported = (["codex", "claude"] as const).map((p) => ({ p, e: [...activity.entries].reverse().find((x) => x.kind === "session" && x.provider === p && x.detail?.reported === true) ?? null })).filter((x) => x.e);
+  const terminal = !!view && TERMINAL_STATUSES.includes(view.status); // the dependency row sits in the limits block of a finished run (mock-up 13), else among the alerts
   const middle = !view ? null : (
     <>
       <Section id="people" title={t(locale, "orchParticipants")} attrs={{ "data-orch-participants": "" }}>
@@ -1674,15 +1675,16 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
               ))}
             </Row>
           ))}
+          {depsText && <Row label={t(locale, "orchBoardDeps")} dd={{ "data-board": "deps" }}>{depsText.text}{depsText.failed && <> <button type="button" data-deps-step onClick={() => onView({ tab: "work", mode: "feed", role: "check" })}>{t(locale, "orchDepsStep")}</button></>}</Row>}
           {cost && <Row label={t(locale, "orchSumSpend")} dd={{ "data-board": "cost-total" }}>{costText(locale, cost, byReviewer(view) || cost.calls.reviewer > 0)}</Row>}
         </dl>
       </Section>
     </>
   );
   // what needs the person's eye in any state: a preparation that failed, a dependency check, an access that does not match
-  const alerts = !view ? null : (depsText || (progress?.prepare?.status === "failed" && runId) || accessMismatch) ? (
+  const alerts = !view ? null : ((depsText && !terminal) || (progress?.prepare?.status === "failed" && runId) || accessMismatch) ? (
     <>
-      {depsText && <dl className="orch-kv"><Row label={t(locale, "orchBoardDeps")} dd={{ "data-board": "deps" }}>{depsText.text}{depsText.failed && <> <button type="button" data-deps-step onClick={() => onView({ tab: "work", mode: "feed", role: "check" })}>{t(locale, "orchDepsStep")}</button></>}</Row></dl>}
+      {depsText && !terminal && <dl className="orch-kv"><Row label={t(locale, "orchBoardDeps")} dd={{ "data-board": "deps" }}>{depsText.text}{depsText.failed && <> <button type="button" data-deps-step onClick={() => onView({ tab: "work", mode: "feed", role: "check" })}>{t(locale, "orchDepsStep")}</button></>}</Row></dl>}
       {progress?.prepare?.status === "failed" && runId && <PrepareFailure orch={orch} runId={runId} locale={locale} prepare={progress.prepare} entries={activity.entries} />}
       {accessMismatch && <p className="dialog-error" data-orch-access-mismatch>{t(locale, "orchAccessMismatchWarn")}</p>}
     </>
