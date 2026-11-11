@@ -155,7 +155,7 @@ test("the link chip, the cards, the feed and the widget say «Ждёт вас: �
   assert.match(panel(view("paused", "coverage_lost"), { tab: "activity", entries }).replace(/<[^>]+>/g, ""), /Ждёт вас: лид предлагает убрать часть критериев готовности/);
   // the chip and the cards take the same function
   const scene = fs.readFileSync(path.join(HERE, "..", "src/renderer/src/features/orchestration/AgentScene.tsx"), "utf8");
-  assert.equal(scene.match(/viewPauseLabel\(locale, \w+,/g)?.length, 2, "the link chip and the agent cards both take their words from viewPauseLabel");
+  assert.equal(scene.match(/viewPauseLabel\(locale, \w+,/g)?.length, 3, "the card state (R6-B), the agent cards and the link chip all take their words from viewPauseLabel");
 });
 
 test("a plan proposal that drops criteria: «Вернуть лиду» is the main button, accepting the drop is secondary and says what is lost", async () => {
