@@ -256,6 +256,10 @@ button { border: 0; }
 .canvas-minimap[data-interaction-mode="drag"] { cursor: grab; }
 .canvas-minimap[data-interaction-mode="drag"]:active { cursor: grabbing; }
 .canvas-minimap:hover, .canvas-minimap:focus-visible { border-color: var(--text-muted); }
+/* Over cards at the edge the map must not hide them: faint at rest, solid under the pointer, focus and drag */
+.canvas-minimap { opacity: .5; transition: opacity .15s ease; }
+.canvas-minimap:hover, .canvas-minimap:focus-visible, .canvas-minimap:active { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .canvas-minimap { transition: none; } }
 .canvas-minimap:focus-visible { box-shadow: 0 0 0 2px var(--focus), var(--elev-3); }
 .canvas-minimap__surface { position: relative; width: 100%; height: 100%; display: block; overflow: hidden; border-radius: 7px; background-color: var(--surface-1); background-image: radial-gradient(color-mix(in srgb, var(--text-primary) 16%, transparent) .7px, transparent .7px); background-size: 8px 8px; }
 .canvas-minimap__home, .canvas-minimap__region, .canvas-minimap__entity, .canvas-minimap__viewport, .canvas-minimap__home-edge { position: absolute; display: block; pointer-events: none; }
@@ -592,15 +596,15 @@ button { border: 0; }
 .setting-group__control > .segmented + .shortcut-editor { margin-top: .6em; }
 .swatch-choices { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .4em; }
 .swatch-choices--four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.swatch-choice { min-width: 0; min-height: 4.6em; padding: .48em; display: grid; grid-template-rows: 2em auto; align-items: center; gap: .45em; border: .08em solid transparent; border-radius: .72em; outline: 0; color: var(--text-secondary); background: var(--surface-sunken); cursor: pointer; font-size: .76em; font-weight: 700; transition: color .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.swatch-choice { min-width: 0; overflow-wrap: anywhere; text-align: center; min-height: 4.6em; padding: .48em; display: grid; grid-template-rows: 2em auto; align-items: center; gap: .45em; border: .08em solid transparent; border-radius: .72em; outline: 0; color: var(--text-secondary); background: var(--surface-sunken); cursor: pointer; font-size: .76em; font-weight: 700; transition: color .15s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease; }
 .swatch-choice:hover { color: var(--text-primary); background: color-mix(in srgb, var(--surface-sunken) 76%, var(--surface-2-b)); }
 .swatch-choice:focus-visible { box-shadow: inset 0 0 0 .12em var(--focus); }
 .swatch-choice--active { border-color: var(--focus); color: var(--text-primary); box-shadow: inset 0 0 0 .08em var(--focus); }
-.swatch-choice__preview { height: 2em; display: flex; overflow: hidden; border-radius: .5em; box-shadow: inset 0 0 0 .08em color-mix(in srgb, var(--text-primary) 12%, transparent); }
+.swatch-choice__preview { height: 2em; display: flex; overflow: hidden; border-radius: .5em; outline: .1em solid var(--border-strong); outline-offset: -.1em; }
 .swatch-choice__preview i { min-width: 0; flex: 1 1 0; }
 .color-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5em; }
-.color-field { min-width: 0; min-height: 4.2em; padding: .6em .65em .6em .8em; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .7em; border-radius: .75em; color: var(--text-primary); background: var(--surface-sunken); }
-.color-field__label { overflow: hidden; font-size: .82em; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.color-field { min-width: 0; min-height: 4.2em; padding: .6em .65em .6em .8em; display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: .5em; border-radius: .75em; color: var(--text-primary); background: var(--surface-sunken); }
+.color-field__label { min-width: 0; font-size: .82em; font-weight: 700; overflow-wrap: break-word; }
 .color-field__controls { display: flex; align-items: center; gap: .45em; }
 .color-field__swatch { position: relative; width: 2.3em; height: 2.3em; overflow: hidden; border: .12em solid color-mix(in srgb, var(--text-primary) 24%, transparent); border-radius: .65em; }
 .color-field__swatch input { position: absolute; inset: -.6em; width: 3.6em; height: 3.6em; padding: 0; border: 0; opacity: 0; cursor: pointer; }

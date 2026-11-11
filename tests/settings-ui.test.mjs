@@ -220,3 +220,11 @@ test("the redesigned menus use shared tokens, em geometry, and the configured UI
   assert.match(styles, /\.browser-card__header \{[^}]*font-size: calc\(13px \* var\(--ui-scale, 1\)\)/);
   assert.doesNotMatch(styles, /\.canvas-region-menu/);
 });
+
+test("R4: four theme swatches, a follow-system row, a manual pick turns followSystem off", async () => {
+  const settings = await readFile(settingsPanelPath, "utf8");
+  for (const id of ["sand", "bay", "paper", "frost"]) assert.match(settings, new RegExp(`\\["${id}", t\\(locale, "theme`));
+  assert.match(settings, /onChange\(\{ followSystem: value === "on" \}\)/);
+  assert.match(settings, /onChange\(\{ palette: value as PaletteId, followSystem: false \}\)/);
+  assert.match(settings, /THEME_CANVAS_PREVIEW: Record<PaletteId, string>/);
+});
