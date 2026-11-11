@@ -469,7 +469,7 @@ try {
     && a.mcp.cli === "codex" && a.mcp.names === "alpha, beta", a);
   await openPanel((await taskOf("P8")).key);
   const panelText = await app.ev(`${q("[data-orch-run-id]")}?.textContent ?? ""`);
-  ok("f4.s7 the panel says it: «У Codex включены MCP-серверы: alpha, beta»", panelText.includes("У Codex включены MCP-серверы: alpha, beta"), panelText.slice(0, 400));
+  ok("f4.s7 the panel says it: «Codex · включены MCP: alpha, beta» (R6-A words)", panelText.includes("Codex · включены MCP: alpha, beta"), panelText.slice(0, 400));
   await shot("s7-mcp-present");
   fs.writeFileSync(CODEX_MCP, "no_data");
   await command(r8.runId, "resume");
