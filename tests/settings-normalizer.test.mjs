@@ -32,7 +32,7 @@ const fallback = {
   sessionRowColorMode: "status",
   homeLauncherProviders: ["codex", "claude", "qwen", "kimi", "opencode", "hermes", "grok", "omp", "pi"],
   homeLimitProviders: ["codex", "claude", "qwen", "kimi", "opencode", "grok"],
-  canvasLauncherItems: ["codex", "claude", "qwen", "opencode", "terminal"],
+  canvasLauncherItems: ["terminal", "codex", "claude", "qwen", "opencode"],
   radialLauncherItems: ["codex", "claude", "qwen", "opencode", "note", "terminal", "browser", "settings"],
   radialLauncherEnabled: false,
   canvasMenuStyle: "mock",

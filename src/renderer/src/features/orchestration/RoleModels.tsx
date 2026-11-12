@@ -64,10 +64,10 @@ export function RoleModelsField({ locale, linkId, value, onChange, hint, bare }:
   return (
     <fieldset className="orch-field orch-models" data-orch-models>
       {!bare && <legend>{t(locale, "orchModels")}</legend>}
-      <p className="orch-hint">{hint}</p>
       {ROLES.map((role) => (
         <RoleModel key={role} locale={locale} role={role} value={value[role]} codex={codex.list} onChange={(m) => onChange({ ...value, [role]: m })} />
       ))}
+      <p className="orch-hint">{hint}</p>
       <p className="orch-hint" data-orch-codex-models={codex.list ? (codex.list.ok ? "ok" : "failed") : "loading"}>
         {codex.list && !codex.list.ok ? `${t(locale, "orchModelsCodexFailed")}${codex.list.error ? `: ${codex.list.error}` : ""} ` : ""}
         <button type="button" disabled={codex.busy} data-orch-models-refresh onClick={codex.refresh}>{t(locale, "orchModelsRefresh")}</button>

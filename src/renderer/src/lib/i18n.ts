@@ -185,6 +185,7 @@ const ru = {
   searching: "Поиск…",
   pluginShowcase: "Витрина плагинов",
   githubAuthTitle: "GitHub OAuth",
+  pluginsGithubAndShowcase: "GitHub и витрина",
   githubAuthSignedIn: "Подключено как",
   githubAuthSignInCanvas: "Войти во встроенном браузере",
   githubAuthSignInExternal: "Войти в системном браузере",
@@ -505,7 +506,7 @@ const ru = {
   launchYoloGo: "Запустить в YOLO",
   launchYoloNote: "Без галочки кнопка недоступна. Галочка не запоминается.",
   launchMissing: "CLI не найден в PATH",
-  launchMissingText: "Установите {name} и нажмите «Проверить снова».",
+  launchMissingText: "Установите {name} и нажмите «Проверить снова». Путь к CLI можно указать вручную в Настройках → Агенты.",
   launchRemoveFromDock: "Убрать кнопку из дока",
   ctxRegion: "Регион",
   ctxNote: "Заметка",
@@ -2689,7 +2690,20 @@ const ru = {
   projChecksHint: "Подставляются в новую цель, там их можно поменять.",
   wsHideKeepHint: "Скрыть, работа продолжится",
   wsHideRestHint: "Скрыть, остальные продолжат работу",
-  wsBrowserGoTo: "Перейти в «{name}»"
+  wsBrowserGoTo: "Перейти в «{name}»",
+  orchRoleLeadShort: "лид",
+  orchRoleExecutorShort: "исполн.",
+  shortcutsAccepted: "Принимаются сочетания с модификаторами и Mouse3/4/5. Занятое сочетание — подсказка, с чем конфликт.",
+  wsCloseWorkN: "Скрытие ничего не останавливает: {work} продолжат работу и останутся в виджете активности. Вернуть пространство — из «Скрытых».",
+  wsCloseRuns_one: "{n} запуск",
+  wsCloseRuns_few: "{n} запуска",
+  wsCloseRuns_many: "{n} запусков",
+  wsCloseTerms_one: "{n} терминал",
+  wsCloseTerms_few: "{n} терминала",
+  wsCloseTerms_many: "{n} терминалов",
+  wsCloseAnd: "{a} и {b}",
+  wsStopAndHideMore: "Остановить всё и скрыть…",
+  wsFold: "Свернуть"
 } as const;
 
 const en: Record<keyof typeof ru, string> = {
@@ -2877,6 +2891,7 @@ const en: Record<keyof typeof ru, string> = {
   searching: "Searching…",
   pluginShowcase: "Plugin showcase",
   githubAuthTitle: "GitHub OAuth",
+  pluginsGithubAndShowcase: "GitHub and showcase",
   githubAuthSignedIn: "Signed in as",
   githubAuthSignInCanvas: "Sign in with the built-in browser",
   githubAuthSignInExternal: "Sign in with the system browser",
@@ -3197,7 +3212,7 @@ const en: Record<keyof typeof ru, string> = {
   launchYoloGo: "Launch in YOLO",
   launchYoloNote: "The button is off until the box is ticked. The tick is not remembered.",
   launchMissing: "CLI not found in PATH",
-  launchMissingText: "Install {name} and press \u201CCheck again\u201D.",
+  launchMissingText: "Install {name} and press \u201CCheck again\u201D. The path to the CLI can be set by hand in Settings \u2192 Agents.",
   launchRemoveFromDock: "Remove the button from the dock",
   ctxRegion: "Region",
   ctxNote: "Note",
@@ -5373,7 +5388,20 @@ const en: Record<keyof typeof ru, string> = {
   projChecksHint: "Put into a new goal, where they can be changed.",
   wsHideKeepHint: "Hide, the work continues",
   wsHideRestHint: "Hide, the rest keeps working",
-  wsBrowserGoTo: "Go to “{name}”"
+  wsBrowserGoTo: "Go to “{name}”",
+  orchRoleLeadShort: "lead",
+  orchRoleExecutorShort: "exec.",
+  shortcutsAccepted: "Combinations with modifiers and Mouse3/4/5 are accepted. A taken combination shows what it conflicts with.",
+  wsCloseWorkN: "Hiding stops nothing: {work} keep working and stay in the activity widget. Bring the workspace back from “Hidden”.",
+  wsCloseRuns_one: "{n} run",
+  wsCloseRuns_few: "{n} runs",
+  wsCloseRuns_many: "{n} runs",
+  wsCloseTerms_one: "{n} terminal",
+  wsCloseTerms_few: "{n} terminals",
+  wsCloseTerms_many: "{n} terminals",
+  wsCloseAnd: "{a} and {b}",
+  wsStopAndHideMore: "Stop everything and hide…",
+  wsFold: "Collapse"
 };
 
 export type TranslationKey = keyof typeof ru;

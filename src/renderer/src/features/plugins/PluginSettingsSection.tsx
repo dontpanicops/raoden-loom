@@ -647,15 +647,15 @@ export function PluginSettingsSection({
 
       <section className="setting-group plugin-installed-section">
         <h3>
-          {t(locale, "installedPlugins")}
-          <button
-            className="plugin-updates-check"
-            type="button"
-            disabled={checkingUpdates}
-            onClick={() => void runCheckUpdates()}
-          >{checkingUpdates ? t(locale, "checkingUpdates") : t(locale, "checkUpdates")}</button>
+          <span>{t(locale, "installedPlugins")}{plugins.length > 0 ? ` · ${plugins.length}` : ""}</span>
+          {plugins.length > 0 && <button
+              className="plugin-updates-check"
+              type="button"
+              disabled={checkingUpdates}
+              onClick={() => void runCheckUpdates()}
+            >{checkingUpdates ? t(locale, "checkingUpdates") : t(locale, "checkUpdates")}</button>}
         </h3>
-        {plugins.length === 0 ? <div className="plugin-settings__empty plugin-settings__empty--box"><UiIcon name="blocks" size={22} /><strong>{t(locale, "noPlugins")}</strong><span>{t(locale, "pluginsEmptyHint")}</span></div> : (
+        {plugins.length === 0 ? <div className="plugin-settings__empty plugin-settings__empty--box"><UiIcon name="plug" size={26} /><strong>{t(locale, "noPlugins")}</strong><span>{t(locale, "pluginsEmptyHint")}</span></div> : (
           <>
           <div className="installed-plugin-list">
             {paginate(plugins, installedPage, INSTALLED_PAGE_SIZE).map((plugin) => {
@@ -800,9 +800,11 @@ export function PluginSettingsSection({
         )}
       </section>
 
-      <section className="setting-group plugin-github-group">
+      <h3 className="plugin-group-title">{t(locale, "pluginsGithubAndShowcase")}</h3>
+      <section className="setting-group plugin-github-group plugin-card">
         <h3>
-          {t(locale, "githubAuthTitle")}
+          <span className="plugin-card__icon"><UiIcon name="browser" size={18} /></span>
+          <span className="plugin-card__title">{t(locale, "githubAuthTitle")}</span>
           {githubConfigured && !githubStatus?.authorized && !githubCode && (
             <span className="plugin-github-signin-actions">
               <button type="button" className="plugin-updates-check plugin-github-signin" disabled={githubBusy} onClick={() => void runGithubSignIn("embedded")}>
@@ -877,9 +879,10 @@ export function PluginSettingsSection({
       </section>
 
       <div className="plugin-showcase-wrap">
-        <section className={`setting-group plugin-showcase-group${githubAuthorized ? "" : " plugin-showcase-group--off"}`}>
+        <section className={`setting-group plugin-showcase-group plugin-card${githubAuthorized ? "" : " plugin-showcase-group--off"}`}>
           <h3>
-            {t(locale, "pluginShowcase")}
+            <span className="plugin-card__icon"><UiIcon name="search" size={18} /></span>
+            <span className="plugin-card__title">{t(locale, "pluginShowcase")}{!githubAuthorized && <small>{t(locale, "showcaseRequiresGithub")}</small>}</span>
             <button
               className="plugin-showcase-refresh"
               type="button"
@@ -887,7 +890,7 @@ export function PluginSettingsSection({
               onClick={() => void runShowcase()}
             >{loadingShowcase ? t(locale, "searching") : t(locale, "openShowcase")}</button>
           </h3>
-          <div className="plugin-install-row plugin-showcase-search">
+          {githubAuthorized && <div className="plugin-install-row plugin-showcase-search">
           <input
             value={searchQuery}
             type="text"
@@ -906,7 +909,7 @@ export function PluginSettingsSection({
           <button type="button" disabled={searching || searchQuery.trim().length === 0} onClick={() => void runSearch()}>
             {searching ? t(locale, "searching") : t(locale, "search")}
           </button>
-        </div>
+        </div>}
         {(showcase !== null || searchResults !== null) && (
           <div className="plugin-showcase-layout">
             {(searchResults ?? showcase)!.length === 0 ? (
@@ -931,7 +934,6 @@ export function PluginSettingsSection({
           </div>
         )}
         </section>
-        {!githubAuthorized && <p className="plugin-settings__empty" role="status">{t(locale, "showcaseRequiresGithub")}</p>}
       </div>
     </div>
   );
@@ -940,7 +942,7 @@ export function PluginSettingsSection({
 function PluginIcon({ pluginId, icon, name, remoteIcon }: { pluginId: string; icon?: string; name: string; remoteIcon?: string | null }): React.JSX.Element {
   const [failed, setFailed] = useState(false);
   const path = icon || "icon.png";
-  const placeholder = <span className="plugin-icon plugin-icon--fallback" aria-label={name}>{name.slice(0, 2).toUpperCase()}</span>;
+  const placeholder = <span className="plugin-icon plugin-icon--fallback" role="img" aria-label={name}><UiIcon name="plug" size={18} /></span>;
   // Repository icon (identical to the showcase) has priority; reset the local
   // failure state once it arrives so the icon can swap in after load.
   if (remoteIcon) {

@@ -36,10 +36,11 @@ test("Settings uses the approved icon-sidebar modal instead of the legacy horizo
   // R5g: no brand block; the section title is the header, «About» is pinned to the bottom of the sidebar
   assert.doesNotMatch(settings, /settings-panel__brand/);
   assert.match(settings, /settings-tabs__button--about/);
-  assert.match(settings, /\{ id: "general", icon: "app-window" \}/);
+  assert.match(settings, /\{ id: "general", icon: "general" \}/);
   assert.doesNotMatch(settings, /\{ id: "general", icon: "settings" \}/);
   assert.match(settings, /SETTINGS_SECTIONS\.map\(\(\{ id, icon \}\)/);
-  assert.match(settings, /className=\{`setting-group setting-group--field\$\{layout === "stacked" \? " setting-group--stacked" : ""\}\$\{layout === "switch" \? " setting-group--switch" : ""\}`\}/);
+  assert.match(settings, /className=\{`setting-group setting-group--field\$\{layout === "stacked" \|\| layout === "under" \|\| layout === "caps" \? " setting-group--stacked" : ""\}/); // R12h: «under» and «caps» are stacked too
+  assert.match(settings, /layout === "switch" \? " setting-group--switch" : ""/);
   assert.doesNotMatch(settings, /settings-panel__topbar/);
   assert.match(styles, /\.settings-panel \{[^}]*grid-template-columns: 15\.5em minmax\(0, 1fr\);[^}]*background: var\(--surface-3-solid\);[^}]*font-size: calc\(13px \* var\(--ui-scale, 1\)\)/);
   assert.match(styles, /\.settings-tabs \{[^}]*flex-direction: column/);

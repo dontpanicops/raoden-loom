@@ -2346,3 +2346,84 @@ button { border: 0; }
 .orch-history .orch-details__body { background: var(--surface-sunken); }
 /* R12g (mock 13): «Завершён» is a neutral zone with a thin ring, no blue frame */
 .orch-zone--completed, .app--paper .orch-zone--completed { --zone-bg: var(--surface-sunken); box-shadow: 0 0 0 1px var(--border-strong); }
+
+/* R12h (zones Z3, Z4, Z7): the look of the dialogs, menus, toasts and settings against the mock-ups */
+/* a modal dialog is solid: the dock tiles of HOME no longer show through it (the history dialog had no pinned footer, so it stayed glass) */
+.orch-dialog:not(.launch-popover) { background: var(--surface-4-solid); backdrop-filter: none; }
+/* the close cross is bare in the mock-ups */
+.launch-dialog__close, .launch-dialog__close:hover, .orch-dialog--pinned .launch-dialog__close, .agent-launch-dialog .launch-dialog__close, .settings-panel__close { background: transparent; }
+/* one look for the form selects: a filled field, our own chevron (no system arrow) */
+.orch-field select, .orch-panel select, .orch-dialog select { appearance: none; -webkit-appearance: none; min-height: var(--control-h-l); padding: 0 34px 0 12px; border: 0; border-radius: 10px; color: var(--text-primary); background-color: var(--surface-sunken); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238d887d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; box-shadow: inset 0 0 0 1px var(--border); cursor: pointer; }
+/* workspaces: «Hide», the stop list, the history, the move rows, the arrange panels (mock 17, 25) */
+.ws-close__text { margin: 0; color: var(--text-secondary); opacity: 1; font-size: 14px; line-height: 1.6; }
+.ws-dialog .orch-form__actions { align-items: center; }
+.ws-dialog .orch-form__actions .ws-close__stop { margin-right: auto; }
+.ws-list li > span.ws-list__glyph:first-child { flex: 0 0 auto; display: inline-flex; overflow: visible; color: var(--text-muted); }
+.ws-list li > .ws-list__glyph + span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-list__glyph--stopped { color: var(--status-done) !important; }
+.ws-list__glyph--stopping .ui-icon, .ws-list__glyph--unknown .ui-icon { color: var(--status-working); animation: spin 1.4s linear infinite; }
+.ws-list__glyph--error, .ws-list__glyph--timeout, .ws-list__glyph--unconfirmed { color: var(--status-failed) !important; }
+.ws-history__state { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-secondary); }
+.ws-history__state--running, .ws-history__state--preparing, .ws-history__state--pausing { color: var(--status-working); }
+.ws-history__state--running .ui-icon, .ws-history__state--preparing .ui-icon, .ws-history__state--pausing .ui-icon { animation: spin 1.4s linear infinite; }
+.ws-history__state--completed, .ws-history__state--completed_no_checks { color: var(--status-done); }
+.ws-history__state--failed { color: var(--status-failed); }
+.orch-dialog .orch-form .ws-pick__row:not([aria-pressed="true"]) { border-color: transparent; background: transparent; box-shadow: none; }
+.orch-dialog .orch-form .ws-pick__row[aria-pressed="true"] { box-shadow: none; }
+.ws-arrange__group { padding: 14px 16px; display: grid; gap: 10px; border: 0; border-radius: 14px; background: var(--surface-sunken); }
+.ws-arrange__group h3 { margin: 0; font: 700 13px var(--font-mono); overflow-wrap: anywhere; }
+.orch-field.ws-arrange__to { display: grid; grid-template-columns: 3.6em minmax(0, 1fr); align-items: center; gap: 12px; }
+.ws-arrange__to > span:first-child { color: var(--text-secondary); font-weight: 500; opacity: 1; }
+.ws-arrange__to select { background-color: var(--surface-4-solid); }
+.ws-arrange__item { display: grid; gap: 2px; }
+.ws-arrange__item label { display: flex; align-items: center; gap: 10px; }
+.ws-arrange__why { padding-left: 26px; color: var(--text-secondary); font-size: 12px; line-height: 1.45; }
+.orch-dialog .orch-form .ws-folder-line .ui-icon { flex: 0 0 auto; }
+/* menus and palette (mock 10, 22) */
+.canvas-menu__row:focus-visible { box-shadow: none; }
+.canvas-menu__toggle { display: inline-flex; color: var(--text-secondary); }
+.canvas-palette__chip { margin-left: .6em; }
+.radial-launcher .radial-launcher__item:not(.radial-launcher__item--active, :hover, :focus-visible), .radial-launcher .radial-launcher__center { box-shadow: none; }
+.app--paper .radial-launcher .radial-launcher__item:not(.radial-launcher__item--active, :hover, :focus-visible), .app--frost .radial-launcher .radial-launcher__item:not(.radial-launcher__item--active, :hover, :focus-visible) { background: var(--surface-sunken); border-color: transparent; }
+.app--paper .radial-launcher .radial-launcher__center, .app--frost .radial-launcher .radial-launcher__center { background: var(--surface-sunken); }
+.toast { background: var(--surface-3-solid); backdrop-filter: none; }
+.toast-stack { gap: 12px; }
+.toast > .ui-icon { align-self: flex-start; margin-top: 2px; }
+.notify-banner[data-rows="2"], .notify-banner[data-rows="3"] { top: calc(var(--titlebar-height) + 64px); } /* two lines or more stand under the workspace tabs, not over them */
+.notify-banner__text { flex: 1; min-width: 0; overflow: hidden; }
+.notify-banner__text .orch-term--plain { display: block; overflow: hidden; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
+.notify-banner__text .orch-term--plain:hover { background: none; }
+/* settings (mock 11, 15, 16, 22, 26) */
+.theme-choice { padding: .55em .5em .5em; background: var(--surface-sunken); color: var(--text-primary); }
+.theme-choice__preview { width: 100%; height: 3.3em; border-radius: .65em; }
+.setting-group--under .setting-group__control { justify-content: flex-start; }
+.setting-group--under .setting-group__control > * { flex: 0 0 auto; }
+.setting-group--top { align-items: start; }
+.setting-group:not(.setting-group--stacked) .canvas-launcher-settings-menu { width: min(100%, 30em); }
+.canvas-launcher-settings-menu { background: var(--surface-sunken); }
+.setting-group--caps h3 { color: var(--text-secondary); font-size: .8em; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.shortcut-editor__hint { margin: .6em 0 0; color: var(--text-secondary); font-size: .88em; line-height: 1.5; }
+.orch-dialog input[type="checkbox"][role="switch"] { appearance: none; -webkit-appearance: none; position: relative; flex: 0 0 auto; width: 2.5em; height: 1.55em; margin: 0; border-radius: 999px; background: color-mix(in srgb, var(--text-primary) 22%, transparent); box-shadow: none; cursor: pointer; transition: background .16s ease; }
+.orch-dialog input[type="checkbox"][role="switch"]::after { content: ""; position: absolute; left: .2em; top: .2em; width: 1.15em; height: 1.15em; margin: 0; border: 0; border-radius: 50%; background: var(--text-secondary); box-shadow: var(--elev-1); transform: none; transition: transform .16s ease, background .16s ease; }
+.orch-dialog input[type="checkbox"][role="switch"]:checked { background: var(--accent-bg); box-shadow: none; }
+.orch-dialog input[type="checkbox"][role="switch"]:checked::after { width: 1.15em; height: 1.15em; margin: 0; border: 0; background: var(--accent-text); transform: translateX(.95em); }
+.orch-check--switch { flex-direction: row-reverse; justify-content: space-between; }
+.orch-settings__grid { align-items: stretch; }
+.orch-settings .orch-form__actions > .orch-cancel { margin-right: 0; }
+.orch-access__name { flex: 0 0 7.5em; white-space: nowrap; }
+.plugin-install-row input { font: 400 14px var(--font-ui, inherit); }
+.installed-plugin__header > span small { font: 400 13px var(--font-ui, inherit); }
+.plugin-updates-check { color: var(--text-primary); background: none; font-size: 13px; font-weight: 500; }
+.plugin-icon--fallback { display: grid; place-items: center; color: var(--text-primary); background: var(--surface-sunken); }
+.plugin-group-title { margin: 8px 0 -4px; font-size: 1em; font-weight: 700; }
+.settings-panel .setting-group.plugin-card { padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: transparent; }
+.plugin-card > h3 { margin: 0; }
+.plugin-card__icon { display: inline-grid; flex: 0 0 auto; place-items: center; color: var(--text-secondary); }
+.plugin-card__title { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.plugin-card__title small { color: var(--text-secondary); font-size: .9em; font-weight: 400; }
+.plugin-settings__empty--box { background: transparent; border: 1px dashed var(--border-strong); opacity: 1; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.canvas-menu__row:focus { background: color-mix(in srgb, var(--focus) 22%, transparent); }
+.canvas-launcher-settings-menu .canvas-menu__row > .canvas-menu__icon { order: 0; background: transparent; }
+.canvas-launcher-settings-menu .canvas-menu__icon .provider-icon { --provider-icon-art-size: 1.05em; width: 1.4em; height: 1.4em; }
+.notify-banner__text .orch-term--plain:focus { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 6px; }

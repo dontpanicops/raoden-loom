@@ -12,7 +12,7 @@ test("canvas launcher entries are unique, valid, and preserve configured order",
     normalizeCanvasLauncherItems(["terminal", "codex", "unknown", "terminal"]),
     ["terminal", "codex"]
   );
-  assert.deepEqual(normalizeCanvasLauncherItems([]), ["codex", "claude", "qwen", "opencode", "terminal"]);
+  assert.deepEqual(normalizeCanvasLauncherItems([]), ["terminal", "codex", "claude", "qwen", "opencode"]);
 });
 
 test("launcher settings never disable the final available action", () => {

@@ -77,6 +77,12 @@ export function CanvasContextMenu({
   const [submenu, setSubmenu] = useState<"launch" | "agent" | null>(null);
   const [submenuSide, setSubmenuSide] = useState<CanvasSubmenuSide>("right");
 
+  // an opened submenu takes the focus on its first row (mock 10: the first item lit)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: submenu is the trigger
+  useEffect(() => {
+    if (submenu) menu.current?.querySelector<HTMLButtonElement>(".canvas-menu__submenu .canvas-menu__row")?.focus({ preventScroll: true });
+  }, [submenu]);
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: kind is the trigger: focus the first row when the menu changes
   useEffect(() => {
     menu.current?.querySelector<HTMLButtonElement>(".canvas-menu__row")?.focus({ preventScroll: true });
@@ -123,11 +129,11 @@ export function CanvasContextMenu({
     >
       {kind === "empty" && (
         <>
-          <CanvasMenuRow icon="maximize" role="menuitem" onClick={onCreateRegion}>{t(locale, "ctxRegion")}</CanvasMenuRow>
+          <CanvasMenuRow icon="region" role="menuitem" onClick={onCreateRegion}>{t(locale, "ctxRegion")}</CanvasMenuRow>
           <CanvasMenuRow icon="sticky-note" role="menuitem" onClick={onCreateNote}>{t(locale, "ctxNote")}</CanvasMenuRow>
           <div className="canvas-menu__submenu-anchor">
             <CanvasMenuRow
-              icon="terminal"
+              icon="prompt"
               right={<CanvasMenuChevron />}
               role="menuitem"
               aria-haspopup="menu"
@@ -138,7 +144,7 @@ export function CanvasContextMenu({
               <div className={`canvas-menu canvas-menu__submenu canvas-menu__submenu--${submenuSide}`} role="menu">
                 {launcherItems.map((provider) => (
                   provider === "terminal" ? (
-                    <CanvasMenuRow icon="terminal" indent right={window.canvasTTY.window.isMacOS ? <CanvasMenuKbd>⌘T</CanvasMenuKbd> : undefined} role="menuitem" key={provider} onClick={() => onLaunch(provider)}>{PROVIDERS[provider].label}</CanvasMenuRow>
+                    <CanvasMenuRow icon="prompt" indent right={window.canvasTTY.window.isMacOS ? <CanvasMenuKbd>⌘T</CanvasMenuKbd> : undefined} role="menuitem" key={provider} onClick={() => onLaunch(provider)}>{PROVIDERS[provider].label}</CanvasMenuRow>
                   ) : (
                     <CanvasMenuRow indent role="menuitem" key={provider} onClick={() => onLaunch(provider)}>
                       <span className="canvas-menu__provider">
@@ -179,7 +185,7 @@ export function CanvasContextMenu({
             )}
           </div>
           ) : (["codex", "claude"] as const).map((provider) => (
-            <CanvasMenuRow icon="plus" role="menuitem" key={provider} right={roleHint(provider)} disabled={orchestration.disabled} title={orchestration.hint ? t(locale, orchestration.hint) : undefined}
+            <CanvasMenuRow iconNode={<ProviderIcon provider={provider} size="small" />} role="menuitem" key={provider} right={roleHint(provider)} disabled={orchestration.disabled} title={orchestration.hint ? t(locale, orchestration.hint) : undefined}
               onClick={() => onCreateOrchestrationAgent(provider)}>
               {t(locale, provider === "codex" ? "ctxAgentCodex" : "ctxAgentClaude")}
             </CanvasMenuRow>
@@ -189,7 +195,7 @@ export function CanvasContextMenu({
           </CanvasMenuRow>
           <CanvasMenuDivider />
           <CanvasMenuRow
-            icon="settings"
+            icon="sliders-horizontal"
             muted
             right={<CanvasMenuKbd>{window.canvasTTY.window.isMacOS ? "⌘," : "Ctrl+,"}</CanvasMenuKbd>}
             role="menuitem"
