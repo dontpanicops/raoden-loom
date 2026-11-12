@@ -811,7 +811,6 @@ button { border: 0; }
 .plugin-showcase-wrap { position: relative; margin-top: 4px; }
 .plugin-showcase-wrap .plugin-showcase-group { margin-top: 0; }
 .plugin-showcase-group--off { filter: grayscale(1) opacity(.45); pointer-events: none; user-select: none; }
-.plugin-tabs { justify-self: end; margin: 6px 0 10px; display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--surface-sunken); }
 .plugin-showcase-search { margin-top: 12px; }
 .plugin-pagination { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
 .plugin-pagination button { min-width: 28px; min-height: 24px; padding: 0 8px; border-radius: 7px; color: var(--accent-text); background: var(--accent-bg); font-size: 13px; font-weight: 850; cursor: pointer; }
@@ -1679,7 +1678,7 @@ button { border: 0; }
 
 /* UX audit PR 3: the in-window banner where macOS shows no notification */
 /* at the bottom, over the canvas and the run panel (the workspace tabs and the panel stand at the top and the right) */
-.notify-banner { position: fixed; top: 4px; left: 50%; transform: translateX(-50%); z-index: 9100; -webkit-app-region: no-drag; /* in the title bar's free middle: over HOME nothing */ display: flex; flex-direction: column; gap: 6px; width: min(600px, calc(100vw - 32px)); font-size: 13px; line-height: 1.35; }
+.notify-banner { position: fixed; top: 4px; left: 50%; transform: translateX(-50%); z-index: 9100; -webkit-app-region: no-drag; /* in the title bar's free middle: over HOME nothing */ display: flex; flex-direction: column; gap: 6px; width: min(560px, calc(100vw - 32px)); font-size: 13px; line-height: 1.35; }
 .notify-banner__item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--radius-lg, 12px); background: var(--surface-3-solid); color: var(--text-primary); box-shadow: inset 0 0 0 1px var(--status-waiting), 0 0 14px color-mix(in srgb, var(--status-waiting) 40%, transparent), var(--elev-4); }
 .notify-banner__item > .ui-icon { flex: none; color: var(--status-waiting); }
 .notify-banner__item--completed, .notify-banner__item--completed_no_checks { box-shadow: inset 0 0 0 1px var(--focus), var(--elev-4); }
@@ -2134,7 +2133,7 @@ button { border: 0; }
 
 /* workspace form: the main folder is one small secondary line */
 .orch-dialog .orch-form .ws-folder-line { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; }
-.orch-dialog .orch-form .ws-folder-line input { min-width: 0; flex: 1 1 auto; height: auto; padding: 2px 4px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; color: var(--text-secondary); background: transparent; font: 12px var(--font-mono); box-shadow: none; }
+.orch-dialog .orch-form .ws-folder-line code { min-width: 0; overflow: hidden; color: var(--text-secondary); font: 12px var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
 .orch-dialog .orch-form .ws-folder-line button { height: auto; min-height: 0; padding: 0; border: 0; color: var(--text-primary); background: none; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; box-shadow: none; }
 .ws-dialog [data-ws-delete] p { margin: 0; }
 .orch-dialog .orch-form [data-ws-delete-go] { color: var(--danger-text); background: var(--danger); box-shadow: none; }
@@ -2164,3 +2163,15 @@ button { border: 0; }
 .orch-card2 .orch-models [data-orch-model] > select { flex: 0 0 58%; width: auto; min-width: 0; }
 .orch-card2 .orch-models [data-orch-model] > input { flex: 1 1 100%; }
 .orch-dialog--pinned .orch-form__actions > .orch-cancel { margin-right: auto; }
+
+/* mock 26: a plugin row — icon 28, name, «version · what it gives», switch, a quiet «Удалить» */
+.installed-plugin .plugin-icon { width: 28px; height: 28px; }
+.installed-plugin__header button.installed-plugin__remove { min-height: 0; padding: 0 4px; color: var(--text-secondary); background: none; font-weight: 400; }
+.installed-plugin__header button.installed-plugin__remove:hover { color: var(--text-primary); }
+.installed-plugin__header > div { display: flex; align-items: center; gap: 10px; }
+.plugin-settings__empty--box { min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--border); border-radius: 12px; text-align: center; }
+.plugin-settings__empty--box span { max-width: 32ch; color: var(--text-muted); font-size: 12px; }
+.notify-banner__body { color: var(--text-secondary); }
+.notify-banner__item { min-height: 40px; box-sizing: border-box; }
+.notify-banner__item--failed .notify-banner__show, .notify-banner__item--completed .notify-banner__show { color: var(--text-primary); background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); }
+.notify-banner__item > span:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }

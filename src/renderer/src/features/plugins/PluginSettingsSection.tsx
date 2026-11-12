@@ -59,8 +59,6 @@ export function PluginSettingsSection({
   onOpenPluginContribution
 }: PluginSettingsSectionProps): React.JSX.Element {
   const locale = settings.locale;
-  // mock 16: «Установленные» / «Каталог»; the catalog is the GitHub account and the showcase that were always here
-  const [tab, setTab] = useState<"installed" | "catalog">("installed");
   const [sourceUrl, setSourceUrl] = useState("");
   const [preview, setPreview] = useState<PluginInstallPreview | null>(null);
   const [busy, setBusy] = useState(false);
@@ -600,11 +598,53 @@ export function PluginSettingsSection({
 
   return (
     <div className="plugin-settings">
-      <div className="plugin-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === "installed"} className={tab === "installed" ? "segmented__button segmented__button--active" : "segmented__button"} onClick={() => setTab("installed")}>{t(locale, "pluginsTabInstalled")} · {plugins.length}</button>
-        <button type="button" role="tab" aria-selected={tab === "catalog"} className={tab === "catalog" ? "segmented__button segmented__button--active" : "segmented__button"} onClick={() => setTab("catalog")}>{t(locale, "pluginsTabCatalog")}</button>
-      </div>
-      {tab === "installed" && <>
+      <section className="setting-group">
+        <h3>{t(locale, "installPlugin")}</h3>
+        <div className="plugin-install-row">
+          <input
+            value={sourceUrl}
+            type="url"
+            spellCheck={false}
+            placeholder="https://github.com/owner/repository"
+            aria-label={t(locale, "githubUrl")}
+            onChange={(event) => {
+              setSourceUrl(event.target.value);
+              setPreview(null);
+              setError(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") void inspect();
+            }}
+          />
+          <button type="button" disabled={busy || sourceUrl.trim().length === 0} onClick={() => void inspect()}>
+            {t(locale, "inspectPlugin")}
+          </button>
+        </div>
+        {preview && (
+          <article className="plugin-preview">
+            <header>
+              <PluginIcon pluginId={preview.manifest.id} icon={preview.manifest.icon} name={preview.manifest.name} />
+              <span><strong>{preview.manifest.name}</strong><small>v{preview.manifest.version}</small></span>
+            </header>
+            <p>{manifestDescription(preview.manifest, locale)}</p>
+            <PermissionList permissions={preview.manifest.permissions} locale={locale} />
+            <HookManifestWarning manifest={preview.manifest} locale={locale} showEntries />
+            <ModuleList
+              modules={preview.manifest.modules ?? []}
+              selected={selectedModules}
+              disabled={busy}
+              locale={locale}
+              onChange={setSelectedModules}
+            />
+            <div className="plugin-preview__actions">
+              <button type="button" onClick={() => setPreview(null)}>{t(locale, "cancel")}</button>
+              <button className="plugin-primary-action" type="button" disabled={busy} onClick={() => void install()}>{t(locale, "install")}</button>
+            </div>
+          </article>
+        )}
+        {error && <p className="plugin-settings__error" role="alert">{error}</p>}
+      </section>
+
       <section className="setting-group plugin-installed-section">
         <h3>
           {t(locale, "installedPlugins")}
@@ -615,7 +655,7 @@ export function PluginSettingsSection({
             onClick={() => void runCheckUpdates()}
           >{checkingUpdates ? t(locale, "checkingUpdates") : t(locale, "checkUpdates")}</button>
         </h3>
-        {plugins.length === 0 ? <p className="plugin-settings__empty">{t(locale, "noPlugins")}</p> : (
+        {plugins.length === 0 ? <div className="plugin-settings__empty plugin-settings__empty--box"><UiIcon name="blocks" size={22} /><strong>{t(locale, "noPlugins")}</strong><span>{t(locale, "pluginsEmptyHint")}</span></div> : (
           <>
           <div className="installed-plugin-list">
             {paginate(plugins, installedPage, INSTALLED_PAGE_SIZE).map((plugin) => {
@@ -630,7 +670,7 @@ export function PluginSettingsSection({
                     <span className="installed-plugin__version">
                       <strong>{plugin.manifest.name}</strong>
                       <small>
-                        v{plugin.manifest.version}
+                        v{plugin.manifest.version} · {[...new Set(plugin.manifest.contributions.map((c) => t(locale, contributionKindKey(c.kind))))].join(", ")}
                         {update && (
                           <>
                             <span className="installed-plugin__version-arrow" aria-hidden="true">→</span>
@@ -760,55 +800,6 @@ export function PluginSettingsSection({
         )}
       </section>
 
-      <section className="setting-group">
-        <h3>{t(locale, "installPlugin")}</h3>
-        <div className="plugin-install-row">
-          <input
-            value={sourceUrl}
-            type="url"
-            spellCheck={false}
-            placeholder="https://github.com/owner/repository"
-            aria-label={t(locale, "githubUrl")}
-            onChange={(event) => {
-              setSourceUrl(event.target.value);
-              setPreview(null);
-              setError(null);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") void inspect();
-            }}
-          />
-          <button type="button" disabled={busy || sourceUrl.trim().length === 0} onClick={() => void inspect()}>
-            {t(locale, "inspectPlugin")}
-          </button>
-        </div>
-        {preview && (
-          <article className="plugin-preview">
-            <header>
-              <PluginIcon pluginId={preview.manifest.id} icon={preview.manifest.icon} name={preview.manifest.name} />
-              <span><strong>{preview.manifest.name}</strong><small>v{preview.manifest.version}</small></span>
-            </header>
-            <p>{manifestDescription(preview.manifest, locale)}</p>
-            <PermissionList permissions={preview.manifest.permissions} locale={locale} />
-            <HookManifestWarning manifest={preview.manifest} locale={locale} showEntries />
-            <ModuleList
-              modules={preview.manifest.modules ?? []}
-              selected={selectedModules}
-              disabled={busy}
-              locale={locale}
-              onChange={setSelectedModules}
-            />
-            <div className="plugin-preview__actions">
-              <button type="button" onClick={() => setPreview(null)}>{t(locale, "cancel")}</button>
-              <button className="plugin-primary-action" type="button" disabled={busy} onClick={() => void install()}>{t(locale, "install")}</button>
-            </div>
-          </article>
-        )}
-        {error && <p className="plugin-settings__error" role="alert">{error}</p>}
-      </section>
-
-      </>}
-      {tab === "catalog" && <>
       <section className="setting-group plugin-github-group">
         <h3>
           {t(locale, "githubAuthTitle")}
@@ -942,7 +933,6 @@ export function PluginSettingsSection({
         </section>
         {!githubAuthorized && <p className="plugin-settings__empty" role="status">{t(locale, "showcaseRequiresGithub")}</p>}
       </div>
-      </>}
     </div>
   );
 }

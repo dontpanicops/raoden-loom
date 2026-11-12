@@ -78,22 +78,24 @@ export function NotifyBanner({ locale, notes, onOpen, onDismiss }: { locale: Loc
   const waiting = notes.filter((n) => n.signal === "waiting");
   const places = [...new Set(waiting.map((n) => n.place ?? "").filter(Boolean))];
   const where = places.length ? ` ${fill(t(locale, `orchNotifyIn_${pluralForm(locale, places.length)}` as never), { places: new Intl.ListFormat(locale, { style: "long", type: "conjunction" }).format(places) })}` : "";
-  const row = (key: string, signal: string, text: React.ReactNode, onShow: () => void, onClose: () => void, run?: string): React.JSX.Element => (
+  const row = (key: string, signal: string, text: React.ReactNode, onShow: () => void, onClose: () => void, run?: string, tip?: string): React.JSX.Element => (
     <div key={key} className={`notify-banner__item notify-banner__item--${signal}`} data-notify-run={run}>
       <UiIcon name="bell" size={16} />
-      <span>{text}</span>
+      <span title={tip} tabIndex={tip ? 0 : undefined}>{text}</span>
       <button type="button" className="notify-banner__show" onClick={onShow}>{t(locale, "orchNotifyBannerOpen")}</button>
       <button type="button" className="notify-banner__close" aria-label={t(locale, "orchNotifyBannerClose")} onClick={onClose}>×</button>
     </div>
   );
+  // mock 22: the title in bold, the body in the secondary tone; the whole text is the tooltip (hover and keyboard focus)
+  const line = (n: Note): React.JSX.Element => <><b>{n.title}</b><span className="notify-banner__body"> — {n.body}</span></>;
   return (
     <div className="notify-banner" role="status" data-interactive="true" data-notify-banner>
-      {waiting.length === 1 && row(waiting[0].runId, "waiting", <><b>{waiting[0].title}</b> {waiting[0].body}</>, () => onOpen(waiting[0].runId), () => onDismiss(waiting[0].runId), waiting[0].runId)}
+      {waiting.length === 1 && row(waiting[0].runId, "waiting", line(waiting[0]), () => onOpen(waiting[0].runId), () => onDismiss(waiting[0].runId), waiting[0].runId, `${waiting[0].title} — ${waiting[0].body}`)}
       {waiting.length > 1 && row("waiting", "waiting",
         <><b>{fill(t(locale, `orchNotifyWait_${pluralForm(locale, waiting.length)}` as never), { n: String(waiting.length) })}</b>{where}</>,
         () => onOpen(waiting[0].runId),
         () => { for (const n of waiting) onDismiss(n.runId); })}
-      {notes.filter((n) => n.signal !== "waiting").map((n) => row(n.runId, n.signal, <><b>{n.title}</b> {n.body}</>, () => onOpen(n.runId), () => onDismiss(n.runId), n.runId))}
+      {notes.filter((n) => n.signal !== "waiting").map((n) => row(n.runId, n.signal, line(n), () => onOpen(n.runId), () => onDismiss(n.runId), n.runId, `${n.title} — ${n.body}`))}
     </div>
   );
 }

@@ -65,6 +65,10 @@ const hold = (p, on) => (on ? fs.writeFileSync(HOLD[p], "") : fs.rmSync(HOLD[p],
 
 // ---------- an older installation: one canvas, every kind of card, no workspaces.json ----------
 const USER_DATA = D("user-data");
+// the folder of a new workspace is chosen with the card's «Изменить…»; the system dialog is answered from this file (main, isolated run)
+const PICK_USER_DATA = USER_DATA;
+const PICK_FILE = D("pick-dir");
+const pickFolder = (folder) => { fs.writeFileSync(PICK_FILE, folder); };
 fs.mkdirSync(path.join(USER_DATA, "orchestration"), { recursive: true });
 const OLD_LEAD = randomUUID(), OLD_EXEC = randomUUID(), OLD_LINK = randomUUID();
 fs.writeFileSync(path.join(USER_DATA, "settings.json"), JSON.stringify({
@@ -129,7 +133,7 @@ const pidOf = async (id, mark) => {
 };
 
 try {
-  app = await launch({ userData: USER_DATA, providers, port: PORT, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh" } });
+  app = await launch({ userData: USER_DATA, providers, port: PORT, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh", CANVASTTY_USER_DATA_DIR: PICK_USER_DATA, CANVASTTY_SMOKE_PICK_DIR_FILE: PICK_FILE } });
   await size(1280, 800);
   await pageReady();
 
@@ -153,7 +157,7 @@ try {
   const create = async (name, folder) => {
     await app.clickEl(q("[data-workspace-new]"));
     await app.waitFor(`${q("[data-ws-form]")} && true`, "new workspace dialog");
-    await app.type(q("[data-ws-root]"), folder);
+    pickFolder(folder); await app.clickEl(q("[data-ws-pick]")); await app.waitFor(`${q("code[data-ws-root]")} && ${q("code[data-ws-root]")}.textContent === ${JSON.stringify(folder)}`, "the chosen folder");
     await app.type(q("[data-ws-title]"), name);
     await app.clickEl(q("[data-ws-submit]"));
     await app.waitFor(`!${q("[data-ws-form]")}`, "dialog closed");
@@ -166,7 +170,7 @@ try {
   const B = await create("Бета", projectB);
   // the same folder again: the dialog names the workspace that has it
   await app.clickEl(q("[data-workspace-new]"));
-  await app.type(q("[data-ws-root]"), projectA);
+  pickFolder(projectA); await app.clickEl(q("[data-ws-pick]")); await app.waitFor(`${q("code[data-ws-root]")} && ${q("code[data-ws-root]")}.textContent === ${JSON.stringify(projectA)}`, "the chosen folder");
   await app.waitFor(`${q("[data-ws-twin]")} && true`, "twin warning");
   expect(await app.ev(`${q("[data-ws-submit]")}.disabled`), "a second workspace for the same folder needs a choice", null);
   await app.clickEl(q("[data-ws-open-twin]"));
@@ -420,7 +424,7 @@ try {
   await reload();
   expect((await state()).activeId === B && near(await cameraNow(), camB2), "after a reload: the same workspace and camera", { now: await cameraNow(), camB2 });
   await app.quit();
-  app = await launch({ userData: USER_DATA, providers, port: PORT + 1, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh" } });
+  app = await launch({ userData: USER_DATA, providers, port: PORT + 1, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh", CANVASTTY_USER_DATA_DIR: PICK_USER_DATA, CANVASTTY_SMOKE_PICK_DIR_FILE: PICK_FILE } });
   await size(1280, 800);
   await pageReady();
   s1 = await state();

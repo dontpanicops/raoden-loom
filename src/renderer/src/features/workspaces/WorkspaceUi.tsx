@@ -178,17 +178,17 @@ function WorkspaceForm({ controls, locale, id, onClose }: { controls: WorkspaceC
             className={taken ? "orch-input--error" : undefined} aria-invalid={taken ? true : undefined} />
           {taken && <span className="orch-field__error" role="alert" data-ws-name-taken>{tr(locale, "wsNameTaken", { name: workspaceTitle(locale, taken) })}</span>}
         </label>
-        {/* one small line (owner, R12): «Папка: путь · Изменить…», the old paragraph is the tooltip */}
-        <label className="ws-folder-line" title={tk(locale, "wsFolderHint")}><span>{tk(locale, "wsFolderShort")}</span>
-          <input value={root} onChange={(event) => { setRoot(event.target.value); setConfirmedTwin(false); }} placeholder="/" data-ws-root spellCheck={false} />
+        {/* mock 25: one 12px line under the name — «Папка: путь · Изменить…» / «Папка не выбрана · Выбрать…»; the path is mono, its end is cut, the whole one is the tooltip */}
+        <div className="ws-folder-line" data-ws-folder>
+          {folder ? <><span>{tk(locale, "wsFolderShort")}</span><code title={folder} data-ws-root>{folder}</code></> : <span data-ws-root>{tk(locale, "wsNoFolder")}</span>}
           <span aria-hidden="true">·</span>
-          <button type="button" onClick={() => void window.canvasTTY.dialog.pickDirectory(folder || undefined).then((picked) => {
+          <button type="button" data-ws-pick onClick={() => void window.canvasTTY.dialog.pickDirectory(folder || undefined).then((picked) => {
             if (!picked) return;
             setRoot(picked);
             setConfirmedTwin(false);
             if (!title.trim()) setTitle(folderName(picked));
-          })}>{tk(locale, "wsChangeFolder")}</button>
-        </label>
+          })}>{tk(locale, folder ? "wsChangeFolder" : "wsPickFolder")}</button>
+        </div>
         {twin && !id && (
           <div className="orch-hint orch-hint--warn" role="status" data-ws-twin>
             {tr(locale, "wsTwin", { name: workspaceTitle(locale, twin) })}
