@@ -795,7 +795,7 @@ function ImportReportView({ locale, report, tasks, board }: { locale: LocaleId; 
       <ul className="board-import__list">
         {fileWide ? <li className="board-import__warn board-import__file" data-board-import-refused={fileWide.code} title={fileWide.detail}>{importText(locale, fileWide.code, fileWide.detail, null, tasks)}</li> : <>
           {report.created.map((x) => row("+", x.ref, `c${x.ref}`, <>→ {x.key}{name(x.ref, x.key)}<small>{t(locale, "boardImportInQueue")}</small></>, { "data-board-import-created": x.ref }))}
-          {report.unchanged.map((ref) => row("=", ref, `n${ref}`, <>{name(ref).trim()}{" · "}{t(locale, "boardImportRowUnchanged")}</>, { "data-board-import-unchanged": ref }))}
+          {report.unchanged.map((ref) => row("=", ref, `n${ref}`, <>{[board.find((x) => x.ref === ref)?.key ?? name(ref).trim(), t(locale, "boardImportRowUnchanged")].filter(Boolean).join(" · ")}</>, { "data-board-import-unchanged": ref }))}
           {report.updated.map((x) => row("~", x.ref, `u${x.ref}`, <>→ {x.key}{name(x.ref, x.key)}{" · "}{t(locale, "boardImportRowUpdated")}</>, { "data-board-import-updated": x.ref }))}
           {report.refused.map((x) => row("!", x.ref ?? "", `r${x.ref}|${x.code}|${x.detail}`, importText(locale, x.code, x.detail, x.ref, tasks), { "data-board-import-refused": x.code }, true, x.detail))}
         </>}
