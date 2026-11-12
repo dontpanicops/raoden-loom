@@ -31,7 +31,8 @@ export interface ShellCheckOptions {
   // A1.1 (journal-v2-format.md §2.6): a lead's proposed command runs in the check profile — `<shell> -c <line>` (the
   // login environment is already in env; the shell's own start files would only be refused their writes), after the
   // profile's self-test, with a temporary folder of its own
-  sandbox?: { root: string; realHome?: string };
+  // outside (F-c, the profile's checksOutside): the profile also allows outside addresses and writes to temporary folders and caches
+  sandbox?: { root: string; realHome?: string; outside?: boolean };
 }
 
 export type ShellCheckResult = CheckResult & { deps: null; executableSha256: string };
@@ -89,10 +90,10 @@ export function startShellCheck(opts: ShellCheckOptions): { checkRunId: string; 
       try {
         // short: a Unix socket path in it must stay under 104 bytes
         tmp = await mkdtemp(join(tmpdir(), "canvastty-check-"));
-        const profile = buildCheckProfile({ work: opts.ws.repo, tmp, root: opts.sandbox.root, realHome: opts.sandbox.realHome });
+        const profile = buildCheckProfile({ work: opts.ws.repo, tmp, root: opts.sandbox.root, realHome: opts.sandbox.realHome, ...(opts.sandbox.outside ? { outside: true } : {}) });
         const profilePath = join(tmp, ".canvastty-profile.sb");
         await writeFile(profilePath, profile.text, { mode: 0o400 });
-        const st = await checkSelftest({ profilePath, work: opts.ws.repo, tmp, root: opts.sandbox.root, realHome: opts.sandbox.realHome, launch: opts.launch });
+        const st = await checkSelftest({ profilePath, work: opts.ws.repo, tmp, root: opts.sandbox.root, realHome: opts.sandbox.realHome, ...(opts.sandbox.outside ? { outside: true } : {}), launch: opts.launch });
         if (!st.passed) throw new Error(`the sandbox self-test failed: ${st.failed.map((f) => `${f.name} (${f.detail})`).join("; ")}`);
         sandboxed = { tmp, profilePath, sha256: profile.sha256 };
       } catch (e) {

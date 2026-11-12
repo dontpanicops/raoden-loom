@@ -1223,6 +1223,10 @@ export const IPC = {
   orchestrationBoardImportFile: "orchestration:board-import-file",
   orchestrationBoardInboxImport: "orchestration:board-inbox-import",
   orchestrationBoardInboxReject: "orchestration:board-inbox-reject",
+  // F-c (D-041 p. 4): «Open file» under an import report — the file by its name and hash, never a path
+  orchestrationBoardImportOpen: "orchestration:board-import-open",
+  // F-c (D-041 p. 1): «Export the review» of a completed run by hand
+  orchestrationReviewExport: "orchestration:review-export",
   orchestrationBoardEvent: "orchestration:board-event",
   orchestrationBoardExternalMark: "orchestration:board-external-mark", // F2
   orchestrationReadiness: "orchestration:readiness",

@@ -102,7 +102,8 @@ export function useBoard(orch: Orchestration) {
     // F1 (T-2): «Import tasks» (main opens the dialog and reads the file), «Import» / «Reject» of an inbox/ file
     importFile: () => act(() => api.boardImportFile()),
     inboxImport: (file: string, sha256: string) => act(() => api.boardInboxImport(file, sha256)),
-    inboxReject: (file: string) => act(() => api.boardInboxReject(file))
+    inboxReject: (file: string) => act(() => api.boardInboxReject(file)),
+    importOpen: (file: string, sha256: string) => act(() => api.boardImportOpen(file, sha256))
   };
 }
 

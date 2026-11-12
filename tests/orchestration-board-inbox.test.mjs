@@ -5,6 +5,7 @@
 // a taken name in done/, a restart, file_changed and the board moved on. No CLI, no model.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { syncBuiltinESMExports } from "node:module";
 import fs from "node:fs";
@@ -431,13 +432,13 @@ test("a name over 200 bytes before .json: invalid_file once, the report only in 
 });
 
 // Fake Electron: the main window's top frame; handleMain as registerIpc wraps it
-function ipc(m, win) {
+function ipc(m, win, openPath) {
   const wc = Object.assign(new EventEmitter(), { id: 1, mainFrame: { id: "frame" }, isDestroyed: () => false, send() {} });
   const handlers = new Map();
   registerOrchestrationIpc((channel, listener) => handlers.set(channel, (event, ...args) => {
     assertMainRenderer(event, () => ({ isDestroyed: () => false, webContents: wc }));
     return listener(event, ...args);
-  }), m, undefined, win);
+  }), m, openPath, win);
   return (channel, ...args) => Promise.resolve().then(() => handlers.get(channel)({ sender: wc, senderFrame: wc.mainFrame }, ...args));
 }
 
@@ -490,4 +491,37 @@ test("the smoke's dialog hook: both variables — the file without a dialog; onl
   assert.ok(read > 0 && read < index.indexOf("delete process.env.CANVASTTY_USER_DATA_DIR"));
   assert.ok(index.indexOf("delete process.env.CANVASTTY_SMOKE_IMPORT_FILE") > read);
   assert.match(index, /smokeImport,\n/);
+});
+
+test("F-c «Open file» under a report: the file by its name and hash only, never a path; a changed or gone file is refused", async () => {
+  const root = path.join(TMP, `root-${++n}`);
+  const m = manager(root);
+  const file = path.join(TMP, `open-${n}.json`);
+  fs.writeFileSync(file, tasksFile([row("T1")]));
+  const opened = [];
+  let answer = "";
+  const invoke = ipc(m, { send() {}, pickImportFile: async () => file }, async (p) => { opened.push(p); return answer; });
+  const r = (await invoke(IPC.orchestrationBoardImportFile)).value;
+  assert.deepEqual(await invoke(IPC.orchestrationBoardImportOpen, r.file, r.sha256), { ok: true, value: null });
+  assert.deepEqual(opened, [file]);
+  // the system cannot open it: said, not swallowed
+  answer = "no application";
+  assert.equal((await invoke(IPC.orchestrationBoardImportOpen, r.file, r.sha256)).code, "open_failed");
+  // a name that is a path, a hash that nothing has: nothing is opened
+  opened.length = 0;
+  assert.equal((await invoke(IPC.orchestrationBoardImportOpen, "/etc/passwd", "0".repeat(64))).code, "import_file_gone");
+  assert.equal((await invoke(IPC.orchestrationBoardImportOpen, r.file, "0".repeat(64))).code, "import_file_gone");
+  assert.equal((await invoke(IPC.orchestrationBoardImportOpen, r.file, "nothex")).code, "invalid_argument");
+  assert.deepEqual(opened, []);
+  // the file changed after the import: it is no longer the one the report is about
+  fs.appendFileSync(file, " ");
+  answer = "";
+  assert.equal((await invoke(IPC.orchestrationBoardImportOpen, r.file, r.sha256)).code, "import_file_gone");
+  // a file of inbox/ is found by its name
+  fs.mkdirSync(path.join(root, "inbox"), { recursive: true });
+  const inboxFile = path.join(root, "inbox", "from-inbox.json");
+  fs.writeFileSync(inboxFile, tasksFile([row("T9")]));
+  const sha = createHash("sha256").update(fs.readFileSync(inboxFile)).digest("hex");
+  assert.deepEqual(await invoke(IPC.orchestrationBoardImportOpen, "from-inbox.json", sha), { ok: true, value: null });
+  assert.deepEqual(opened, [inboxFile]);
 });

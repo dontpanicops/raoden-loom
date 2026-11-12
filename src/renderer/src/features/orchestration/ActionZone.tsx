@@ -179,7 +179,7 @@ export function PanelFoot({ buttons, sending, disabled, onButton, labelOf }: {
         const stop = b.action === "stop";
         const pause = b.action === "pause";
         return (
-          <button key={b.action} type="button" className={stop ? "orch-stop" : pause || b.action.startsWith("copy_") ? "orch-textual" : undefined} disabled={(sending && !stop) || disabled(b)}
+          <button key={b.action} type="button" className={stop ? "orch-stop" : pause || b.action.startsWith("copy_") || b.action === "export_review" ? "orch-textual" : undefined} disabled={(sending && !stop) || disabled(b)}
             data-orch-stop={stop ? "" : undefined} data-orch-foot-action={b.action} data-orch-primary={pause ? "pause" : undefined} onClick={() => onButton(b)}>{labelOf?.(b) ?? b.label}</button>
         );
       })}

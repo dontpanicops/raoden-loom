@@ -1411,7 +1411,7 @@ button { border: 0; }
 .orch-confirm__row { display: flex; flex-wrap: wrap; gap: 8px; }
 /* the footer under the tabs, outside the scroll: pause after the turn, Stop (outlined), copy buttons */
 .orch-panel__foot { flex: 0 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border-strong); background: transparent; }
-.orch-panel__foot [data-orch-foot-action="pause"], .orch-panel__foot [data-orch-foot-action="copy_id"] { margin-right: auto; }
+.orch-panel__foot [data-orch-foot-action="pause"], .orch-panel__foot [data-orch-foot-action="copy_id"], .orch-panel__foot [data-orch-foot-action="export_review"] { margin-right: auto; }
 .orch-question { display: flex; flex-direction: column; gap: 8px; }
 /* inside the zone the plates are the items (a command list, a field): one sunken tone, no ring on a ring */
 .orch-zone .orch-item { box-shadow: none; }
@@ -2586,3 +2586,25 @@ html:not([data-kbd]) .terminal-link-dialog :is(button, a):focus-visible { outlin
 .canvas-command-palette__footer [aria-disabled="true"] { opacity: .45; }
 .ws-label--hollow { box-shadow: inset 0 0 0 1px var(--border-strong); }
 .ws-label--blank { visibility: hidden; }
+
+/* F-c (D-041): the roles row of the goal dialog (mock-up 23), the checklist of «MCP and environment» (mock-up 15), the line counters of the
+   feed (mock-up 07-01), the push box of the autopilot form (mock-up 08) */
+.orch-roles { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 0; }
+.orch-roles__text { min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.orch-roles__text > span { color: var(--text-secondary); overflow-wrap: anywhere; }
+.orch-roles > button { flex: none; }
+.orch-checklist { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; border-radius: 10px; overflow: hidden; background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
+.orch-checklist__row { display: grid; grid-template-columns: 1.4em minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; }
+.orch-checklist__row + .orch-checklist__row { border-top: 1px solid var(--border); }
+.orch-checklist__mark { display: inline-flex; }
+.orch-checklist__row--ok .orch-checklist__mark { color: var(--status-done); }
+.orch-checklist__row--warning .orch-checklist__mark { color: var(--status-waiting); }
+.orch-checklist__row--fail .orch-checklist__mark { color: var(--danger-fg); }
+.orch-checklist__text { min-width: 0; overflow-wrap: anywhere; }
+.orch-env-details > summary { cursor: pointer; font-size: 12px; color: var(--text-secondary); }
+.orch-feed__delta { font-variant-numeric: tabular-nums; }
+.orch-feed__plus { font-weight: 500; color: var(--status-done); }
+.orch-feed__minus { font-weight: 500; color: var(--danger-fg); }
+.board-ap-form__push { margin-top: 2px; }
+.board-aside__foot { gap: 8px; align-items: center; }
+.board-card .board-aside__foot [data-board-import-open] { padding-left: .8em; color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 8%, transparent); box-shadow: inset 0 0 0 1px var(--border); }

@@ -5,6 +5,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { mkdir, open, readFile, rename } from "node:fs/promises";
+import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 import type { OrchestrationGrant, OrchestrationProjectProfile, OrchestrationRoleModels, OrchestrationRunPush } from "../../../shared/orchestration.ts";
@@ -86,14 +87,30 @@ export function validateProfile(input: unknown): OrchestrationProjectProfile {
   if (reviewExport && p!.workMode !== "worktree") throw new ProfileError("work_mode_not_worktree", "reviewExport: the worktree mode only");
   if (reviewExport && !runBase) throw new ProfileError("review_export_needs_base", "reviewExport needs runBase");
   if (reviewExport && !f!.commit) throw new ProfileError("review_export_needs_commit", "reviewExport needs the commit action");
+  // F-c (D-041 p. 1): the review's folder (absolute or ~/…, never relative) and format; absent: as the flag always did
+  const dirRaw = raw.reviewExportDir;
+  const format = raw.reviewExportFormat as OrchestrationProjectProfile["reviewExportFormat"];
+  if (format !== undefined && format !== "markdown" && format !== "json" && format !== "both") bad("reviewExportFormat: markdown, json or both");
+  let reviewExportDir: string | undefined;
+  if (dirRaw !== undefined && dirRaw !== null && dirRaw !== "") {
+    if (typeof dirRaw !== "string" || dirRaw.length > 1000 || /[\u0000-\u001f\u007f]/.test(dirRaw)) bad("reviewExportDir: one line, up to 1000 characters");
+    const text = (dirRaw as string).trim();
+    const abs = text === "~" || text.startsWith("~/") ? join(homedir(), text.slice(1)) : text;
+    if (!isAbsolute(abs)) throw new ProfileError("review_export_dir_relative", "reviewExportDir must be an absolute path (or ~/…), outside the project");
+    reviewExportDir = abs.length > 1 ? abs.replace(/\/+$/, "") : abs;
+  }
   // F4 (T-14): runMcp false — the roles without MCP; absent or true: as in the CLI, as before
   const runMcp = raw.runMcp === undefined || raw.runMcp === true ? true : raw.runMcp === false ? false : bad("runMcp: false or absent");
+  // F-c (D-041 p. 3): absent or false: the check profile as before; true: network and writes to temporary folders and caches
+  const checksOutside = raw.checksOutside === undefined || raw.checksOutside === false ? false : raw.checksOutside === true ? true : bad("checksOutside: true or absent");
   return {
     v: 1, workMode: p!.workMode!, checks, prepare: { steps, auto: prep!.auto }, env: { direnv: p!.env!.direnv },
     access: { claude: access.claude, codex: access.codex }, ...(models ? { models } : {}), finish: { commit: f!.commit, push, qa }, grants,
     savedAt: typeof p!.savedAt === "string" ? p!.savedAt : null,
     ...(branchTemplate ? { branchTemplate } : {}), ...(runBase ? { runBase } : {}), ...(runPush ? { runPush } : {}),
-    ...(reviewExport ? { reviewExport: true as const } : {}), ...(runMcp ? {} : { runMcp: false as const })
+    ...(reviewExport ? { reviewExport: true as const } : {}), ...(reviewExportDir ? { reviewExportDir } : {}),
+    ...(format && format !== "both" ? { reviewExportFormat: format } : {}), ...(runMcp ? {} : { runMcp: false as const }),
+    ...(checksOutside ? { checksOutside: true as const } : {})
   };
 }
 

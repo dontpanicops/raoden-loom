@@ -44,7 +44,9 @@ export interface Goal {
   // F3 (T-6), journal v2 worktree only, set by main: the worktree's branch (the profile's template, or canvastty/<run8> at
   // a remote base); absent: canvastty/<run8>. Not used by the cycle
   branch?: string;
+  exportTo?: { dir?: string; format?: "markdown" | "json" | "both" }; // F-c (D-041 p. 1), with export, set by main from the profile: the review's folder and format; absent: the application's folder, both files
   export?: true; // F4 (T-9), journal v2 worktree board task only, set by main: the review export when completed. Not used by the cycle
+  checksOutside?: true; // F-c (D-041 p. 3), journal v2, set by main from the profile: the lead's checks may use the network and write to temporary folders and caches; the autopilot then never accepts them itself
   noMcp?: true; // F4 (T-14), set by main: the roles run without MCP (the service's turns). Not used by the cycle
   // C3 (stage-c3-conflicts.md §3): a resolution run of a merge into the board's result — its copy starts from `base` (the
   // conflict as a commit), its plan is the application's. Not `task`: the run is never a task's run (metaOf, boardStatuses)
@@ -299,8 +301,9 @@ const pauseFor = (cls: FailureClass): PausedReason => (cls === "external" ? "ext
 // run in denies the network (A1.1: the lead's commands run in the check profile). Decision A1.1 Q1: no command
 // proposed — nothing would run, the rule does not apply: the autopilot goes on to the result without checks. Step by
 // step the person always decides.
-export function autoAccepts(goal: Pick<Goal, "mode">, sandboxNetwork: "denied" | "open", count = 1): boolean {
-  return (goal.mode ?? "autopilot") === "autopilot" && (sandboxNetwork === "denied" || count === 0);
+// F-c: a goal whose checks may leave the work folder (checksOutside) is never accepted by the autopilot: the person reads the lines
+export function autoAccepts(goal: Pick<Goal, "mode" | "checksOutside">, sandboxNetwork: "denied" | "open", count = 1): boolean {
+  return (goal.mode ?? "autopilot") === "autopilot" && (count === 0 || (sandboxNetwork === "denied" && goal.checksOutside !== true));
 }
 
 // Journal v2: the plan turn proposes check commands — the first one of a goal without commands, before any proposal.

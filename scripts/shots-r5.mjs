@@ -691,6 +691,9 @@ try {
       await app.clickEl(`document.querySelector(".orch-limits__more > summary")`); await sleep(300);
       await app.ev(`document.querySelector(".orch-limits").scrollIntoView({ block: "center" })`); await sleep(300);
       await shot("goal-limits-set");
+      // F-c (D-041 p. 5, mock 23): the roles row — who leads, who executes, who reviews — with its words explained
+      await app.ev(`document.querySelector("[data-orch-roles]")?.scrollIntoView({ block: "center" })`); await sleep(400);
+      await shot("goal-roles");
       // R12d (mock 09): «Готовность» at the top of the body: the heading, the verdict and the first rows
       await app.ev(`(() => { const h = [...document.querySelectorAll(".orch-dialog *")].find((e) => e.children.length === 0 && /^Готовность/.test(e.textContent.trim())); h?.scrollIntoView({ block: "start" }); })()`); await sleep(400);
       await shot("goal-readiness");
@@ -714,6 +717,12 @@ try {
       // mock 15's lower half: the card «Push» at the top of the body, with «Выгрузка ревью» and «MCP» beside it
       await app.ev(`document.querySelector("[data-orch-settings-branches]")?.scrollIntoView({ block: "start" })`); await sleep(400);
       await shot("project-settings-push");
+      // F-c (D-041 p. 2, mock 15): the checklist of «MCP and environment» after the environment check (the CLIs' own answers, no model)
+      await app.ev(`document.querySelector("[data-orch-env-check]")?.scrollIntoView({ block: "center" })`); await sleep(300);
+      await app.clickEl(`document.querySelector("[data-orch-env-check] > button")`);
+      await app.waitFor(`document.querySelector("[data-orch-checklist]") !== null || document.querySelector("[data-orch-env-check]")?.dataset.orchEnvCheck === "error"`, "environment checklist", 90_000);
+      await app.ev(`document.querySelector("[data-orch-env-check]")?.scrollIntoView({ block: "center" })`); await sleep(500);
+      await shot("project-settings-mcp");
       await app.ev(SCROLL_DIALOG); await sleep(400);
       await shot("project-settings-scrolled");
       await esc(); await sleep(300); await esc();

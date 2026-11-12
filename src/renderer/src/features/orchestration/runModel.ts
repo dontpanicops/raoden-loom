@@ -3,6 +3,7 @@
 // a create request's id stable across a retry of the same action, and tells a transport failure from a refusal.
 import type {
   OrchestrationActivityEntry,
+  OrchestrationEnvironmentReport,
   OrchestrationHistoryRecord,
   OrchestrationLimitKind,
   OrchestrationPermissionOption,
@@ -676,7 +677,7 @@ export function primaryAction(view: OrchestrationRunView): RunAction | null {
 // ---------- the action zone: what happened, what to do, one main button (R3b) ----------
 
 // Buttons that send nothing to main (a tab, a clipboard, the project's settings, a screen of the app) are local.
-export type ZoneLocal = "open_plan" | "open_changes" | "open_feed" | "open_journal" | "project_settings" | "copy_id" | "copy_journal" | "release_newer" | "new_goal" | "take";
+export type ZoneLocal = "open_plan" | "open_changes" | "open_feed" | "open_journal" | "project_settings" | "copy_id" | "copy_journal" | "release_newer" | "new_goal" | "take" | "export_review";
 export type ZoneAction = RunAction | "recover_accept" | "recover_retry" | "recover_reset" | "checks_accept" | "checks_edit" | "plan_return" | "plan_accept" | ZoneLocal;
 // commands: what main is asked (AdmissionKind), [] for a local button; after: the command sent once main has answered the
 // first (a raised limit pauses the run on user_request, and "resume" follows)
@@ -758,8 +759,10 @@ export function actionZone(locale: LocaleId, view: OrchestrationRunView, entries
       const key = runStatusKey(view);
       const first = changesFirst(view, entries);
       const next = b("new_goal", L("orchNewGoal"));
+      // F-c (D-041 p. 1, mock-up 07-17): «Export the review» in the footer of a completed board task's run that can be exported
       return state(key, key, { tone: "neutral", eyebrow: L("orchEyebrow_completed"), todo: nextStepText(locale, view, entries),
-        primary: first ? b("open_changes", L("orchViewChanges")) : next, secondary: first ? [next] : [] });
+        primary: first ? b("open_changes", L("orchViewChanges")) : next, secondary: first ? [next] : [],
+        footer: view.exportable || (view.export !== undefined && view.export !== null) ? [b("export_review", L("orchExportReview"))] : [] });
     }
     case "stopped": case "failed": {
       const cause = viewCause(view, entries);
@@ -1165,6 +1168,30 @@ export function tokensText(locale: LocaleId, n: number): string {
 
 // probe.ts values and notes are English patterns ("found 5, enabled 3: a, b", "2 could not be loaded", "the list is
 // incomplete", "(none)", "(default)"); they are said in the person's language, anything else is shown as sent.
+// F-c (D-041 p. 2, mock-up 15): the checklist of «MCP and environment» — what the environment probe checked and its result, one row
+// each, from the report only: the shell, each CLI's answer, each CLI's MCP servers. Nothing is added that the report does not say.
+// level: ok — checked and fine; warning — not checked or not complete; fail — the CLI did not answer. unchecked: the Codex servers
+// whose connection the CLI did not report (a thread would tell) — the row's «Check» asks for the first of them
+export interface EnvRow { id: string; level: "ok" | "warning" | "fail"; key: string; params: Record<string, string | number>; unchecked?: string[] }
+export function envRows(report: OrchestrationEnvironmentReport): EnvRow[] {
+  const rows: EnvRow[] = [{ id: "shell", level: report.shell.shell ? "ok" : "warning", key: report.shell.shell ? "orchEnvRow_shell" : "orchEnvRow_noShell", params: { shell: report.shell.shell ?? "" } }];
+  for (const p of report.providers) {
+    const who = p.provider === "codex" ? "Codex" : "Claude";
+    if (!p.ok) { rows.push({ id: `${p.provider}:cli`, level: "fail", key: "orchEnvRow_cliFailed", params: { who, error: p.error ?? "" } }); continue; }
+    rows.push({ id: `${p.provider}:cli`, level: "ok", key: "orchEnvRow_cli", params: { who } });
+    const mcp = p.items.find((i) => i.id === "mcp");
+    if (!mcp) continue;
+    if (!mcp.confirmed || mcp.complete === false) { rows.push({ id: `${p.provider}:mcp`, level: "warning", key: "orchEnvRow_mcpNoList", params: { who } }); continue; }
+    const servers = mcp.servers;
+    if (servers) {
+      const unchecked = servers.filter((s) => s.connection === null).map((s) => s.name);
+      if (unchecked.length) rows.push({ id: `${p.provider}:mcp`, level: "warning", key: "orchEnvRow_mcpUnchecked", params: { who, n: unchecked.length, names: unchecked.join(", ") }, unchecked });
+      else rows.push({ id: `${p.provider}:mcp`, level: "ok", key: servers.length ? "orchEnvRow_mcpChecked" : "orchEnvRow_mcpNone", params: { who, n: servers.length } });
+    } else rows.push({ id: `${p.provider}:mcp`, level: "ok", key: mcp.value === "0" ? "orchEnvRow_mcpNone" : "orchEnvRow_mcpListed", params: { who, value: mcp.value } });
+  }
+  return rows;
+}
+
 export function probeText(locale: LocaleId, text: string): string {
   return text
     .replace(/^found (\d+), enabled (\d+)/, (_, f, e) => `${t(locale, "orchProbe_found")} ${f}, ${t(locale, "orchProbe_enabled")} ${e}`)

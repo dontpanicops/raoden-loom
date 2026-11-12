@@ -76,6 +76,8 @@ function fixTarget(item: OrchestrationReadinessItem): ReadyFix | null {
   return null;
 }
 
+// HH:MM of a moment, 24-hour in both languages (mock-up 09: «проверено 14:10»)
+export const clockText = (locale: LocaleId, ms: number): string => new Date(ms).toLocaleTimeString(locale === "ru" ? "ru-RU" : "en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
 export function readinessLine(locale: LocaleId, item: OrchestrationReadinessItem): string {
   const f = item.facts ?? {};
   const id = readyKey(item.id);
@@ -152,6 +154,7 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
   const [state, setState] = useState<{ kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string } | { kind: "ready"; value: OrchestrationReadiness }>({ kind: auto ? "loading" : "idle" });
   const [acks, setAcks] = useState<Record<string, boolean>>({});
   const [attempt, setAttempt] = useState(0);
+  const [checkedAt, setCheckedAt] = useState<number | null>(null); // F-c (D-041 p. 6): when the answer shown was received (mock-up 09: «проверено 14:10»)
   const key = JSON.stringify([linkId, commands, workMode, models, accessOverride]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-asked by key (the JSON of the inputs), attempt and the pickers; callbacks and locale must not restart the check
   useEffect(() => {
@@ -163,6 +166,7 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
       if (!live) return;
       if (r.ok) {
         setState({ kind: "ready", value: r.value });
+        setCheckedAt(Date.now());
         onBusy(r.value.items.find((i) => i.id === "busy")?.facts);
         const suggest = String(r.value.items.find((i) => i.id === "stack")?.facts?.suggest ?? "");
         if (suggest) onSuggest(suggest.split("\n").filter(Boolean));
@@ -176,7 +180,7 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
     const r = await window.canvasTTY.orchestration.readiness({ linkId, commands, workMode, full: true, ...(models ? { models } : {}), ...(Object.keys(accessOverride).length ? { accessOverride } : {}) })
       .catch((e: unknown) => ({ ok: false as const, code: "transport", message: String(e) }));
     setChecking(false);
-    if (r.ok) { setState({ kind: "ready", value: r.value }); setChecked({ key, ms: performance.now() - started }); onBusy(r.value.items.find((i) => i.id === "busy")?.facts); }
+    if (r.ok) { setState({ kind: "ready", value: r.value }); setCheckedAt(Date.now()); setChecked({ key, ms: performance.now() - started }); onBusy(r.value.items.find((i) => i.id === "busy")?.facts); }
     else setState({ kind: "error", message: r.code === "transport" ? t(locale, "orchTransportError") : tr(locale, `orchError_${r.code}`) });
   };
   const items = state.kind === "ready" ? state.value.items : [];
@@ -245,6 +249,7 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
         <strong>{t(locale, "orchReadyTitle")}</strong>
         {state.kind === "ready" && (
           <p className={`orch-ready__summary${blockers ? " orch-ready__summary--blocked" : ""}`} data-orch-ready-summary={blockers ? "blocked" : warnings ? "warnings" : "ok"}>
+            {checkedAt !== null && <span data-orch-ready-time={checkedAt}>{t(locale, "orchReadyCheckedAt").replace("{time}", clockText(locale, checkedAt))} · </span>}
             {blockers ? t(locale, "orchReadySummaryBlocked").replace("{blockers}", String(blockers)) : warnings ? t(locale, "orchReadySummary").replace("{warnings}", String(warnings)) : t(locale, "orchReadySummaryOk")}
           </p>
         )}
@@ -344,6 +349,8 @@ function useProfile(linkId: string | undefined) {
 // folderBusy: another run already works in this folder, as main names it (readiness "busy" facts or the folder_busy
 // refusal of the start); where it is. null: nothing (or nothing readable) holds it.
 export type FolderBusy = (held: unknown) => { name: string; runReadable: boolean; open(): void } | null;
+
+const providerName = (p: string): string => (p === "codex" ? "Codex" : p === "claude" ? "Claude" : p);
 
 function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui: AgentCanvasUi; locale: LocaleId; folderBusy?: FolderBusy }): React.JSX.Element | null {
   const link = orch.canvas.links.find((l) => l.linkId === ui.goalLinkId);
@@ -533,6 +540,14 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
               ? <button type="button" className="orch-linkish" data-orch-open-settings onClick={() => setSettingsOpen(true)}>{t(locale, "orchProfileOpen")}</button>
               : profile.state.kind === "error" && <button type="button" className="orch-linkish" onClick={profile.reload}>{t(locale, "orchRepeat")}</button>}
           </p>
+        </div>
+        {/* F-c (D-041 p. 5, mock-up 23): who leads, who executes, who reviews — from the link and the journal's version; the words explained on hover */}
+        <div className="orch-roles" data-orch-roles>
+          <div className="orch-roles__text">
+            <strong>{t(locale, "orchRolesTitle")}</strong>
+            <span data-orch-roles-line><Termed locale={locale} text={`${t(locale, "orchRoleLead")} ${providerName(lead.provider)} · ${t(locale, "orchRoleExecutor")} ${exec ? providerName(exec.provider) : "—"} · ${t(locale, "orchRoleReviewer")} ${optionalChecks ? providerName(lead.provider) : t(locale, "orchRolesNone")}`} /></span>
+          </div>
+          {info && <button type="button" data-orch-roles-change onClick={() => setSettingsOpen(true)}>{t(locale, "orchRolesChange")}</button>}
         </div>
         <div className="orch-goal__how">
           <fieldset className="orch-field orch-runmode" data-orch-runmode={mode}>
