@@ -2174,7 +2174,7 @@ button { border: 0; }
 .orch-dialog .orch-form .ws-folder-line { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; }
 .orch-dialog .orch-form .ws-folder-line code { min-width: 0; overflow: hidden; color: var(--text-secondary); font: 12px var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
 .orch-dialog .orch-form .ws-folder-line button { height: auto; min-height: 0; padding: 0; border: 0; color: var(--text-primary); background: none; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; box-shadow: none; }
-.ws-dialog [data-ws-delete] p { margin: 0; }
+.ws-dialog [data-ws-delete] p { margin: 0; font-weight: 400; color: var(--text-secondary); } /* R12p (mock 17): regular weight, quiet colour (the title is the only bright line) */
 .orch-dialog .orch-form [data-ws-delete-go] { color: var(--danger-text); background: var(--danger); box-shadow: none; }
 /* R12a (SPEC 11.2, mock 21): below 100% zoom the chrome of a card is in screen px, 28 header (mark 14, name 12, path 11, buttons 20) and
    24 footer (status 11); --iz = 1 / zoom is set by the card, data-zoomed marks it. The body scales with the canvas. */
@@ -2425,10 +2425,10 @@ button { border: 0; }
 .orch-dialog .orch-form .ws-pick__row:not([aria-pressed="true"]) { border-color: transparent; background: transparent; box-shadow: none; }
 .orch-dialog .orch-form .ws-pick__row[aria-pressed="true"] { box-shadow: none; }
 .ws-arrange__group { padding: 14px 16px; display: grid; gap: 10px; border: 0; border-radius: 14px; background: var(--surface-sunken); }
-.ws-arrange__group h3 { margin: 0; font: 700 13px var(--font-mono); overflow-wrap: anywhere; }
+.ws-arrange__group h3 { margin: 0; font: 400 13px var(--font-mono); overflow-wrap: anywhere; }
 .orch-field.ws-arrange__to { display: grid; grid-template-columns: 3.6em minmax(0, 1fr); align-items: center; gap: 12px; }
 .ws-arrange__to > span:first-child { color: var(--text-secondary); font-weight: 500; opacity: 1; }
-.ws-arrange__to select { background-color: var(--surface-4-solid); }
+.ws-arrange__to select { width: 100%; background-color: var(--surface-4-solid); } /* R12p (mock 25): «Куда» fills the row */
 .ws-arrange__item { display: grid; gap: 2px; }
 .ws-arrange__item label { display: flex; align-items: center; gap: 10px; }
 .ws-arrange__why { padding-left: 26px; color: var(--text-secondary); font-size: 12px; line-height: 1.45; }
@@ -2490,8 +2490,8 @@ button { border: 0; }
 .orch-settings__grid { align-items: start; } /* a card is as tall as its content: the neighbour's height leaves no empty room in it (mock 15) */
 .orch-card2 .orch-term { text-decoration: none; } /* the role captions of the cards carry no dotted line in mock 15; the explanation stays on hover and focus */
 .orch-card2 .orch-term:hover { text-decoration: underline dotted var(--text-primary) 1.5px; text-underline-offset: 3px; }
-.workspace-bar__count { padding: 1px 4px; color: var(--status-working); background: transparent; font-weight: 500; } /* R12n (mock 03): working = the glyph and the count in green, no pill */
-.workspace-bar__count--attention { padding: 1px 7px; color: var(--status-waiting); background: var(--status-waiting-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-waiting) 70%, transparent); } /* the waiting count is the outlined amber pill */
+.workspace-bar__count { padding: 2px 8px; color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 10%, transparent); font-weight: 500; } /* R12p (mock 25): both counts are filled pills; working is the neutral fill */
+.workspace-bar__count--attention { padding: 2px 8px; color: var(--status-waiting); background: var(--status-waiting-bg); box-shadow: none; } /* waiting: the amber fill, no outline */
 .workspace-bar__tab { font-weight: 500; }
 .workspace-bar__tab[aria-selected="true"] { color: var(--text-primary); background: var(--surface-2); box-shadow: var(--edge), var(--elev-1); } /* components-reference .ws.on: the raised plate */
 .ui-scale-setting input { accent-color: var(--accent); }
@@ -2626,13 +2626,16 @@ html:not([data-kbd]) .terminal-link-dialog :is(button, a):focus-visible { outlin
 .orch-roles__text > span { color: var(--text-secondary); overflow-wrap: anywhere; }
 .orch-roles > button { flex: none; }
 .orch-checklist { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; border-radius: 10px; overflow: hidden; background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
-.orch-checklist__row { display: grid; grid-template-columns: 1.4em minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; }
+.orch-checklist__row { display: grid; grid-template-columns: 1.4em minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 12px; font-size: 13px; }
 .orch-checklist__row + .orch-checklist__row { border-top: 1px solid var(--border); }
 .orch-checklist__mark { display: inline-flex; }
 .orch-checklist__row--ok .orch-checklist__mark { color: var(--status-done); }
 .orch-checklist__row--warning .orch-checklist__mark { color: var(--status-waiting); }
 .orch-checklist__row--fail .orch-checklist__mark { color: var(--danger-fg); }
 .orch-checklist__text { min-width: 0; overflow-wrap: anywhere; }
+/* R12p (mock 15): the «check again» button and the row's «check» are small left-aligned .btn-sm (24px, 12px, padding 9px), not a full-width bar */
+.orch-env-check > button, .orch-checklist__row > button { width: auto; height: 24px; min-height: 0; padding: 0 9px; font-size: 12px; }
+.orch-env-check > button { align-self: flex-start; justify-self: start; }
 .orch-env-details > summary { cursor: pointer; font-size: 12px; color: var(--text-secondary); }
 .orch-feed__delta { font-variant-numeric: tabular-nums; }
 .orch-feed__plus { font-weight: 500; color: var(--status-done); }

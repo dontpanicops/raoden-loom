@@ -30,16 +30,26 @@ test("crop at 0 0 is the top-left corner; dpr scales appCrop", { skip: process.p
   try {
     const shots = path.join(dir, "shots"), mocks = path.join(dir, "mocks");
     fs.mkdirSync(shots); fs.mkdirSync(mocks);
-    fs.writeFileSync(path.join(shots, "sand-a.png"), png(400, 200));
+    fs.writeFileSync(path.join(shots, "sand-a.png"), png(1440, 200)); // the window is 1440 CSS px wide
+    fs.writeFileSync(path.join(shots, "sand-b.png"), png(2880, 400)); // dpr 2
     fs.writeFileSync(path.join(mocks, "m-sand.png"), png(2880, 1800));
-    const row = (id, appCrop, dpr) => ({ id, zone: "Z0", mock: "m", themes: ["sand"], mockCrop: { x: 0, y: 0, w: 100, h: 60 }, scene: { script: "s", file: "{theme}-a.png", ...(dpr ? { dpr } : {}) }, appCrop, scale: "", data: "", notes: "" });
-    // 0 0 crop of 80 x 40: the left quarter is 100 px wide, so the whole crop is red; a centre crop would be blue
+    const row = (id, appCrop, dpr, file = dpr ? "{theme}-b.png" : "{theme}-a.png") => ({ id, zone: "Z0", mock: "m", themes: ["sand"], mockCrop: { x: 0, y: 0, w: 100, h: 60 }, scene: { script: "s", file, ...(dpr ? { dpr } : {}) }, appCrop, scale: "", data: "", notes: "" });
+    // 0 0 crop of 80 x 40: the left quarter is 360 px wide, so the whole crop is red; a centre crop would be blue
     // dpr 2: the CSS crop 0 0 20 x 20 is 40 x 40 frame pixels, still red
     fs.writeFileSync(path.join(dir, "inv.json"), JSON.stringify({ rows: [row("corner", { x: 0, y: 0, w: 80, h: 40 }), row("dpr", { x: 0, y: 0, w: 20, h: 20 }, 2)] }));
-    execFileSync("node", ["scripts/conformance-pairs.mjs", "--inventory", path.join(dir, "inv.json"), "--shots", shots, "--out", path.join(dir, "out"), "--mocks", path.join(dir, "none"), "--mocks-png", mocks]);
+    const run = (inv, out) => execFileSync("node", ["scripts/conformance-pairs.mjs", "--inventory", path.join(dir, inv), "--shots", shots, "--out", path.join(dir, out), "--mocks", path.join(dir, "none"), "--mocks-png", mocks], { encoding: "utf8", stdio: "pipe" });
+    run("inv.json", "out");
     for (const id of ["corner", "dpr"]) {
       const c = middle(path.join(dir, "out/Z0", `${id}-sand-app.jpg`), dir);
       assert.ok(c.r > 200 && c.b < 60, `${id}: red expected, got ${JSON.stringify(c)}`);
     }
+    // an unfair pair: a 2x frame without scene.dpr (and a 1x frame with dpr 2) is refused, exit 1
+    for (const [id, r] of [["noDpr", row("noDpr", { x: 0, y: 0, w: 20, h: 20 }, 0, "{theme}-b.png")], ["wrongDpr", row("wrongDpr", { x: 0, y: 0, w: 20, h: 20 }, 2, "{theme}-a.png")]]) {
+      fs.writeFileSync(path.join(dir, `${id}.json`), JSON.stringify({ rows: [r] }));
+      assert.throws(() => run(`${id}.json`, `out-${id}`), (e) => e.status === 1 && /нечестная пара/.test(e.stdout), id);
+    }
+    // a crop outside the frame is refused too
+    fs.writeFileSync(path.join(dir, "big.json"), JSON.stringify({ rows: [row("big", { x: 1400, y: 0, w: 80, h: 20 })] }));
+    assert.throws(() => run("big.json", "out-big"), (e) => e.status === 1, "big");
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
