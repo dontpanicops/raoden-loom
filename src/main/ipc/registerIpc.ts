@@ -652,9 +652,13 @@ export function registerIpc({
   onMain(IPC.terminalBounds, (_event, id: string, bounds: SessionBounds) => terminals.setBounds(id, bounds));
   handleMain(IPC.terminalRename, (_event, id: string, title: string) => terminals.rename(id, title));
   handleMain(IPC.terminalDispose, (_event, id: string) => terminals.dispose(id));
-  handleMain(IPC.terminalStop, (_event, id: string) => {
+  // the screenshots of «Остановить всё и скрыть» need the «stopping» state to last: an isolated run may delay the answer (CANVASTTY_SMOKE_STOP_DELAY_MS)
+  const smokeStopDelay = smokeImport.isolated ? Math.min(Math.max(Number(process.env.CANVASTTY_SMOKE_STOP_DELAY_MS) || 0, 0), 10_000) : 0;
+  handleMain(IPC.terminalStop, async (_event, id: string) => {
     if (typeof id !== "string") throw new Error("Terminal session ID is required.");
-    return terminals.stop(id);
+    const stopped = terminals.stop(id);
+    if (smokeStopDelay) await new Promise((r) => setTimeout(r, smokeStopDelay));
+    return stopped;
   });
   handleMain(IPC.terminalSetWorkspace, (_event, id: unknown, workspaceId: unknown) => {
     if (typeof id !== "string" || typeof workspaceId !== "string") throw new Error("Invalid terminal workspace request.");

@@ -66,6 +66,14 @@ export function useRunNotifications({ locale, prefs, runs, activity, title, spac
     return () => { offClick(); offFailed(); };
   }, [toBanner]);
 
+  // the driver hook of the screenshots (inert in a packaged build, like the toasts'): a banner row of its own, e.g. a failed run beside a waiting one
+  useEffect(() => {
+    if (!window.canvasTTY.window.devHooks) return;
+    const show = (e: Event): void => toBanner((e as CustomEvent<Note>).detail);
+    window.addEventListener("canvastty:banner", show);
+    return () => window.removeEventListener("canvastty:banner", show);
+  }, [toBanner]);
+
   const dismiss = useCallback((runId: string) => setBanner((b) => b.filter((x) => x.runId !== runId)), []);
   return { banner, dismiss, openNote: useCallback((runId: string) => { dismiss(runId); openRef.current(runId); }, [dismiss]) };
 }

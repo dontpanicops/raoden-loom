@@ -398,12 +398,16 @@ export async function createAgent(app, label, projectDir) {
   // «Как в макете» (default): one «Агент оркестрации» row opens a submenu with the lead and the executor.
   // «Подробное»: a row per role right in the menu (D-037). Both ways are taken, whichever the menu shows.
   const parent = byText(".canvas-menu [role=menuitem]", "Агент оркестрации");
-  await app.waitFor(`(${parent} || ${byText(".canvas-menu [role=menuitem]", label)}) && true`, `menu item ${label}`);
+  // the row is «Агент Codex» / «Codex» with the role as a hint at the right (ctxAgentCodex, ctxRoleLead): matched by the provider and the role word
+  const provider = label.match(/Codex|Claude/)?.[0] ?? label;
+  const role = /лид/.test(label) ? "лид" : /исполнитель/.test(label) ? "исполнитель" : "";
+  const row = (sel) => `[...document.querySelectorAll(${JSON.stringify(sel)})].find((el) => new RegExp("^(Агент )?${provider}\\s*${role}$").test(el.textContent.trim()))`;
+  await app.waitFor(`(${parent} || ${row(".canvas-menu [role=menuitem]")}) && true`, `menu item ${label}`);
   if (await app.ev(`!!(${parent})`)) {
     await app.clickEl(parent);
-    await app.waitFor(`${byText(".canvas-menu__submenu [role=menuitem]", label)} && true`, `submenu item ${label}`);
-    await app.clickEl(byText(".canvas-menu__submenu [role=menuitem]", label));
-  } else await app.clickEl(byText(".canvas-menu [role=menuitem]", label));
+    await app.waitFor(`${row(".canvas-menu__submenu [role=menuitem]")} && true`, `submenu item ${label}`);
+    await app.clickEl(row(".canvas-menu__submenu [role=menuitem]"));
+  } else await app.clickEl(row(".canvas-menu [role=menuitem]"));
   await app.waitFor(`${q(".orch-dialog input")} && true`, "agent dialog");
   await app.type(q(".orch-dialog input"), projectDir);
   await app.clickEl(q(".orch-dialog button[type=submit]"));

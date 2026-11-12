@@ -1013,11 +1013,11 @@
    "mock": "22-menu-banner",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 776, "w": 560, "h": 90 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-overlay-banner-two.png" },
+   "appCrop": { "x": 440, "y": 2, "w": 560, "h": 92 },
    "scale": "100%",
    "data": "ждущий и упавший — две строки",
-   "notes": "в стенде нет упавшего запуска с баннером; без нового фикстурного запуска сцену не снять",
-   "missing": "сцена баннера с ждущим и упавшим запуском"
+   "notes": "упавшую строку добавляет хук драйвера canvastty:banner (в стенде нет упавшего запуска); ждущая — настоящий запуск"
   },
   {
    "id": "17-create",
@@ -1061,11 +1061,11 @@
    "mock": "17-workspaces",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 321, "w": 420, "h": 298 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-stop-hide.png" },
+   "appCrop": { "x": 500, "y": 340, "w": 440, "h": 266 },
    "scale": "100%",
    "data": "«Остановить всё и скрыть»: ход остановки по пунктам",
-   "notes": "fake-терминал останавливается мгновенно, диалог скрывает пространство до кадра; состояние «идёт остановка» не снять",
-   "missing": "сцена «Остановить всё и скрыть» с идущей остановкой"
+   "notes": "остановка терминала задержана на 4 с (CANVASTTY_SMOKE_STOP_DELAY_MS, только изолированный запуск); в стенде один пункт, в макете три"
   },
   {
    "id": "17-delete",
@@ -1793,11 +1793,11 @@
    "mock": "15-project-settings",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 174, "y": 555, "w": 1092, "h": 405 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-project-settings-scrolled.png" },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-project-settings-push.png" },
    "appCrop": { "x": 175, "y": 150, "w": 1100, "h": 408 },
    "scale": "100%",
    "data": "Push, выгрузка ревью, MCP и окружение",
-   "notes": "в приложении блоки Push, выгрузка ревью и MCP стоят иначе, чем в 15: расхождение вида, не сцена"
+   "notes": "R12e: Push переложен как в макете; нет в коде: папка и формат выгрузки ревью, «Спрашивать перед каждым push», ошибка push options"
   },
   {
    "id": "16-general",
