@@ -72,6 +72,8 @@ export function CanvasContextMenu({
 }: CanvasContextMenuProps): React.JSX.Element {
   const menu = useRef<HTMLDivElement>(null);
   const orchestration = orchestrationEntry(orchestrationAvailableHere());
+  // mock 22: the role of the agent, in the secondary tone at the right
+  const roleHint = (provider: "codex" | "claude"): React.JSX.Element => <span className="canvas-menu__kbd canvas-menu__role">{t(locale, provider === "codex" ? "ctxRoleLead" : "ctxRoleExecutor")}</span>;
   const [submenu, setSubmenu] = useState<"launch" | "agent" | null>(null);
   const [submenuSide, setSubmenuSide] = useState<CanvasSubmenuSide>("right");
 
@@ -166,10 +168,10 @@ export function CanvasContextMenu({
             {submenu === "agent" && (
               <div className={`canvas-menu canvas-menu__submenu canvas-menu__submenu--${submenuSide}`} role="menu">
                 {(["codex", "claude"] as const).map((provider) => (
-                  <CanvasMenuRow indent role="menuitem" key={provider} onClick={() => onCreateOrchestrationAgent(provider)}>
+                  <CanvasMenuRow indent role="menuitem" key={provider} right={roleHint(provider)} onClick={() => onCreateOrchestrationAgent(provider)}>
                     <span className="canvas-menu__provider">
                       <ProviderIcon provider={provider} size="small" />
-                      {t(locale, provider === "codex" ? "orchAgentCodex" : "orchAgentClaude")}
+                      {PROVIDERS[provider].label}
                     </span>
                   </CanvasMenuRow>
                 ))}
@@ -177,9 +179,9 @@ export function CanvasContextMenu({
             )}
           </div>
           ) : (["codex", "claude"] as const).map((provider) => (
-            <CanvasMenuRow icon="plus" role="menuitem" key={provider} disabled={orchestration.disabled} title={orchestration.hint ? t(locale, orchestration.hint) : undefined}
+            <CanvasMenuRow icon="plus" role="menuitem" key={provider} right={roleHint(provider)} disabled={orchestration.disabled} title={orchestration.hint ? t(locale, orchestration.hint) : undefined}
               onClick={() => onCreateOrchestrationAgent(provider)}>
-              {t(locale, provider === "codex" ? "orchAgentCodex" : "orchAgentClaude")}
+              {t(locale, provider === "codex" ? "ctxAgentCodex" : "ctxAgentClaude")}
             </CanvasMenuRow>
           ))}
           <CanvasMenuRow icon="browser" role="menuitem" onClick={onOpenBrowser}>

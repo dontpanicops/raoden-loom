@@ -2177,3 +2177,11 @@ button { border: 0; }
 .notify-banner__item > span:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
 .ws-history__run { display: flex; flex-direction: column; gap: 1px; }
 .ws-history__run code { color: var(--text-muted); font: 11px var(--font-mono); }
+.canvas-menu__role { font-family: var(--font-ui); font-size: .92em; }
+.settings-panel .installed-plugin__header button.installed-plugin__remove { min-height: 0; padding: 0 4px; color: var(--text-secondary); background: none; font-weight: 400; }
+.settings-panel .installed-plugin__header button.installed-plugin__remove:hover { color: var(--text-primary); }
+.settings-panel .installed-plugin__header button.switch { width: 2.5em; height: 1.55em; min-height: 0; padding: 0; border-radius: 999px; background: color-mix(in srgb, var(--text-primary) 22%, transparent); }
+.settings-panel .installed-plugin__header button.switch--on { background: var(--accent-bg); }
+.settings-panel .installed-plugin__header > div { align-items: center; }
+.settings-panel .installed-plugin__header { align-items: center; }
+.orch-dialog .orch-form button.orch-danger[data-ws-delete-go] { color: var(--danger-text); background: var(--danger); box-shadow: none; }
