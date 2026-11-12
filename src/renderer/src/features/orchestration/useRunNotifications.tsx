@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 // Notifications and the Dock badge for the runs this window watches (every link's latest run, in every workspace).
 // What to tell is notify.ts; here it reaches macOS (main shows it) or, where macOS shows nothing, a banner in the window.
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -88,7 +89,8 @@ export function NotifyBanner({ locale, notes, onOpen, onDismiss }: { locale: Loc
   );
   // mock 22: the title in bold, the body in the secondary tone; the whole text is the tooltip (hover and keyboard focus)
   const line = (n: Note): React.JSX.Element => <><b>{n.title}</b><span className="notify-banner__body"> — {n.body}</span></>;
-  return (
+  // portalled into the app root: the canvas has its own stacking context, and the banner sits in the title bar's free middle
+  return createPortal(
     <div className="notify-banner" role="status" data-interactive="true" data-notify-banner>
       {waiting.length === 1 && row(waiting[0].runId, "waiting", line(waiting[0]), () => onOpen(waiting[0].runId), () => onDismiss(waiting[0].runId), waiting[0].runId, `${waiting[0].title} — ${waiting[0].body}`)}
       {waiting.length > 1 && row("waiting", "waiting",
@@ -96,6 +98,7 @@ export function NotifyBanner({ locale, notes, onOpen, onDismiss }: { locale: Loc
         () => onOpen(waiting[0].runId),
         () => { for (const n of waiting) onDismiss(n.runId); })}
       {notes.filter((n) => n.signal !== "waiting").map((n) => row(n.runId, n.signal, line(n), () => onOpen(n.runId), () => onDismiss(n.runId), n.runId, `${n.title} — ${n.body}`))}
-    </div>
+    </div>,
+    document.querySelector(".app") ?? document.body
   );
 }

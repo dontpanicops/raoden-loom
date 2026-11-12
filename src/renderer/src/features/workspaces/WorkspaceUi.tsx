@@ -445,12 +445,13 @@ function HistoryDialog({ controls, orch, locale, id, onClose, onOpenRun }: {
         <ul className="ws-list">
           {runs?.map((r) => (
             <li key={r.runId} data-ws-history-run={r.runId}>
-              <span>{r.project || r.runId.slice(0, 8)}</span>
+              <span className="ws-history__run"><span>{r.project || r.runId.slice(0, 8)}</span><code>{r.runId.slice(0, 8)}</code></span>
               <span className="ws-list__state" data-ws-history-state={r.status}>{r.status === "newer" ? tk(locale, "orchReadOnly") : tk(locale, `orchStatus_${r.status}`)}</span>
               <button type="button" data-ws-history-open onClick={() => { onOpenRun(r.runId); onClose(); }}>{t(locale, TERMINAL_STATUSES.includes(r.status) || r.status === "completed_no_checks" ? "orchTab_summary" : "orchOpenRun")}</button>
             </li>
           ))}
         </ul>
+        {runs && runs.length > 0 && <p className="orch-hint">{tk(locale, "wsHistoryHint")}</p>}
       </div>
     </Dialog>
   );
