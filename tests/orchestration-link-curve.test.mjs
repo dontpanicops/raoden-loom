@@ -64,6 +64,16 @@ test("chip: on the curve at t=0.5, shifts along t off a card, skips the handle w
   assert.ok(Math.abs(sel.x - g.mid.x) > 1, "not on the handle");
 });
 
+test("chip: a diagonal pair with a corridor narrower than the chip puts it beside the curve, clear of both cards (mock 03)", () => {
+  const lead = { x: 700, y: 505, width: 210, height: 165 }, exec = { x: 975, y: 677, width: 205, height: 168 };
+  const size = { width: 150, height: 26 };
+  const g = linkGeometry({ x: 910, y: 580 }, { x: 975, y: 728 });
+  const at = chipOnCurve(g, [lead, exec], size, false, [lead, exec]);
+  const over = (r) => at.x - 75 < r.x + r.width && r.x < at.x + 75 && at.y - 13 < r.y + r.height && r.y < at.y + 13;
+  assert.ok(!over(lead) && !over(exec), JSON.stringify(at));
+  assert.ok(at.y > lead.y && at.y < exec.y + exec.height, `between the cards' tops and bottoms, not above or under the pair: ${JSON.stringify(at)}`);
+});
+
 test("css: links without backdrop-filter, the dashed march stops under prefers-reduced-motion", () => {
   const css = fs.readFileSync(new URL("../src/renderer/src/styles/app.css", import.meta.url), "utf8");
   const rules = css.split("}").filter((r) => /\.agent-link/.test(r));

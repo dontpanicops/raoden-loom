@@ -3,7 +3,7 @@
 // Usage: node scripts/conformance-pairs.mjs --inventory <json> --shots <dir>[,<dir>...] --out <dir> [--zone Z1] [--html]
 //        [--mocks <preview dir>] [--mocks-png <2x png dir>]
 // Writes <out>/<zone>/<id>-<theme>-{mock,app}.jpg (JPEG 1440 wide; a row with sameScale saves the mock narrower, in the app's scale, q70, macOS sips). Exit 1 when a row of the zone has no
-// frame (scene missing, file absent, empty or smaller than the crop), or the frame width is not 1440 x dpr of the row (an unfair pair), or a shots dir has a non-empty failed.txt.
+// frame (scene missing, file absent, empty or smaller than the crop), or the frame width is not the window's (1440, or scene.window) x dpr of the row (an unfair pair; a scene.clip frame is exempt), or a shots dir has a non-empty failed.txt.
 // A scene with "dpr": appCrop is in CSS pixels, the frame is dpr times larger (shots-r3a, shots-r3b, the goal dialog of shots-r5 are 2x like the mock PNGs).
 // The mock crop is in pixels of redesign/preview/<mock>-<theme>.jpg (1440 wide); when that JPEG is absent, the 2x PNG of
 // redesign/shots/ is used and the crop is scaled by its width. Rows with "skip" are superseded by another mock and not cut.
@@ -101,8 +101,10 @@ for (const row of rows) {
         const crop = pick(row.appCrop, theme);
         let fw = 0, unfairFrame = false;
         try { fw = dims(src).w; } catch { /* cut() reports an unreadable frame */ }
-        const want = WINDOW_WIDTH * (row.scene.dpr ?? 1);
-        if (fw && fw !== want) { unfairFrame = true; const m = `нечестная пара: кадр ${name} ${fw} px шириной, а по dpr ${row.scene.dpr ?? 1} ждали ${want}; впишите scene.dpr и вырезку в CSS-пикселях`; problems.push(`${row.id} (${theme}): ${m}`); entry.error ??= m; }
+        // scene.window: the window of the scene is wider than 1440 (firstrun-wide, 1920); scene.clip: the frame is a clip of the page (clipShot of the
+        // board), its width is the clip's, 1 frame px = 1 CSS px, so only the crop's bounds are checked
+        const want = (row.scene.window ?? WINDOW_WIDTH) * (row.scene.dpr ?? 1);
+        if (fw && fw !== want && !row.scene.clip) { unfairFrame = true; const m = `нечестная пара: кадр ${name} ${fw} px шириной, а по dpr ${row.scene.dpr ?? 1} ждали ${want}; впишите scene.dpr и вырезку в CSS-пикселях`; problems.push(`${row.id} (${theme}): ${m}`); entry.error ??= m; }
         const e = unfairFrame ? null : cut(src, crop && row.scene.dpr ? scaleRect(crop, row.scene.dpr) : crop, appOut);
         if (e) { problems.push(`${row.id} (${theme}): ${name}: ${e}`); entry.error ??= e; } else if (!unfairFrame) entry.app = path.relative(OUT, appOut);
       }
