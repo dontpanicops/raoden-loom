@@ -1251,7 +1251,9 @@ button { border: 0; }
 .orch-dialog .orch-form button.orch-primary { background: var(--accent-bg); color: var(--accent-text); }
 .orch-dialog .orch-form button.orch-primary:disabled { opacity: .45; }
 .orch-form__why { margin-right: auto; align-self: center; }
-.orch-term { text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
+.orch-term { all: unset; position: relative; text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
+.orch-term:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.orch-term:focus-visible::after { content: attr(data-hint); position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; width: max-content; max-width: 320px; padding: 6px 8px; border-radius: 6px; background: var(--surface-3-solid); color: var(--text); font-size: 12px; font-weight: 400; line-height: 1.35; white-space: normal; text-decoration: none; box-shadow: 0 4px 12px rgb(0 0 0 / 0.25); }
 .orch-dialog:has(.orch-form__actions) { background: var(--surface-4-solid); } /* R4: the pinned bottom and the body are one tone (frost: glass over the scrim was tinted, the bottom was white) */
 .orch-dialog .orch-form__actions { position: sticky; bottom: -28px; z-index: 2; margin: 0 -28px -28px; padding: 12px 28px 20px; background: var(--surface-4-solid); box-shadow: var(--elev-2); }
 .orch-dialog .launch-dialog__toolbar { justify-content: space-between; align-items: center; }

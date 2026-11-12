@@ -529,10 +529,10 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
             <legend>{t(locale, "orchRunMode")}</legend>
             <div className="orch-seg2">
               {(["autopilot", "steps"] as const).map((m) => (
-                <button key={m} type="button" aria-pressed={mode === m} className={mode === m ? "orch-seg2__on" : undefined} data-orch-runmode-to={m} onClick={() => setMode(m)}>{t(locale, `orchRunMode_${m}`)}</button>
+                <button key={m} type="button" aria-pressed={mode === m} className={mode === m ? "orch-seg2__on" : undefined} data-orch-runmode-to={m} title={t(locale, m === "autopilot" ? "orchTerm_autopilot" : "orchTerm_stepwise")} onClick={() => setMode(m)}>{t(locale, `orchRunMode_${m}`)}</button>
               ))}
             </div>
-            <small className="orch-hint">{t(locale, `orchRunMode_${mode}Hint`)}</small>
+            <small className="orch-hint"><Termed locale={locale} text={t(locale, `orchRunMode_${mode}Hint`)} /></small>
           </fieldset>
           <fieldset className="orch-field orch-limits">
             <legend>{t(locale, "orchGoalLimits")}</legend>

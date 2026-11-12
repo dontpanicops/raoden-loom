@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { LocaleId } from "../../../../shared/contracts";
 import type { OrchestrationCodexModels, OrchestrationRoleModels } from "../../../../shared/orchestration";
+import { Term } from "../../components/Term";
 import { t } from "../../lib/i18n";
 
 export const ROLE_PROVIDER = { lead: "codex", executor: "claude", reviewer: "codex" } as const;
@@ -39,7 +40,7 @@ function RoleModel({ locale, role, value, codex, onChange }: {
   const options = value !== null && !known.includes(value) && provider === "codex" ? [...known, value] : known;
   return (
     <label className="orch-field" data-orch-model={role}>
-      <span>{t(locale, ROLE_KEY[role])} ({provider === "codex" ? "Codex" : "Claude"})</span>
+      <span><Term locale={locale} id={role}>{t(locale, ROLE_KEY[role])}</Term> ({provider === "codex" ? "Codex" : "Claude"})</span>
       <select value={other ? "\u0000other" : value ?? ""} onChange={(e) => {
         const v = e.target.value;
         if (v === "\u0000other") { setOther(true); return; }

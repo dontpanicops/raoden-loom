@@ -131,8 +131,8 @@ test("the zone's main button is the pause's action; Stop is in the footer outsid
   assert.match(stopsOf(running)[0].attrs, /class="orch-stop"/);
 
   for (const reason of ["needs_user_action", "awaiting_person_decision", "coverage_lost"]) {
-    // the glossary wraps words in <abbr>: compare the text, not the markup
-    const html = panel(view("paused", reason)).replace(/<\/?abbr[^>]*>/g, "").replace(/<[^>]+>/g, "\n");
+    // the glossary wraps words in a term button: compare the text, not the markup
+    const html = panel(view("paused", reason)).replace(/<\/?button[^>]*class="orch-term"[^>]*>|<\/button>/g, "").replace(/<[^>]+>/g, "\n");
     const what = t("ru", `orchPause_${reason}_what`);
     assert.equal(html.split(what).length - 1, 1, `${reason}: the headline once`);
     assert.doesNotMatch(html, /Нужно ваше (действие|решение)/i);

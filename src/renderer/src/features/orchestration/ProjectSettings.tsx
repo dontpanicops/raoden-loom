@@ -213,7 +213,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
             </label>
             <label className="orch-check">
               <input type="checkbox" checked={p.env.direnv} onChange={(e) => set({ env: { direnv: e.target.checked } })} />
-              <span>{t(locale, "orchSettingsDirenv")}</span>
+              <span><Termed locale={locale} text={t(locale, "orchSettingsDirenv")} /></span>
             </label>
             {/* R6-C (M6): what preparation would run — one line, the whole list in the tooltip */}
             <p className="orch-hint orch-hint--line" data-orch-needed title={info.facts.needed.join(" · ")}>{info.facts.needed.length ? `${t(locale, "projPrepareWill")} ${info.facts.needed.join(" · ")}` : t(locale, "orchSettingsNothingNeeded")}</p>

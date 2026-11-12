@@ -659,7 +659,7 @@ try {
     });
     await scene("cards-agents-working", async () => {
       await app.key("Escape", "Escape", 27);
-      await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500);
+      if (await app.ev(`!!${q("[data-board-menu]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500); }
       await app.reveal(card(lead.agentId)); await pairView(lead.agentId, exec.agentId); await sleep(500);
       await shot("cards-agents-working");
       // R7b: the two cards close up (twice the pixels), the pair of the mock's «Агенты оркестрации» row
@@ -689,7 +689,7 @@ try {
         const d = await app.call("Page.captureScreenshot", { format: "png", clip: { ...r, scale: 2 } });
         fs.writeFileSync(path.join(OUT, `${theme}-board-states.png`), Buffer.from(d.data, "base64"));
         console.log(`[shots-r5] clip ${theme}-board-states`);
-        await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500);
+        if (await app.ev(`!!${q("[data-board-menu]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500); }
       });
     }
 
@@ -724,7 +724,7 @@ try {
       // the profile back as it was (the later scenes run in the copy mode)
       const back = await ipc(`saveProfile(${J(linkId)}, ${J({ ...p0 })}).then((r) => r.ok ? "ok" : r.code)`);
       console.log(`[shots-r5] profile restored: ${back}`);
-      await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500);
+      if (await app.ev(`!!${q("[data-board-menu]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500); }
     });
   }
   console.log("[shots-r5] phase done");

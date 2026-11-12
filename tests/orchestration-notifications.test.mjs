@@ -116,5 +116,5 @@ test("the glossary explains checkpoint, worktree, the journal's word, the agent'
   assert.deepEqual(found("ru", "Контрольная точка: Этап 1; в отдельном worktree, ветка canvastty/run-1; подтверждено журналом; со слов агента"), ["checkpoint", "worktree", "branch", "journal", "claim"]);
   assert.deepEqual(found("en", "Checkpoint, a worktree on canvastty/run-1, confirmed by the journal, the agent's claim"), ["checkpoint", "worktree", "branch", "journal", "claim"]);
   assert.match(t("ru", "orchTerm_branch"), /служебная ветка Raoden Loom/);
-  assert.match(t("ru", "orchTerm_worktree"), /отдельная рабочая копия git/);
+  assert.match(t("ru", "orchTerm_worktree"), /Рабочая копия \(worktree\) — отдельная копия проекта в git/);
 });

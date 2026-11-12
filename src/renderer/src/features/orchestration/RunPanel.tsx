@@ -24,6 +24,7 @@ import type {
   OrchestrationTake,
   OrchestrationTakeOutcome
 } from "../../../../shared/orchestration";
+import { Term } from "../../components/Term";
 import { UiIcon } from "../../components/UiIcon";
 import { ActionZone, DangerConfirm, PanelFoot } from "./ActionZone";
 import { t, type TranslationKey } from "../../lib/i18n";
@@ -163,7 +164,7 @@ function statusWords(locale: LocaleId, status: unknown, reason: unknown, turnId:
 // A text with the glossary's words explained on hover (runModel GLOSSARY).
 export function Termed({ locale, text }: { locale: LocaleId; text: string }): React.JSX.Element {
   return <>{glossarySplit(locale, text).map((p) => typeof p === "string" ? p
-    : <abbr key={p.at} className="orch-term" title={p.hint} data-term={p.term}>{p.text}</abbr>)}</>;
+    : <Term key={p.at} locale={locale} id={p.term} hint={p.hint}>{p.text}</Term>)}</>;
 }
 
 // A journal id (F1, C1, R1) as the person reads it, the id in the tooltip (runModel idLabel).
