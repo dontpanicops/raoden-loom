@@ -195,6 +195,18 @@ const pairView = async (...ids) => {
     return { cx: (Math.min(...r.map((x) => x.left)) + Math.max(...r.map((x) => x.right))) / 2, cy: (Math.min(...r.map((x) => x.top)) + Math.max(...r.map((x) => x.bottom))) / 2 }; })()`);
   await app.panBy({ x: 720 - b.cx, y: 470 - b.cy }); await sleep(700);
 };
+// R12t (mock 03, gate S10): the Home view of mock 03: HOME's panel in the top-left corner (25, 113), its first slot 16 px inside; the canvas of
+// the world is laid out in screen px of this view, so the frame is taken in the same one
+const homeView = async () => {
+  await app.key("Home", "Home", 36); await sleep(900);
+  const slotAt = () => app.ev(`(() => { const r = document.querySelector(".home-widget-slot").getBoundingClientRect(); return { x: r.left, y: r.top }; })()`);
+  for (let i = 0; i < 3; i++) { // a drag loses a few px to its threshold: once more until it is there
+    const at = await slotAt();
+    if (Math.abs(41 - at.x) < 2 && Math.abs(129 - at.y) < 2) break;
+    await app.panBy({ x: Math.round(41 - at.x), y: Math.round(129 - at.y) }); await sleep(700);
+  }
+  console.log(`[shots-r5] HOME view: slot ${JSON.stringify(await slotAt())}, scene ${await app.ev(`document.querySelector(".workspace__scene").style.transform`)}`);
+};
 
 // «plugins-list» (R12l: its own scene at the end of the run, so that the empty list of «settings-plugins» is not spoilt): installed plugins written where
 // main reads them at start (userData/plugins/<id>, plugins.json), then the app is started again; canvas apps only, so that HOME and the dock stay as they are.
@@ -294,7 +306,7 @@ try {
   }
 
   // ---- world: terminal with a link in its output, note, two agents with a link
-  await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ palette: "sand", onboardingDismissed: true, lastDirectory: termDir, persistStickyNotes: true,
+  await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ palette: "sand", onboardingDismissed: true, lastDirectory: termDir, persistStickyNotes: true, uiScale: 1, homeLauncherProviders: ["codex", "claude", "qwen", "kimi"], homeLimitProviders: ["codex", "claude"], // R12t: HOME as settle() has it, so the world is laid out against the HOME of the frames
     stickyNotes: [{ id: "r5-note", text: "Перед релизом: прогнать e2e оркестрации и обновить UI_CONTRACT.", position: { x: 1150, y: 900 }, size: { width: 300, height: 220 } }] })}).then(() => true)`);
   await app.call("Page.reload", {}); await sleep(1500); await laptop();
   await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
@@ -306,13 +318,14 @@ try {
   await say("echo '  -> Local: http://localhost:5173/'; echo 'ready in 412 ms'\r"); await sleep(800);
   world.term = t.id;
   // ---- the mock-up's canvas (D-026, mock 03): laid out in screen pixels of the Home view (1440x900), clear of the corner slots
-  await app.key("Home", "Home", 36); await sleep(1200);
-  const cam = await app.ev(`(() => { const m = document.querySelector(".workspace__scene").style.transform.match(/translate\\(([-\\d.]+)px, ([-\\d.]+)px\\) scale\\(([\\d.]+)\\)/); return { x: +m[1], y: +m[2], z: +m[3] }; })()`);
+  await homeView();
+  // R12t: the scene's translate is from the canvas's own corner, under the title bar (y 44): the screen px of the layout are taken from the window's
+  const cam = await app.ev(`(() => { const sc = document.querySelector(".workspace__scene"), o = sc.parentElement.getBoundingClientRect(); const m = sc.style.transform.match(/translate\\(([-\\d.]+)px, ([-\\d.]+)px\\) scale\\(([\\d.]+)\\)/); return { x: +m[1] + o.left, y: +m[2] + o.top, z: +m[3] }; })()`);
   const B = (sx, sy, sw, sh) => ({ position: { x: Math.round((sx - cam.x) / cam.z), y: Math.round((sy - cam.y) / cam.z) }, size: { width: Math.round(sw / cam.z), height: Math.round(sh / cam.z) } });
   await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({
-    stickyNotes: [{ id: "r5-note", text: "Перед релизом: прогнать e2e оркестрации и обновить UI_CONTRACT.", ...B(80, 455, 220, 150) }],
-    browserCanvas: { ...B(1000, 300, 420, 200), workspaceId: "common" },
-    persistCanvasRegions: true, canvasRegions: [{ id: "r6-region", title: "Оркестрация · project-b", color: "#B8CF99", workspaceId: "common", ...B(870, 545, 560, 335) }] })}).then(() => true)`);
+    stickyNotes: [{ id: "r5-note", text: "Перед релизом: прогнать e2e оркестрации и обновить UI_CONTRACT.", ...B(335, 655, 220, 150) }],
+    browserCanvas: { ...B(785, 113, 415, 320), workspaceId: "common" }, // R12t (gate S10): mock 03's places, at the app's sizes: right of HOME (740 wide at 67%), above the region
+    persistCanvasRegions: true, canvasRegions: [{ id: "r6-region", title: "Оркестрация · project-b", color: "#B8CF99", workspaceId: "common", ...B(680, 465, 520, 410) }] })}).then(() => true)`);
   await app.call("Page.reload", {}); await sleep(2500); await laptop();
   await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
   const R = (c, r) => ({ position: { x: -2100 + c * 670, y: 520 + r * 420 }, size: { width: 640, height: 380 } }); // the card states, left of HOME
@@ -329,9 +342,10 @@ try {
     if (workspaceId) await app.ev(`window.canvasTTY.terminal.setWorkspace(${JSON.stringify(s.id)}, ${JSON.stringify(workspaceId)}).then(() => true)`);
     return s;
   };
-  const a = await session("claude", "project-a-working", "project-a", B(60, 615, 250, 175));
-  const b = await session("claude", "project-b-waiting", "project-b", B(320, 615, 250, 175));
-  const infra = await session("terminal", "infra", "infra", B(580, 615, 250, 175));
+  // R12t: two rows under HOME as in mock 03, side by side without overlap (a terminal is at least 420 x 260 on the canvas, 281 x 174 here)
+  const a = await session("claude", "project-a-working", "project-a", B(25, 465, 290, 175));
+  const b = await session("claude", "project-b-waiting", "project-b", B(335, 465, 290, 175));
+  const infra = await session("terminal", "infra", "infra", B(25, 655, 290, 175));
   await sleep(1500);
   await app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(infra.id)}, ${JSON.stringify("PS1='$ ' PROMPT='$ '; clear; for i in $(seq 1 30); do echo \"  deploy step $i ok\"; done; echo '$ npm run deploy:qa'; echo \"Error: ENOENT: no such file, open '.env.production'\"; exit 1\r")})`);
   world.mock = { a, b, infra, B };
@@ -352,7 +366,7 @@ try {
   const link = await app.ev(`window.canvasTTY.orchestration.createLink(${JSON.stringify({ linkId: crypto.randomUUID(), fromAgentId: lead.agentId, toAgentId: exec.agentId })}).then((r) => { if (!r.ok) throw new Error(r.code); return r.value; })`);
   const linkId = link.linkId;
   const projB = project("project-b");
-  const leadB = await mkAgent("codex", projB, B(905, 640, 201, 149)), execB = await mkAgent("claude", projB, B(1205, 640, 201, 149));
+  const leadB = await mkAgent("codex", projB, B(700, 505, 210, 165)), execB = await mkAgent("claude", projB, B(975, 677, 205, 168)); // R12t: mock 03, the executor lower right
   world.groupB = (await app.ev(`window.canvasTTY.orchestration.createLink(${JSON.stringify({ linkId: crypto.randomUUID(), fromAgentId: leadB.agentId, toAgentId: execB.agentId })}).then((r) => { if (!r.ok) throw new Error(r.code); return r.value; })`)).linkId;
   await app.key("Home", "Home", 36); await sleep(800);
   // the run on project-b: its lead asks a question, so the link needs the person (the bell on the chip, «Ждёт вас»)
@@ -365,7 +379,7 @@ try {
     await settle();
     // R12j (gate Z1): the site's page follows the frame's theme in the canvas frames too (a light theme had a black page)
     const siteTheme = async () => { await app.ev(`window.canvasTTY.browser.getState().then((s) => window.canvasTTY.browser.navigate(s.tabs[0].id, ${JSON.stringify(SITE + "?t=" + theme)})).then(() => true)`).catch(() => {}); await sleep(1500); };
-    await scene("home-canvas", async () => { await hideOnboarding(); await siteTheme(); await app.key("Home", "Home", 36); await sleep(900); await shot("home-canvas"); });
+    await scene("home-canvas", async () => { await hideOnboarding(); await siteTheme(); await homeView(); await shot("home-canvas"); });
 
     // the states of mock 06 (D-020): free, working (selected), waiting for approval, exited, failed; then the summary at zoom < 0.5
     await scene("cards", async () => {
@@ -837,22 +851,35 @@ try {
       await app.key("Home", "Home", 36); await sleep(800);
       await app.waitFor(`${card(world.modeLead, ".agent-card__port")} && true`, "the lead's port", 10_000);
       await modeView100();
-      const from = await app.center(card(world.modeLead, ".agent-card__port"));
-      await app.mouse("mouseMoved", from.x, from.y); await app.mouse("mousePressed", from.x, from.y, "left", 1);
-      for (let i = 1; i <= 8; i++) { await app.mouse("mouseMoved", from.x + 18 * i, from.y + 10 * i, "left", 1); await sleep(40); }
-      // over a free executor of the lead's folder: lit, "release to link"; the one of another folder dims, with the reason
-      const fit = await app.center(card(world.modeFit, ".agent-card__body")), far = await app.center(card(world.modeFar, ".agent-card__body"));
-      await app.mouse("mouseMoved", fit.x, fit.y, "left", 1); await sleep(500); await shot("link-mode");
-      await app.mouse("mouseMoved", far.x, far.y, "left", 1); await sleep(500); await shot("link-mode-far");
-      await app.mouse("mouseMoved", 900, 820, "left", 1); await sleep(200);
-      await app.mouse("mouseReleased", 900, 820, "left", 0); await sleep(300); await esc();
+      // R12t (gate 18-link-mode): a mouse move without a button from the OS (the real cursor resting over the window) takes the port's pointer capture
+      // and ends a mouse gesture silently (lostpointercapture) before the frame, in any theme, depending on where the cursor is. The gesture is made by a
+      // touch pointer (the port is touch-action: none, the gesture is the same pointer events), which the OS mouse cannot take; it is traced, and one that
+      // did not hold all the same is made again
+      const touch = (type, x, y) => app.call("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y, id: 1 }] });
+      for (let attempt = 1; ; attempt++) {
+        await app.ev(`(() => { window.__canvasTTYLinkTrace = []; return true; })()`);
+        const from = await app.center(card(world.modeLead, ".agent-card__port"));
+        await touch("touchStart", from.x, from.y);
+        for (let i = 1; i <= 8; i++) { await touch("touchMove", from.x + 18 * i, from.y + 10 * i); await sleep(40); }
+        // over a free executor of the lead's folder: lit, "release to link"; the one of another folder dims, with the reason
+        const fit = await app.center(card(world.modeFit, ".agent-card__body")), far = await app.center(card(world.modeFar, ".agent-card__body"));
+        await touch("touchMove", fit.x, fit.y); await sleep(500); await shot("link-mode");
+        await touch("touchMove", far.x, far.y); await sleep(500); await shot("link-mode-far");
+        const trace = await app.ev(`window.__canvasTTYLinkTrace ?? []`);
+        await touch("touchMove", 900, 820); await sleep(200);
+        await touch("touchEnd", 900, 820); await sleep(300); await esc();
+        if (trace.some((e) => e.step === "port.moved") && !trace.some((e) => e.step === "port.end")) break;
+        console.log(`[shots-r5] ${theme} link-mode: the gesture did not hold (attempt ${attempt}): ${JSON.stringify(trace.map((e) => e.step + (e.type ? ":" + e.type : "")))}`);
+        if (attempt === 4) throw new Error("the link gesture did not hold four times");
+        await sleep(500);
+      }
     });
     // R12a (mock 06): a link between agents of different folders is refused, the lead's card says why
     // R12a (mock 03): «Меньше прозрачности»
     await scene("reduce-transparency", async () => {
       await app.ev(`window.canvasTTY.settings.update({ reduceTransparency: true }).then(() => true)`); await sleep(900);
       await app.ev(`document.activeElement?.blur?.(), true`); // R12n: no ring on the tab that was clicked, the Home key below would show it
-      await app.key("Home", "Home", 36); await sleep(700); await shot("home-canvas-reduce");
+      await homeView(); await shot("home-canvas-reduce");
       await app.ev(`window.canvasTTY.settings.update({ reduceTransparency: false }).then(() => true)`); await sleep(500);
     });
     // R12a (mock 06): the browser under an open run panel: the page is hidden while the panel is open
@@ -928,6 +955,25 @@ try {
       await app.key("Home", "Home", 36); await sleep(600);
     });
     await scene("home-edit", async () => {
+      // R12t (gate S8, mock 18): the border close round the tiles: HOME at its smallest, 12 x 8 (HOME_GRID_MIN_*; the tiles take 11 x 6), as a person
+      // who made it smaller has it; the default 16 x 12 is wider than the window at 100%. Given back after the scene
+      const grid0 = (await app.ev(`window.canvasTTY.settings.get()`)).homeGridSize;
+      await app.ev(`window.canvasTTY.settings.update({ homeGridSize: { columns: 12, rows: 8 } }).then(() => true)`); await sleep(600);
+      // R12t: HOME whole in the window at 100%, its corner at 24,120, the bar under it (inventory appCrop). At 100% HOME and its grid cover the
+      // window (no empty canvas to drag): the camera is written to the space and the window reads it again
+      const zw = await app.ev(`(() => { const sc = document.querySelector(".workspace__scene"), o = sc.parentElement.getBoundingClientRect(), z = document.querySelector(".home-zone").getBoundingClientRect();
+        const m = sc.style.transform.match(/translate\\(([-\\d.]+)px, ([-\\d.]+)px\\) scale\\(([\\d.]+)\\)/); return { x: (z.left - o.left - +m[1]) / +m[3], y: (z.top - o.top - +m[2]) / +m[3], ox: o.left, oy: o.top }; })()`);
+      await app.ev(`window.canvasTTY.workspaces.setCamera("common", ${JSON.stringify({ x: Math.round(24 - zw.ox - zw.x), y: Math.round(120 - zw.oy - zw.y), zoom: 1 })}).then(() => true)`);
+      await app.call("Page.reload", {}); await sleep(2500); await laptop();
+      await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
+      { // the written camera lands HOME a little off (the zone's own offset in the scene): corrected once from where it is
+        const z = await app.ev(`(() => { const b = document.querySelector(".home-zone").getBoundingClientRect(); return { x: b.left, y: b.top }; })()`);
+        const cam = (await app.ev(`window.canvasTTY.workspaces.get()`)).workspaces.find((w) => w.id === "common").camera;
+        await app.ev(`window.canvasTTY.workspaces.setCamera("common", ${JSON.stringify({ x: Math.round(cam.x + 24 - z.x), y: Math.round(cam.y + 120 - z.y), zoom: 1 })}).then(() => true)`);
+        await app.call("Page.reload", {}); await sleep(2500); await laptop();
+        await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
+      }
+      await hideOnboarding();
       await app.clickEl(q(".settings-button"));
       await app.waitFor(`${q(".settings-backdrop--open")} && true`, "settings open", 10_000);
       await app.clickEl(q("#settings-tab-appearance")); await sleep(500);
@@ -936,19 +982,17 @@ try {
       await app.clickEl(editBtn); await sleep(1200);
       // R12j (gate S7, mock 18): the draft with the «Media» tile dragged out beyond the border: the bar says why it cannot be saved
       const mv = await app.ev(`(() => { const s = [...document.querySelectorAll(".home-widget-slot")].find((e) => e.querySelector(".mini-media")); const r = s.querySelector(".home-widget-slot__move").getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
-      // R12r (gate S8, mock 18 at 1:1): the tile goes up two rows and right ten columns, a third of it over the right border; the frame is at 100%
-      const hz = await app.ev(`(() => { const m = document.querySelector(".workspace__scene")?.style.transform.match(/scale\\(([\\d.]+)\\)/); return m ? Number(m[1]) : 1; })()`);
-      await app.drag(mv, { x: mv.x + 1000 * hz, y: mv.y - 180 * hz }, 24); await sleep(700);
-      const mediaSlot = `[...document.querySelectorAll(".home-widget-slot")].find((e) => e.querySelector(".mini-media"))`;
-      await zoom100(mediaSlot);
-      // the media tile's corner at 900,400: the sessions tile's edge at the left of the crop, the bar under it (inventory appCrop 380,250)
-      const mr = await app.ev(`(() => { const b = ${mediaSlot}.getBoundingClientRect(); return { x: b.left, y: b.top }; })()`);
-      await app.panBy({ x: Math.round(900 - mr.x), y: Math.round(400 - mr.y) }).catch(() => {}); await sleep(600);
-      await shot("home-edit");
+      // R12r (gate S8, mock 18 at 1:1): the tile goes to the free row under the dock, a third of it over the right border (R12t: columns 10-12 of 12, row 6); the frame is at 100%
+      await app.drag(mv, { x: mv.x + 600, y: mv.y + 270 }, 24); await sleep(700);
+      console.log(`[shots-r5] ${theme} home-edit zone ${await app.ev(`(() => { const b = document.querySelector(".home-zone").getBoundingClientRect(); return [b.left, b.top, b.width, b.height].map(Math.round).join(" "); })()`)}`);
+      // the HUD at the top right (minimap, hints «Home / F2 / ⌘K») lies over HOME's corner; mock 18 draws none (as the board's clip, R12o L1): hidden for the frame
+      const hud = (v) => app.ev(`(() => { for (const e of document.querySelectorAll(".shortcut-hints, .canvas-minimap")) e.style.visibility = ${JSON.stringify(v)}; return true; })()`);
+      await hud("hidden"); try { await shot("home-edit"); } finally { await hud(""); }
       await app.clickEl(q(".home-editor-toolbar__reset")); await sleep(500); // the draft is reset: the layout is the default again
       // the editor leaves with «Сохранить» (the layout is unchanged)
       await app.clickEl(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Сохранить" && !b.closest(".settings-panel"))`); await sleep(600);
       if (await app.ev(`!!${q(".settings-backdrop--open")}`)) await app.clickEl(q(".settings-panel__close"));
+      await app.ev(`window.canvasTTY.settings.update({ homeGridSize: ${JSON.stringify(grid0)} }).then(() => true)`);
       await app.key("Home", "Home", 36); await sleep(600);
     });
     await scene("card-resize", async () => {
@@ -968,10 +1012,15 @@ try {
       await shot("card-resize");
       // the gesture: the corner is held and dragged, the size shows under the card
       const c = await app.center(`document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"] .terminal-card__resize-handle--se')`);
-      await app.mouse("mouseMoved", c.x, c.y); await app.mouse("mousePressed", c.x, c.y, "left", 1);
-      for (let i = 1; i <= 6; i++) { await app.mouse("mouseMoved", c.x + 6 * i, c.y + 4 * i, "left", 1); await sleep(40); }
-      await sleep(400); await shot("card-resize-drag");
-      await app.mouse("mouseReleased", c.x + 36, c.y + 24, "left", 0); await sleep(300);
+      // R12t (gate 18-card-resize sand, paper): by a touch pointer, as the link gesture: a move of the OS mouse cut the mouse drag before the frame
+      // (no markers, no size). The handle is touch-action: none; the frame is taken while the corner is held, so the card must say it is being resized
+      const touch = (type, x, y) => app.call("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y, id: 1 }] });
+      await touch("touchStart", c.x, c.y);
+      for (let i = 1; i <= 6; i++) { await touch("touchMove", c.x + 6 * i, c.y + 4 * i); await sleep(40); }
+      await sleep(400);
+      if (!(await app.ev(`!!document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"][data-resizing]') && !!document.querySelector(".resize-size-badge")`))) throw new Error("the resize gesture did not hold");
+      await shot("card-resize-drag");
+      await touch("touchEnd", c.x + 36, c.y + 24); await sleep(300);
       await app.mouse("mouseMoved", 700, 20);
       await app.ev(`window.canvasTTY.terminal.dispose(${JSON.stringify(plain.id)}).then(() => true)`); await sleep(500);
     });

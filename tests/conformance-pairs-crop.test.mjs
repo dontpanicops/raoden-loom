@@ -1,4 +1,4 @@
-// scripts/conformance-pairs.mjs: a crop at offset 0 0 takes the top-left corner (macOS sips centres it), and scene.dpr scales appCrop.
+// scripts/conformance-pairs.mjs: a crop at offset 0 0 takes the top-left corner (macOS sips centres it), scene.dpr scales appCrop, scene.window and scene.clip set the frame's width.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -47,6 +47,19 @@ test("crop at 0 0 is the top-left corner; dpr scales appCrop", { skip: process.p
     for (const [id, r] of [["noDpr", row("noDpr", { x: 0, y: 0, w: 20, h: 20 }, 0, "{theme}-b.png")], ["wrongDpr", row("wrongDpr", { x: 0, y: 0, w: 20, h: 20 }, 2, "{theme}-a.png")]]) {
       fs.writeFileSync(path.join(dir, `${id}.json`), JSON.stringify({ rows: [r] }));
       assert.throws(() => run(`${id}.json`, `out-${id}`), (e) => e.status === 1 && /нечестная пара/.test(e.stdout), id);
+    }
+    // R12t: a wider window (scene.window 1920) and a clip of the page (scene.clip, any width) are fair; a clip still keeps its crop in bounds
+    fs.writeFileSync(path.join(shots, "sand-w.png"), png(1920, 200));
+    fs.writeFileSync(path.join(shots, "sand-c.png"), png(1386, 200));
+    const wide = { ...row("wide", { x: 0, y: 0, w: 80, h: 40 }, 0, "{theme}-w.png") }; wide.scene.window = 1920;
+    const clip = { ...row("clip", { x: 0, y: 0, w: 80, h: 40 }, 0, "{theme}-c.png") }; clip.scene.clip = true;
+    fs.writeFileSync(path.join(dir, "fair.json"), JSON.stringify({ rows: [wide, clip] }));
+    run("fair.json", "out-fair");
+    const clipOut = { ...row("clipOut", { x: 1350, y: 0, w: 80, h: 40 }, 0, "{theme}-c.png") }; clipOut.scene.clip = true;
+    const wideNo = row("wideNo", { x: 0, y: 0, w: 80, h: 40 }, 0, "{theme}-w.png"); // 1920 without scene.window: unfair
+    for (const r of [clipOut, wideNo]) {
+      fs.writeFileSync(path.join(dir, `${r.id}.json`), JSON.stringify({ rows: [r] }));
+      assert.throws(() => run(`${r.id}.json`, `out-${r.id}`), (e) => e.status === 1, r.id);
     }
     // a crop outside the frame is refused too
     fs.writeFileSync(path.join(dir, "big.json"), JSON.stringify({ rows: [row("big", { x: 1400, y: 0, w: 80, h: 20 })] }));

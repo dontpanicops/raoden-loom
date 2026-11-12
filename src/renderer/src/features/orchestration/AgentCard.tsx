@@ -168,7 +168,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
           {props.ended && (
             <button className="agent-card__summary" type="button" onClick={() => props.onSummary(card.agentId)}>{t(locale, "orchSummaryButton")}</button>
           )}
-          {/* R12r (mock 03/06/21): the run's two ways in keep their place in the row but show only on hover, focus or a selected card */}
+          {/* R12r/R12t (mock 03/06/21): the run's two ways in show only on hover, focus or a selected card; «Открыть запуск» stays when the run failed or waits for the person */}
           {props.hasRun && (
             <button className="agent-card__open agent-card__run-action" type="button" onClick={() => props.onOpenRun(card.agentId)}>{t(locale, "orchOpenRun")}</button>
           )}

@@ -36,11 +36,20 @@ const CHIP_T = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74];
 // above the pair, 18px over the higher card's top edge, else under it (mock-up 19), not far off along the normal.
 export function chipOnCurve(g: LinkGeometry, cards: readonly Rect[], size: { width: number; height: number }, selected = false, pair?: readonly [Rect, Rect]): Point {
   const free = (c: Point) => !cards.some((r) => overlaps(around(c, size.width, size.height), r));
-  for (const t of selected ? CHIP_T.slice(1) : CHIP_T) {
+  const ts = selected ? CHIP_T.slice(1) : CHIP_T;
+  for (const t of ts) {
     const c = curvePoint(g, t);
     if (free(c)) return c;
   }
   const { mid, normal } = g;
+  // R12t (mock 03): one card wholly under the other (a diagonal pair, the corridor narrower than the chip): the chip lies beside the curve, touching it,
+  // under the higher card, before it leaves the pair. Cards side by side keep mock 19's rule (a gap < 120: over the pair)
+  const side = Math.abs(normal.x) * size.width / 2 + Math.abs(normal.y) * size.height / 2 + 6;
+  const stacked = pair && (pair[0].y + pair[0].height <= pair[1].y || pair[1].y + pair[1].height <= pair[0].y);
+  if (stacked) for (const k of [1, -1]) for (const t of ts) {
+    const p = curvePoint(g, t), c = { x: p.x + normal.x * side * k, y: p.y + normal.y * side * k };
+    if (free(c)) return c;
+  }
   if (pair) {
     const x = (Math.min(pair[0].x, pair[1].x) + Math.max(pair[0].x + pair[0].width, pair[1].x + pair[1].width)) / 2;
     const above = { x, y: Math.min(pair[0].y, pair[1].y) - 18 - size.height / 2 };
