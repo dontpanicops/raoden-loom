@@ -10,6 +10,8 @@ import {
   SettingsStore
 } from "../src/main/services/SettingsStore.ts";
 
+// a fresh profile (and one from before the dock list existed) gets the HOME mockup dock
+const FRESH_DOCK = ["codex", "claude", "qwen", "kimi"];
 const fallback = {
   locale: "en",
   restoreTerminalSessions: false,
@@ -497,7 +499,7 @@ test("the HOME limit selection persists without changing the launcher selection"
     const reloaded = new SettingsStore(dir, "en");
     const loaded = await reloaded.load();
     assert.deepEqual(loaded.homeLimitProviders, ["kimi"]);
-    assert.deepEqual(loaded.homeLauncherProviders, fallback.homeLauncherProviders);
+    assert.deepEqual(loaded.homeLauncherProviders, FRESH_DOCK);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -540,7 +542,7 @@ test("fresh installs default to scroll pan and key-gated widget wheel input", as
     assert.equal(store.get().homeAccentPreset, "theme");
     assert.equal(store.get().sessionRowColorMode, "status");
     assert.deepEqual(store.get().homeAccentColors, fallback.homeAccentColors);
-    assert.deepEqual(store.get().homeLauncherProviders, fallback.homeLauncherProviders);
+    assert.deepEqual(store.get().homeLauncherProviders, FRESH_DOCK);
     assert.deepEqual(store.get().homeLimitProviders, fallback.homeLimitProviders);
     assert.equal(store.get().canvasColor, "theme");
     assert.equal(store.get().pattern, "dots");
@@ -620,7 +622,7 @@ test("existing settings migrate to wheel zoom and preserve legacy widget capture
     assert.equal(persisted.canvasNavigationOverride, "Alt");
     assert.equal(persisted.canvasWheelOverride, null);
     assert.equal(persisted.homeAccentPreset, "theme");
-    assert.deepEqual(persisted.homeLauncherProviders, fallback.homeLauncherProviders);
+    assert.deepEqual(persisted.homeLauncherProviders, FRESH_DOCK);
     assert.deepEqual(persisted.homeLimitProviders, fallback.homeLimitProviders);
     assert.equal(persisted.canvasColor, "theme");
   } finally {
