@@ -106,7 +106,7 @@ try {
   // ---------- f1.s2: «Import» → imported ----------
   await app.clickEl(`${q(inboxRow("a.json"))}.querySelector("[data-board-inbox-import]")`);
   const s2 = await waitForValue(async () => { const r = await report(); return r?.status === "imported" ? r : null; }, "the report of «Import»", 10_000).catch(() => null);
-  ok("f1.s2 the report window: imported, created T1 and T2", s2?.created.join() === "T1,T2" && /Добавлено 2 · в «Очередь»/.test(s2.line) && !/Обновлено|Пропущено|Отказов/.test(s2.line), s2);
+  ok("f1.s2 the report window: imported, created T1 and T2", s2?.created.join() === "T1,T2" && /создано 2, обновлено 0, без изменений 0, отказов 0/.test(s2.line), s2);
   await shot("s2-imported");
   await closeReport();
   ok("f1.s2 the tasks on the board", JSON.stringify(await refs()) === JSON.stringify(["T1", "T2"]) && await app.ev(`!!${q('[data-board-task="T-2"]')}`), await refs());
@@ -231,7 +231,7 @@ try {
   await app.clickEl(q("[data-board-import]"));
   const s10 = await waitForValue(async () => { const r = await report(); return r?.status === "imported" ? r : null; }, "the button's report").catch(() => null);
   ok("f1.s10 the report in the window: B1 created, B2 refused «У задачи B2 нет критериев»", s10?.created.join() === "B1" && s10.refused.length === 1 && s10.refused[0][0] === "no_criteria"
-    && s10.refused[0][1].includes("У задачи B2 нет критериев") && /Добавлено 1 · в «Очередь»Отказов 1/.test(s10.line), s10);
+    && s10.refused[0][1].includes("У задачи B2 нет критериев") && /создано 1, обновлено 0, без изменений 0, отказов 1/.test(s10.line), s10);
   await shot("s10-button-report");
   // R4: the plate takes focus on its close button, its line is a polite status, Esc closes it and the focus goes back to «Import tasks»
   ok("f1.s10 the plate: focus on its close button, the line is a polite status", await app.ev(`document.activeElement === ${q("[data-board-import-close]")}

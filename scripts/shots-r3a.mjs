@@ -45,7 +45,7 @@ fs.writeFileSync(providers, JSON.stringify({
 }));
 
 const combos = BEFORE ? [{ name: "before", patch: { palette: "sand", canvasColor: "theme" } }]
-  : ["paper", "sand"].map((t) => ({ name: t, patch: { palette: t, canvasColor: "theme" } }));
+  : ["paper", "sand", "frost"].map((t) => ({ name: t, patch: { palette: t, canvasColor: "theme" } }));
 const laptop = (app) => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 let app;
 try {

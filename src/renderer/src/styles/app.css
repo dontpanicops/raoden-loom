@@ -1282,10 +1282,14 @@ button { border: 0; }
 .orch-dialog .orch-form button.orch-primary { background: var(--accent-bg); color: var(--accent-text); }
 .orch-dialog .orch-form button.orch-primary:disabled { opacity: .45; }
 .orch-form__why { margin-right: auto; align-self: center; }
-.orch-term, .orch-panel .orch-term, .orch-form .orch-term, .agent-card__body .orch-term, .agent-link__chip .orch-term, .board-card .orch-term { all: unset; position: relative; text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
+.orch-term, .orch-panel .orch-term, .orch-form .orch-term, .agent-card__body .orch-term, .agent-link__chip .orch-term, .board-card .orch-term { all: unset; position: relative; text-decoration: underline dotted var(--text-muted) 1.5px; text-underline-offset: 3px; border-radius: 3px; cursor: help; }
+.orch-term:hover { text-decoration-color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 8%, transparent); }
 .orch-form .orch-term:active:not(:disabled) { transform: none; filter: none; }
 .orch-term:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
-.orch-term:focus-visible::after { content: attr(data-hint); position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; width: max-content; max-width: 320px; padding: 6px 8px; border-radius: 6px; background: var(--surface-3-solid); color: var(--text); font-size: 12px; font-weight: 400; line-height: 1.35; white-space: normal; text-decoration: none; box-shadow: 0 4px 12px rgb(0 0 0 / 0.25); }
+/* §11.4: the explanation, under the word (over it when the bottom has no room), a corner to the word, level 4, up to 320 px */
+.orch-tip { position: fixed; z-index: 10000; box-sizing: border-box; width: max-content; max-width: 320px; padding: 8px 12px; border-radius: 8px; background: var(--surface-4-solid); color: var(--text-primary); box-shadow: var(--edge), var(--elev-4); font: 400 12px/1.45 var(--font-ui, inherit); pointer-events: none; }
+.orch-tip::before { content: ""; position: absolute; left: 14px; top: -4px; width: 8px; height: 8px; background: inherit; transform: rotate(45deg); box-shadow: -1px -1px 0 var(--border); }
+.orch-tip--above::before { top: auto; bottom: -4px; box-shadow: 1px 1px 0 var(--border); }
 .orch-dialog:has(.orch-form__actions) { background: var(--surface-4-solid); } /* R4: the pinned bottom and the body are one tone (frost: glass over the scrim was tinted, the bottom was white) */
 .orch-dialog .orch-form__actions { position: sticky; bottom: -28px; z-index: 2; margin: 0 -28px -28px; padding: 12px 28px 20px; background: var(--surface-4-solid); box-shadow: var(--elev-2); }
 .orch-dialog .launch-dialog__toolbar { justify-content: space-between; align-items: center; }
@@ -2173,17 +2177,39 @@ button { border: 0; }
 [data-zoomed] .terminal-card__status { font-size: calc(11px * var(--iz)); padding: 0 calc(8px * var(--iz)); }
 [data-zoomed] .terminal-card__restart { font-size: calc(11px * var(--iz)); padding: 0 calc(6px * var(--iz)); }
 .sticky-note-card__editor { font-size: calc(14px * var(--app-ui-scale, 1)); }
-/* R12b: a task card is the title, the status line, one line of substance and the actions; the rest opens under «Details» */
-.board-task__more { display: flex; flex-direction: column; gap: .3em; }
-.board-task__more > summary { width: max-content; color: var(--text-secondary); font-size: .85em; cursor: pointer; list-style: none; }
-.board-task__more > summary::-webkit-details-marker { display: none; }
-.board-task__more > summary::before { content: "▸ "; }
-.board-task__more[open] > summary::before { content: "▾ "; }
-.board-task__more > summary:hover { color: var(--text-primary); }
-/* the secondary actions show over the card's corner on hover or focus: they no longer keep an empty row in the card */
+/* §11.6 (mock 24): a task card is the title, the status line, one line of substance, the risk and the actions; «Details» is at the right
+   of the actions and opens key-value pairs inside the card (key 136 px) */
 .board-task { position: relative; }
-.board-task__actions:not(:has(.orch-primary)) { position: absolute; right: .5em; bottom: .4em; margin: 0; }
-.board-task__actions:not(:has(.orch-primary)) > button { background: var(--surface-2); }
+.board-task__essence { min-width: 0; overflow: hidden; color: var(--text-secondary); font-size: .93em; text-overflow: ellipsis; white-space: nowrap; }
+.board-task__risk { padding: 8px 10px; display: flex; align-items: flex-start; gap: 8px; border-radius: 8px; font-size: .93em; line-height: 1.4; }
+.board-task__risk > .ui-icon { flex: 0 0 auto; margin-top: .1em; }
+.board-task__risk > span { min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.board-task__risk code { font: 12px/1.45 var(--font-mono); color: var(--text-primary); }
+.board-task__risk small { color: var(--text-secondary); font-size: 12px; }
+.board-task__risk--ask { color: var(--status-waiting); background: color-mix(in srgb, var(--status-waiting) 14%, var(--surface-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-waiting) 45%, transparent); }
+.board-task__risk--block { color: var(--text-primary); background: color-mix(in srgb, var(--status-failed) 14%, var(--surface-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-failed) 45%, transparent); }
+.board-task__risk--block > .ui-icon { color: var(--danger-fg); }
+.board-task__kv { margin: 4px 0 0; padding-top: 8px; display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 8px 8px; font-size: .93em; box-shadow: inset 0 1px 0 var(--border); }
+.board-task__kv dt { color: var(--text-secondary); }
+.board-task__kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.board-task__kv-warn { color: var(--danger-fg); }
+.board-task__kv-hint { display: block; color: var(--text-secondary); font-size: 12px; }
+.board-task__criteria { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; list-style: none; }
+.board-task__criteria li { position: relative; padding-left: 20px; }
+.board-task__criteria li::before { content: ""; position: absolute; left: 2px; top: .3em; width: 9px; height: 9px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid var(--text-secondary); }
+.board-task__criteria li[data-status="met"]::before { border-color: var(--status-working); background: radial-gradient(circle, var(--status-working) 40%, transparent 45%); }
+.board-task__criteria li[data-status="dropped"] { text-decoration: line-through; }
+.board-task__foot { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.board-task__foot > .board-task__actions { flex: 1 1 auto; min-width: 0; }
+.board-task__foot > :only-child { margin-left: auto; }
+.board-card .board-task__toggle { margin-left: auto; padding: 2px 4px; display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; color: var(--text-secondary); background: none; box-shadow: none; font-size: 12px; font-weight: 500; }
+.board-card .board-task__toggle:hover { color: var(--text-primary); }
+.board-task__toggle .ui-icon { transition: transform .12s ease; }
+.board-task__toggle[aria-expanded="true"] .ui-icon { transform: rotate(180deg); }
+/* a card of the queue or the done column has no run to open: its secondary actions show over the corner on hover or focus */
+.board-task--queue .board-task__actions:not(:has(.orch-primary)), .board-task--done .board-task__actions:not(:has(.orch-primary)) { position: absolute; right: .5em; bottom: .4em; margin: 0; }
+.board-task--queue .board-task__actions:not(:has(.orch-primary)) > button, .board-task--done .board-task__actions:not(:has(.orch-primary)) > button { background: var(--surface-2); }
+.board-task--work .board-task__actions > button:not(.orch-primary), .board-task--review .board-task__actions > button:not(.orch-primary) { opacity: 1; }
 [data-board-form] input[type="number"], .board-card input[type="number"] { appearance: textfield; }
 /* requirement rows (mock 09): the cross sits inside the field at its right edge; command rows keep it outside */
 .orch-rows--inset .orch-rows__row { position: relative; }
@@ -2191,7 +2217,11 @@ button { border: 0; }
 .orch-rows--inset button.orch-rows__x { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); min-width: calc(var(--control-h-m) - 4px); min-height: calc(var(--control-h-m) - 4px); }
 .orch-rows--inset .orch-form button.orch-rows__x:active:not(:disabled) { transform: translateY(-50%); filter: none; }
 .orch-limits__more { grid-column: 1 / -1; }
-.orch-limits__more > summary { width: max-content; color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+.orch-limits__more > summary { width: max-content; display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 12px; cursor: pointer; list-style: none; }
+.orch-limits__more > summary::-webkit-details-marker { display: none; }
+.orch-limits__more > summary::before { content: ""; width: 5px; height: 5px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); transition: transform .12s ease; }
+.orch-limits__more[open] > summary::before { transform: rotate(45deg); }
+.orch-limits__note { display: block; margin-top: 6px; }
 .orch-limits__rare { margin-top: 6px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 /* mock 15: a role's name on the left, its model select on the right, in one row */
 .orch-card2 .orch-models [data-orch-model] { display: flex; flex-flow: row wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
@@ -2221,3 +2251,20 @@ button { border: 0; }
 .settings-panel .installed-plugin__header > div { align-items: center; }
 .settings-panel .installed-plugin__header { align-items: center; }
 .orch-dialog .orch-form button.orch-danger[data-ws-delete-go] { color: var(--danger-text); background: var(--danger); box-shadow: none; }
+.board-task__kv-docs { display: flex; flex-wrap: wrap; gap: 4px; }
+.board-task__kv-docs button { padding: .2em .5em; font-size: .93em; font-weight: 500; background: var(--surface-sunken); box-shadow: inset 0 0 0 1px var(--border-strong); }
+/* §11.6: the import report — a line per task: the sign, the ref, the result; the total under the list */
+.board-aside .board-import__source { margin: 0 0 8px; font: 12px/1.4 var(--font-mono); }
+.board-aside .board-import__list { margin: 0; max-height: none; overflow: visible; display: flex; flex-direction: column; font: inherit; color: var(--text-primary); box-shadow: inset 0 1px 0 var(--border); }
+.board-import__list li { padding: 8px 0; display: grid; grid-template-columns: 14px 24px minmax(0, 1fr); gap: 0 8px; align-items: start; font: inherit; box-shadow: inset 0 -1px 0 var(--border); }
+.board-import__list li.board-import__file { display: block; }
+.board-import__sign, .board-import__ref { font: 12px/1.45 var(--font-mono); color: var(--text-secondary); }
+.board-import__what { overflow-wrap: anywhere; }
+.board-import__what small { display: block; color: var(--text-secondary); font-size: 12px; }
+.board-import__list li.board-import__warn, .board-import__warn .board-import__sign, .board-import__warn .board-import__ref { color: var(--danger-fg); }
+.board-import__total { margin: 8px 0 0; color: var(--text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.orch-dialog input[type="number"] { appearance: textfield; }
+.orch-dialog input[type="number"]::-webkit-inner-spin-button, .orch-dialog input[type="number"]::-webkit-outer-spin-button, .board-card input[type="number"]::-webkit-inner-spin-button, [data-board-form] input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.orch-tip { box-shadow: 0 0 0 1px var(--border-strong), var(--elev-4); }
+.orch-tip::before { box-shadow: -1px -1px 0 var(--border-strong); }
+.orch-tip--above::before { box-shadow: 1px 1px 0 var(--border-strong); }

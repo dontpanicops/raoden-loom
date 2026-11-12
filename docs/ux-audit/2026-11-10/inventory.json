@@ -1246,7 +1246,8 @@
    "appCrop": { "x": 1395, "y": 0, "w": 389, "h": 250 },
    "scale": "100% (кадр 2×)",
    "data": "отчёт импорта из inbox",
-   "notes": "кадр — вырезка доски 2× (ширина зависит от боковой панели)"
+   "notes": "кадр — вырезка доски 2× (ширина зависит от боковой панели)",
+   "skip": "заменено макетом 24 (SPEC §11.6): строка 24-import-report"
   },
   {
    "id": "08-autopilot",
@@ -1338,11 +1339,11 @@
    "mock": "09-goal-dialog",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 410, "y": 672, "w": 620, "h": 132 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-goal-readiness.png" },
+   "appCrop": { "x": 400, "y": 150, "w": 640, "h": 300 },
    "scale": "100%",
    "data": "блок «Готовность»",
-   "notes": "",
-   "missing": "сцена goal-dialog с прокруткой до «Готовности»"
+   "notes": ""
   },
   {
    "id": "23-term-hints",
@@ -1350,11 +1351,11 @@
    "mock": "23-hints-limits",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 104, "w": 600, "h": 320 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-term-hints.png" },
+   "appCrop": { "x": 150, "y": 140, "w": 1140, "h": 600 },
    "scale": "100%",
    "data": "пояснения терминов: «Лид» наведением, «.envrc (direnv)» фокусом",
-   "notes": "",
-   "missing": "сцена с открытой подсказкой термина (наведение и фокус)"
+   "notes": ""
   },
   {
    "id": "23-limits-closed",
@@ -1363,7 +1364,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 575, "w": 420, "h": 230 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-goal-dialog.png" },
-   "appCrop": { "x": 395, "y": 760, "w": 650, "h": 120 },
+   "appCrop": { "x": 400, "y": 660, "w": 640, "h": 215 },
    "scale": "100%",
    "data": "«Ходы», «Минут на запуск», «Ещё лимиты» закрыто",
    "notes": ""
@@ -1374,11 +1375,11 @@
    "mock": "23-hints-limits",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 520, "y": 575, "w": 420, "h": 315 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-goal-limits-open.png" },
+   "appCrop": { "x": 400, "y": 370, "w": 640, "h": 260 },
    "scale": "100%",
    "data": "«Ещё лимиты» раскрыто: раунды, перепланирования",
-   "notes": "",
-   "missing": "сцена диалога цели с раскрытым «Ещё лимиты»"
+   "notes": ""
   },
   {
    "id": "24-task-collapsed",
@@ -1398,11 +1399,11 @@
    "mock": "24-board-more",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 416, "y": 105, "w": 340, "h": 560 },
-   "scene": null,
-   "scale": "100%",
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-board-expanded.png" },
+   "appCrop": { "x": 268, "y": 70, "w": 430, "h": 620 },
+   "scale": "100% (кадр 2×)",
    "data": "раскрытая карточка: критерии, блокирующие, пересечения, вызовы, токены",
-   "notes": "",
-   "missing": "сцена доски с раскрытым «Подробнее»"
+   "notes": "кадр — вырезка доски 2× (ширина зависит от боковой панели); состояние board-waiting остаётся в приложении"
   },
   {
    "id": "24-review-blocking",
@@ -1410,11 +1411,11 @@
    "mock": "24-board-more",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 776, "y": 105, "w": 340, "h": 585 },
-   "scene": null,
-   "scale": "100%",
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-board-expanded.png" },
+   "appCrop": { "x": 700, "y": 70, "w": 430, "h": 620 },
+   "scale": "100% (кадр 2×)",
    "data": "«Проверка» с блокирующими замечаниями",
-   "notes": "",
-   "missing": "сцена задачи в «Проверке» с блокирующими замечаниями ревью"
+   "notes": "кадр — вырезка доски 2× (ширина зависит от боковой панели); состояние board-waiting остаётся в приложении"
   },
   {
    "id": "24-import-report",
@@ -1423,7 +1424,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 1136, "y": 104, "w": 260, "h": 285 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-board-report.png" },
-   "appCrop": { "x": 1395, "y": 0, "w": 389, "h": 250 },
+   "appCrop": { "x": 1395, "y": 0, "w": 389, "h": 470 },
    "scale": "100% (кадр 2×)",
    "data": "отчёт импорта: строка на задачу (+ = ~ !), итог",
    "notes": ""
