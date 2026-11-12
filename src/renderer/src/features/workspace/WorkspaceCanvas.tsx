@@ -33,7 +33,7 @@ import { stickyNoteAtPoint } from "../notes/stickyNoteBounds";
 import { noteText, snapshotText } from "../orchestration/runDocs";
 import { AgentScene } from "../orchestration/AgentScene";
 import { ResizeSizeBadge } from "./ResizeSizeBadge";
-import { BOARD_SIZE, BoardCard } from "../orchestration/BoardCard";
+import { boardSize, BoardCard } from "../orchestration/BoardCard";
 import { useBoard } from "../orchestration/useBoard";
 import { OrchestrationOverlays } from "../orchestration/OrchestrationDialogs";
 import { activityRuns } from "../orchestration/runStatus";
@@ -310,9 +310,10 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     }
     // the first free place in view, around its centre; over the other windows only when none is free
     const c = viewportCenterWorldPoint();
+    const size0 = boardSize();
     const taken = [homeBounds, ...allWindowBounds];
-    const at = (dx: number, dy: number): SessionBounds => ({ position: { x: Math.round(c.x - BOARD_SIZE.width / 2 + dx), y: Math.round(c.y - BOARD_SIZE.height / 2 + dy) }, size: { ...BOARD_SIZE } });
-    const steps = [0, 1, -1, 2, -2].flatMap((i) => [0, 1, -1, 2, -2].map((j) => at(i * (BOARD_SIZE.width / 2 + 40), j * (BOARD_SIZE.height / 2 + 40))));
+    const at = (dx: number, dy: number): SessionBounds => ({ position: { x: Math.round(c.x - size0.width / 2 + dx), y: Math.round(c.y - size0.height / 2 + dy) }, size: { ...size0 } });
+    const steps = [0, 1, -1, 2, -2].flatMap((i) => [0, 1, -1, 2, -2].map((j) => at(i * (size0.width / 2 + 40), j * (size0.height / 2 + 40))));
     void board.place(target, steps.find((b) => !taken.some((w) => boundsIntersect(b, w))) ?? at(0, 0));
   };
   // The run holding the folder and its workspace are main's answer, not rebuilt here from snapshots.
@@ -885,7 +886,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
         const regionId = element.closest<HTMLElement>("[data-canvas-region-id]")?.dataset.canvasRegionId;
         const noteId = element.closest<HTMLElement>("[data-sticky-note-id]")?.dataset.stickyNoteId;
         // A card's header offers "Move to workspace…"; its body and fields keep their own menu.
-        const cardLayerId = !element.closest("textarea, input, [contenteditable='true'], button")
+        const cardLayerId = !element.closest("textarea, input, [contenteditable='true'], button:not(.orch-term)")
           && element.closest(".terminal-card__header, .agent-card__header, .browser-card__header, .plugin-canvas-card__header")
           ? element.closest<HTMLElement>("[data-canvas-layer-id]")?.dataset.canvasLayerId
           : undefined;

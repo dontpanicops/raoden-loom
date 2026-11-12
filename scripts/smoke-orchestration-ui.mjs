@@ -223,7 +223,7 @@ try {
   await app.clickEl(q("[data-run-doc-note]"));
   await app.waitFor(`document.querySelectorAll("[data-sticky-note-id]").length === ${notesBefore} + 1`, "a note added");
   const note = `[...document.querySelectorAll("[data-sticky-note-id]")].at(-1)`;
-  const snapText = await app.ev(`${note}.querySelector(".sticky-note-card__header").textContent.trim() + "\n\n" + ${note}.querySelector("textarea").value`); // R12j: the first line is the header's title, the body does not repeat it
+  const snapText = await app.ev(`${note}.querySelector(".sticky-note-card__header").textContent.trim() + "\\n\\n" + ${note}.querySelector("textarea").value`); // R12j: the first line is the header's title, the body does not repeat it
   expect(snapText.startsWith("> Копия документа на ") && snapText.includes("— план"), "«To the canvas»: a note marked as a copy of when", snapText.slice(0, 120));
   expect(await app.ev(`${note}.querySelector('[data-note-source="plan"]') !== null`), "the note shows it is a snapshot of the plan", null);
   const label = await app.ev(`(() => { const s = ${note}.querySelector("[data-note-source] > span"); return { text: s.textContent, fits: s.scrollWidth <= s.clientWidth }; })()`);
