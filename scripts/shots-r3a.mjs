@@ -85,7 +85,10 @@ try {
         await openTab(app, key); await shot(c.name, name);
       }
     } else {
-      await openTab(app, "plan"); await section("plan"); await shot(c.name, "2-summary-plan");
+      await openTab(app, "plan"); await section("plan");
+      // R12k: the wide «Итог» is shown from its top (facts, plan, decisions), as in mock 13, not scrolled to the open «План»
+      await app.ev(`(() => { for (const el of document.querySelectorAll(".orch-panel *")) if (el.scrollTop > 0) el.scrollTop = 0; return true; })()`);
+      await shot(c.name, "2-summary-plan");
       await openTab(app, "result"); await section("result"); await shot(c.name, "3-summary-result");
       await openTab(app, "activity"); await shot(c.name, "4-work-feed");
       await openTab(app, "log"); await shot(c.name, "5-work-journal");

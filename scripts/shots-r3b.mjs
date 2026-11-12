@@ -228,7 +228,10 @@ try {
     await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas after reload", 30_000);
     await app.key("Home", "Home", 36); await sleep(1200);
   };
-  const shot = async (name, screen) => { await sleep(1800); await app.shot(`${name}-${screen}`); };
+  // R12k: --measure <jsonl> appends the geometry of the zone's text and buttons (CSS px) of every frame, to compare with the mock-up's reference CSS
+  const MEASURE = arg("measure");
+  const probe = `(() => { const P = document.querySelector(".orch-panel"); if (!P) return null; const pr = P.getBoundingClientRect(); const f = (e) => { const r = e.getBoundingClientRect(), c = getComputedStyle(e); return { t: (e.textContent || "").trim().slice(0, 28), tag: e.tagName.toLowerCase() + (e.className && typeof e.className === "string" ? "." + e.className.split(" ")[0] : ""), y: Math.round((r.top - pr.top) * 10) / 10, h: Math.round(r.height * 10) / 10, w: Math.round(r.width * 10) / 10, fs: c.fontSize, fw: c.fontWeight, mono: /mono/i.test(c.fontFamily) }; }; const Z = document.querySelector(".orch-zone"); return { panelW: pr.width, items: Z ? [...Z.querySelectorAll("button, strong, p, pre, small, label, span.orch-zone__label, .orch-zone__label, input, textarea, li")].map(f) : [], below: [...P.querySelectorAll(".orch-kv__row, .orch-kv__row dt, .orch-kv__row dd, .orch-history li, .orch-history li > *, .orch-seg2 button, [role=tab], .orch-changes__status")].slice(0, 40).map(f) }; })()`;
+  const shot = async (name, screen) => { await sleep(1800); if (MEASURE) fs.appendFileSync(MEASURE, JSON.stringify({ name: `${name}-${screen}`, m: await app.ev(probe) }) + "\n"); await app.shot(`${name}-${screen}`); };
 
   if (ONLY !== "fixtures") {
     await createAgent(app, "Агент Codex (лид)", node);
