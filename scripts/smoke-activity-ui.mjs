@@ -199,7 +199,7 @@ try {
   await app.shot("05-summary-1280");
   await size(1440, 900);
   await sleep(200);
-  expect(await app.ev(`${q(".orch-panel")}.getBoundingClientRect().width >= 700`), "the summary panel is wide", await app.ev(`${q(".orch-panel")}.getBoundingClientRect().width`));
+  expect(await app.ev(`${q(".orch-panel")}.getBoundingClientRect().width >= 516`), "the summary panel is wide (mock 13: 520, the usual panel 400)", await app.ev(`${q(".orch-panel")}.getBoundingClientRect().width`));
   await app.shot("06-summary-1440");
   await app.clickEl(q("[data-orch-expand]"));
   await sleep(200);
