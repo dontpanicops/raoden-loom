@@ -250,7 +250,7 @@ function SessionFailureDetails({ sessionId, title, exitCode, details, locale }: 
         <div className="usage-row__failure-head">
           <span className="usage-row__failure-title">
             <UiIcon name="error" size={14} />
-            <span className="usage-row__failure-name">{title}</span>
+            <span className="usage-row__failure-name">{title.replace(/^.+ · /, "")}</span>{" "}
             {exitCode !== null && <span className="usage-row__failure-code">{t(locale, "failureHeadline").replace("{name} ", "").replace("{code}", String(exitCode))}</span>}
           </span>
           <button
@@ -333,6 +333,13 @@ export function HomeZone({
   const [draftLayout, setDraftLayout] = useState(settings.homeLayout);
   const [draftGridSize, setDraftGridSize] = useState(settings.homeGridSize);
   layoutRef.current = draftLayout;
+  // R12n (mock 04): on a first run (the card «С чего начать» is up) HOME is three rows high, the clock fills its column and there is no media tile; a layout the person changed is shown as it is
+  const shownLayout = useMemo(() => {
+    const byId = (id: string) => draftLayout.find((p) => p.widgetId === id);
+    const limits = byId("core.limits"), sessions = byId("core.sessions"), clock = byId("core.clock"), media = byId("core.media");
+    if (editing || settings.onboardingDismissed || !limits || !sessions || !clock || !media || limits.rowSpan !== 4 || sessions.rowSpan !== 4 || clock.rowSpan + media.rowSpan !== 4) return draftLayout;
+    return draftLayout.filter((p) => p !== media).map((p) => (p === limits || p === sessions || p === clock ? { ...p, rowSpan: 3 } : p.row >= 4 ? { ...p, row: p.row - 1 } : p));
+  }, [draftLayout, editing, settings.onboardingDismissed]);
   gridRef.current = draftGridSize;
 
   useEffect(() => {
@@ -721,7 +728,7 @@ export function HomeZone({
     const observer = new ResizeObserver(measure);
     for (const el of zone.querySelectorAll(".home-widget-slot, .home-widget-slot > *")) observer.observe(el);
     return () => observer.disconnect();
-  }, [draftLayout, homeElement]);
+  }, [shownLayout, homeElement]);
 
   return (
     <section
@@ -759,7 +766,7 @@ export function HomeZone({
           />
         </>
       )}
-      {draftLayout.map((placement) => {
+      {shownLayout.map((placement) => {
         const content = widgetContent(placement.widgetId);
         if (!content) return null;
         return (

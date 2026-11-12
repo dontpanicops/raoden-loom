@@ -105,7 +105,7 @@ const clipShot = async (clip) => {
   try { return await app.call("Page.captureScreenshot", { format: "png", clip }); } finally { await hints(""); }
 };
 const SCROLL_DIALOG = `(() => { for (const el of document.querySelectorAll(".orch-dialog *")) if (el.scrollHeight > el.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) el.scrollTop = el.scrollHeight; })()`;
-const wanted = (name) => !ONLY || ONLY.split(",").some((x) => name.includes(x) || (x === "overlay" && name === "radial")); // R12l: its frame is «overlay-radial», the scene is named «radial» // --only a,b: several scenes
+const wanted = (name) => !ONLY || ONLY.split(",").some((x) => name.includes(x) || (x === "overlay" && name === "radial")) || (name === "board" && ONLY.split(",").some((x) => "cards-agents-working".includes(x) || x.includes("agents-working"))); // R12n: the working agents need the board's run, so «--only cards» takes the board along // R12l: its frame is «overlay-radial», the scene is named «radial» // --only a,b: several scenes
 const shot = async (name) => {
   await sleep(500);
   await measure(name);
@@ -151,7 +151,7 @@ async function scene(name, fn) {
   } finally { if (DSF !== 1) { DSF = 1; await laptop().catch(() => {}); } }
 }
 const settle = async (patch = {}) => {
-  await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ palette: theme, followSystem: false, canvasColor: "theme", homeAccentPreset: "theme", uiScale: 1, onboardingDismissed: true, lastDirectory: termDir, ...patch })}).then(() => true)`);
+  await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ palette: theme, followSystem: false, canvasColor: "theme", homeAccentPreset: "theme", uiScale: 1, onboardingDismissed: true, lastDirectory: termDir, homeLauncherProviders: ["codex", "claude", "qwen", "kimi"], homeLimitProviders: ["codex", "claude"], ...patch })}).then(() => true)`);
   await app.call("Page.reload", {}); await sleep(1500); await laptop();
   await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas after reload", 30_000);
   await app.key("Home", "Home", 36); await sleep(1200);
@@ -310,9 +310,9 @@ try {
   const cam = await app.ev(`(() => { const m = document.querySelector(".workspace__scene").style.transform.match(/translate\\(([-\\d.]+)px, ([-\\d.]+)px\\) scale\\(([\\d.]+)\\)/); return { x: +m[1], y: +m[2], z: +m[3] }; })()`);
   const B = (sx, sy, sw, sh) => ({ position: { x: Math.round((sx - cam.x) / cam.z), y: Math.round((sy - cam.y) / cam.z) }, size: { width: Math.round(sw / cam.z), height: Math.round(sh / cam.z) } });
   await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({
-    stickyNotes: [{ id: "r5-note", text: "Перед релизом: прогнать e2e оркестрации и обновить UI_CONTRACT.", ...B(1000, 790, 200, 110) }],
+    stickyNotes: [{ id: "r5-note", text: "Перед релизом: прогнать e2e оркестрации и обновить UI_CONTRACT.", ...B(80, 470, 240, 110) }],
     browserCanvas: { ...B(1000, 300, 420, 200), workspaceId: "common" },
-    persistCanvasRegions: true, canvasRegions: [{ id: "r6-region", title: "Оркестрация · project-b", color: "#B8CF99", workspaceId: "common", ...B(985, 602, 470, 192) }] })}).then(() => true)`);
+    persistCanvasRegions: true, canvasRegions: [{ id: "r6-region", title: "Оркестрация · project-b", color: "#B8CF99", workspaceId: "common", ...B(870, 545, 560, 335) }] })}).then(() => true)`);
   await app.call("Page.reload", {}); await sleep(2500); await laptop();
   await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
   const R = (c, r) => ({ position: { x: -2100 + c * 670, y: 520 + r * 420 }, size: { width: 640, height: 380 } }); // the card states, left of HOME
@@ -329,9 +329,9 @@ try {
     if (workspaceId) await app.ev(`window.canvasTTY.terminal.setWorkspace(${JSON.stringify(s.id)}, ${JSON.stringify(workspaceId)}).then(() => true)`);
     return s;
   };
-  const a = await session("claude", "project-a-working", "project-a", B(178, 615, 270, 175));
-  const b = await session("claude", "project-b-waiting", "project-b", B(450, 615, 270, 175));
-  const infra = await session("terminal", "infra", "infra", B(722, 615, 270, 175));
+  const a = await session("claude", "project-a-working", "project-a", B(60, 615, 250, 175));
+  const b = await session("claude", "project-b-waiting", "project-b", B(320, 615, 250, 175));
+  const infra = await session("terminal", "infra", "infra", B(580, 615, 250, 175));
   await sleep(1500);
   await app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(infra.id)}, ${JSON.stringify("PS1='$ ' PROMPT='$ '; clear; for i in $(seq 1 30); do echo \"  deploy step $i ok\"; done; echo '$ npm run deploy:qa'; echo \"Error: ENOENT: no such file, open '.env.production'\"; exit 1\r")})`);
   world.mock = { a, b, infra, B };
@@ -352,7 +352,7 @@ try {
   const link = await app.ev(`window.canvasTTY.orchestration.createLink(${JSON.stringify({ linkId: crypto.randomUUID(), fromAgentId: lead.agentId, toAgentId: exec.agentId })}).then((r) => { if (!r.ok) throw new Error(r.code); return r.value; })`);
   const linkId = link.linkId;
   const projB = project("project-b");
-  const leadB = await mkAgent("codex", projB, B(1000, 640, 201, 149)), execB = await mkAgent("claude", projB, B(1225, 640, 201, 149));
+  const leadB = await mkAgent("codex", projB, B(905, 640, 201, 149)), execB = await mkAgent("claude", projB, B(1205, 640, 201, 149));
   world.groupB = (await app.ev(`window.canvasTTY.orchestration.createLink(${JSON.stringify({ linkId: crypto.randomUUID(), fromAgentId: leadB.agentId, toAgentId: execB.agentId })}).then((r) => { if (!r.ok) throw new Error(r.code); return r.value; })`)).linkId;
   await app.key("Home", "Home", 36); await sleep(800);
   // the run on project-b: its lead asks a question, so the link needs the person (the bell on the chip, «Ждёт вас»)
@@ -479,7 +479,7 @@ try {
       await app.key("Home", "Home", 36); await sleep(900);
       await app.waitFor(`${q("[data-canvas-region-id]")} && true`, "the region", 10_000);
       // the HOME zone lies over the left part of the region (its title): the right-click is made on the region's free edge at the right, beyond HOME
-      const reg = await app.ev(`(() => { const b = document.querySelector("[data-canvas-region-id]").getBoundingClientRect(); return { x: Math.min(b.right, innerWidth) - 30, y: b.top + 10 }; })()`);
+      const reg = await app.ev(`(() => { const b = document.querySelector("[data-canvas-region-id]").getBoundingClientRect(); return { x: b.left + 60, y: b.top + 10 }; })()`);
       await app.click(reg.x, reg.y, "right");
       await app.waitFor(`${q(".canvas-menu")} && true`, "the region's menu", 10_000); await sleep(400);
       await shot("canvas-region-menu"); await esc();
@@ -830,6 +830,7 @@ try {
     // R12a (mock 03): «Меньше прозрачности»
     await scene("reduce-transparency", async () => {
       await app.ev(`window.canvasTTY.settings.update({ reduceTransparency: true }).then(() => true)`); await sleep(900);
+      await app.ev(`document.activeElement?.blur?.(), true`); // R12n: no ring on the tab that was clicked, the Home key below would show it
       await app.key("Home", "Home", 36); await sleep(700); await shot("home-canvas-reduce");
       await app.ev(`window.canvasTTY.settings.update({ reduceTransparency: false }).then(() => true)`); await sleep(500);
     });
@@ -916,7 +917,7 @@ try {
       const mv = await app.ev(`(() => { const s = [...document.querySelectorAll(".home-widget-slot")].find((e) => e.querySelector(".mini-media")); const r = s.querySelector(".home-widget-slot__move").getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
       await app.drag(mv, { x: mv.x + 640, y: mv.y + 30 }, 24); await sleep(700);
       await shot("home-edit");
-      await app.clickEl(q(".home-editor-toolbar button:not(.home-editor-toolbar__done)")); await sleep(500); // the draft is reset: the layout is the default again
+      await app.clickEl(q(".home-editor-toolbar__reset")); await sleep(500); // the draft is reset: the layout is the default again
       // the editor leaves with «Сохранить» (the layout is unchanged)
       await app.clickEl(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Сохранить" && !b.closest(".settings-panel"))`); await sleep(600);
       if (await app.ev(`!!${q(".settings-backdrop--open")}`)) await app.clickEl(q(".settings-panel__close"));

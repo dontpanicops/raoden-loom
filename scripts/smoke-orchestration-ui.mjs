@@ -146,8 +146,8 @@ try {
   expect(!(await cardText(app, lead.agentId, ".agent-card__message")), "a successful link clears the refusal", null);
   await app.shot("04-linked");
   await app.drag(await app.center(card(lead.agentId, ".agent-card__port")), await app.center(card(exec.agentId, ".agent-card__body")), 20);
-  await app.waitFor(`${card(lead.agentId, ".agent-card__message")}?.textContent`, "duplicate refusal");
-  expect((await canvasState(app)).links.length === 1, "a repeated pair is refused", await cardText(app, lead.agentId, ".agent-card__message"));
+  await app.waitFor(`${q("[data-agent-pair-note]")}?.textContent`, "duplicate refusal"); // R12n (mock 19): the refusal of a repeated pair is a plate under the pair
+  expect((await canvasState(app)).links.length === 1, "a repeated pair is refused", await app.ev(`document.querySelector("[data-agent-pair-note]")?.textContent ?? null`));
 
   // run 1: to completed; the executor is held mid-turn and shown working until the turn ends
   fs.writeFileSync(HOLD, "");

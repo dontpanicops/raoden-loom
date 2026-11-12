@@ -264,6 +264,15 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
           />
         );
       })}
+      {Object.entries(ui.messages).map(([fromId, m]) => {
+        const a = m.pairWith ? boundsOf.get(fromId) : undefined, b = m.pairWith ? boundsOf.get(m.pairWith) : undefined;
+        if (!a || !b) return null;
+        const left = Math.min(a.position.x, b.position.x), right = Math.max(a.position.x + a.size.width, b.position.x + b.size.width);
+        return (
+          <div key={`pair-note-${fromId}`} className="agent-pair-note" role="alert" data-agent-pair-note
+            style={{ left, top: Math.max(a.position.y + a.size.height, b.position.y + b.size.height) + 16, width: right - left }}>{m.text}</div>
+        );
+      })}
       {/* After the cards, at the z of the higher of its two cards: never hidden by its own cards (when they sit close
           or overlap), still below any window raised above them. */}
       {orch.canvas.links.map((link) => {
@@ -275,12 +284,13 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
         // several live runs (up to 4): the chip says the most demanding one's state (needs you, then paused, else the shown run)
         const liveViews = liveOf(link).map((id) => orch.runs[id]?.view).filter((v): v is NonNullable<typeof v> => !!v);
         const shown = liveViews.length > 1 ? liveViews.find((v) => v.permission) ?? liveViews.find((v) => v.status === "paused") ?? view : view;
-        const label = shown?.permission ? t(locale, "orchLinkNeedsYou") : shown?.newer ? t(locale, "orchReadOnly") : shown ? viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ?? t(locale, `orchStatus_${runStatusKey(shown)}` as TranslationKey) : t(locale, "orchNoRun");
+        const working = shown && !shown.permission && !shown.newer && shown.stage != null && runStatusKey(shown) === "running" && !viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ? stageOf(shown.runId, shown.stage) : null; // mock 19: «Работает · этап 1»
+        const label = shown?.permission ? t(locale, "orchLinkNeedsYou") : shown?.newer ? t(locale, "orchReadOnly") : working ? `${t(locale, "orchAgentWorking")} · ${working}` : shown ? viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ?? t(locale, `orchStatus_${runStatusKey(shown)}` as TranslationKey) : t(locale, "orchNoRun");
         // on the curve, off the cards (and the bend handle when selected) (Н14, linkChip.ts)
         const g = linkGeometry(rightMid(from), leftMid(to), bendDrag?.linkId === link.linkId ? bendDrag.bend : link.bend);
         const at = chipOnCurve(g, [...agents.map(({ bounds }) => rect(bounds)), ...(props.regionTitles ?? [])], chipSize(label, (busy ? 0 : 2) + (view ? 2 : 0) + (view?.newer ? 1 : 0) + (link.bend ? 1 : 0) + (liveViews.length > 1 ? 1 : 0), invZoom(zoom)) /* new goal, ×, open run, observe, release, reset, runs: every button counts; below 100% the chip is in screen px (R12j) */, selectedLink === link.linkId, [rect(from), rect(to)]);
         return (
-          <div key={link.linkId} className={`agent-link__chip${view?.permission ? " agent-link__chip--needs-you" : ""}`} data-interactive="true" data-agent-link-id={link.linkId}
+          <div key={link.linkId} className={`agent-link__chip${view?.permission ? " agent-link__chip--needs-you" : ""}`} data-interactive="true" data-agent-link-id={link.linkId} data-tone={view?.permission ? "waiting" : busy ? "working" : "idle"}
             role="group" aria-label={t(locale, "orchLink")}
             style={{ left: at.x, top: at.y, "--iz": invZoom(zoom),
               zIndex: Math.max(props.zIndexOf(agentLayerId(link.fromAgentId)), props.zIndexOf(agentLayerId(link.toAgentId))) } as React.CSSProperties}>

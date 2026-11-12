@@ -2251,7 +2251,7 @@ button { border: 0; }
 .browser-card__header { justify-content: flex-start; }
 .browser-card__header .browser-card__hide { margin-left: .3em; }
 .browser-card__header .browser-card__title { margin-right: auto; }
-.sticky-note-card__editor { font-size: calc(15px * var(--app-ui-scale, 1)); }
+.sticky-note-card__editor { font-size: calc(17px * var(--app-ui-scale, 1)); padding: 1.2em; } /* R12n (mock 03): the line is .83 of the card (was .72), the line pitch .086 */
 /* §11.6 (mock 24): a task card is the title, the status line, one line of substance, the risk and the actions; «Details» is at the right
    of the actions and opens key-value pairs inside the card (key 136 px) */
 .board-task { position: relative; }
@@ -2444,6 +2444,8 @@ button { border: 0; }
 .toast-stack { gap: 10px; align-items: stretch; width: min(360px, calc(100% - 40px)); } /* mock 10: 360 wide, 10 between (components-reference .toast: 12px 12px 12px 14px) */
 .toast { padding: 12px 12px 12px 14px; align-items: flex-start; }
 .toast > .ui-icon { align-self: flex-start; margin-top: 2px; }
+.toast.toast--compact { align-self: flex-end; align-items: center; padding: 10px 16px 10px 12px; } /* R12n (mock 03): about 205 wide, no cross */
+.toast.toast--compact > .ui-icon { align-self: center; margin-top: 0; }
 .notify-banner[data-rows="2"], .notify-banner[data-rows="3"] { top: calc(var(--titlebar-height) + 64px); } /* two lines or more stand under the workspace tabs, not over them */
 .notify-banner__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 4px; margin: -3px -4px; } /* the container cuts and puts the «…»; the padding keeps the focus ring inside the cut */
 .notify-banner__text .orch-term--plain { display: block; overflow: hidden; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; cursor: default; } /* a span (Term plain), so the «…» and the focus ring both follow the visible width */
@@ -2488,8 +2490,10 @@ button { border: 0; }
 .orch-settings__grid { align-items: start; } /* a card is as tall as its content: the neighbour's height leaves no empty room in it (mock 15) */
 .orch-card2 .orch-term { text-decoration: none; } /* the role captions of the cards carry no dotted line in mock 15; the explanation stays on hover and focus */
 .orch-card2 .orch-term:hover { text-decoration: underline dotted var(--text-primary) 1.5px; text-underline-offset: 3px; }
-.workspace-bar__count { padding: 1px 7px; color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 10%, transparent); font-weight: 600; } /* mock 25: both counters are filled pills */
-.workspace-bar__count--attention { color: var(--status-waiting); background: var(--status-waiting-bg); box-shadow: none; }
+.workspace-bar__count { padding: 1px 4px; color: var(--status-working); background: transparent; font-weight: 500; } /* R12n (mock 03): working = the glyph and the count in green, no pill */
+.workspace-bar__count--attention { padding: 1px 7px; color: var(--status-waiting); background: var(--status-waiting-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-waiting) 70%, transparent); } /* the waiting count is the outlined amber pill */
+.workspace-bar__tab { font-weight: 500; }
+.workspace-bar__tab[aria-selected="true"] { color: var(--text-primary); background: var(--surface-2); box-shadow: var(--edge), var(--elev-1); } /* components-reference .ws.on: the raised plate */
 .ui-scale-setting input { accent-color: var(--accent); }
 .settings-panel .plugin-installed-section h3 button.plugin-updates-check { padding: 0; min-height: 0; border-radius: 4px; color: var(--text-primary); background: none; font-size: 13px; font-weight: 500; } /* mock 26: a text link */
 .settings-panel .installed-plugin__header button.installed-plugin__remove { font-size: 13px; }
@@ -2668,3 +2672,78 @@ html:not([data-kbd]) .terminal-link-dialog :is(button, a):focus-visible { outlin
 /* the hover-only buttons that lie over the bottom of a queue / done card (nothing in the card's flow) stay compact: wrapped at .btn-sm they would reach above the card */
 .board-card .board-task--queue .board-task__actions:not(:has(.orch-primary)), .board-card .board-task--done .board-task__actions:not(:has(.orch-primary)) { gap: calc(4px * var(--ui-scale, 1)); }
 .board-card .board-task--queue .board-task__actions:not(:has(.orch-primary)) > button, .board-card .board-task--done .board-task__actions:not(:has(.orch-primary)) > button { height: calc(18px * var(--ui-scale, 1)); padding: 0 calc(7px * var(--ui-scale, 1)); }
+
+/* R12n (gate S6): focus that came by the pointer shows nothing: the first row of a menu opened by the mouse is not lit, a tab that was clicked has no ring */
+html:not([data-kbd]) .canvas-menu__row:focus-visible:not(:hover, .canvas-menu__row--selected) { background: transparent; box-shadow: none; }
+html:not([data-kbd]) .workspace-bar__tab:focus-visible, html:not([data-kbd]) .workspace-bar__board:focus-visible { outline: 0; box-shadow: none; }
+
+/* R12n (mock 19, components-reference .chip): the link's chip is a 24 px pill, 12 px at regular weight, tinted by its state (working green, needs you amber with a glow);
+   its buttons are quiet text, not bold ones; no heavy ring */
+.agent-link__chip { color: var(--text-secondary); background: color-mix(in srgb, var(--status-idle) 12%, var(--surface-3-solid)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-idle) 28%, transparent), var(--elev-2); }
+.agent-link__chip[data-tone="working"] { color: var(--status-working); background: color-mix(in srgb, var(--status-working) 12%, var(--surface-3-solid)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-working) 28%, transparent), var(--elev-2); }
+.agent-link__chip[data-tone="waiting"], .agent-link__chip--needs-you { color: var(--status-waiting); background: color-mix(in srgb, var(--status-waiting) 12%, var(--surface-3-solid)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-waiting) 55%, transparent), 0 0 14px color-mix(in srgb, var(--status-waiting) 30%, transparent); }
+.agent-link__state { font-weight: 500; }
+.agent-link__chip[data-tone="waiting"] .agent-link__state { font-weight: 600; }
+.agent-link__chip button { padding: .2em .55em; color: var(--text-secondary); background: transparent; font-weight: 400; }
+.agent-link__chip button:hover { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 10%, transparent); }
+
+/* R12n (mock 18 resize): the corner markers hug the corner (11 px at 1 px) so they stay clear of the logo in the header and the status glyph in the footer (the card clips what lies outside its corner) */
+.terminal-card__resize-handle::after { width: 11px; height: 11px; border-radius: 4px; }
+.terminal-card__resize-handle--ne::after { top: 1px; right: 1px; }
+.terminal-card__resize-handle--nw::after { top: 1px; left: 1px; }
+.terminal-card__resize-handle--se::after { bottom: 1px; right: 1px; }
+.terminal-card__resize-handle--sw::after { bottom: 1px; left: 1px; }
+
+/* R12n (SPEC 11.2, mock 21 at 45%): the name stays whole; the role is cut to «Исполн…» (6 characters at least) or, when even that does not fit beside the name, it goes whole */
+[data-zoomed] .agent-card__identity { flex-wrap: wrap; align-content: flex-start; height: 1.45em; overflow: hidden; }
+[data-zoomed] .agent-card__identity small { flex: 0 1 auto; min-width: 6ch; max-width: 100%; }
+[data-zoomed] .agent-card__identity small .orch-term { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* R12n (mock 18 «Изменить HOME»): the boundary is one blue frame, the empty places are rounded cells of the grid's own size (82x72, gap 18), the tiles keep their own look
+   with a plain-text name; a tile outside the frame has a red outline. No grid lines, no dashed outlines, no mono labels. */
+.home-zone--editing { outline: 2px solid var(--focus); outline-offset: 10px; border-radius: 24px; background: none; }
+.home-zone--editing::before { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; background-color: color-mix(in srgb, var(--canvas-ink) 55%, transparent);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='90'><rect x='.75' y='.75' width='80.5' height='70.5' rx='10' fill='black' fill-opacity='.16' stroke='black' stroke-opacity='.5' stroke-width='1.5'/></svg>") 0 0 / 100px 90px; }
+.home-zone--editing .home-widget-slot { outline: 0; }
+.home-zone--editing .home-widget-slot--outside { outline: 2px solid var(--danger-fg); outline-offset: 0; }
+.home-zone--editing .home-widget-slot:has(.launcher-dock) { height: auto !important; min-height: 72px; } /* a dock that wraps is taller than its grid place: the frame follows it */
+.home-widget-slot__move { background: transparent; padding: 8px; font: 600 14px/1.2 var(--font-ui); }
+.home-widget-slot__move:hover { background: color-mix(in srgb, var(--text-primary) 6%, transparent); }
+.home-zone--editing .home-widget-slot__move { color: var(--text-primary); }
+.home-zone__boundary-label { font: 600 13px/1 var(--font-ui); top: -46px; }
+.home-zone__boundary-resize { right: -7px; bottom: -7px; width: 14px; height: 14px; border: 2px solid var(--focus); border-radius: 5px; background: var(--surface-3-solid); }
+.home-widget-slot__resize--nw::after, .home-widget-slot__resize--se::after { width: 12px; height: 12px; border: 2px solid var(--focus); border-radius: 5px; background: var(--surface-3-solid); }
+.home-widget-slot__resize--nw::after { top: 3px; left: 3px; }
+.home-widget-slot__resize--se::after { right: 3px; bottom: 3px; }
+/* R12n (mock 18): the bar says «Черновик» in plain text, the buttons are quiet and the last one is the main one; reset is a quiet text button */
+.home-editor-toolbar { border-radius: 12px; min-height: 44px; padding: 4px 6px 4px 12px; gap: 6px; }
+.home-editor-toolbar strong { font-size: 13px; font-weight: 600; }
+.home-editor-toolbar button { min-height: 32px; padding: 0 12px; border-radius: 6px; background: transparent; color: var(--text-secondary); font: 500 13px/1 var(--font-ui); }
+.home-editor-toolbar .home-editor-toolbar__done { color: var(--accent-text); background: var(--accent-bg); }
+
+/* R12n (mock 03/18, SPEC): a region is 5% of its colour as fill and 20% as outline; its name is plain coloured text */
+.canvas-region { border: 1px solid color-mix(in srgb, var(--canvas-region-color) 20%, transparent); background: color-mix(in srgb, var(--canvas-region-color) 5%, transparent); box-shadow: none; }
+.canvas-region__title { background: transparent; font-weight: 600; color: color-mix(in srgb, var(--canvas-region-color) 88%, var(--canvas-ink)); }
+.home-zone--editing .home-widget-slot__move { font-size: 17px; }
+.home-editor-toolbar button { white-space: nowrap; }
+
+/* R12n (mock 18): a run's snapshot note is a neutral card (level 2), not the amber note */
+.sticky-note-card.sticky-note-card--sourced { background: linear-gradient(180deg, var(--surface-2), var(--surface-2-b)); box-shadow: var(--edge), var(--elev-2); }
+
+/* R12n (mock 19): the refusal of a repeated pair is a plate under the pair, as wide as the pair, 13 px, a red tint on level 2 */
+.agent-pair-note { position: absolute; z-index: 40; padding: 10px 12px; border-radius: 10px; color: var(--text-primary); background: color-mix(in srgb, var(--status-failed) 12%, var(--surface-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-failed) 35%, transparent), var(--elev-2); font: 400 13px/1.4 var(--font-ui); pointer-events: none; }
+
+/* R12n (mock 06 summary): the summary of a far card is on the card's own surface (level 2), not on the terminal's colour */
+.terminal-card__summary, .terminal-card__summary:hover { color: var(--text-primary); background: linear-gradient(180deg, var(--surface-2), var(--surface-2-b)); }
+.terminal-card__summary-name { color: var(--text-primary); }
+.terminal-card__summary .terminal-card__summary-path { color: var(--text-muted); }
+
+/* R12n (mock 04): the heading is regular-medium and takes one line at the card's own width (the line is .89 of the card) */
+.onboarding h2 { font-weight: 500; font-size: 2.1em; letter-spacing: -.015em; }
+
+/* R12n (mock 18): «Скопировать адрес» is a quiet text row, no frame or fill (the two buttons above it are the framed ones) */
+.orch-dialog.terminal-link-dialog .terminal-link-dialog__actions button.terminal-link-dialog__copy { border: 0; background: transparent; box-shadow: none; color: var(--text-secondary); font-weight: 400; }
+.orch-dialog.terminal-link-dialog .terminal-link-dialog__actions button.terminal-link-dialog__copy:hover { color: var(--text-primary); background: var(--surface-sunken); }
+.home-editor-toolbar strong { white-space: nowrap; }
+.canvas-region { border-width: 1.5px; border-color: color-mix(in srgb, var(--canvas-region-color) 34%, transparent); background: color-mix(in srgb, var(--canvas-region-color) 12%, transparent); } /* as drawn in the mock-up's frames: the tint reads on all three themes */
+.canvas-region__title { color: color-mix(in srgb, var(--canvas-region-color) 55%, var(--canvas-ink)); }

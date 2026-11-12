@@ -1355,6 +1355,7 @@ export function App(): React.JSX.Element {
           onHomeLayoutChange={changeHomeLayout}
           onHomeGridSizeChange={changeHomeGridSize}
           onFinishHomeEdit={() => void finishHomeEditor()}
+          onCancelHomeEdit={() => setHomeEditDraft(null)}
           onResetHomeLayout={resetHomeLayout}
           onPluginError={showToast}
           onPluginCanvasBoundsChange={changePluginCanvasBounds}
