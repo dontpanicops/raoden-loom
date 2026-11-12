@@ -27,7 +27,7 @@ export function useCardFrame({ bounds: given, zoom, snapEnabled, snapTargets, li
   const apply = (next: SessionBounds): void => { live.current = next; setBounds(next); };
 
   const startDrag = (event: React.PointerEvent<HTMLElement>): void => {
-    if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
+    if (event.button !== 0 || (event.target as HTMLElement).closest("button:not(.orch-term)")) return;
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);

@@ -16,7 +16,8 @@ import type { Board } from "./useBoard";
 import { RESIZE_DIRECTIONS, useCardFrame } from "./useCardFrame";
 import type { Orchestration } from "./useOrchestration";
 
-export const BOARD_SIZE = { width: 1040, height: 560 };
+// mock 08: 820 high; a shorter window gives less (never under the minimum). Saved sizes are not touched.
+export const boardSize = (): { width: number; height: number } => ({ width: 1040, height: Math.max(320, Math.min(820, Math.round(window.innerHeight - 160))) });
 const LIMITS = { min: { width: 560, height: 320 }, max: { width: 4000, height: 3000 } };
 const COLUMNS: TaskColumn[] = ["queue", "work", "review", "done"];
 

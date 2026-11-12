@@ -87,7 +87,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
   toggleRef.current = toggle;
   useEffect(() => {
     const el = header.current;
-    const onDouble = (event: MouseEvent): void => { if (!(event.target as HTMLElement).closest("button")) toggleRef.current(); };
+    const onDouble = (event: MouseEvent): void => { if (!(event.target as HTMLElement).closest("button:not(.orch-term)")) toggleRef.current(); };
     el?.addEventListener("dblclick", onDouble);
     return () => el?.removeEventListener("dblclick", onDouble);
   }, []);

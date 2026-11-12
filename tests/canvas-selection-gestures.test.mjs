@@ -43,7 +43,7 @@ function press(overrides = {}) {
 /** Does the exported control selector cover this element? Simple tag and class parts only. */
 function selectorCovers({ tag, className = "" }) {
   return CANVAS_CARD_CONTROL_SELECTOR.split(",").some((part) => {
-    const selector = part.trim();
+    const selector = part.trim().replace(/:not\(.*\)$/, "");
     return selector.startsWith(".") ? className === selector.slice(1) : tag === selector;
   });
 }
