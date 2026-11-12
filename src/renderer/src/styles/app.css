@@ -70,13 +70,23 @@ button { border: 0; }
   font-size: calc(13px * var(--ui-scale, 1));
   filter: drop-shadow(0 1.1em 2.2em color-mix(in srgb, var(--surface-0) 48%, transparent));
 }
+.radial-launcher__disc {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--radial-disc) * var(--ui-scale, 1));
+  height: calc(var(--radial-disc) * var(--ui-scale, 1));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface-3-solid) 86%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border-strong), var(--elev-3);
+  transform: translate(-50%, -50%);
+}
 .radial-launcher__center {
   position: absolute;
   left: 0;
   top: 0;
-  width: 6.6em;
-  height: 6.6em;
-  padding: 1.05em;
+  width: calc(60px * var(--ui-scale, 1));
+  height: calc(60px * var(--ui-scale, 1));
   display: grid;
   place-items: center;
   border: .08em solid color-mix(in srgb, var(--text-primary) 18%, transparent);
@@ -91,34 +101,34 @@ button { border: 0; }
   position: absolute;
   left: 0;
   top: 0;
-  width: 6.6em;
-  min-height: 5.4em;
-  padding: .6em .45em;
+  width: calc(60px * var(--ui-scale, 1));
+  height: calc(60px * var(--ui-scale, 1));
+  padding: 0;
   display: grid;
-  grid-template-rows: 2.6em auto;
+  grid-template-rows: 2.2em auto;
+  align-content: center;
   place-items: center;
-  gap: .25em;
+  gap: .1em;
   border: .08em solid color-mix(in srgb, var(--text-primary) 13%, transparent);
-  border-radius: 1.4em;
+  border-radius: 50%;
   color: var(--text-primary);
   box-shadow: var(--edge), var(--elev-2);
   cursor: pointer;
   font-size: .7em;
-  font-weight: 900;
+  font-weight: 800;
   text-align: center;
-  transition: width .1s ease, min-height .1s ease, color .1s ease, background .1s ease, box-shadow .1s ease;
+  transition: color .1s ease, background .1s ease, box-shadow .1s ease;
 }
+.radial-launcher__item > span:last-child { max-width: 5.6em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .radial-launcher__item--active,
 .radial-launcher__item:hover,
 .radial-launcher__item:focus-visible {
-  width: 7.25em;
-  min-height: 5.85em;
   color: var(--text-primary);
   background: color-mix(in srgb, var(--focus) 22%, var(--surface-4-solid));
   box-shadow: 0 0 0 .15em var(--focus);
   outline: 0;
 }
-.radial-launcher__icon { height: 2.6em; display: grid; place-items: center; }
+.radial-launcher__icon { height: 2.2em; display: grid; place-items: center; }
 .radial-launcher__item .provider-icon { --provider-icon-art-size: 1.85em; }
 
 .tile { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--edge), var(--elev-2); }
@@ -1152,6 +1162,11 @@ button { border: 0; }
 /* Orchestration agents (stage-8-contract.md): separate cards, not terminals. */
 .agent-card { --card-header-height: calc(var(--card-header-h) * var(--ui-scale, 1)); position: absolute; left: 0; top: 0; display: flex; flex-direction: column; overflow: visible; border: 1px solid color-mix(in srgb, var(--surface-2) 70%, transparent); border-radius: 14px; color: var(--text-primary); background: var(--surface-2); box-shadow: var(--edge), var(--elev-2); font-size: calc(13px * var(--ui-scale, 1)); }
 .agent-card:focus-within, .agent-card--selected { box-shadow: var(--edge), 0 0 0 2px var(--focus), var(--elev-3); }
+.agent-card--offer-ok, .agent-card--offer-drop { box-shadow: var(--edge), 0 0 0 1.5px var(--focus), var(--elev-3); }
+.agent-card--offer-drop { box-shadow: var(--edge), 0 0 0 2px var(--focus), 0 0 0 5px color-mix(in srgb, var(--focus) 28%, transparent), var(--elev-3); }
+.agent-card--offer-dim, .agent-card--offer-dim-over { opacity: .45; }
+.agent-card__offer { position: absolute; left: 50%; top: 56%; z-index: 30; padding: .3em .8em; border: 1px solid color-mix(in srgb, var(--focus) 45%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--focus) 18%, var(--surface-4-solid)); color: var(--text-primary); font: 600 .85em/1.2 var(--font-ui, inherit); white-space: nowrap; pointer-events: none; transform: translate(-50%, -50%); }
+.agent-card--offer-dim-over .agent-card__offer { border-color: var(--border-strong); background: var(--surface-4-solid); }
 .agent-card--linking-target { box-shadow: var(--edge), 0 0 0 2px var(--status-waiting), var(--elev-3); }
 .agent-card__header { height: var(--card-header-height); flex: 0 0 auto; padding: 0 .5em 0 .8em; display: flex; align-items: center; justify-content: space-between; gap: .6em; border-radius: 13px 13px 0 0; cursor: move; touch-action: none; }
 .agent-card__identity { min-width: 0; display: flex; align-items: center; gap: .55em; }
@@ -2067,3 +2082,14 @@ button { border: 0; }
 .orch-hint--line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ws-dialog .orch-form__actions { flex-wrap: wrap; }
 .ws-dialog .orch-form__actions button { white-space: nowrap; }
+
+/* Card resize (mock 18): eight square markers on the selected card while the pointer is over it, and the size badge during the drag */
+.terminal-card__resize-handle::after { content: ""; position: absolute; width: 12px; height: 12px; box-sizing: border-box; border: 1.5px solid var(--focus); border-radius: 4px; background: var(--surface-3-solid); opacity: 0; pointer-events: none; }
+.terminal-card__resize-handle--n::after, .terminal-card__resize-handle--s::after { left: 50%; margin-left: -6px; }
+.terminal-card__resize-handle--e::after, .terminal-card__resize-handle--w::after { top: 50%; margin-top: -6px; }
+.terminal-card__resize-handle--n::after, .terminal-card__resize-handle--ne::after, .terminal-card__resize-handle--nw::after { top: 0; }
+.terminal-card__resize-handle--s::after, .terminal-card__resize-handle--se::after, .terminal-card__resize-handle--sw::after { bottom: 0; }
+.terminal-card__resize-handle--e::after, .terminal-card__resize-handle--ne::after, .terminal-card__resize-handle--se::after { right: 0; }
+.terminal-card__resize-handle--w::after, .terminal-card__resize-handle--nw::after, .terminal-card__resize-handle--sw::after { left: 0; }
+:is(.terminal-card, .agent-card, .board-card, .browser-card, .sticky-note-card, .plugin-canvas-card):is(.terminal-card--selected, .agent-card--selected, .board-card--selected, .browser-card--selected, .sticky-note-card--selected, .plugin-canvas-card--selected):hover > .terminal-card__resize-handle::after { opacity: 1; }
+.resize-size-badge { position: fixed; z-index: 9000; padding: .25em .75em; border-radius: 999px; background: var(--surface-4-solid); box-shadow: inset 0 0 0 1px var(--border-strong), var(--elev-2); color: var(--text-primary); font: 600 12px/1.4 var(--font-mono); pointer-events: none; }

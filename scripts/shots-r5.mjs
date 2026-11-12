@@ -456,8 +456,8 @@ try {
         world.leftLead = l.agentId; world.leftExec = e.agentId; await link(l.agentId, e.agentId);
         // a lone lead: a free executor of its folder (lit) and one of another folder (dim, with the reason), for the linking mode
         const m = await mkAgent("codex", other, B(1000, 330, 201, 149), WS.beta);
-        await mkAgent("claude", other, B(1230, 450, 201, 149), WS.beta); await mkAgent("claude", projB, B(1000, 560, 201, 149), WS.beta);
-        world.modeLead = m.agentId;
+        const fit = await mkAgent("claude", other, B(1230, 450, 201, 149), WS.beta), far = await mkAgent("claude", projB, B(1000, 560, 201, 149), WS.beta);
+        world.modeLead = m.agentId; world.modeFit = fit.agentId; world.modeFar = far.agentId;
         await app.call("Page.reload", {}); await sleep(2500); await laptop();
         await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
       }
@@ -471,8 +471,12 @@ try {
       const from = await app.center(card(world.modeLead, ".agent-card__port"));
       await app.mouse("mouseMoved", from.x, from.y); await app.mouse("mousePressed", from.x, from.y, "left", 1);
       for (let i = 1; i <= 8; i++) { await app.mouse("mouseMoved", from.x + 18 * i, from.y + 10 * i, "left", 1); await sleep(40); }
-      await sleep(400); await shot("link-mode");
-      await app.mouse("mouseReleased", from.x + 144, from.y + 80, "left", 0); await sleep(300); await esc();
+      // over a free executor of the lead's folder: lit, "release to link"; the one of another folder dims, with the reason
+      const fit = await app.center(card(world.modeFit, ".agent-card__body")), far = await app.center(card(world.modeFar, ".agent-card__body"));
+      await app.mouse("mouseMoved", fit.x, fit.y, "left", 1); await sleep(500); await shot("link-mode");
+      await app.mouse("mouseMoved", far.x, far.y, "left", 1); await sleep(500); await shot("link-mode-far");
+      await app.mouse("mouseMoved", 700, 560, "left", 1); await sleep(200);
+      await app.mouse("mouseReleased", 700, 560, "left", 0); await sleep(300); await esc();
     });
     await scene("zoom-waiting", async () => {
       await app.key("Home", "Home", 36); await sleep(600);
@@ -522,6 +526,12 @@ try {
       const r = await app.ev(`(() => { const b = document.querySelector('[data-canvas-layer-id="terminal:${world.mock.a.id}"]').getBoundingClientRect(); return { x: b.right - 2, y: b.top + b.height / 2 }; })()`);
       await app.mouse("mouseMoved", r.x, r.y); await sleep(500);
       await shot("card-resize");
+      // the gesture: the corner is held and dragged, the size shows under the card
+      const c = await app.ev(`(() => { const b = document.querySelector('[data-canvas-layer-id="terminal:${world.mock.a.id}"]').getBoundingClientRect(); return { x: b.right - 3, y: b.bottom - 3 }; })()`);
+      await app.mouse("mouseMoved", c.x, c.y); await app.mouse("mousePressed", c.x, c.y, "left", 1);
+      for (let i = 1; i <= 6; i++) { await app.mouse("mouseMoved", c.x + 6 * i, c.y + 4 * i, "left", 1); await sleep(40); }
+      await sleep(400); await shot("card-resize-drag");
+      await app.mouse("mouseReleased", c.x + 36, c.y + 24, "left", 0); await sleep(300);
       await app.mouse("mouseMoved", 700, 20);
     });
 
@@ -569,7 +579,10 @@ try {
       await app.call("Page.reload", {}); await sleep(1500); await laptop();
       await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
       await app.key("Home", "Home", 36); await sleep(900);
-      const spot = await app.freeRect(40, 40);
+      // zoomed out, so a ring of the menu's size has free canvas around it
+      for (let i = 0; i < 2; i++) { await app.clickEl(`document.querySelectorAll(".canvas-controls button, .zoom-controls button")[1]`).catch(() => {}); await sleep(200); }
+      await sleep(500);
+      const spot = await app.freeRect(300, 300);
       await app.mouse("mouseMoved", spot.x + 150, spot.y + 150);
       await app.mouse("mousePressed", spot.x + 150, spot.y + 150, "right", 2); await sleep(700);
       await app.mouse("mouseMoved", spot.x + 150, spot.y + 100, "right", 2); await sleep(400);

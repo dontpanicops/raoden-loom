@@ -32,6 +32,7 @@ import { StickyNoteCard } from "../notes/StickyNoteCard";
 import { stickyNoteAtPoint } from "../notes/stickyNoteBounds";
 import { noteText, snapshotText } from "../orchestration/runDocs";
 import { AgentScene } from "../orchestration/AgentScene";
+import { ResizeSizeBadge } from "./ResizeSizeBadge";
 import { BOARD_SIZE, BoardCard } from "../orchestration/BoardCard";
 import { useBoard } from "../orchestration/useBoard";
 import { OrchestrationOverlays } from "../orchestration/OrchestrationDialogs";
@@ -1128,6 +1129,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           ))}
           <AgentScene
             taskOfRun={board.taskOfRun}
+            regionTitles={renderedCanvasRegions.map((r) => ({ x: r.position.x + 14, y: r.position.y + 14, width: Math.min(r.size.width - 28, r.title.length * 8.5 + 26), height: 34 }))}
             orch={sceneOrch}
             ui={agentUi}
             locale={settings.locale}
@@ -1348,6 +1350,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           <WorkspaceBar controls={workspace} counts={counts} locale={settings.locale} onDialog={openWsDialog}
             board={{ shown: !!boardPlace, toggle: () => showBoardRef.current(workspace.activeId) }} />
         </div>
+        <ResizeSizeBadge />
         {CANVAS_OVERLAY_PLACEMENTS.map((placement) => (
           <div className={`canvas-overlay-slot canvas-overlay-slot--${placement}`} key={placement}>
             {settings.minimapPlacement === placement && (

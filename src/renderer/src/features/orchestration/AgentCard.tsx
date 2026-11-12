@@ -30,6 +30,7 @@ interface AgentCardProps {
   message: CardMessage | null;
   linking: "source" | "target" | null; // keyboard/click linking mode
   linked: boolean;
+  offer?: "ok" | "drop" | "dim" | "dim-over" | null; // while a link is dragged from a port (mock 18): fits / under the pointer / other role or folder / the latter under the pointer
   hasRun: boolean;
   selected: boolean;
   snapEnabled: boolean;
@@ -92,7 +93,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
 
   return (
     <article
-      className={`agent-card agent-card--${card.provider} agent-card--${state} ${props.selected ? "agent-card--selected" : ""} ${linking ? `agent-card--linking-${linking}` : ""}`}
+      className={`agent-card agent-card--${card.provider} agent-card--${state} ${props.selected ? "agent-card--selected" : ""} ${linking ? `agent-card--linking-${linking}` : ""} ${props.offer ? `agent-card--offer-${props.offer}` : ""}`}
       data-interactive="true"
       data-agent-id={card.agentId}
       data-agent-role={card.role}
@@ -158,6 +159,9 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
           )}
         </div>
       </div>
+      {(props.offer === "drop" || props.offer === "dim-over") && (
+        <span className="agent-card__offer" role="status">{t(locale, props.offer === "drop" ? "orchReleaseToLink" : "orchOtherFolder")}</span>
+      )}
       {RESIZE_DIRECTIONS.map((direction) => (
         <div key={direction} className={`terminal-card__resize-handle terminal-card__resize-handle--${direction}`} aria-hidden="true" data-agent-resize={direction}
           {...frame.handle(direction)} />
