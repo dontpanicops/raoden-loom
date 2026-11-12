@@ -163,7 +163,7 @@ test("the glossary: every listed term has one sentence in en and ru and is expla
   assert.match(html, new RegExp(`title="${t("ru", "orchResumeHint")}"`));
   assert.match(t("ru", "orchStepHint"), /один ход и снова встать на паузу/);
   assert.match(t("ru", "orchResumeHint"), /до завершения или следующей паузы/);
-  assert.doesNotMatch(panel(view("paused", "lead_modified_tree")), /<abbr class="orch-term"[^>]*>Лид<\/abbr>/, "D-018: no glossary underline in the zone");
+  assert.doesNotMatch(panel(view("paused", "lead_modified_tree")), /class="orch-term"[^>]*>Лид</, "D-018: no glossary underline in the zone");
 });
 
 test("the link chip never covers a card: between the cards when it fits, else under (or above) them", () => {
