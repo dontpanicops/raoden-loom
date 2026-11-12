@@ -216,7 +216,7 @@ const fixtureOf0 = ([, set, o]) => {
 
 const combos = BEFORE ? [{ name: "before", patch: { palette: "sand", canvasColor: "theme" } }]
   : ["sand", "bay"].map((t) => ({ name: t, patch: { palette: t, canvasColor: "theme" } }));
-const laptop = (app) => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: Number(arg("height") ?? 900), deviceScaleFactor: 1, mobile: false });
+const laptop = (app) => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: Number(arg("height") ?? 900), deviceScaleFactor: 2, mobile: false });
 let app;
 try {
   app = await launch({ userData: D("user-data"), providers, port: PORT, shots: OUT });
