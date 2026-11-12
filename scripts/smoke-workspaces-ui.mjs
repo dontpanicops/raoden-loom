@@ -294,7 +294,7 @@ try {
   await app.key("Escape", "Escape", 27);
   await app.waitFor(`!${q(".orch-panel")}`, "panel closed");
   await moveMenu(`[data-canvas-layer-id="terminal:${termA.id}"]`, ".terminal-card__header");
-  await app.ev(`(() => { const s = ${q("[data-ws-move-target]")}; const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set; set.call(s, ${JSON.stringify(B)}); s.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+  await app.clickEl(q(`[data-ws-move-target="${B}"]`));
   await app.clickEl(q("[data-ws-move-submit]"));
   await app.waitFor(`!${q("[data-ws-move]")} && !${q(`[data-canvas-layer-id="terminal:${termA.id}"]`)}`, "terminal left A");
   await switchTo(B);
@@ -317,7 +317,7 @@ try {
   await sleep(500);
   await moveMenu(`[data-agent-id="${leadB.agentId}"]`, ".agent-card__header");
   await app.waitFor(`!${q("[data-ws-move-submit]")}.disabled`, "move allowed after the stop");
-  await app.ev(`(() => { const s = ${q("[data-ws-move-target]")}; const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set; set.call(s, ${JSON.stringify(A)}); s.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+  await app.clickEl(q(`[data-ws-move-target="${A}"]`));
   await app.clickEl(q("[data-ws-move-submit]"));
   await app.waitFor(`!${q("[data-ws-move]")} && !${q(`[data-agent-id="${leadB.agentId}"]`)} && !${q(`[data-agent-id="${execB.agentId}"]`)}`, "the whole group left B");
   const moved = await api("o.canvas()");

@@ -1335,7 +1335,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
 
       <OrchestrationOverlays taskOfRun={board.taskOfRun} orch={orch} ui={agentUi} locale={settings.locale} defaultProject={settings.lastDirectory} folderBusy={folderBusy} onNoteFromText={noteFromText} />
       <NotifyBanner locale={settings.locale} notes={notes.banner} onOpen={notes.openNote} onDismiss={notes.dismiss} />
-      <WorkspaceDialogs dialog={wsDialog} controls={workspace} orch={orch} layout={workspaceLayout} locale={settings.locale}
+      <WorkspaceDialogs dialog={wsDialog} controls={workspace} counts={counts} orch={orch} layout={workspaceLayout} locale={settings.locale}
         onClose={() => setWsDialog(null)} onOpenRun={(runId) => openRunInWorkspace(runId)} />
       <BrowserElsewhereDialog controls={workspace} locale={settings.locale} />
 
