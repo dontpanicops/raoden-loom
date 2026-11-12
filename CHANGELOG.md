@@ -11,8 +11,8 @@ A redesigned interface with four themes, a calmer run panel and a clearer canvas
 - New look: the «Sand» and «Bay» dark themes and the light «Paper» and «Frost»; Settings can also follow the system theme. The app has a new icon and mark, and every colour, card, menu, dialog and toast was redone on one set of tokens.
 - Cards on the canvas share one header with a status glyph, colour and label; a card that waits for you gets a ring, and the HOME tiles are denser and clearer.
 - Links between cards are smooth curves with an arrow: drag a link to bend it, reset it, and watch a marching dash while it waits. Dragging a link shows a preview and offers where it can land.
-- The radial menu was redrawn, and resizing a card shows a size badge.
-- The agent launch panel opens as a popover at the dock button, in tabs; if the CLI is not found, a card says so and what to do.
+- The radial menu lays its items out on a ring that grows with their number, and resizing a card shows handles and a size badge.
+- The agent launch panel opens as a popover at the HOME dock button; if the CLI is not found, a card says so and what to do.
 - The run panel has three tabs and a pinned action zone: what is needed from you, the reason in one line and one main button. The summary is compact fact blocks, forms are flat with one primary action, and errors name the button to press.
 - Workspaces: a top banner tells when runs wait for you and «Show» opens the first of them; a card can be moved to another workspace from a list; hidden workspaces show a chip.
 - The board: the autopilot strip and compact task cards, a quiet row for the board's result, a «waits for you» chip, and a goal dialog where requirements and check commands are rows with a remove button.
