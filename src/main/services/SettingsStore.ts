@@ -1,3 +1,4 @@
+import { isTooBroadDownloadFolder } from "../../shared/downloadFolder.ts";
 import { homedir } from "node:os";
 import { LEGACY_PALETTE_TO_PALETTE, PALETTE_IDS } from "../../shared/appearance.ts";
 import { dirname, isAbsolute, join } from "node:path";
@@ -530,7 +531,7 @@ export function normalizeSettings(
       ? source.commandPaletteShortcut as string | null
       : fallback.commandPaletteShortcut ?? null,
     browserDownloadDir: source.browserDownloadDir === null
-      || (typeof source.browserDownloadDir === "string" && isAbsolute(source.browserDownloadDir) && source.browserDownloadDir.length <= 4096)
+      || (typeof source.browserDownloadDir === "string" && isAbsolute(source.browserDownloadDir) && source.browserDownloadDir.length <= 4096 && !isTooBroadDownloadFolder(source.browserDownloadDir, homedir()))
       ? source.browserDownloadDir as string | null
       : fallback.browserDownloadDir ?? null,
     checkUpdates: typeof source.checkUpdates === "boolean" ? source.checkUpdates : fallback.checkUpdates ?? false

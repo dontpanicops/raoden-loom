@@ -65,6 +65,7 @@ import {
   setHomeLimitProviderEnabled,
   setHomeLauncherProviderEnabled
 } from "../../lib/providers";
+import { isTooBroadDownloadFolder } from "../../../../shared/downloadFolder";
 import { UpdateStatusLine } from "./UpdateStatus";
 import { shortcutFromKeyboardEvent, shortcutFromPointerEvent } from "../../lib/shortcuts";
 import { t, type TranslationKey } from "../../lib/i18n";
@@ -238,6 +239,7 @@ export function SettingsPanel({
     }
   };
 
+  const [downloadFolderError, setDownloadFolderError] = useState(false);
   const saveShortcut = async (action: ShortcutAction, shortcut: string): Promise<void> => {
     const chords: [string, string][] = [...Object.entries(settings.shortcuts), ...(settings.commandPaletteShortcut ? [["commandPalette", settings.commandPaletteShortcut] as [string, string]] : [])];
     const conflict = chords.find(
@@ -841,9 +843,10 @@ export function SettingsPanel({
                   {settings.browserDownloadDir !== null && (
                     <button type="button" className="set-btn set-btn--quiet" onClick={() => void onChange({ browserDownloadDir: null })}>{t(locale, "browserDownloadsReset")}</button>
                   )}
-                  <button type="button" className="set-btn" data-browser-download-change onClick={() => void window.canvasTTY.dialog.pickDirectory(settings.browserDownloadDir ?? undefined).then((picked) => { if (picked) void onChange({ browserDownloadDir: picked }); })}>{t(locale, "browserDownloadsChange")}</button>
+                  <button type="button" className="set-btn" data-browser-download-change onClick={() => void window.canvasTTY.dialog.pickDirectory(settings.browserDownloadDir ?? undefined).then((picked) => { if (!picked) return; if (isTooBroadDownloadFolder(picked)) { setDownloadFolderError(true); return; } setDownloadFolderError(false); void onChange({ browserDownloadDir: picked }); })}>{t(locale, "browserDownloadsChange")}</button>
                 </div>
               </section>
+              {downloadFolderError && <p className="update-status update-status--failed" role="alert" data-download-folder-error>{t(locale, "browserDownloadsTooBroad")}</p>}
               <SettingGroup layout="stacked" label={t(locale, "browserDownloadsRecent")}>
                 <BrowserDownloadList downloads={browser.downloads} locale={locale} />
               </SettingGroup>
