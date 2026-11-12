@@ -93,6 +93,7 @@ const failed = [];
 let app;
 let theme = "sand";
 const laptop = () => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+const SCROLL_DIALOG = `(() => { for (const el of document.querySelectorAll(".orch-dialog *")) if (el.scrollHeight > el.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) el.scrollTop = el.scrollHeight; })()`;
 const wanted = (name) => !ONLY || ONLY.split(",").some((x) => name.includes(x)); // --only a,b: several scenes
 const shot = async (name) => {
   await sleep(500);
@@ -552,10 +553,15 @@ try {
       await app.fillRows(q("[data-orch-commands]"), ("node --test\nnpm run lint").split("\n"));
       await sleep(2500);
       await shot("goal-dialog");
+      await app.ev(SCROLL_DIALOG); await sleep(400);
+      await shot("goal-scrolled");
+      await app.ev(`(() => { for (const el of document.querySelectorAll(".orch-dialog *")) el.scrollTop = 0; })()`); await sleep(200);
       const ps = await app.ev(`(() => { const b = [...document.querySelectorAll(".orch-dialog button")].find((e) => /Настройки проекта/.test(e.textContent)); if (!b) return false; b.scrollIntoView(); b.click(); return true; })()`);
       if (!ps) { await esc(); throw new Error("no project settings button in the goal dialog"); }
       await sleep(1500);
       await shot("project-settings");
+      await app.ev(SCROLL_DIALOG); await sleep(400);
+      await shot("project-settings-scrolled");
       await esc(); await sleep(300); await esc();
     });
 
@@ -799,7 +805,8 @@ try {
       await app.key("Home", "Home", 36); await sleep(500);
       if (!(await app.ev(`!!${q("[data-board]")}`))) await app.clickEl(q("[data-board-button]"));
       await app.waitFor(`${q("[data-board]")} && true`, "the board");
-      await app.clickEl(q("[data-board-new]")); await app.waitFor(`${q("[data-board-form]")} && true`, "the form");
+      await app.clickEl(q("[data-board-new]")); await app.waitFor(`${q("[data-board-form]")} && true`, "the form"); await sleep(500);
+      console.log("DBG", await app.ev(`(() => { const d = document.querySelector(".dialog-backdrop"); if (!d) return "none"; const r = d.getBoundingClientRect(); const c = getComputedStyle(d); return JSON.stringify({ r: [r.x, r.y, r.width, r.height], parent: d.parentElement.tagName, disp: c.display, op: c.opacity, vis: c.visibility, z: c.zIndex, bg: c.backgroundColor }); })()`));
       await shot("board-newtask");
       await esc();
       await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500);

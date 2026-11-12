@@ -18,7 +18,7 @@ test("R5e: a popover at the dock button, a dialog elsewhere; YOLO needs a tick t
     readFile(new URL("../src/renderer/src/styles/app.css", import.meta.url), "utf8")
   ]);
   assert.match(source, /anchor=\{anchor\}/);
-  assert.match(dialog, /if \(anchor\) return card;/); // no .dialog-backdrop around a popover
+  assert.match(dialog, /if \(anchor\) return createPortal\(card, host\);/); // no .dialog-backdrop around a popover
   assert.match(dialog, /className=\{`dialog-backdrop /); // the class every smoke relies on stays
   assert.match(dialog, /key === "Escape"/);
   assert.match(source, /disabled=\{busy \|\| \(yolo && !understood\)\}/);
