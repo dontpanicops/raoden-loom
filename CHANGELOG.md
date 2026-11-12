@@ -4,6 +4,24 @@
 
 ## Unreleased
 
+## 1.6.0 — 2026-11-12
+
+A redesigned interface with four themes, a calmer run panel and a clearer canvas; the board can split a task into subtasks and take tasks from an outside project all the way to a merge request.
+
+- New look: the «Sand» and «Bay» dark themes and the light «Paper» and «Frost»; Settings can also follow the system theme. The app has a new icon and mark, and every colour, card, menu, dialog and toast was redone on one set of tokens.
+- Cards on the canvas share one header with a status glyph, colour and label; a card that waits for you gets a ring, and the HOME tiles are denser and clearer.
+- Links between cards are smooth curves with an arrow: drag a link to bend it, reset it, and watch a marching dash while it waits. Dragging a link shows a preview and offers where it can land.
+- The radial menu was redrawn, and resizing a card shows a size badge.
+- The agent launch panel opens as a popover at the dock button, in tabs; if the CLI is not found, a card says so and what to do.
+- The run panel has three tabs and a pinned action zone: what is needed from you, the reason in one line and one main button. The summary is compact fact blocks, forms are flat with one primary action, and errors name the button to press.
+- Workspaces: a top banner tells when runs wait for you and «Show» opens the first of them; a card can be moved to another workspace from a list; hidden workspaces show a chip.
+- The board: the autopilot strip and compact task cards, a quiet row for the board's result, a «waits for you» chip, and a goal dialog where requirements and check commands are rows with a remove button.
+- A task can be split into subtasks: «Split into subtasks» in the form, or the autopilot does it before an ordinary start within its budget, minutes and provider limits. A split task shows its reasons and actions: split again, do it whole, open the split.
+- Tasks from an outside project: «Import tasks» reads a `board-tasks/v1` file (or the inbox folder, with your «Import»). External tasks are marked done by you, and a role's model can be set per task.
+- The autopilot can start from a fresh remote branch, name the task branch by the project's template, set the commit title per task, and push the run's branch with the project's options after you confirm it in settings. Protected branches are refused.
+- The review of a run is exported as `board-review/v1`, and runs can go without MCP servers.
+- Settings are rearranged: switches for on/off options, a table of agent CLIs, shorter texts, and access rights in one line.
+- Plain-words explanations of jargon on the spot (#105) and larger small text on canvas cards.
 - The repository is renamed to `github.com/dontpanicops/raoden-loom` (after the product); the old address redirects. The links in the package, the README and the docs, and the release publishing point there. Technical identifiers (`canvastty`, appId, the data folder) stay.
 
 ## 1.5.20 — 2026-10-19
