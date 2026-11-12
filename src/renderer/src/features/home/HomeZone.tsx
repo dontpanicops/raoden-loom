@@ -20,6 +20,7 @@ import {
   HOME_GRID_MAX_ROWS
 } from "../../../../shared/contracts.ts";
 import { ProviderIcon } from "../../components/ProviderIcon";
+import { Term } from "../../components/Term";
 import { UiIcon } from "../../components/UiIcon";
 import { t, type TranslationKey } from "../../lib/i18n";
 import {
@@ -172,8 +173,16 @@ function SessionFailureDetails({ sessionId, title, exitCode, details, locale }: 
       Math.min(FAILURE_TOOLTIP_MAX_DETAILS_HEIGHT, availableHeight - FAILURE_TOOLTIP_CHROME_HEIGHT)
     );
 
-    tooltip.style.left = `${left}px`;
     tooltip.style.setProperty("--failure-tooltip-details-max-height", `${detailsHeight}px`);
+    // mock 05: beside the sessions tile, its head level with the failed row, never over the HOME tiles; no room on the right — under the row as before
+    const tile = trigger.closest(".home-widget-slot")?.getBoundingClientRect();
+    if (tile && tile.right + FAILURE_TOOLTIP_GAP * 3 + width + FAILURE_TOOLTIP_MARGIN <= window.innerWidth) {
+      tooltip.style.left = `${tile.right + FAILURE_TOOLTIP_GAP * 3}px`;
+      tooltip.style.top = `${Math.max(FAILURE_TOOLTIP_MARGIN, Math.min(bounds.top - 8, window.innerHeight - FAILURE_TOOLTIP_MARGIN - tooltip.offsetHeight))}px`;
+      tooltip.style.bottom = "auto";
+      return;
+    }
+    tooltip.style.left = `${left}px`;
     if (placeBelow) {
       tooltip.style.top = `${bounds.bottom + FAILURE_TOOLTIP_GAP}px`;
       tooltip.style.bottom = "auto";
@@ -249,7 +258,7 @@ function SessionFailureDetails({ sessionId, title, exitCode, details, locale }: 
       >
         <div className="usage-row__failure-head">
           <span className="usage-row__failure-title">
-            <UiIcon name="error" size={14} />
+            <UiIcon name="status-failed" size={14} />
             <span className="usage-row__failure-name">{title.replace(/^.+ · /, "")}</span>{" "}
             {exitCode !== null && <span className="usage-row__failure-code">{t(locale, "failureHeadline").replace("{name} ", "").replace("{code}", String(exitCode))}</span>}
           </span>
@@ -264,10 +273,21 @@ function SessionFailureDetails({ sessionId, title, exitCode, details, locale }: 
           </button>
         </div>
         <span className="usage-row__failure-details">{tail}</span>
-        <p className="usage-row__failure-note">{t(locale, "failureNote")}</p>
+        <p className="usage-row__failure-note">{t(locale, "failureNote").split("PTY").flatMap((part, i) => i ? [<Term key={i} locale={locale} id="pty">PTY</Term>, part] : [part])}</p>
       </div>
     </>
   );
+}
+
+// a HOME tile's name (the editor's handles and the draft's note); the media tile is «Медиа» as in mock 18
+export function homeWidgetTitle(locale: LocaleId, widgetId: string, plugins: readonly InstalledPlugin[]): string {
+  const core: Record<string, TranslationKey> = {
+    "core.limits": "modelLimits", "core.sessions": "activeSessions", "core.clock": "clock",
+    "core.media": "homeColorMedia", "core.launcher": "launcher", "core.settings": "settings"
+  };
+  if (core[widgetId]) return t(locale, core[widgetId]);
+  const match = widgetId.match(/^plugin:([^:]+):([^:]+)$/);
+  return plugins.find((plugin) => plugin.manifest.id === match?.[1])?.manifest.name ?? widgetId;
 }
 
 export function HomeZone({
@@ -701,15 +721,7 @@ export function HomeZone({
   };
 
   // the editor names tiles for people, never by their technical id
-  const widgetTitle = (widgetId: string): string => {
-    const core: Record<string, TranslationKey> = {
-      "core.limits": "modelLimits", "core.sessions": "activeSessions", "core.clock": "clock",
-      "core.media": "personalMedia", "core.launcher": "launcher", "core.settings": "settings"
-    };
-    if (core[widgetId]) return t(locale, core[widgetId]);
-    const match = widgetId.match(/^plugin:([^:]+):([^:]+)$/);
-    return plugins.find((plugin) => plugin.manifest.id === match?.[1])?.manifest.name ?? widgetId;
-  };
+  const widgetTitle = (widgetId: string): string => homeWidgetTitle(locale, widgetId, plugins);
 
   const homePixels = homeGridPixelSize(draftGridSize);
   // the panel under the tiles (mock 03/05) hugs the tiles as drawn (a dock that wraps grows, a short tile is shorter than its slot), not the grid
@@ -793,7 +805,9 @@ export function HomeZone({
                   onPointerMove={moveLayoutPointer}
                   onPointerUp={endLayoutPointer}
                   onPointerCancel={endLayoutPointer}
-                >{widgetTitle(placement.widgetId)}</button>
+                  aria-label={widgetTitle(placement.widgetId)}
+                  title={widgetTitle(placement.widgetId)}
+                />
                 {HOME_RESIZE_DIRECTIONS.map((direction) => (
                   <button
                     className={`home-widget-slot__resize home-widget-slot__resize--${direction}`}

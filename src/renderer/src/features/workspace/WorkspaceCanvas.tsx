@@ -21,12 +21,12 @@ import type {
 } from "../../../../shared/contracts";
 import { HOME_GRID_GAP } from "../../../../shared/contracts";
 import { UiIcon } from "../../components/UiIcon";
-import { t } from "../../lib/i18n";
+import { pluralForm, t } from "../../lib/i18n";
 import { displayCanvasNavigationBinding, matchesPhysicalOrLayoutKey, matchesShortcut } from "../../lib/shortcuts";
 import { BrowserCard } from "../browser/BrowserCard";
 import type { LimitsLoadState } from "../home/homeModel";
-import { HOME_GRID_COLUMN_STEP, HOME_GRID_ROW_STEP, homeGridPixelSize, homeLayoutFitsGrid } from "../home/homeLayout";
-import { HomeZone } from "../home/HomeZone";
+import { HOME_GRID_COLUMN_STEP, HOME_GRID_ROW_STEP, homeGridPixelSize, homeLayoutFitsGrid, isInsideHome } from "../home/homeLayout";
+import { HomeZone, homeWidgetTitle } from "../home/HomeZone";
 import { RadialLauncher } from "../launcher/QuickRadialMenu";
 import { StickyNoteCard } from "../notes/StickyNoteCard";
 import { stickyNoteAtPoint } from "../notes/stickyNoteBounds";
@@ -685,6 +685,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
   const routeWidgetWheelToCanvas = wheelNavigation.routeWidgetWheelToCanvas;
   const canvasOverrideActive = wheelNavigation.canvasOverrideActive;
   const homeLayoutValid = homeLayoutFitsGrid(settings.homeLayout, settings.homeGridSize);
+  const homeOutside = settings.homeLayout.filter((p) => !isInsideHome(p, settings.homeGridSize));
   const editedRegion = regionEditor?.mode === "edit"
     ? settings.canvasRegions.find((region) => region.id === regionEditor.regionId) ?? null
     : null;
@@ -893,7 +894,11 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           return;
         }
         const element = event.target as HTMLElement;
-        const regionId = element.closest<HTMLElement>("[data-canvas-region-id]")?.dataset.canvasRegionId;
+        // HOME's box is larger than its tiles and lies over the regions: its bare background lets a region under it take the click
+        const regionId = (element.closest<HTMLElement>("[data-canvas-region-id]")
+          ?? (element.classList.contains("home-zone") && !homeEditing
+            ? document.elementsFromPoint(event.clientX, event.clientY).map((e) => e.closest<HTMLElement>("[data-canvas-region-id]")).find(Boolean)
+            : null))?.dataset.canvasRegionId;
         const noteId = element.closest<HTMLElement>("[data-sticky-note-id]")?.dataset.stickyNoteId;
         // A card's header offers "Move to workspace…"; its body and fields keep their own menu.
         const cardLayerId = !element.closest("textarea, input, [contenteditable='true'], button:not(.orch-term)")
@@ -1207,8 +1212,12 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
 
       {homeEditing && (
         <div className="home-editor-toolbar" data-interactive="true">
-          <strong>{t(settings.locale, "homeEditor")}</strong>
-          {!homeLayoutValid && <span className="home-editor-toolbar__note">{t(settings.locale, "homeLayoutOutside")}</span>}
+          {/* mock 18: «Черновик · плитка «Медиа» выходит за границу» — the draft names the tiles that keep «Сохранить» off */}
+          <span className="home-editor-toolbar__note" role="status">
+            <strong>{t(settings.locale, "homeDraft")}</strong>
+            {homeOutside.length > 0 && ` · ${t(settings.locale, `homeTileOutside_${pluralForm(settings.locale, homeOutside.length)}`)
+              .replace("{names}", homeOutside.map((p) => `«${homeWidgetTitle(settings.locale, p.widgetId, plugins)}»`).join(", "))}`}
+          </span>
           <button type="button" className="home-editor-toolbar__reset" onClick={onResetHomeLayout}>{t(settings.locale, "resetHome")}</button>
           <button type="button" className="home-editor-toolbar__cancel" onClick={onCancelHomeEdit}>{t(settings.locale, "homeEditCancel")}</button>
           <button className="home-editor-toolbar__done" type="button" disabled={!homeLayoutValid}

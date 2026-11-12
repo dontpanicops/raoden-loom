@@ -111,6 +111,7 @@ export function CanvasContextMenu({
     <div
       ref={menu}
       className="canvas-menu"
+      data-menu-kind={kind}
       data-interactive="true"
       role="menu"
       aria-label={t(locale, "canvasContextMenu")}

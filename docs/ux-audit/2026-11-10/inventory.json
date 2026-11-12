@@ -297,10 +297,10 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 344, "y": 608, "w": 220, "h": 150 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-note.png" },
-   "appCrop": { "x": 615, "y": 390, "w": 220, "h": 180 },
+   "appCrop": { "x": 600, "y": 380, "w": 220, "h": 150 },
    "scale": "67% (D-016)",
    "data": "заметка «Перед релизом…»",
-   "notes": ""
+   "notes": "R12r: заметка в сцене приводится в точку 600,380 (размер макета 220×150 на 67%)"
   },
   {
    "id": "03-toast",
@@ -452,7 +452,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 895, "y": 198, "w": 384, "h": 214 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-failed-popover.png" },
-   "appCrop": { "x": 560, "y": 300, "w": 400, "h": 290 },
+   "appCrop": { "x": 925, "y": 272, "w": 395, "h": 248 },
    "scale": "67% (D-016)",
    "data": "поповер упавшей сессии: хвост вывода и «Скопировать»",
    "notes": "вырезка ниже первых строк поповера: там приглашение оболочки с именем пользователя (сцену надо поправить)"
@@ -476,10 +476,10 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 508, "y": 70, "w": 424, "h": 420 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-canvas-region-menu.png" },
-   "appCrop": { "x": 1000, "y": 340, "w": 424, "h": 420 },
+   "appCrop": { "x": 500, "y": 200, "w": 424, "h": 420 },
    "scale": "100%",
    "data": "меню региона: переименовать, цвет, заметка, удалить",
-   "notes": ""
+   "notes": "R12r: угол региона приводится в точку 520,225, правый щелчок в точку самого региона из DOM"
   },
   {
    "id": "18-note-snapshot",
@@ -488,7 +488,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 960, "y": 70, "w": 424, "h": 420 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-note-snapshot.png" },
-   "appCrop": { "x": 390, "y": 240, "w": 660, "h": 400 },
+   "appCrop": { "x": 510, "y": 260, "w": 424, "h": 420 },
    "scale": "100%",
    "data": "заметка-снимок итога запуска",
    "notes": ""
@@ -512,10 +512,10 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 508, "y": 590, "w": 424, "h": 420 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-edit.png" },
-   "appCrop": { "x": 170, "y": 95, "w": 1100, "h": 790 },
-   "scale": "67% (D-016)",
+   "appCrop": { "x": 380, "y": 250, "w": 860, "h": 640 },
+   "scale": "100%",
    "data": "редактор HOME: черновик с плиткой «Медиа» за границей, в панели причина, «Сохранить» недоступно",
-   "notes": ""
+   "notes": "R12r: кадр на 100% (ячейка 82×72 как в макете), «Медиа» на треть за правой границей, плашка черновика внизу"
   },
   {
    "id": "18-card-resize",
@@ -776,7 +776,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 70, "w": 424, "h": 340 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-link-repeat.png" },
-   "appCrop": { "x": 430, "y": 345, "w": 424, "h": 340 },
+   "appCrop": { "x": 460, "y": 320, "w": 520, "h": 416 },
    "scale": "67%",
    "data": "повторная пара: отказ на карточке лида",
    "notes": ""
@@ -788,8 +788,8 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 508, "y": 70, "w": 424, "h": 340 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-agents-working.png" },
-   "appCrop": { "x": 480, "y": 340, "w": 500, "h": 220 },
-   "scale": "100%",
+   "appCrop": { "x": 460, "y": 320, "w": 520, "h": 416 },
+   "scale": "67%",
    "data": "лид и исполнитель на одной высоте, прямая связь, чип «Работает · этап 1»",
    "notes": ""
   },
@@ -800,10 +800,10 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 960, "y": 70, "w": 424, "h": 340 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-link-executor-left.png" },
-   "appCrop": { "x": 300, "y": 220, "w": 848, "h": 680 },
+   "appCrop": { "x": 300, "y": 180, "w": 848, "h": 680 },
    "scale": "100%",
    "data": "исполнитель левее лида при 100%: связь обходит карточки; состояние связи без запуска («Новая цель»), в макете «Нужно разрешение» — нужен живой запрос разрешения",
-   "notes": ""
+   "notes": "R12r: пара доски с запуском (как cards-agents-working), исполнитель левее и ниже лида, 100%"
   },
   {
    "id": "19-zoom",

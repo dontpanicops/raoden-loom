@@ -115,6 +115,8 @@ try {
   expect(zoom < 1, "the canvas is zoomed out during the gestures", zoom);
 
   // keyboard: the port toggles linking; Escape cancels; Enter on "Link here" of the other project's card is refused
+  // the pointer leaves the header it dragged: resting on the role word it opens that word's tooltip, which takes the first Escape (Term)
+  { const spot = await app.freeRect(120, 120); await app.mouse("mouseMoved", spot.x + 60, spot.y + 60); await sleep(200); }
   await app.ev(`${card(lead.agentId, ".agent-card__port")}.focus({ preventScroll: true })`);
   await app.key("Enter", "Enter", 13, "\r");
   expect(await app.ev(`!!${q(".orch-linking-hint")} && document.querySelectorAll(".agent-card__connect").length === 2`), "Enter on the port starts linking; executors offer Link here", null);

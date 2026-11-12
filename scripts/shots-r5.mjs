@@ -105,7 +105,7 @@ const clipShot = async (clip) => {
   try { return await app.call("Page.captureScreenshot", { format: "png", clip }); } finally { await hints(""); }
 };
 const SCROLL_DIALOG = `(() => { for (const el of document.querySelectorAll(".orch-dialog *")) if (el.scrollHeight > el.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) el.scrollTop = el.scrollHeight; })()`;
-const wanted = (name) => !ONLY || ONLY.split(",").some((x) => name.includes(x) || (x === "overlay" && name === "radial")) || (name === "board" && ONLY.split(",").some((x) => "cards-agents-working".includes(x) || x.includes("agents-working"))); // R12n: the working agents need the board's run, so «--only cards» takes the board along // R12l: its frame is «overlay-radial», the scene is named «radial» // --only a,b: several scenes
+const wanted = (name) => !ONLY || ONLY.split(",").some((x) => name.includes(x) || (x === "overlay" && name === "radial")) || (name === "board" && ONLY.split(",").some((x) => "cards-agents-working".includes(x) || x.includes("agents-working") || x.includes("link-executor-left") || x.includes("zoom-out"))); // R12n: the working agents need the board's run, so «--only cards» takes the board along // R12l: its frame is «overlay-radial», the scene is named «radial» // --only a,b: several scenes
 const shot = async (name) => {
   await sleep(500);
   await measure(name);
@@ -310,7 +310,7 @@ try {
   const cam = await app.ev(`(() => { const m = document.querySelector(".workspace__scene").style.transform.match(/translate\\(([-\\d.]+)px, ([-\\d.]+)px\\) scale\\(([\\d.]+)\\)/); return { x: +m[1], y: +m[2], z: +m[3] }; })()`);
   const B = (sx, sy, sw, sh) => ({ position: { x: Math.round((sx - cam.x) / cam.z), y: Math.round((sy - cam.y) / cam.z) }, size: { width: Math.round(sw / cam.z), height: Math.round(sh / cam.z) } });
   await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({
-    stickyNotes: [{ id: "r5-note", text: "Перед релизом: прогнать e2e оркестрации и обновить UI_CONTRACT.", ...B(80, 470, 240, 110) }],
+    stickyNotes: [{ id: "r5-note", text: "Перед релизом: прогнать e2e оркестрации и обновить UI_CONTRACT.", ...B(80, 455, 220, 150) }],
     browserCanvas: { ...B(1000, 300, 420, 200), workspaceId: "common" },
     persistCanvasRegions: true, canvasRegions: [{ id: "r6-region", title: "Оркестрация · project-b", color: "#B8CF99", workspaceId: "common", ...B(870, 545, 560, 335) }] })}).then(() => true)`);
   await app.call("Page.reload", {}); await sleep(2500); await laptop();
@@ -419,6 +419,14 @@ try {
     });
     await scene("note", async () => {
       await app.reveal(`document.querySelector("[data-sticky-note-id]")`); await sleep(500);
+      // R12r (gate S9, mock 03): the note is brought to one spot of the window (its corner at 600,380), where the inventory's crop is; the line of its
+      // first sentence against the card's width is logged (mock 03: .84)
+      const nb = await app.ev(`(() => { const b = document.querySelector("[data-sticky-note-id]").getBoundingClientRect(); return { x: b.left, y: b.top }; })()`);
+      await app.panBy({ x: Math.round(600 - nb.x), y: Math.round(380 - nb.y) }).catch(() => {}); await sleep(600);
+      const nm = await app.ev(`(() => { const card = document.querySelector("[data-sticky-note-id]"), ed = card.querySelector(".sticky-note-card__editor"); const cs = getComputedStyle(ed);
+        const c = document.createElement("canvas").getContext("2d"); c.font = cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily; const r = card.getBoundingClientRect();
+        return { line: +(c.measureText("Перед релизом: прогнать e2e").width / card.offsetWidth).toFixed(3), font: cs.fontSize, card: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)] }; })()`);
+      console.log(`[shots-r5] ${theme} note line/card ${nm.line} font ${nm.font} rect ${nm.card.join(" ")}`);
       await shot("cards-note");
     });
 
@@ -478,10 +486,19 @@ try {
     await scene("overlay-region-menu", async () => {
       await app.key("Home", "Home", 36); await sleep(900);
       await app.waitFor(`${q("[data-canvas-region-id]")} && true`, "the region", 10_000);
-      // the HOME zone lies over the left part of the region (its title): the right-click is made on the region's free edge at the right, beyond HOME
-      const reg = await app.ev(`(() => { const b = document.querySelector("[data-canvas-region-id]").getBoundingClientRect(); return { x: b.left + 60, y: b.top + 10 }; })()`);
+      // R12r (gate S9): the region is brought to one spot of the window (its corner at 520,225, as in the crop of mock 18) and the right-click lands
+      // on a point of the region itself, found from the DOM (no card, no HOME over it) — wherever the region lies on the canvas
+      const REG = `document.querySelector("[data-canvas-region-id]")`;
+      const b0 = await app.ev(`(() => { const b = ${REG}.getBoundingClientRect(); return { x: b.left, y: b.top }; })()`);
+      await app.panBy({ x: Math.round(520 - b0.x), y: Math.round(225 - b0.y) }).catch(() => {}); await sleep(600);
+      const reg = await app.ev(`(() => { const el = ${REG}; const b = el.getBoundingClientRect();
+        for (const dy of [36, 60, 90, 20, 130, 180]) for (const dx of [130, 160, 200, 100, 240, 60, 300]) {
+          const x = b.left + dx, y = b.top + dy; if (x < 0 || y < 50 || x >= innerWidth || y >= innerHeight) continue;
+          const h = document.elementsFromPoint(x, y).find((e) => !e.classList.contains("home-zone")); if (h && el.contains(h)) return { x, y }; }
+        const h = document.elementFromPoint(b.left + 130, b.top + 36); return { miss: [b.left, b.top, b.width, b.height].map(Math.round).join(","), hit: h ? h.tagName + "." + String(h.className).slice(0, 80) : null, regions: document.querySelectorAll("[data-canvas-region-id]").length }; })()`);
+      if (!reg || reg.miss) throw new Error("no free point of the region " + JSON.stringify(reg));
       await app.click(reg.x, reg.y, "right");
-      await app.waitFor(`${q(".canvas-menu")} && true`, "the region's menu", 10_000); await sleep(400);
+      await app.waitFor(`${q('.canvas-menu[data-menu-kind="region"]')} && true`, "the region's menu", 10_000); await sleep(400);
       await shot("canvas-region-menu"); await esc();
     });
     // R12j (gate S7, mock 03): the one toast of the canvas, «Терминал создан»
@@ -901,7 +918,7 @@ try {
       // the snapshot of a run's document (mock 18): a note with its source; the run is the one on project-b
       const cur = await app.ev(`window.canvasTTY.settings.get()`);
       if (!cur.stickyNotes.some((n) => n.id === "r6-snap")) {
-        await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ stickyNotes: [...cur.stickyNotes, { id: "r6-snap", text: `Итог запуска ${runB.slice(0, 8)}\n\nЭтапов 2 из 2 · проверки 3/3 · ревью принято · 2 коммита на feat/notes.`, workspaceId: "common", ...R(2, 1), source: { runId: runB, doc: "result", at: new Date().toISOString() } }] })}).then(() => true)`);
+        await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ stickyNotes: [...cur.stickyNotes, { id: "r6-snap", text: `Итог запуска ${runB.slice(0, 8)}\n\nЭтапов 2 из 2 · проверки 3/3 · ревью принято · 2 коммита на feat/notes.`, workspaceId: "common", ...R(2, 1), size: { width: 360, height: 300 }, source: { runId: runB, doc: "result", at: new Date().toISOString() } }] })}).then(() => true)`);
         await app.call("Page.reload", {}); await sleep(2500); await laptop();
         await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
       }
@@ -919,7 +936,14 @@ try {
       await app.clickEl(editBtn); await sleep(1200);
       // R12j (gate S7, mock 18): the draft with the «Media» tile dragged out beyond the border: the bar says why it cannot be saved
       const mv = await app.ev(`(() => { const s = [...document.querySelectorAll(".home-widget-slot")].find((e) => e.querySelector(".mini-media")); const r = s.querySelector(".home-widget-slot__move").getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
-      await app.drag(mv, { x: mv.x + 640, y: mv.y + 30 }, 24); await sleep(700);
+      // R12r (gate S8, mock 18 at 1:1): the tile goes up two rows and right ten columns, a third of it over the right border; the frame is at 100%
+      const hz = await app.ev(`(() => { const m = document.querySelector(".workspace__scene")?.style.transform.match(/scale\\(([\\d.]+)\\)/); return m ? Number(m[1]) : 1; })()`);
+      await app.drag(mv, { x: mv.x + 1000 * hz, y: mv.y - 180 * hz }, 24); await sleep(700);
+      const mediaSlot = `[...document.querySelectorAll(".home-widget-slot")].find((e) => e.querySelector(".mini-media"))`;
+      await zoom100(mediaSlot);
+      // the media tile's corner at 900,400: the sessions tile's edge at the left of the crop, the bar under it (inventory appCrop 380,250)
+      const mr = await app.ev(`(() => { const b = ${mediaSlot}.getBoundingClientRect(); return { x: b.left, y: b.top }; })()`);
+      await app.panBy({ x: Math.round(900 - mr.x), y: Math.round(400 - mr.y) }).catch(() => {}); await sleep(600);
       await shot("home-edit");
       await app.clickEl(q(".home-editor-toolbar__reset")); await sleep(500); // the draft is reset: the layout is the default again
       // the editor leaves with «Сохранить» (the layout is unchanged)
@@ -1058,13 +1082,18 @@ try {
       await app.key("Escape", "Escape", 27);
       if (await app.ev(`!!${q("[data-board-menu]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500); }
       await app.reveal(card(lead.agentId)); await pairView(lead.agentId, exec.agentId); await sleep(500);
+      // R12r (gate S7): the executor's role and path as drawn — whether the role is in the header's visible line, and its width
+      const roleSeen = (label) => app.ev(`(() => { const c = document.querySelector('[data-agent-id="${exec.agentId}"]'), id = c.querySelector(".agent-card__identity"), r = id.querySelector("small"), p = c.querySelector(".agent-card__project");
+        const ib = id.getBoundingClientRect(), rb = r.getBoundingClientRect(), pb = p?.getBoundingClientRect();
+        const cb = c.getBoundingClientRect(), cs = getComputedStyle(r); return "${label} role " + Math.round(rb.width) + "px (cut " + (r.scrollWidth > r.clientWidth) + ", " + cs.textOverflow + ", ends " + Math.round(cb.right - rb.right) + "px before the card edge) in-line " + (rb.top >= ib.top - 1 && rb.bottom <= ib.bottom + 1 && rb.width > 0) + " text " + JSON.stringify(r.textContent) + " path " + (pb && pb.height > 0 && getComputedStyle(p).display !== "none" ? Math.round(pb.width) + "px" : "gone"); })()`).then((s) => console.log(`[shots-r5] ${theme} ${s}`));
+      await roleSeen("67%");
       await shot("cards-agents-working");
       // R12f (mock 06 is 1:1): the pair at 100%, where the status is still in the body
       await zoom100(card(exec.agentId)); await shot("cards-agents-working-100"); await app.key("Home", "Home", 36); await sleep(500);
       await app.reveal(card(lead.agentId)); await pairView(lead.agentId, exec.agentId); await sleep(500);
       // R12f (mock 21): the pair at 45% (the status in the footer, the tail «· этап 1 из 2» gone) and at 30% (name and glyph)
       const out = (n) => app.clickEl(`document.querySelectorAll(".canvas-controls button, .zoom-controls button")[1]`).catch(() => {}).then(() => sleep(300));
-      await out(); await out(); await sleep(500); await shot("cards-agents-working-45");
+      await out(); await out(); await sleep(500); await roleSeen("45%"); await shot("cards-agents-working-45");
       await out(); await out(); await sleep(500); await shot("cards-agents-working-30");
       await app.key("Home", "Home", 36); await sleep(500);
       await app.reveal(card(lead.agentId)); await pairView(lead.agentId, exec.agentId); await sleep(500);
@@ -1073,6 +1102,38 @@ try {
         const x = Math.min(...r.map((b) => b.left)) - 12, y = Math.min(...r.map((b) => b.top)) - 12; return { x, y, width: Math.max(...r.map((b) => b.right)) - x + 12, height: Math.max(...r.map((b) => b.bottom)) - y + 12 }; })()`);
       const cd = await clipShot({ ...cr, scale: 3 });
       fs.writeFileSync(path.join(OUT, `${theme}-cards-agents-working-zoom.png`), Buffer.from(cd.data, "base64"));
+    });
+    // R12r (gate S2, mock 19): the executor left of its lead and the far zoom with a run on the link (the board's pair, as cards-agents-working);
+    // these frames replace the idle ones of the first pass. The executor is moved left and below its lead for the frame and back after it.
+    const pairCamera = async (zoomTo) => {
+      const st = await canvasState(app), bs = [lead.agentId, exec.agentId].map((id) => st.agents.find((a) => a.agentId === id).bounds);
+      const x0 = Math.min(...bs.map((b) => b.position.x)), x1 = Math.max(...bs.map((b) => b.position.x + b.size.width));
+      const y0 = Math.min(...bs.map((b) => b.position.y)), y1 = Math.max(...bs.map((b) => b.position.y + b.size.height));
+      const wsId = st.agents.find((a) => a.agentId === lead.agentId).workspaceId ?? (await app.ev(`window.canvasTTY.workspaces.get()`)).activeId; // the pair's own space
+      await app.ev(`window.canvasTTY.workspaces.setCamera(${JSON.stringify(wsId)}, ${JSON.stringify({ x: Math.round(720 - zoomTo * (x0 + x1) / 2), y: Math.round(480 - zoomTo * (y0 + y1) / 2), zoom: zoomTo })}).then(() => true)`);
+      await app.ev(`window.canvasTTY.workspaces.activate(${JSON.stringify(wsId)}).then(() => true)`);
+      await app.call("Page.reload", {}); await sleep(2500); await laptop();
+      await app.waitFor(`${q(".workspace")} && ${card(lead.agentId)} && ${card(exec.agentId)} && ${q(`[data-agent-link-id]`)} && true`, "the pair", 30_000); await sleep(900);
+    };
+    await scene("link-executor-left-run", async () => {
+      await app.key("Home", "Home", 36); await sleep(500);
+      if (await app.ev(`!!${q("[data-board-menu]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500); }
+      const st = await canvasState(app), lb = st.agents.find((a) => a.agentId === lead.agentId).bounds, eb = st.agents.find((a) => a.agentId === exec.agentId).bounds;
+      const left = { position: { x: lb.position.x - eb.size.width - 80, y: lb.position.y + lb.size.height + 120 }, size: eb.size };
+      await app.ev(`window.canvasTTY.orchestration.moveAgent(${JSON.stringify(exec.agentId)}, ${JSON.stringify(left)}).then(() => true)`);
+      try {
+        await pairCamera(1);
+        await shot("link-executor-left");
+      } finally {
+        await app.ev(`window.canvasTTY.orchestration.moveAgent(${JSON.stringify(exec.agentId)}, ${JSON.stringify(eb)}).then(() => true)`);
+        await app.call("Page.reload", {}); await sleep(2500); await laptop();
+        await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
+      }
+    });
+    await scene("zoom-out-run", async () => {
+      await pairCamera(0.28);
+      await shot("zoom-out");
+      await app.key("Home", "Home", 36); await sleep(600);
     });
     if (!world.boardStates) {
       world.boardStates = true;

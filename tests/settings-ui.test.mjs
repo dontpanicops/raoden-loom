@@ -200,7 +200,7 @@ test("the redesigned menus use shared tokens, em geometry, and the configured UI
   assert.match(menuPrimitives, /<span className="canvas-menu__icon">[\s\S]*<UiIcon name=\{icon\} size="1\.23em" \/>/);
   assert.match(contextMenu, /"ctxRegion"/); // R5e: mock 10 labels, no "here" hints
   assert.match(contextMenu, /"ctxConfigureList"/);
-  assert.match(contextMenu, /CANVAS_REGION_COLORS\.slice\(0, 5\)/);
+  assert.match(contextMenu, /CANVAS_REGION_MENU_COLORS/);
   assert.match(contextMenu, /canvas-menu__swatch--selected/);
   assert.match(contextMenu, /canvasMenuRegionContentsStay/);
   assert.match(commandPalette, /CanvasMenuLabel>\{t\(locale, "canvasMenuSessions"\)\}/);
