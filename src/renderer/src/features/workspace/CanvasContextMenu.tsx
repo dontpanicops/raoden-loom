@@ -23,7 +23,7 @@ import {
   type CanvasContextMenuKind,
   type CanvasSubmenuSide
 } from "./canvasContextRouting";
-import { CANVAS_REGION_COLORS } from "./canvasRegions";
+import { CANVAS_REGION_MENU_COLORS } from "./canvasRegions";
 
 interface CanvasContextMenuProps {
   kind: CanvasContextMenuKind;
@@ -217,7 +217,7 @@ export function CanvasContextMenu({
           </div>
           <div className="canvas-menu__swatches" role="group" aria-label={t(locale, "canvasRegionColor")}>
             {/* mock 18: five colors; the region's own color stays among them when it is one of the rest */}
-            {[...CANVAS_REGION_COLORS.slice(0, 5), ...(currentRegionColor && !CANVAS_REGION_COLORS.slice(0, 5).some((c) => c === currentRegionColor) ? [currentRegionColor] : [])].map((color) => (
+            {[...CANVAS_REGION_MENU_COLORS, ...(currentRegionColor && !CANVAS_REGION_MENU_COLORS.some((c) => c === currentRegionColor) ? [currentRegionColor] : [])].map((color) => (
               <button
                 className={`canvas-menu__swatch ${color === currentRegionColor ? "canvas-menu__swatch--selected" : ""}`}
                 type="button"
@@ -237,7 +237,7 @@ export function CanvasContextMenu({
             {t(locale, "wsMoveToWorkspace")}
           </CanvasMenuRow>
           <CanvasMenuDivider />
-          <CanvasMenuRow icon="trash" danger role="menuitem" onClick={onDeleteRegion}>
+          <CanvasMenuRow indent danger role="menuitem" onClick={onDeleteRegion}>
             {t(locale, "canvasMenuDeleteRegion")}
           </CanvasMenuRow>
           <div className="canvas-menu__note">{t(locale, "canvasMenuRegionContentsStay")}</div>

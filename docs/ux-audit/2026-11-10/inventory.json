@@ -261,7 +261,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 520, "y": 55, "w": 410, "h": 45 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-canvas.png" },
-   "appCrop": { "x": 455, "y": 55, "w": 530, "h": 48 },
+   "appCrop": { "x": 420, "y": 55, "w": 600, "h": 48 },
    "scale": "100%",
    "data": "вкладки «Общий холст», «Альфа», «Бета» со счётчиками, «Доска», «+»",
    "notes": ""
@@ -285,7 +285,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 680, "y": 465, "w": 520, "h": 415 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-canvas.png" },
-   "appCrop": { "x": 985, "y": 645, "w": 455, "h": 255 },
+   "appCrop": { "x": 860, "y": 520, "w": 580, "h": 380 },
    "scale": "67% (D-016)",
    "data": "регион «Оркестрация · project-b» с лидом и исполнителем",
    "notes": "в кадре регион обрезан краем окна"
@@ -356,7 +356,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 720, "y": 128, "w": 560, "h": 600 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-firstrun-wide.png" },
-   "appCrop": { "x": 1336, "y": 262, "w": 560, "h": 600 },
+   "appCrop": { "x": 1246, "y": 244, "w": 560, "h": 600 },
    "scale": "100% (окно 1920, карточка 560)",
    "data": "три шага, «Новый терминал», «Как установить», «Скрыть»",
    "notes": "найдено 0 из 9 — данные фикстуры"
@@ -368,7 +368,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 20, "y": 100, "w": 650, "h": 265 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-firstrun.png" },
-   "appCrop": { "x": 190, "y": 115, "w": 795, "h": 380 },
+   "appCrop": { "x": 170, "y": 98, "w": 770, "h": 290 },
    "scale": "67% (D-016)",
    "data": "HOME без сессий: лимиты, часы, сессии, док",
    "notes": ""
@@ -380,7 +380,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 25, "y": 400, "w": 300, "h": 140 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-firstrun.png" },
-   "appCrop": { "x": 190, "y": 548, "w": 336, "h": 164 },
+   "appCrop": { "x": 185, "y": 482, "w": 345, "h": 160 },
    "scale": "67% (D-016)",
    "data": "«Управление холстом»: четыре строки",
    "notes": ""
@@ -392,7 +392,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 60, "y": 95, "w": 820, "h": 375 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-mock.png" },
-   "appCrop": { "x": 75, "y": 105, "w": 800, "h": 385 },
+   "appCrop": { "x": 60, "y": 78, "w": 770, "h": 370 },
    "scale": "67% (D-016)",
    "data": "данные макета: лимиты, четыре сессии, док из шести, Settings",
    "notes": ""
@@ -404,7 +404,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 80, "y": 112, "w": 285, "h": 252 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-mock.png" },
-   "appCrop": { "x": 78, "y": 110, "w": 326, "h": 292 },
+   "appCrop": { "x": 72, "y": 104, "w": 276, "h": 244 },
    "scale": "67% (D-016)",
    "data": "плитка лимитов: Codex и Claude",
    "notes": ""
@@ -416,7 +416,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 378, "y": 112, "w": 186, "h": 252 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-mock.png" },
-   "appCrop": { "x": 410, "y": 110, "w": 194, "h": 292 },
+   "appCrop": { "x": 340, "y": 104, "w": 200, "h": 244 },
    "scale": "67% (D-016)",
    "data": "часы и «Медиа: выбрать»",
    "notes": ""
@@ -428,7 +428,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 578, "y": 112, "w": 286, "h": 252 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-mock.png" },
-   "appCrop": { "x": 610, "y": 110, "w": 260, "h": 292 },
+   "appCrop": { "x": 540, "y": 104, "w": 270, "h": 244 },
    "scale": "67% (D-016)",
    "data": "сессии: Ждёт ввода, Работает, Упал, Свободен",
    "notes": ""
@@ -440,7 +440,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 78, "y": 378, "w": 800, "h": 82 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-mock.png" },
-   "appCrop": { "x": 78, "y": 408, "w": 792, "h": 80 },
+   "appCrop": { "x": 62, "y": 345, "w": 720, "h": 90 },
    "scale": "67% (D-016)",
    "data": "док: Terminal, Browser, четыре агента, «Добавить», Settings",
    "notes": ""
@@ -500,7 +500,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 590, "w": 424, "h": 420 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-link-mode.png" },
-   "appCrop": { "x": 390, "y": 235, "w": 665, "h": 430 },
+   "appCrop": { "x": 390, "y": 235, "w": 665, "h": 590 },
    "scale": "100%",
    "data": "режим связывания: подсвеченная цель «Отпустите — связать», неподходящая гаснет",
    "notes": "кадр на 100%: ведущий, свободный исполнитель (подсвечен) и исполнитель другой папки (гаснет)"
@@ -512,7 +512,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 508, "y": 590, "w": 424, "h": 420 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-edit.png" },
-   "appCrop": { "x": 520, "y": 330, "w": 760, "h": 560 },
+   "appCrop": { "x": 170, "y": 95, "w": 1100, "h": 790 },
    "scale": "67% (D-016)",
    "data": "редактор HOME: черновик с плиткой «Медиа» за границей, в панели причина, «Сохранить» недоступно",
    "notes": ""
@@ -788,7 +788,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 508, "y": 70, "w": 424, "h": 340 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-agents-working.png" },
-   "appCrop": { "x": 480, "y": 360, "w": 500, "h": 200 },
+   "appCrop": { "x": 480, "y": 340, "w": 500, "h": 220 },
    "scale": "100%",
    "data": "лид и исполнитель на одной высоте, прямая связь, чип «Работает · этап 1»",
    "notes": ""

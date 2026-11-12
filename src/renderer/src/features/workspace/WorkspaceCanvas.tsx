@@ -180,6 +180,7 @@ interface WorkspaceCanvasProps {
   onHomeLayoutChange(layout: HomeWidgetPlacement[]): void;
   onHomeGridSizeChange(gridSize: HomeGridSize): void;
   onFinishHomeEdit(): void;
+  onCancelHomeEdit(): void;
   onResetHomeLayout(): void;
   onPluginError(message: string): void;
   onPluginCanvasBoundsChange(id: string, bounds: SessionBounds): void;
@@ -211,7 +212,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     activeSessionId, browserSelected, renamingSessionId, onSelectSession,
     onSelectBrowser, onClearCanvasSelection, onRenameSession, onRenameEnd,
     onRequestMedia, onRemoveMedia, onHomeLayoutChange, onHomeGridSizeChange,
-    onFinishHomeEdit, onResetHomeLayout, onPluginError, onPluginCanvasBoundsChange,
+    onFinishHomeEdit, onCancelHomeEdit, onResetHomeLayout, onPluginError, onPluginCanvasBoundsChange,
     onDisposePluginCanvas, onFocusPluginCanvas, onSessionBoundsChange,
     onRestartSession, onDisposeSession, onBrowserBoundsChange, onFocusBrowser,
     onCloseBrowser, onCreateCanvasRegion, onChangeCanvasRegion,
@@ -1208,7 +1209,8 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
         <div className="home-editor-toolbar" data-interactive="true">
           <strong>{t(settings.locale, "homeEditor")}</strong>
           {!homeLayoutValid && <span className="home-editor-toolbar__note">{t(settings.locale, "homeLayoutOutside")}</span>}
-          <button type="button" onClick={onResetHomeLayout}>{t(settings.locale, "resetHome")}</button>
+          <button type="button" className="home-editor-toolbar__reset" onClick={onResetHomeLayout}>{t(settings.locale, "resetHome")}</button>
+          <button type="button" className="home-editor-toolbar__cancel" onClick={onCancelHomeEdit}>{t(settings.locale, "homeEditCancel")}</button>
           <button className="home-editor-toolbar__done" type="button" disabled={!homeLayoutValid}
             title={homeLayoutValid ? undefined : t(settings.locale, "homeLayoutOutside")}
             onClick={onFinishHomeEdit}>{t(settings.locale, "doneEditing")}</button>
