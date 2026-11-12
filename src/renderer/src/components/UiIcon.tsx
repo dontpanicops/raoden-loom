@@ -29,6 +29,12 @@ import searchIcon from "../assets/icons/lucide/search.svg";
 import settingsIcon from "../assets/icons/lucide/settings.svg";
 import slidersHorizontalIcon from "../assets/icons/lucide/sliders-horizontal.svg";
 import stickyNoteIcon from "../assets/icons/lucide/sticky-note.svg";
+import settings2Icon from "../assets/icons/lucide/settings-2.svg";
+import botIcon from "../assets/icons/lucide/bot.svg";
+import pointerIcon from "../assets/icons/lucide/mouse-pointer-2.svg";
+import plugIcon from "../assets/icons/lucide/plug.svg";
+import squareDashedIcon from "../assets/icons/lucide/square-dashed.svg";
+import promptIcon from "../assets/icons/lucide/terminal.svg";
 import terminalIcon from "../assets/icons/lucide/square-terminal.svg";
 import trashIcon from "../assets/icons/lucide/trash-2.svg";
 import workingIcon from "../assets/icons/lucide/loader-circle.svg";
@@ -57,6 +63,12 @@ export type UiIconName =
   | "browser"
   | "bring-to-front"
   | "terminal"
+  | "prompt"
+  | "region"
+  | "plug"
+  | "general"
+  | "agents"
+  | "pointer"
   | "reload"
   | "arrow"
   | "chevron"
@@ -104,6 +116,12 @@ const ICONS: Record<UiIconName, string> = {
   browser: browserIcon,
   "bring-to-front": bringToFrontIcon,
   terminal: terminalIcon,
+  prompt: promptIcon,
+  region: squareDashedIcon,
+  plug: plugIcon,
+  general: settings2Icon,
+  agents: botIcon,
+  pointer: pointerIcon,
   reload: workingIcon,
   arrow: arrowIcon,
   chevron: chevronIcon,

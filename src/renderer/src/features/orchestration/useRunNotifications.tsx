@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LocaleId, NotificationSettings } from "../../../../shared/contracts";
 import { pluralForm, t } from "../../lib/i18n";
 import { UiIcon } from "../../components/UiIcon";
+import { Term } from "../../components/Term";
 import { NOTIFIED_KEY, NOTIFY_UNAVAILABLE_KEY, boardHeadNotes, boardNotes, notifyStep, pruneNotified, splitNotes, type Note } from "./notify";
 import { boardOptsOf, type AutopilotState, type BoardHead, type BoardView } from "../../../../shared/taskBoard";
 import type { RunActivityState, RunState } from "./useOrchestration";
@@ -89,8 +90,9 @@ export function NotifyBanner({ locale, notes, onOpen, onDismiss }: { locale: Loc
   const where = places.length ? ` ${fill(t(locale, `orchNotifyIn_${pluralForm(locale, places.length)}` as never), { places: new Intl.ListFormat(locale, { style: "long", type: "conjunction" }).format(places) })}` : "";
   const row = (key: string, signal: string, text: React.ReactNode, onShow: () => void, onClose: () => void, run?: string, tip?: string): React.JSX.Element => (
     <div key={key} className={`notify-banner__item notify-banner__item--${signal}`} data-notify-run={run}>
-      <UiIcon name="bell" size={16} />
-      <span title={tip} tabIndex={tip ? 0 : undefined}>{text}</span>
+      <UiIcon name={signal === "failed" ? "status-failed" : signal === "completed" || signal === "completed_no_checks" ? "status-done" : "bell"} size={18} />
+      {/* the whole text is the tooltip, our own (SPEC §11.4: Term), not the native title */}
+      <span className="notify-banner__text">{tip ? <Term locale={locale} id="banner" hint={tip} plain>{text}</Term> : text}</span>
       <button type="button" className="notify-banner__show" onClick={onShow}>{t(locale, "orchNotifyBannerOpen")}</button>
       <button type="button" className="notify-banner__close" aria-label={t(locale, "orchNotifyBannerClose")} onClick={onClose}>×</button>
     </div>
@@ -99,7 +101,7 @@ export function NotifyBanner({ locale, notes, onOpen, onDismiss }: { locale: Loc
   const line = (n: Note): React.JSX.Element => <><b>{n.title}</b><span className="notify-banner__body"> — {n.body}</span></>;
   // portalled into the app root: the canvas has its own stacking context, and the banner sits in the title bar's free middle
   return createPortal(
-    <div className="notify-banner" role="status" data-interactive="true" data-notify-banner>
+    <div className="notify-banner" data-rows={waiting.length > 1 ? 1 + notes.filter((n) => n.signal !== "waiting").length : (waiting.length ? 1 : 0) + notes.filter((n) => n.signal !== "waiting").length} role="status" data-interactive="true" data-notify-banner>
       {waiting.length === 1 && row(waiting[0].runId, "waiting", line(waiting[0]), () => onOpen(waiting[0].runId), () => onDismiss(waiting[0].runId), waiting[0].runId, `${waiting[0].title} — ${waiting[0].body}`)}
       {waiting.length > 1 && row("waiting", "waiting",
         <><b>{fill(t(locale, `orchNotifyWait_${pluralForm(locale, waiting.length)}` as never), { n: String(waiting.length) })}</b>{where}</>,

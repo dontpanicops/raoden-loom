@@ -173,7 +173,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
     return (
       <div className="orch-access" data-orch-access={provider}>
         <div className="orch-access__row">
-          <span className="orch-access__name">{provider === "claude" ? "Claude" : "Codex"}</span>
+          <span className="orch-access__name">{provider === "claude" ? "Claude" : "Codex"} · {t(locale, provider === "claude" ? "orchRoleExecutorShort" : "orchRoleLeadShort")}</span>
           {/* biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box */}
           <div className="orch-seg2 orch-access__seg" role="group" aria-label={provider === "claude" ? "Claude" : "Codex"} data-orch-access-value={current}>
             {all.map((o) => (
@@ -272,8 +272,8 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
               </label>
             )}
             <div className="orch-field" data-orch-settings-run-push>
-              <label className="orch-check">
-                <input type="checkbox" checked={!!p.runPush?.enabled} data-orch-settings-run-push-enabled
+              <label className="orch-check orch-check--switch">
+                <input type="checkbox" role="switch" aria-checked={!!p.runPush?.enabled} checked={!!p.runPush?.enabled} data-orch-settings-run-push-enabled
                   onChange={(e) => set({ runPush: { remote: info.facts.remotes[0]?.name ?? "origin", remoteUrl: null, options: [], protected: [], confirmedAt: null, ...p.runPush, enabled: e.target.checked } })} />
                 <span>{t(locale, "projRunPush")}</span>
               </label>
@@ -307,8 +307,8 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
             <small className="orch-hint">{t(locale, "projReviewExportHint")}</small>
           </Card>
           <Card title={t(locale, "projCardMcp")}>
-            <label className="orch-check">
-              <input type="checkbox" checked={p.runMcp === false} data-orch-settings-run-mcp
+            <label className="orch-check orch-check--switch">
+              <input type="checkbox" role="switch" aria-checked={p.runMcp === false} checked={p.runMcp === false} data-orch-settings-run-mcp
                 onChange={(e) => set({ runMcp: e.target.checked ? false : undefined })} />
               <span>{t(locale, "projRunMcp")}</span>
             </label>

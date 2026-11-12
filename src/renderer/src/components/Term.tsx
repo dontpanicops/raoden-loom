@@ -9,7 +9,7 @@ import { t } from "../lib/i18n";
 const HOVER_MS = 400;
 const GAP = 6;
 
-export function Term({ locale, id, hint, children }: { locale: LocaleId; id: string; hint?: string; children: React.ReactNode }): React.JSX.Element {
+export function Term({ locale, id, hint, plain = false, children }: { locale: LocaleId; id: string; hint?: string; plain?: boolean; children: React.ReactNode }): React.JSX.Element {
   const text = hint ?? t(locale, `orchTerm_${id}` as never);
   const tipId = useId();
   const word = useRef<HTMLButtonElement>(null);
@@ -38,7 +38,7 @@ export function Term({ locale, id, hint, children }: { locale: LocaleId; id: str
   const host = document.querySelector<HTMLElement>(".app") ?? document.body;
   return (
     <>
-      <button ref={word} type="button" className="orch-term" aria-describedby={open ? tipId : undefined} data-term={id}
+      <button ref={word} type="button" className={plain ? "orch-term orch-term--plain" : "orch-term"} aria-describedby={open ? tipId : undefined} data-term={id}
         onMouseEnter={() => show(HOVER_MS)} onMouseLeave={hide} onFocus={() => show(0)} onBlur={hide}>{children}</button>
       {open && createPortal(
         <span ref={tip} id={tipId} role="tooltip" className={`orch-tip${pos?.above ? " orch-tip--above" : ""}`} data-term-tip={id}

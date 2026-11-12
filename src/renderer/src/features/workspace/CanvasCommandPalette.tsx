@@ -108,7 +108,7 @@ export function CanvasCommandPalette({
       kind: "action",
       label: t(locale, "canvasMenuCreateRegion"),
       searchDetail: t(locale, "canvasMenuActions"),
-      icon: "maximize",
+      icon: "region",
       run: onCreateRegion
     },
     {
@@ -175,7 +175,7 @@ export function CanvasCommandPalette({
       kind: "action",
       label: t(locale, "settings"),
       searchDetail: t(locale, "canvasMenuActions"),
-      icon: "settings",
+      icon: "sliders-horizontal",
       shortcut: window.canvasTTY.window.isMacOS ? "⌘," : "Ctrl+,",
       run: onOpenSettings
     }
@@ -184,7 +184,8 @@ export function CanvasCommandPalette({
     const normalized = query.trim().toLocaleLowerCase(locale);
     // the arrow keys walk the rows in the order they are shown: waiting, sessions, actions
     const rank = { waiting: 0, sessions: 1, actions: 2 } as const;
-    const shown = [...commands].sort((a, b) => rank[a.group] - rank[b.group]);
+    const first = (c: CommandItem): number => (c.id === "launch:terminal" ? 0 : c.id === "go:home" ? 1 : c.id === "open:getting-started" ? 2 : 3); // mock 10: the three actions of its «Actions»
+    const shown = [...commands].sort((a, b) => rank[a.group] - rank[b.group] || (a.group === "actions" ? first(a) - first(b) : 0));
     if (!normalized) return shown;
     return shown.filter((command) => (
       `${command.label} ${command.searchDetail}`.toLocaleLowerCase(locale).includes(normalized)
@@ -223,17 +224,22 @@ export function CanvasCommandPalette({
         <CanvasMenuRow
           {...sharedProps}
           indent
-          right={waiting
-            ? <CanvasMenuKbd>↵</CanvasMenuKbd>
-            : chip && <span className={`canvas-palette__chip canvas-palette__chip--${chip.tone}`}>{t(locale, chip.label)}</span>}
+          right={waiting ? <CanvasMenuKbd>↵</CanvasMenuKbd> : undefined}
           key={command.id}
         >
           <span className="canvas-menu__provider">
             <ProviderIcon provider={command.provider} size="small" />
             {command.label}
             {waiting && <span className="canvas-palette__detail">{PROVIDERS[command.provider].label} · {t(locale, "statusNeedsApproval")}</span>}
+            {chip && <span className={`canvas-palette__chip canvas-palette__chip--${chip.tone}`}>{t(locale, chip.label)}</span>}
           </span>
         </CanvasMenuRow>
+      );
+    }
+
+    if (command.id === "launch:terminal") {
+      return (
+        <CanvasMenuRow {...sharedProps} icon="prompt" muted right={window.canvasTTY.window.isMacOS ? <CanvasMenuKbd>⌘T</CanvasMenuKbd> : undefined} key={command.id}>{command.label}</CanvasMenuRow>
       );
     }
 

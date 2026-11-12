@@ -89,11 +89,11 @@ const SETTINGS_SECTIONS: ReadonlyArray<{
   id: SettingsSection;
   icon: UiIconName;
 }> = [
-  { id: "general", icon: "app-window" },
+  { id: "general", icon: "general" },
   { id: "notifications", icon: "bell" },
   { id: "appearance", icon: "palette" },
-  { id: "agents", icon: "terminal" },
-  { id: "controls", icon: "sliders-horizontal" },
+  { id: "agents", icon: "agents" },
+  { id: "controls", icon: "pointer" },
   { id: "browser", icon: "browser" },
   { id: "plugins", icon: "blocks" },
   { id: "about", icon: "info" }
@@ -540,28 +540,20 @@ export function SettingsPanel({
                   homeLimitProviders: setHomeLimitProviderEnabled(homeLimitProviders, provider, enabled)
                 })}
               />
-              <SettingGroup label={t(locale, "canvasMenuStyle")} description={t(locale, "canvasMenuStyleDescription")}>
-                <Segmented
-                  value={settings.canvasMenuStyle}
-                  options={([
-                    ["mock", t(locale, "canvasMenuStyleMock")],
-                    ["detailed", t(locale, "canvasMenuStyleDetailed")]
-                  ] as [CanvasMenuStyle, string][])}
-                  onChange={(value) => void onChange({ canvasMenuStyle: value as CanvasMenuStyle })}
-                />
-              </SettingGroup>
               {sw(t(locale, "quickLauncher"), t(locale, "quickLauncherDescription"), settings.radialLauncherEnabled,
                 (next) => void onChange({ radialLauncherEnabled: next }))}
               <SettingGroup
                 label={t(locale, "canvasLauncherItems")}
                 description={t(locale, "canvasLauncherItemsDescription")}
+                layout="top"
               >
                 <div className="canvas-menu canvas-launcher-settings-menu">
                   {CANVAS_LAUNCHER_ITEMS.map((item: CanvasLauncherItemId) => {
                     const enabled = settings.canvasLauncherItems.includes(item);
                     return (
                       <CanvasMenuRow
-                        icon={enabled ? "minus" : "plus"}
+                        {...(item === "terminal" ? { icon: "prompt" as const } : { iconNode: <ProviderIcon provider={item} size="small" /> })}
+                        right={<span className="canvas-menu__toggle"><UiIcon name={enabled ? "minus" : "plus"} size="1em" /></span>}
                         muted={!enabled}
                         aria-pressed={enabled}
                         aria-label={`${t(locale, enabled ? "disable" : "enable")}: ${PROVIDERS[item].label}`}
@@ -584,6 +576,16 @@ export function SettingsPanel({
                     onClick={() => void onChange({ canvasLauncherItems: [...DEFAULT_CANVAS_LAUNCHER_ITEMS] })}
                   >{t(locale, "resetCanvasLauncher")}</CanvasMenuRow>
                 </div>
+              </SettingGroup>
+              <SettingGroup label={t(locale, "canvasMenuStyle")} description={t(locale, "canvasMenuStyleDescription")} layout="under">
+                <Segmented
+                  value={settings.canvasMenuStyle}
+                  options={([
+                    ["mock", t(locale, "canvasMenuStyleMock")],
+                    ["detailed", t(locale, "canvasMenuStyleDetailed")]
+                  ] as [CanvasMenuStyle, string][])}
+                  onChange={(value) => void onChange({ canvasMenuStyle: value as CanvasMenuStyle })}
+                />
               </SettingGroup>
               {settings.radialLauncherEnabled && (
               <section className="setting-group setting-group--field setting-group--stacked">
@@ -717,10 +719,6 @@ export function SettingsPanel({
                 {shortcutError && capturing === "renameWindow" && (
                   <p className="shortcut-editor__error" role="alert">{shortcutError}</p>
                 )}
-                <div className="shortcut-editor__row">
-                  <span>{t(locale, "commandPalette")}</span>
-                  <div className="shortcut-editor__actions"><span className="shortcut-editor__key">{window.canvasTTY.window.isMacOS ? "⌘K" : "Ctrl+K"}</span></div>
-                </div>
                 <CanvasNavigationShortcutEditor
                   open={open}
                   locale={locale}
@@ -734,6 +732,11 @@ export function SettingsPanel({
                   }}
                   onChange={(canvasNavigationOverride) => onChange({ canvasNavigationOverride })}
                 />
+                <div className="shortcut-editor__row">
+                  <span>{t(locale, "commandPalette")}</span>
+                  <div className="shortcut-editor__actions"><span className="shortcut-editor__key">{window.canvasTTY.window.isMacOS ? "⌘K" : "Ctrl+K"}</span></div>
+                </div>
+                <p className="shortcut-editor__hint">{t(locale, "shortcutsAccepted")}</p>
               </section>
               {sw(t(locale, "hoverFocus"), t(locale, "hoverFocusDescription"), settings.hoverFocus,
                 (next) => void onChange({ hoverFocus: next }))}
@@ -812,7 +815,7 @@ export function SettingsPanel({
               <SettingGroup layout="stacked" label={t(locale, "browserDownloads")}>
                 <BrowserDownloadList downloads={browser.downloads} locale={locale} />
               </SettingGroup>
-              <SettingGroup layout="stacked" label={t(locale, "browserActivity")}>
+              <SettingGroup layout="caps" label={t(locale, "browserActivity")}>
                 <BrowserActivityList activity={activity} state={activityState} locale={locale} />
               </SettingGroup>
               <SettingGroup
@@ -1167,10 +1170,9 @@ function ThemeChoices({
           type="button"
           key={id}
           aria-pressed={value === id}
-          style={{ background: THEME_TILE_PREVIEW[id].tile, color: THEME_TILE_PREVIEW[id].text }}
           onClick={() => onChange(id)}
         >
-          <span className="theme-choice__preview" aria-hidden="true" >
+          <span className="theme-choice__preview" aria-hidden="true" style={{ background: THEME_TILE_PREVIEW[id].tile }}>
             <i style={{ background: THEME_TILE_PREVIEW[id].card }} />
             <b style={{ background: THEME_TILE_PREVIEW[id].dot }} />
           </span>
@@ -1275,11 +1277,11 @@ function SettingGroup({
 }: {
   label: string;
   description?: string;
-  layout?: "field" | "stacked" | "switch";
+  layout?: "field" | "stacked" | "switch" | "under" | "top" | "caps";
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <section className={`setting-group setting-group--field${layout === "stacked" ? " setting-group--stacked" : ""}${layout === "switch" ? " setting-group--switch" : ""}`}>
+    <section className={`setting-group setting-group--field${layout === "stacked" || layout === "under" || layout === "caps" ? " setting-group--stacked" : ""}${layout === "caps" ? " setting-group--caps" : ""}${layout === "switch" ? " setting-group--switch" : ""}${layout === "under" ? " setting-group--under" : ""}${layout === "top" ? " setting-group--top" : ""}`}>
       <div className="setting-group__copy">
         <h3>{label}</h3>
         {description && <p className="setting-group__description">{description}</p>}

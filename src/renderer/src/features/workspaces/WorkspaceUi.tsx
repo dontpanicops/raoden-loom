@@ -83,6 +83,15 @@ export function workspaceTitle(locale: LocaleId, w: WorkspaceRecord | undefined 
   return w.title || (isCommon(w.id) ? tk(locale, "wsCommon") : w.id);
 }
 
+// The title in the case the Russian sentence needs: «Скрыть «Альфу»?», «в «Бете»». Only a one-word name in -а/-я and the common canvas are declined; any other stays as typed.
+function ruCase(locale: LocaleId, name: string, to: "acc" | "prep"): string {
+  if (locale !== "ru") return name;
+  if (name === tk(locale, "wsCommon")) return to === "prep" ? "Общем холсте" : name;
+  const m = /^([А-ЯЁа-яё]+)([ая])$/.exec(name);
+  if (!m || name.length < 3) return name;
+  return m[1] + (to === "prep" ? "е" : m[2] === "а" ? "у" : "ю");
+}
+
 const countsHint = (locale: LocaleId, c: WorkspaceCounts): string => tr(locale, "wsCountsHint", {
   runs: String(c.runs), cli: String(c.cli), attention: String(c.attention), shells: String(c.shells)
 });
@@ -180,6 +189,7 @@ function WorkspaceForm({ controls, locale, id, onClose }: { controls: WorkspaceC
         </label>
         {/* mock 25: one 12px line under the name — «Папка: путь · Изменить…» / «Папка не выбрана · Выбрать…»; the path is mono, its end is cut, the whole one is the tooltip */}
         <div className="ws-folder-line" data-ws-folder>
+          <UiIcon name="folder" size={16} />
           {folder ? <><span>{tk(locale, "wsFolderShort")}</span><code title={folder} data-ws-root>{folder}</code></> : <span data-ws-root>{tk(locale, "wsNoFolder")}</span>}
           <span aria-hidden="true">·</span>
           <button type="button" data-ws-pick onClick={() => void window.canvasTTY.dialog.pickDirectory(folder || undefined).then((picked) => {
@@ -223,7 +233,7 @@ function RemoveDialog({ controls, locale, id, onClose }: { controls: WorkspaceCo
     else onClose();
   };
   return (
-    <Dialog label={tr(locale, "wsDeleteTitle", { name: workspaceTitle(locale, w) })} onClose={onClose} locale={locale} className="ws-dialog">
+    <Dialog label={tr(locale, "wsDeleteTitle", { name: ruCase(locale, workspaceTitle(locale, w), "acc") })} onClose={onClose} locale={locale} className="ws-dialog">
       <div className="orch-form" data-ws-delete>
         <p>{tk(locale, "wsDeleteText")}</p>
         <p className="orch-hint">{tk(locale, "wsDeleteHint")}</p>
@@ -269,7 +279,7 @@ function MoveDialog({ controls, orch, locale, layout, item, id, label, onClose }
             </ul>
             <p className="orch-hint">{tk(locale, "wsMoveHistoryStays")}</p>
           </div>
-        ) : <p className="orch-hint" data-ws-move-item>{item === "terminal" ? tr(locale, "wsMoveTerminal", { name: label }) : label}</p>}
+        ) : <p className="orch-hint" data-ws-move-item>{item === "terminal" ? tr(locale, "wsMoveTerminal", { name: locale === "ru" ? `«${label}»` : `“${label}”` }) : label}</p>}
         {blocked && <div className="orch-hint orch-hint--warn" role="status" data-ws-move-blocked>{t(locale, "orchError_group_active_run")}</div>}
         {targets.length === 0
           ? <p className="orch-hint" data-ws-move-none>{tk(locale, "wsMoveNoTarget")}</p>
@@ -287,7 +297,7 @@ function MoveDialog({ controls, orch, locale, layout, item, id, label, onClose }
           )}
         <div className="orch-form__actions">
           <button type="button" className="orch-cancel" onClick={onClose}>{t(locale, "orchCancel")}</button>
-          <button type="submit" className="orch-primary" data-ws-move-submit disabled={busy || blocked || !target}>{target ? tr(locale, "wsMoveConfirmTo", { name: workspaceTitle(locale, controls.state.workspaces.find((w) => w.id === target)) }) : tk(locale, "wsMoveConfirm")}</button>
+          <button type="submit" className="orch-primary" data-ws-move-submit disabled={busy || blocked || !target}>{target ? tr(locale, "wsMoveConfirmTo", { name: ruCase(locale, workspaceTitle(locale, controls.state.workspaces.find((w) => w.id === target)), "acc") }) : tk(locale, "wsMoveConfirm")}</button>
         </div>
         {error && <div className="dialog-error" role="alert" data-ws-move-error>{error}</div>}
       </form>
@@ -377,46 +387,63 @@ export function CloseDialog({ controls, orch, locale, id, onClose, onOpenRun }: 
   }, [orch.runs]);
   // Every participant not confirmed stopped keeps its way to it ("Open"); a run whose state is unknown also offers to
   // read it again.
+  const GLYPH = { stopped: "status-done", stopping: "working", unknown: "working", error: "status-failed", timeout: "status-failed", unconfirmed: "status-failed" } as const;
   const row = (key: string, label: string, open: () => void, unknown: "loading" | "unreadable" | null = null, idle = tk(locale, "wsStop_running")) => {
     const st = liveStops?.[key];
     const stateText = st && st.state !== "unknown"
       ? tk(locale, `wsStop_${st.state}`) + (st.error ? `: ${st.error}` : "")
       : unknown ? tk(locale, unknown === "loading" ? "wsRunLoading" : "wsRunUnreadable")
       : st ? tk(locale, "wsStop_unknown") : idle;
+    const glyph = st ? GLYPH[st.state] : unknown ? "working" : "status-idle";
+    const stuck = st ? st.state !== "stopped" && st.state !== "stopping" : true; // «Open» only where the stop is not on its way or done
     return (
       <li key={key} data-ws-close-item={key} data-ws-close-state={st?.state ?? (unknown ?? "running")}>
+        <span className={`ws-list__glyph ws-list__glyph--${st?.state ?? "idle"}`}><UiIcon name={glyph} size={16} /></span>
         <span>{label}</span>
         <span className="ws-list__state">{stateText}</span>
         {unknown && <button type="button" data-ws-close-retry onClick={() => orch.retry()}>{t(locale, "orchRepeat")}</button>}
-        {st?.state !== "stopped" && <button type="button" data-ws-close-open onClick={open}>{tk(locale, "wsOpen")}</button>}
+        {stuck && <button type="button" data-ws-close-open onClick={open}>{tk(locale, "wsOpen")}</button>}
       </li>
     );
   };
+  const workText = ((): string => {
+    const r = runs.length, n = terms.length;
+    const a = r ? tr(locale, `wsCloseRuns_${pluralForm(locale, r)}`, { n: String(r) }) : "";
+    const b = n ? tr(locale, `wsCloseTerms_${pluralForm(locale, n)}`, { n: String(n) }) : "";
+    return a && b ? tr(locale, "wsCloseAnd", { a, b }) : a || b;
+  })();
+  // before «stop everything» the list is not shown (the counts say it); it stays where something needs a look: a run not read, a terminal closed without a confirmed exit
+  const showList = !!stops || unknownNow || terms.some((s) => s.closeUnconfirmed);
   const w = controls.state.workspaces.find((x) => x.id === id);
   return (
-    <Dialog label={tr(locale, stops ? "wsStopTitle" : "wsCloseTitle", { name: workspaceTitle(locale, w) })} onClose={onClose} locale={locale} className="ws-dialog">
+    <Dialog label={tr(locale, stops ? "wsStopTitle" : "wsCloseTitle", { name: ruCase(locale, workspaceTitle(locale, w), "acc") })} onClose={onClose} locale={locale} className="ws-dialog">
       <div className="orch-form" data-ws-close>
-        {!stops && <p className="orch-hint">{tk(locale, "wsCloseWork")}</p>}
-        <ul className="ws-list">
+        {!stops && <p className="orch-hint ws-close__text">{workText ? tr(locale, "wsCloseWorkN", { work: workText }) : tk(locale, "wsCloseWork")}</p>}
+        {showList && <ul className="ws-list">
           {runs.map((r) => row(`run:${r}`, tr(locale, "wsCloseRun", { project: folderName(orch.canvas.agents.find((a) => a.agentId === orch.canvas.links.find((l) => l.runIds.includes(r))?.fromAgentId)?.project ?? ""), id: r.slice(0, 8) }), () => { onOpenRun(r); onClose(); }, unknownOf(r)))}
           {terms.map((s) => row(`term:${s.id}`, tr(locale, "wsCloseTerminal", { title: s.title }), () => {
             // "Open" leads to the card itself; without a card, say so rather than close as if it worked.
             if (controls.openSession(s.id)) onClose();
             else setError(tk(locale, "wsTerminalGone"));
           }, null, s.closeUnconfirmed ? tk(locale, "wsStop_unconfirmed") : undefined))}
-        </ul>
+        </ul>}
         {stops && <p className="orch-hint" role="status" data-ws-close-summary>{failed ? tk(locale, "wsStopPartial") : allStopped ? tk(locale, "wsStopDone") : tk(locale, "wsStopWaiting")}</p>}
         {unknownNow && <p className="orch-hint" role="status" data-ws-close-unknown>{tk(locale, "wsCloseUnknown")}</p>}
         <div className="orch-form__actions">
-          <button type="button" className="orch-cancel" data-ws-close-cancel onClick={onClose}>{t(locale, stops ? "orchClose" : "orchCancel")}</button>
-          {!stops && <button type="button" className="orch-danger" data-ws-close-stop onClick={() => void stopAll()}>{tk(locale, "wsStopAndHide")}</button>}
-          <button type="button" className="orch-primary" data-ws-close-hide autoFocus title={tk(locale, stops ? "wsHideRestHint" : "wsHideKeepHint")} onClick={() => void hide()}>{tk(locale, stops ? "wsHideRest" : "wsHideKeep")}</button>
+          {!stops && <button type="button" className="orch-danger ws-close__stop" data-ws-close-stop onClick={() => void stopAll()}>{tk(locale, "wsStopAndHideMore")}</button>}
+          <button type="button" className="orch-cancel" data-ws-close-cancel onClick={onClose}>{tk(locale, stops ? "wsFold" : "orchCancel")}</button>
+          {(!stops || failed || unknownNow) && <button type="button" className="orch-primary" data-ws-close-hide autoFocus title={tk(locale, stops ? "wsHideRestHint" : "wsHideKeepHint")} onClick={() => void hide()}>{tk(locale, stops ? "wsHideRest" : "wsHideKeep")}</button>}
         </div>
         {error && <div className="dialog-error" role="alert">{error}</div>}
       </div>
     </Dialog>
   );
 }
+
+const HISTORY_GLYPH: Record<string, "working" | "status-done" | "status-failed" | "status-idle" | "status-paused"> = {
+  running: "working", preparing: "working", pausing: "working", stopping: "working", completed: "status-done", completed_no_checks: "status-done",
+  failed: "status-failed", paused: "status-paused", stopped: "status-idle"
+};
 
 // Every run whose history belongs to this workspace, also runs of links that are gone.
 function HistoryDialog({ controls, orch, locale, id, onClose, onOpenRun }: {
@@ -446,7 +473,9 @@ function HistoryDialog({ controls, orch, locale, id, onClose, onOpenRun }: {
           {runs?.map((r) => (
             <li key={r.runId} data-ws-history-run={r.runId}>
               <span className="ws-history__run"><span>{r.project || r.runId.slice(0, 8)}</span><code>{r.runId.slice(0, 8)}</code></span>
-              <span className="ws-list__state" data-ws-history-state={r.status}>{r.status === "newer" ? tk(locale, "orchReadOnly") : tk(locale, `orchStatus_${r.status}`)}</span>
+              <span className={`ws-history__state ws-history__state--${r.status}`} data-ws-history-state={r.status}>
+                <UiIcon name={HISTORY_GLYPH[r.status] ?? "status-idle"} size={16} />{r.status === "newer" ? tk(locale, "orchReadOnly") : tk(locale, `orchStatus_${r.status}`)}
+              </span>
               <button type="button" data-ws-history-open onClick={() => { onOpenRun(r.runId); onClose(); }}>{t(locale, TERMINAL_STATUSES.includes(r.status) || r.status === "completed_no_checks" ? "orchTab_summary" : "orchOpenRun")}</button>
             </li>
           ))}
@@ -501,23 +530,25 @@ function ArrangeDialog({ controls, orch, locale, layout, id, onClose }: {
         <p className="orch-hint">{tk(locale, "wsArrangeHint")}</p>
         {groups.length === 0 && <p className="orch-hint" data-ws-arrange-empty>{tk(locale, "wsArrangeEmpty")}</p>}
         {groups.map((g) => (
-          <fieldset key={g.folder} className="ws-arrange__group" data-ws-arrange-folder={g.folder}>
-            <legend>{g.folder}</legend>
-            <label className="orch-field"><span>{tk(locale, "wsMoveTo")}</span>
+          <section key={g.folder} className="ws-arrange__group" data-ws-arrange-folder={g.folder}>
+            <h3>{g.folder}</h3>
+            <label className="orch-field ws-arrange__to"><span>{tk(locale, "wsMoveTo")}</span>
               <select value={targetOf(g.folder)} onChange={(event) => setTargets((cur) => ({ ...cur, [g.folder]: event.target.value }))} data-ws-arrange-target>
                 <option value="new">{tr(locale, "wsArrangeNew", { name: folderName(g.folder) || g.folder })}</option>
                 {others.map((w) => <option key={w.id} value={w.id}>{workspaceTitle(locale, w)}</option>)}
               </select>
             </label>
             {g.items.map((i) => (
-              <label key={i.key} className="ws-arrange__item">
-                <input type="checkbox" data-ws-arrange-item={i.key} disabled={i.blocked} checked={checked.has(i.key)}
-                  onChange={(event) => setChecked((cur) => { const next = new Set(cur); if (event.target.checked) next.add(i.key); else next.delete(i.key); return next; })} />
-                <span>{i.kind === "terminal" ? tr(locale, "wsCloseTerminal", { title: i.label }) : tr(locale, "wsArrangeAgents", { n: String(i.ids.length) })}</span>
-                {i.blocked && <span className="ws-list__state">{t(locale, "orchError_group_active_run")}</span>}
-              </label>
+              <div key={i.key} className="ws-arrange__item">
+                <label>
+                  <input type="checkbox" data-ws-arrange-item={i.key} disabled={i.blocked} checked={checked.has(i.key)}
+                    onChange={(event) => setChecked((cur) => { const next = new Set(cur); if (event.target.checked) next.add(i.key); else next.delete(i.key); return next; })} />
+                  <span>{i.kind === "terminal" ? tr(locale, "wsCloseTerminal", { title: i.label }) : tr(locale, "wsArrangeAgents", { n: String(i.ids.length) })}</span>
+                </label>
+                {i.blocked && <span className="ws-arrange__why">{t(locale, "orchError_group_active_run")}</span>}
+              </div>
             ))}
-          </fieldset>
+          </section>
         ))}
         <div className="orch-form__actions">
           <button type="button" className="orch-cancel" onClick={onClose}>{t(locale, "orchCancel")}</button>
@@ -554,12 +585,12 @@ export function BrowserElsewhereDialog({ controls, locale }: { controls: Workspa
   if (!controls.browserElsewhere) return null;
   const w = controls.state.workspaces.find((x) => x.id === controls.browserElsewhere);
   return (
-    <Dialog label={tr(locale, "wsBrowserTitle", { name: workspaceTitle(locale, w) })} onClose={controls.closeBrowserNotice} locale={locale} className="ws-dialog">
+    <Dialog label={tr(locale, "wsBrowserTitle", { name: ruCase(locale, workspaceTitle(locale, w), "prep") })} onClose={controls.closeBrowserNotice} locale={locale} className="ws-dialog">
       <div className="orch-form" data-ws-browser-elsewhere={controls.browserElsewhere}>
         <p>{tk(locale, "wsBrowserElsewhere")}</p>
         <div className="orch-form__actions">
           <button type="button" className="orch-cancel" onClick={controls.closeBrowserNotice}>{t(locale, "orchCancel")}</button>
-          <button type="button" data-ws-browser-go title={tr(locale, "wsOpenNamed", { name: workspaceTitle(locale, w) })} onClick={controls.goToBrowser}>{tr(locale, "wsBrowserGoTo", { name: workspaceTitle(locale, w) })}</button>
+          <button type="button" data-ws-browser-go title={tr(locale, "wsOpenNamed", { name: workspaceTitle(locale, w) })} onClick={controls.goToBrowser}>{tr(locale, "wsBrowserGoTo", { name: ruCase(locale, workspaceTitle(locale, w), "acc") })}</button>
           <button type="button" className="orch-primary" data-ws-browser-bring onClick={() => void controls.bringBrowserHere()}>{tk(locale, "wsBrowserBring")}</button>
         </div>
       </div>

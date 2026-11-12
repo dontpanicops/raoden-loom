@@ -433,8 +433,8 @@ try {
         console.log("[shots-r5] banner state", await app.ev(`JSON.stringify({ focus: document.hasFocus(), un: localStorage.getItem("orch.notify.unavailable"), n: localStorage.getItem("orch.notified.v1") })`));
         await app.waitFor(`${q("[data-notify-banner]")} && true`, "the banner", 15_000);
         await shot("overlay-banner");
-        // mock 22 «long text»: the text is cut with «…»; focus on it shows the ring (the tooltip itself is native and not in a screenshot)
-        await app.ev(`document.querySelector("[data-notify-banner] .notify-banner__item > span")?.focus()`); await sleep(300);
+        // mock 22 «long text»: the text is cut with «…»; focus on it shows the ring (the tooltip is the app's own (Term), shown on focus)
+        await app.ev(`document.querySelector("[data-notify-banner] .notify-banner__item .orch-term")?.focus()`); await sleep(300);
         await shot("overlay-banner-long");
         // mock 22 «waiting and failed together»: each its own line; the failed one is added by the driver hook (no failing run in the stand)
         await app.ev(`document.activeElement?.blur()`);
@@ -460,7 +460,7 @@ try {
           if (more) { await sleep(300); await shot(`settings-${tab}-end`); await app.ev(`(() => { document.querySelector(".settings-panel__content").scrollTop = 0; return true; })()`); }
           if (tab === "controls") {
             await app.ev(`(() => { document.querySelector(".shortcut-block")?.scrollIntoView({ block: "center" }); return true; })()`); await sleep(200);
-            await app.clickEl(q(".shortcut-block .shortcut-editor__edit")); await sleep(300);
+            await app.clickEl(q(".shortcut-block .shortcut-editor .shortcut-editor__edit")); await sleep(300);
             await shot("settings-controls-capture"); await app.key("Escape", "Escape", 27); await sleep(200);
           }
         } catch (e) { failed.push(`${theme} settings-${tab}: ${String(e.message).slice(0, 120)}`); }
@@ -532,8 +532,13 @@ try {
       if (await menuOpen()) await app.clickEl(q("[data-workspace-menu]"));
     });
     await scene("ws-dialogs-more", async () => {
+      // R12h: a clean state: spaces hidden by earlier scenes or themes come back, so «Скрытые» holds only the two made here (mock 17 shows two)
+      for (const w of (await app.ev(`window.canvasTTY.workspaces.get()`)).workspaces.filter((x) => x.closed)) await app.ev(`window.canvasTTY.workspaces.reopen(${JSON.stringify(w.id)}).then(() => true)`);
+      await sleep(600);
       // a name that is taken (the error under the field)
-      await app.clickEl(q("[data-workspace-new]")); await sleep(600);
+      // R12h (mock 17): the RENAME dialog of the active space, a name another space has
+      await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
+      await app.clickEl(q('[data-ws-action="settings"]')); await sleep(700);
       await app.type(q("[data-ws-title]"), "Альфа"); await sleep(400);
       await app.waitFor(`${q("[data-ws-name-taken]")} && true`, "the taken name", 5000);
       await shot("ws-name-taken"); await esc(); await sleep(300);
@@ -1005,6 +1010,7 @@ try {
   process.exitCode = 1;
 } finally {
   fs.writeFileSync(path.join(OUT, "failed.txt"), failed.join("\n") + "\n");
+  if (failed.length) process.exitCode = 1; // a scene that could not be taken fails the run loudly
   await app?.stop().catch(() => {});
   fs.rmSync(TMP, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   fs.rmSync(termDir, { recursive: true, force: true });

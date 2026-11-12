@@ -46,11 +46,11 @@ export const CANVAS_LAUNCHER_ITEMS: readonly CanvasLauncherItemId[] = [
 // Keeps the safe provider subset proposed by @TroopJostle in PR #23 while
 // region, note, Browser, and Settings remain fixed top-level menu actions.
 export const DEFAULT_CANVAS_LAUNCHER_ITEMS: readonly CanvasLauncherItemId[] = [
+  "terminal", // first, as in mock 10 and 11: the plain shell is the first thing a launch menu offers (⌘T)
   "codex",
   "claude",
   "qwen",
-  "opencode",
-  "terminal"
+  "opencode"
 ];
 
 export const RADIAL_LAUNCHER_ITEMS: readonly RadialLauncherItemId[] = [
