@@ -1345,6 +1345,12 @@ button { border: 0; }
 .orch-zone--calm { box-shadow: 0 0 0 1px var(--border-strong); }
 .orch-zone--failed, .orch-zone--halted, .orch-zone--needs_setup { box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-failed) 55%, transparent); }
 .orch-zone--failed .orch-zone__label, .orch-zone--halted .orch-zone__label, .orch-zone--needs_setup .orch-zone__label { color: var(--danger-fg); }
+/* the zone is filled with the status tone as in mock 07 (sand, paper and frost alike) */
+.orch-zone--failed, .orch-zone--halted, .orch-zone--needs_setup { --zone-bg: color-mix(in srgb, var(--status-failed) 9%, var(--surface-sunken)); }
+.orch-zone--completed { --zone-bg: color-mix(in srgb, var(--status-done) 9%, var(--surface-sunken)); }
+.app--paper .orch-zone--failed, .app--paper .orch-zone--halted, .app--paper .orch-zone--needs_setup { --zone-bg: color-mix(in srgb, var(--status-failed) 8%, var(--surface-sunken)); }
+.app--paper .orch-zone--completed { --zone-bg: color-mix(in srgb, var(--status-done) 8%, var(--surface-sunken)); }
+.app--paper .orch-zone--waiting { --zone-bg: color-mix(in srgb, var(--status-waiting) 10%, var(--surface-sunken)); }
 .orch-zone--completed { box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-done) 55%, transparent); }
 .orch-zone--completed .orch-zone__label { color: var(--status-done); }
 .orch-zone--flash { box-shadow: 0 0 0 3px var(--focus); }
@@ -1493,7 +1499,7 @@ button { border: 0; }
 .orch-changes__status--added { color: var(--status-working); }
 .orch-changes__status--deleted { color: var(--danger-fg); }
 .orch-changes__diff, .orch-take pre { max-height: 300px; margin: 4px 0; padding: 8px; overflow: auto; border-radius: 8px; background: var(--surface-sunken); white-space: pre; font: 11px/1.45 var(--font-mono); }
-.orch-take { padding: 10px; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--focus); }
+.orch-take { padding: 10px; border-radius: 10px; }
 .orch-take h4 { margin: 0 0 4px; font-size: 10px; letter-spacing: .11em; text-transform: uppercase; opacity: .62; }
 .orch-take p { margin: 0; }
 .orch-panel .agent-card__observe, .agent-card__body button.agent-card__observe { background: var(--status-done); color: var(--on-status); }
