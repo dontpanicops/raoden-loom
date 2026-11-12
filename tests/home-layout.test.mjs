@@ -158,7 +158,7 @@ test("the default Home layout follows mocks 03 and 05: dock in one row, media un
   const at = (id) => DEFAULT_HOME_LAYOUT.find((p) => p.widgetId === id);
   assert.equal(homeLayoutFitsGrid(DEFAULT_HOME_LAYOUT, DEFAULT_HOME_GRID_SIZE), true);
   for (const [i, a] of DEFAULT_HOME_LAYOUT.entries()) for (const b of DEFAULT_HOME_LAYOUT.slice(i + 1)) assert.equal(placementsOverlap(a, b), false, `${a.widgetId} / ${b.widgetId}`);
-  assert.equal(at("core.launcher").columnSpan, 10);
+  assert.equal(at("core.launcher").columnSpan, 9); // 8 tiles of 66 px with 6 between (SPEC 11.1) in one row
   assert.equal(at("core.settings").columnSpan, 2);
   assert.equal(at("core.media").row, at("core.clock").row + at("core.clock").rowSpan);
   assert.equal(at("core.sessions").row, 0);
