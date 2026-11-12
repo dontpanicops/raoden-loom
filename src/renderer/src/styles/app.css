@@ -2172,6 +2172,19 @@ button { border: 0; }
 [data-zoomed] .terminal-card__actions button, [data-zoomed] .agent-card__close, [data-zoomed] .agent-card__expand, [data-zoomed] .sticky-note-card__close, [data-zoomed] .browser-card__hide { width: calc(20px * var(--iz)); height: calc(20px * var(--iz)); flex-basis: calc(20px * var(--iz)); border-radius: calc(5px * var(--iz)); }
 [data-zoomed] .terminal-card__status { font-size: calc(11px * var(--iz)); padding: 0 calc(8px * var(--iz)); }
 [data-zoomed] .terminal-card__restart { font-size: calc(11px * var(--iz)); padding: 0 calc(6px * var(--iz)); }
+/* R12f (SPEC 11.2, mock 21): an agent below 100% zoom has the status in a footer of the terminal's format; its tail «· этап 1 из 2» goes first when
+   the footer is narrow, then (below 40%) the card is a summary: the name and the status glyph, the full status in the tooltip */
+.agent-card__footer { flex: 0 0 var(--card-footer-height); min-width: 0; container-type: inline-size; display: flex; align-items: center; padding: 0 calc(8px * var(--iz, 1)); border-top: 1px solid var(--border); border-radius: 0 0 12px 12px; color: var(--text-secondary); background: var(--surface-2-b); font-size: calc(11px * var(--iz, 1)); overflow: hidden; }
+.agent-card--needs_you .agent-card__footer { background: var(--status-waiting-bg); }
+.agent-card--failed .agent-card__footer { background: var(--status-failed-bg); }
+.agent-card__footer .agent-card__state { min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; font-size: 1em; }
+.agent-card__state-label, .agent-card__state-stage { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
+@container (max-width: 13em) { .agent-card__state-stage { display: none; } }
+[data-agent-far] .agent-card__body { display: none; }
+[data-agent-far] .agent-card__header { position: absolute; left: 0; right: 0; top: 0; z-index: 2; height: calc(14px * var(--iz, 1)); background: transparent; }
+[data-agent-far] .agent-card__header > * { display: none; }
+.agent-card__far { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: calc(6px * var(--iz, 1)); padding: calc(8px * var(--iz, 1)); overflow: hidden; font-size: calc(11px * var(--iz, 1)); pointer-events: none; }
+.agent-card__far strong { max-width: 100%; min-width: 8ch; overflow: hidden; font: 600 calc(14px * var(--iz, 1))/1.2 var(--font-ui, inherit); text-overflow: ellipsis; white-space: nowrap; }
 .sticky-note-card__editor { font-size: calc(14px * var(--app-ui-scale, 1)); }
 /* R12b: a task card is the title, the status line, one line of substance and the actions; the rest opens under «Details» */
 .board-task__more { display: flex; flex-direction: column; gap: .3em; }
@@ -2221,3 +2234,11 @@ button { border: 0; }
 .settings-panel .installed-plugin__header > div { align-items: center; }
 .settings-panel .installed-plugin__header { align-items: center; }
 .orch-dialog .orch-form button.orch-danger[data-ws-delete-go] { color: var(--danger-text); background: var(--danger); box-shadow: none; }
+/* R12f (mock 06): the agent card's header has the card's own fill with a line under it, no provider dot; the path is in the UI font */
+.agent-card__dot { display: none; }
+.agent-card__header { background: transparent; border-bottom: 1px solid var(--border); }
+.agent-card__project small { font-family: var(--font-ui, inherit); }
+/* R12f (mock 18): the keyboard focus is a ring of 2px at 3px from the card; a card that is only focused has no contour of its own, a selected one keeps it under the ring */
+:is(.terminal-card, .agent-card, .browser-card, .sticky-note-card, .plugin-canvas-card):has(:focus-visible) { outline: 2px solid var(--focus); outline-offset: 3px; }
+:is(.terminal-card, .agent-card, .browser-card, .sticky-note-card, .plugin-canvas-card):not(.terminal-card--selected, .agent-card--selected, .browser-card--selected, .sticky-note-card--selected, .plugin-canvas-card--selected, .terminal-card--waiting, .terminal-card--failed, .agent-card--needs_you):has(:focus-visible) { box-shadow: var(--edge), var(--elev-3); }
+[data-zoomed] .agent-card__identity strong { min-width: 0; } /* the role stays next to the name; a narrow header shortens the path first */

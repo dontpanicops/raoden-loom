@@ -13,7 +13,8 @@ test("core semantic summaries reserve width before applying counter-scale", asyn
     readFile(stylesPath, "utf8")
   ]);
 
-  assert.match(terminalSource, /\(size\.width - 72\) \/ summaryScale/);
+  // the terminal's summary is in screen px (SPEC 11.2): its width is the card's width on the screen less the padding, so it always fits the card
+  assert.match(terminalSource, /size\.width \* zoom - 16/);
   assert.match(browserSource, /\(size\.width - 48\) \/ summaryScale/);
   assert.match(styles, /\.terminal-card__summary-content\s*\{[^}]*width:\s*var\(--summary-content-width\)/);
   assert.match(styles, /\.terminal-card__summary-content\s*\{[^}]*justify-content:\s*center/);

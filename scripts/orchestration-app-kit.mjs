@@ -401,8 +401,10 @@ export async function createAgent(app, label, projectDir) {
   await app.waitFor(`(${parent} || ${byText(".canvas-menu [role=menuitem]", label)}) && true`, `menu item ${label}`);
   if (await app.ev(`!!(${parent})`)) {
     await app.clickEl(parent);
-    await app.waitFor(`${byText(".canvas-menu__submenu [role=menuitem]", label)} && true`, `submenu item ${label}`);
-    await app.clickEl(byText(".canvas-menu__submenu [role=menuitem]", label));
+    // «Как в макете» (mock 22): the submenu rows are the provider and the role at the right («Codex» + «лид»), not the «Агент Codex (лид)» of the detailed menu
+    const sub = `[...document.querySelectorAll(".canvas-menu__submenu [role=menuitem]")].find((el) => el.textContent.trim().startsWith(${JSON.stringify(/Codex/.test(label) ? "Codex" : "Claude")}))`;
+    await app.waitFor(`${sub} && true`, `submenu item ${label}`);
+    await app.clickEl(sub);
   } else await app.clickEl(byText(".canvas-menu [role=menuitem]", label));
   await app.waitFor(`${q(".orch-dialog input")} && true`, "agent dialog");
   await app.type(q(".orch-dialog input"), projectDir);

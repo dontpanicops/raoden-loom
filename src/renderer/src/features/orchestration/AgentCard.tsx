@@ -92,7 +92,14 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
     return () => el?.removeEventListener("dblclick", onDouble);
   }, []);
   const doing = status && MOVING.includes(status.state) ? status.doing : null;
-  const stateText = props.pause && (state === "paused" || state === "needs_you") ? props.pause : `${t(locale, STATE_KEY[state])}${state === "working" && props.stageOf ? ` · ${props.stageOf}` : ""}`;
+  const held = props.pause && (state === "paused" || state === "needs_you");
+  const stateLabel = held && props.pause ? props.pause : t(locale, STATE_KEY[state]);
+  const stage = !held && state === "working" && props.stageOf ? props.stageOf : "";
+  const stateText = stage ? `${stateLabel} · ${stage}` : stateLabel;
+  // SPEC 11.2 / mock 21: below 100% the status leaves the body for the footer (the terminal's format); below 40% the card is a summary: name and glyph
+  const zoomed = zoom < 1;
+  const farSummary = zoom < 0.4;
+  const provider = card.provider === "codex" ? "Codex" : "Claude";
   const extra = status ? status.wait ?? status.now : null;
 
   return (
@@ -100,6 +107,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
       className={`agent-card agent-card--${card.provider} agent-card--${state} ${props.selected ? "agent-card--selected" : ""} ${linking ? `agent-card--linking-${linking}` : ""} ${props.offer ? `agent-card--offer-${props.offer}` : ""}`}
       data-interactive="true"
       data-zoomed={zoomedAttr(zoom)}
+      data-agent-far={farSummary ? "" : undefined}
       data-agent-id={card.agentId}
       data-agent-role={card.role}
       data-canvas-layer-id={`agent:${card.agentId}`}
@@ -126,13 +134,13 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
       </header>
       <div className="agent-card__body">
         {/* every line is one line: a long one ends with "…" and says all of it in its tooltip (1.5.13) */}
-        <div className="agent-card__status" role="status">
-          <span className={`agent-card__state agent-card__state--${state}`} data-agent-pause={props.pause && (state === "paused" || state === "needs_you") ? "yes" : undefined}
+        {!zoomed && <div className="agent-card__status" role="status">
+          <span className={`agent-card__state agent-card__state--${state}`} data-agent-pause={held ? "yes" : undefined}
             title={compact && props.statusTime ? `${stateText} · ${props.statusTime}` : stateText}>
             <UiIcon name={CARD_STATUS_ICON[agentCardStatus(state)]} size="1.1em" />
             <span>{stateText}</span></span>
           {props.statusTime && !compact && <span className="agent-card__time" data-agent-time title={props.statusTime}>{props.statusTime}</span>}
-        </div>
+        </div>}
         <div className="agent-card__project" title={card.project}><small>{withoutHome(card.project)}</small></div>
         {/* the status already names a held state (paused, ended, waiting for you); the sentence adds what moves */}
         {props.task && <div className="agent-card__line agent-card__task" data-agent-task={props.task.key} title={props.task.title}>{props.task.key} · {props.task.title}</div>}
@@ -164,6 +172,21 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
           )}
         </div>
       </div>
+      {zoomed && !farSummary && (
+        <footer className="agent-card__footer" role="status" title={compact && props.statusTime ? `${stateText} · ${props.statusTime}` : stateText}>
+          <span className={`agent-card__state agent-card__state--${state}`} data-agent-pause={held ? "yes" : undefined}>
+            <UiIcon name={CARD_STATUS_ICON[agentCardStatus(state)]} size="1.1em" />
+            <span className="agent-card__state-label">{stateLabel}</span>
+            {stage && <span className="agent-card__state-stage"> · {stage}</span>}
+          </span>
+        </footer>
+      )}
+      {farSummary && (
+        <div className="agent-card__far" role="status" title={`${provider} · ${stateText}`}>
+          <strong>{provider}</strong>
+          <span className={`agent-card__state agent-card__state--${state}`}><UiIcon name={CARD_STATUS_ICON[agentCardStatus(state)]} size="1.4em" /></span>
+        </div>
+      )}
       {(props.offer === "drop" || props.offer === "dim-over") && (
         <span className="agent-card__offer" aria-hidden="true">{t(locale, props.offer === "drop" ? "orchReleaseToLink" : "orchOtherFolder")}</span>
       )}

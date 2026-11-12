@@ -711,7 +711,7 @@ export function HomeZone({
     const zone = homeElement.current;
     if (!zone) return;
     const measure = (): void => {
-      const boxes = [...zone.querySelectorAll<HTMLElement>(".home-widget-slot")].map((slot) => ({ left: slot.offsetLeft, top: slot.offsetTop, width: slot.offsetWidth, height: slot.firstElementChild instanceof HTMLElement ? Math.min(slot.offsetHeight, slot.firstElementChild.offsetHeight) : slot.offsetHeight }));
+      const boxes = [...zone.querySelectorAll<HTMLElement>(".home-widget-slot")].map((slot) => ({ left: slot.offsetLeft, top: slot.offsetTop, width: slot.offsetWidth, height: slot.firstElementChild instanceof HTMLElement ? slot.firstElementChild.offsetHeight /* a dock that wraps is taller than its slot: the panel grows with it (SPEC 11.1) */ : slot.offsetHeight }));
       if (boxes.length === 0) return setPanel(null);
       const left = Math.min(...boxes.map((b) => b.left)), top = Math.min(...boxes.map((b) => b.top));
       const next = { left, top, width: Math.max(...boxes.map((b) => b.left + b.width)) - left, height: Math.max(...boxes.map((b) => b.top + b.height)) - top };

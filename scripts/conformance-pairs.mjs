@@ -56,10 +56,10 @@ const cut = (src, c, dst) => {
   fs.rmSync(tmp, { force: true });
   return null;
 };
-const mockFile = (mock, theme) => {
-  const jpg = path.join(MOCKS, `${mock}-${theme}.jpg`);
+const mockFile = (mock, theme, suffix = "") => { // suffix: a variant of the mock («-reduce»: «Меньше прозрачности»)
+  const jpg = path.join(MOCKS, `${mock}-${theme}${suffix}.jpg`);
   if (fs.existsSync(jpg)) return { file: jpg, k: dims(jpg).w / MOCK_WIDTH };
-  const png = path.join(MOCKS_PNG, `${mock}-${theme}.png`);
+  const png = path.join(MOCKS_PNG, `${mock}-${theme}${suffix}.png`);
   if (fs.existsSync(png)) return { file: png, k: dims(png).w / MOCK_WIDTH };
   return null;
 };
@@ -79,8 +79,8 @@ for (const row of rows) {
   if (row.honest === false) unfair.push(`${row.id}: ${row.notes}`);
   for (const theme of row.themes) {
     const entry = { row, theme, mock: null, app: null, error: null };
-    const m = mockFile(row.mock, theme);
-    if (!m) entry.error = `нет макета ${row.mock}-${theme}`;
+    const m = mockFile(row.mock, theme, row.mockSuffix);
+    if (!m) entry.error = `нет макета ${row.mock}-${theme}${row.mockSuffix ?? ""}`;
     else {
       const mockOut = path.join(zdir, `${row.id}-${theme}-mock.jpg`);
       const e = cut(m.file, scaleRect(pick(row.mockCrop, theme), m.k), mockOut);

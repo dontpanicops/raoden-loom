@@ -574,7 +574,7 @@ export function TerminalCard({
         <div className="terminal-card__summary-content">
           {session.closeUnconfirmed && session.exitCode === null
             ? <span className="terminal-card__summary-path">{t(locale, "wsStop_unconfirmed")}</span>
-            : <CardStatus kind={sessionCardStatus(session.status)} label={sessionCardLabel(locale, session.status, session.exitCode)} />}
+            : <CardStatus kind={sessionCardStatus(session.status)} label={session.status === "needs_approval" ? sessionCardLabel(locale, session.status, session.exitCode).split(" · ")[0] /* mock 21: the plaque is «Ждёт одобрения», the hint after it is the footer's */ : sessionCardLabel(locale, session.status, session.exitCode)} />}
           <span className="terminal-card__summary-name"><ProviderIcon provider={session.provider} size="small" /><strong>{session.title}</strong></span>
           <span className="terminal-card__summary-path" title={session.cwd}>{shortPath(session.cwd)}</span>
         </div>
