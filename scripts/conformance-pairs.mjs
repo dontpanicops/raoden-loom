@@ -4,6 +4,7 @@
 //        [--mocks <preview dir>] [--mocks-png <2x png dir>]
 // Writes <out>/<zone>/<id>-<theme>-{mock,app}.jpg (JPEG 1440 wide; a row with sameScale saves the mock narrower, in the app's scale, q70, macOS sips). Exit 1 when a row of the zone has no
 // frame (scene missing, file absent, empty or smaller than the crop), or a shots dir has a non-empty failed.txt.
+// A scene with "dpr": appCrop is in CSS pixels, the frame is dpr times larger (shots-r3a, shots-r3b, the goal dialog of shots-r5 are 2x like the mock PNGs).
 // The mock crop is in pixels of redesign/preview/<mock>-<theme>.jpg (1440 wide); when that JPEG is absent, the 2x PNG of
 // redesign/shots/ is used and the crop is scaled by its width. Rows with "skip" are superseded by another mock and not cut.
 import fs from "node:fs";
@@ -41,9 +42,9 @@ const cut = (src, c, dst, outWidth = 1440) => {
   let r = c ?? { x: 0, y: 0, w: d.w, h: d.h };
   if (r.x < 0 || r.y < 0 || r.x + r.w > d.w || r.y + r.h > d.h) return `кадр ${d.w}×${d.h} меньше вырезки ${JSON.stringify(r)}`;
   const tmp = tmpOf(src);
-  // sips ignores the crop when it touches the bottom edge at x = 0 (y + h = height; a crop at offset 0 0 of a flipped image is a centre crop,
+  // sips ignores the crop at offset 0 0 (centre crop) and when it touches the bottom edge at x = 0 (y + h = height; a crop at offset 0 0 of a flipped image is a centre crop,
   // so flipping does not help): the crop starts one pixel to the right and is one pixel narrower
-  const shift = r.x === 0 && r.y > 0 && r.y + r.h === d.h ? 1 : 0;
+  const shift = r.x === 0 && (r.y === 0 || r.y + r.h === d.h) ? 1 : 0;
   r = { ...r, x: r.x + shift, w: r.w - shift };
   sips("-c", String(r.h), String(r.w), "--cropOffset", String(r.y), String(r.x), src, "--out", tmp);
   dimsCache.delete(tmp);
@@ -95,7 +96,9 @@ for (const row of rows) {
       if (!src) { problems.push(`${row.id} (${theme}): нет кадра ${name} (${row.scene.script})`); entry.error ??= `нет кадра ${name}`; }
       else {
         const appOut = path.join(zdir, `${row.id}-${theme}-app.jpg`);
-        const e = cut(src, pick(row.appCrop, theme), appOut);
+        // scene.dpr: the frame is taken at that device scale and appCrop is in CSS pixels (scaled here); without it appCrop is in the frame's pixels
+        const crop = pick(row.appCrop, theme);
+        const e = cut(src, crop && row.scene.dpr ? scaleRect(crop, row.scene.dpr) : crop, appOut);
         if (e) { problems.push(`${row.id} (${theme}): ${name}: ${e}`); entry.error ??= e; } else entry.app = path.relative(OUT, appOut);
       }
     }

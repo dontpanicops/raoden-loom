@@ -96,7 +96,14 @@ const SITE = `http://localhost:${site.address().port}/notes`;
 const failed = [];
 let app;
 let theme = "sand";
-const laptop = () => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+let DSF = 1; // the goal dialog is taken at 2x like the mock PNGs (inventory scene.dpr)
+const laptop = () => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: DSF, mobile: false });
+// R12o (L1): the HUD hints «F2 / ⌘K» lie over the window's top right by design (z 300); mocks 08 / 24 have none, so they are hidden for a board clip
+const clipShot = async (clip) => {
+  const hints = (v) => app.ev(`(() => { for (const e of document.querySelectorAll(".shortcut-hints")) e.style.visibility = ${JSON.stringify(v)}; return true; })()`);
+  await hints("hidden");
+  try { return await app.call("Page.captureScreenshot", { format: "png", clip }); } finally { await hints(""); }
+};
 const SCROLL_DIALOG = `(() => { for (const el of document.querySelectorAll(".orch-dialog *")) if (el.scrollHeight > el.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) el.scrollTop = el.scrollHeight; })()`;
 const wanted = (name) => !ONLY || ONLY.split(",").some((x) => name.includes(x) || (x === "overlay" && name === "radial")); // R12l: its frame is «overlay-radial», the scene is named «radial» // --only a,b: several scenes
 const shot = async (name) => {
@@ -136,12 +143,12 @@ const go = async (id) => {
 };
 async function scene(name, fn) {
   if (!wanted(name)) return;
-  try { if (WS.alpha) await go(BETA_SCENES.has(name) ? WS.beta : ALPHA_SCENES.has(name) ? WS.alpha : WS.common); await fn(); console.log(`[shots-r5] ${theme} ${name}: ok`); }
+  try { if (WS.alpha) await go(BETA_SCENES.has(name) ? WS.beta : ALPHA_SCENES.has(name) ? WS.alpha : WS.common); if (name === "goal") { DSF = 2; await laptop(); } await fn(); console.log(`[shots-r5] ${theme} ${name}: ok`); }
   catch (e) {
     const msg = `${theme} ${name}: ${String(e?.message ?? e).split("\n")[0].slice(0, 200)}`;
     console.log(`[shots-r5] FAILED ${msg}`); failed.push(msg);
     try { await app.shot(`fail-${theme}-${name}`); await esc(); if (await app.ev(`!!document.querySelector(".workspace-bar__menu")`)) await app.clickEl(q("[data-workspace-menu]")); } catch { /* ignore */ }
-  }
+  } finally { if (DSF !== 1) { DSF = 1; await laptop().catch(() => {}); } }
 }
 const settle = async (patch = {}) => {
   await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ palette: theme, followSystem: false, canvasColor: "theme", homeAccentPreset: "theme", uiScale: 1, onboardingDismissed: true, lastDirectory: termDir, ...patch })}).then(() => true)`);
@@ -729,7 +736,7 @@ try {
       await app.ev(`(() => { const h = [...document.querySelectorAll(".orch-dialog *")].find((e) => e.children.length === 0 && /^Готовность/.test(e.textContent.trim())); h?.scrollIntoView({ block: "start" }); })()`); await sleep(400);
       await shot("goal-readiness");
       await app.ev(`(() => { for (const el of document.querySelectorAll(".orch-dialog *")) el.scrollTop = 0; })()`); await sleep(200);
-      const ps = await app.ev(`(() => { const b = [...document.querySelectorAll(".orch-dialog button")].find((e) => /Настройки проекта/.test(e.textContent)); if (!b) return false; b.scrollIntoView(); b.click(); return true; })()`);
+      const ps = await app.ev(`(() => { const b = document.querySelector(".orch-dialog [data-orch-open-settings]"); if (!b) return false; b.scrollIntoView(); b.click(); return true; })()`);
       if (!ps) { await esc(); throw new Error("no project settings button in the goal dialog"); }
       await sleep(1500);
       await shot("project-settings");
@@ -1015,7 +1022,7 @@ try {
         await measure(name);
         const r = await app.ev(`(() => { const els = ${JSON.stringify(selectors)}.map((x) => document.querySelector(x)).filter(Boolean).map((e) => e.getBoundingClientRect());
           const x = Math.min(...els.map((b) => b.left)), y = Math.min(...els.map((b) => b.top)); return { x, y, width: Math.max(...els.map((b) => b.right)) - x, height: Math.max(...els.map((b) => b.bottom)) - y }; })()`);
-        const shotData = await app.call("Page.captureScreenshot", { format: "png", clip: { ...r, scale: 2 } });
+        const shotData = await clipShot({ ...r, scale: 2 });
         fs.writeFileSync(path.join(OUT, `${theme}-${name}.png`), Buffer.from(shotData.data, "base64"));
         console.log(`[shots-r5] clip ${theme}-${name}`);
       };
@@ -1059,7 +1066,7 @@ try {
       // R7b: the two cards close up (twice the pixels), the pair of the mock's «Агенты оркестрации» row
       const cr = await app.ev(`(() => { const r = [...document.querySelectorAll("[data-agent-id]")].map((e) => e.getBoundingClientRect());
         const x = Math.min(...r.map((b) => b.left)) - 12, y = Math.min(...r.map((b) => b.top)) - 12; return { x, y, width: Math.max(...r.map((b) => b.right)) - x + 12, height: Math.max(...r.map((b) => b.bottom)) - y + 12 }; })()`);
-      const cd = await app.call("Page.captureScreenshot", { format: "png", clip: { ...cr, scale: 3 } });
+      const cd = await clipShot({ ...cr, scale: 3 });
       fs.writeFileSync(path.join(OUT, `${theme}-cards-agents-working-zoom.png`), Buffer.from(cd.data, "base64"));
     });
     if (!world.boardStates) {
@@ -1080,7 +1087,7 @@ try {
         await sleep(2500);
         const r = await app.ev(`(() => { const els = ["[data-board]", "[data-board-aside]"].map((x) => document.querySelector(x)).filter(Boolean).map((e) => e.getBoundingClientRect());
           const x = Math.min(...els.map((b) => b.left)), y = Math.min(...els.map((b) => b.top)); return { x, y, width: Math.max(...els.map((b) => b.right)) - x, height: Math.max(...els.map((b) => b.bottom)) - y }; })()`);
-        const d = await app.call("Page.captureScreenshot", { format: "png", clip: { ...r, scale: 2 } });
+        const d = await clipShot({ ...r, scale: 2 });
         fs.writeFileSync(path.join(OUT, `${theme}-board-states.png`), Buffer.from(d.data, "base64"));
         console.log(`[shots-r5] clip ${theme}-board-states`);
         if (await app.ev(`!!${q("[data-board-menu]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500); }
@@ -1099,7 +1106,7 @@ try {
         await app.ev(`document.querySelector('[data-board-task="T-3"] [data-board-more]')?.click()`); await sleep(700);
         const rx = await app.ev(`(() => { const els = ["[data-board]", "[data-board-aside]"].map((x) => document.querySelector(x)).filter(Boolean).map((e) => e.getBoundingClientRect());
           const x = Math.min(...els.map((b) => b.left)), y = Math.min(...els.map((b) => b.top)); return { x, y, width: Math.max(...els.map((b) => b.right)) - x, height: Math.max(...els.map((b) => b.bottom)) - y }; })()`);
-        const dx = await app.call("Page.captureScreenshot", { format: "png", clip: { ...rx, scale: 2 } });
+        const dx = await clipShot({ ...rx, scale: 2 });
         fs.writeFileSync(path.join(OUT, `${theme}-board-expanded.png`), Buffer.from(dx.data, "base64"));
         console.log(`[shots-r5] clip ${theme}-board-expanded`);
         await app.ev(`document.querySelector('[data-board-task="T-1"] [data-board-more]').click()`);
@@ -1143,12 +1150,12 @@ try {
       await sleep(1500);
       const r = await app.ev(`(() => { const els = ["[data-board]", "[data-board-aside]"].map((x) => document.querySelector(x)).filter(Boolean).map((e) => e.getBoundingClientRect());
         const x = Math.min(...els.map((b) => b.left)), y = Math.min(...els.map((b) => b.top)); return { x, y, width: Math.max(...els.map((b) => b.right)) - x, height: Math.max(...els.map((b) => b.bottom)) - y }; })()`);
-      const d = await app.call("Page.captureScreenshot", { format: "png", clip: { ...r, scale: 2 } });
+      const d = await clipShot({ ...r, scale: 2 });
       fs.writeFileSync(path.join(OUT, `${theme}-board-push.png`), Buffer.from(d.data, "base64"));
       console.log(`[shots-r5] clip ${theme}-board-push`);
       // R12g: the card itself (the queue is longer in some themes, so a fixed crop of the frame misses it): its own clip, twice the pixels
       const rc = await app.ev(`(() => { const b = document.querySelector('[data-board-reason="push_option_field"]').getBoundingClientRect(); return { x: b.left, y: b.top, width: b.width, height: b.height }; })()`);
-      const dc = await app.call("Page.captureScreenshot", { format: "png", clip: { ...rc, scale: 2 } });
+      const dc = await clipShot({ ...rc, scale: 2 });
       fs.writeFileSync(path.join(OUT, `${theme}-board-push-card.png`), Buffer.from(dc.data, "base64"));
       console.log(`[shots-r5] clip ${theme}-board-push-card`);
       // the profile back as it was (the later scenes run in the copy mode)
