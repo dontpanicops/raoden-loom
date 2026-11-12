@@ -67,6 +67,6 @@ test("a shortcut survives a non-Latin layout by preferring the physical key", ()
 });
 
 test("displays platform-neutral canvas navigation bindings with macOS key names", () => {
-  assert.equal(displayCanvasNavigationBinding("Ctrl+Alt+Meta+Space", true), "Ctrl+Option+Command+Space");
+  assert.equal(displayCanvasNavigationBinding("Ctrl+Alt+Meta+Space", true), "⌃⌥⌘Space");
   assert.equal(displayCanvasNavigationBinding("Ctrl+Alt", false), "Ctrl+Alt");
 });

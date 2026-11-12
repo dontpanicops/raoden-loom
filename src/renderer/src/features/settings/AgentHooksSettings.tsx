@@ -15,6 +15,8 @@ interface AgentHooksSettingsProps {
   plugins: InstalledPlugin[];
   onChange(patch: Partial<AppSettings>): Promise<void>;
   onSetPluginHookEnabled(pluginId: string, hookId: string, enabled: boolean): Promise<void>;
+  /** mock 11: the status switch goes first, the extensions' hooks go below the main settings */
+  part?: "core" | "optional";
 }
 
 interface PluginHookRow {
@@ -26,7 +28,8 @@ export function AgentHooksSettings({
   settings,
   plugins,
   onChange,
-  onSetPluginHookEnabled
+  onSetPluginHookEnabled,
+  part
 }: AgentHooksSettingsProps): React.JSX.Element {
   const locale = settings.locale;
   const rows: PluginHookRow[] = plugins.flatMap((plugin) => (
@@ -64,7 +67,7 @@ export function AgentHooksSettings({
 
   return (
     <div className="agent-hooks">
-      <section className="setting-group setting-group--field setting-group--switch">
+      {part !== "optional" && <section className="setting-group setting-group--field setting-group--switch">
         <div className="setting-group__copy">
           <h3>{t(locale, "agentHooks")}</h3>
           <p className="setting-group__description">{t(locale, "agentHooksStatusDescription")}</p>
@@ -78,8 +81,9 @@ export function AgentHooksSettings({
             onChange={(next) => void setCoreEnabled(next)}
           />
         </div>
-      </section>
+      </section>}
 
+      {part !== "core" && <>
       <div className="agent-hooks__subheading">
         <strong>{t(locale, "optionalPluginHooks")}</strong>
         <span>{t(locale, "optionalPluginHooksDescription")}</span>
@@ -141,6 +145,7 @@ export function AgentHooksSettings({
           })}
         </div>
       )}
+      </>}
       {error && <p className="agent-hooks__error" role="alert">{error}</p>}
     </div>
   );

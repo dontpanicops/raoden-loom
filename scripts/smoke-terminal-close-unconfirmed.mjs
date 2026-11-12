@@ -10,6 +10,9 @@ import path from "node:path";
 import { launch, q, sleep, workspace } from "./orchestration-app-kit.mjs";
 
 const { D, project } = workspace("cto-close-unconfirmed-");
+const PICK_USER_DATA = D("user-data");
+const PICK_FILE = D("pick-dir");
+const pickFolder = (folder) => { fs.writeFileSync(PICK_FILE, folder); };
 const shotsArg = process.argv.indexOf("--shots");
 const SHOTS = shotsArg > 0 ? path.resolve(process.argv[shotsArg + 1]) : D("shots");
 fs.mkdirSync(SHOTS, { recursive: true });
@@ -47,7 +50,7 @@ const openCloseDialog = async () => {
 };
 
 try {
-  app = await launch({ userData: D("user-data"), port: PORT, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh" } });
+  app = await launch({ userData: D("user-data"), port: PORT, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh", CANVASTTY_USER_DATA_DIR: PICK_USER_DATA, CANVASTTY_SMOKE_PICK_DIR_FILE: PICK_FILE } });
   await app.call("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
   await app.waitFor("document.querySelector('.workspace') && document.querySelector('[data-workspace-bar]') && true", "canvas");
   await sleep(800);
@@ -55,7 +58,7 @@ try {
   // a workspace of its own, created through the dialog
   await app.clickEl(q("[data-workspace-new]"));
   await app.waitFor(`${q("[data-ws-form]")} && true`, "new workspace dialog");
-  await app.type(q("[data-ws-root]"), projectA);
+  pickFolder(projectA); await app.clickEl(q("[data-ws-pick]")); await app.waitFor(`${q("code[data-ws-root]")} && ${q("code[data-ws-root]")}.textContent === ${JSON.stringify(projectA)}`, "the chosen folder");
   await app.type(q("[data-ws-title]"), "Альфа");
   await app.clickEl(q("[data-ws-submit]"));
   await app.waitFor(`!${q("[data-ws-form]")}`, "dialog closed");

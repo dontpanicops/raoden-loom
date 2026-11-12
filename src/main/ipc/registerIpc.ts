@@ -177,7 +177,10 @@ export function registerIpc({
     browser.setRendererCanvasGestureActive(active);
   });
 
+  // the smokes cannot drive the system dialog: an isolated run (CANVASTTY_USER_DATA_DIR) answers from the file named by an absolute CANVASTTY_SMOKE_PICK_DIR_FILE
+  const smokePickFile = smokeImport.isolated && process.env.CANVASTTY_SMOKE_PICK_DIR_FILE?.startsWith("/") ? process.env.CANVASTTY_SMOKE_PICK_DIR_FILE : null;
   handleMain(IPC.dialogPickDirectory, async (event, defaultPath?: string) => {
+    if (smokePickFile) return (await readFile(smokePickFile, "utf8").catch(() => "")).trim() || null;
     const owner = BrowserWindow.fromWebContents(event.sender);
     const options: OpenDialogOptions = {
       title: "Choose a project folder",

@@ -17,6 +17,7 @@ import { t, type TranslationKey } from "../../lib/i18n";
 import { copyKey, useCopy } from "../../lib/useCopy";
 import { INSTALLED_PAGE_SIZE, SHOWCASE_PAGE_SIZE, clampPage, pageCount, paginate } from "./pluginPagination";
 import { compareSemver } from "../../../../shared/hostVersion";
+import { Switch } from "../../components/Switch";
 import { UiIcon } from "../../components/UiIcon";
 
 /** Plugin description limit when displayed (longer text is truncated). */
@@ -654,7 +655,7 @@ export function PluginSettingsSection({
             onClick={() => void runCheckUpdates()}
           >{checkingUpdates ? t(locale, "checkingUpdates") : t(locale, "checkUpdates")}</button>
         </h3>
-        {plugins.length === 0 ? <p className="plugin-settings__empty">{t(locale, "noPlugins")}</p> : (
+        {plugins.length === 0 ? <div className="plugin-settings__empty plugin-settings__empty--box"><UiIcon name="blocks" size={22} /><strong>{t(locale, "noPlugins")}</strong><span>{t(locale, "pluginsEmptyHint")}</span></div> : (
           <>
           <div className="installed-plugin-list">
             {paginate(plugins, installedPage, INSTALLED_PAGE_SIZE).map((plugin) => {
@@ -669,7 +670,7 @@ export function PluginSettingsSection({
                     <span className="installed-plugin__version">
                       <strong>{plugin.manifest.name}</strong>
                       <small>
-                        v{plugin.manifest.version}
+                        v{plugin.manifest.version} · {[...new Set(plugin.manifest.contributions.map((c) => t(locale, contributionKindKey(c.kind))))].join(", ")}
                         {update && (
                           <>
                             <span className="installed-plugin__version-arrow" aria-hidden="true">→</span>
@@ -700,12 +701,12 @@ export function PluginSettingsSection({
                         ))}
                       >{t(locale, "settings")}</button>
                     )}
-                    <button
-                      type="button"
-                      className={plugin.enabled ? "" : "installed-plugin__enable"}
+                    <Switch
+                      checked={plugin.enabled}
                       disabled={busy}
-                      onClick={() => void runPluginAction(() => onSetPluginEnabled(plugin.manifest.id, !plugin.enabled))}
-                    >{plugin.enabled ? t(locale, "disable") : t(locale, "enable")}</button>
+                      label={plugin.manifest.name}
+                      onChange={(next) => void runPluginAction(() => onSetPluginEnabled(plugin.manifest.id, next))}
+                    />
                     <button
                       className="installed-plugin__remove"
                       type="button"
@@ -930,11 +931,7 @@ export function PluginSettingsSection({
           </div>
         )}
         </section>
-        {!githubAuthorized && (
-          <div className="plugin-showcase-lock">
-            <span>{t(locale, "showcaseRequiresGithub")}</span>
-          </div>
-        )}
+        {!githubAuthorized && <p className="plugin-settings__empty" role="status">{t(locale, "showcaseRequiresGithub")}</p>}
       </div>
     </div>
   );

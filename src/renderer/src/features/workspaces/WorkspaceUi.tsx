@@ -73,6 +73,7 @@ export type WorkspaceDialog =
   | { kind: "settings"; id: string }
   | { kind: "move"; item: MovableKind | "agents"; id: string; label: string }
   | { kind: "close"; id: string }
+  | { kind: "remove"; id: string }
   | { kind: "history"; id: string }
   | { kind: "arrange"; id: string }
   | { kind: "hidden" };
@@ -135,8 +136,7 @@ export function WorkspaceBar({ controls, counts, locale, onDialog, board }: {
             <button type="button" role="menuitem" className="canvas-menu__row" data-ws-action="hidden" disabled={hidden.length === 0} onClick={() => act({ kind: "hidden" })}>{tr(locale, "wsHiddenList", { n: String(hidden.length) })}</button>
             <button type="button" role="menuitem" className="canvas-menu__row" data-ws-action="close" disabled={!controls.state.available || open.length < 2} onClick={() => act({ kind: "close", id: active.id })}>{tk(locale, "wsClose")}</button>
             <button type="button" role="menuitem" className="canvas-menu__row canvas-menu__row--danger" data-ws-action="remove" disabled={!controls.state.available || isCommon(active.id)} onClick={() => {
-              setMenuOpen(false);
-              void controls.remove(active.id).then(say);
+              act({ kind: "remove", id: active.id });
             }}>{tk(locale, "wsRemove")}</button>
           </div>
         )}
@@ -178,18 +178,17 @@ function WorkspaceForm({ controls, locale, id, onClose }: { controls: WorkspaceC
             className={taken ? "orch-input--error" : undefined} aria-invalid={taken ? true : undefined} />
           {taken && <span className="orch-field__error" role="alert" data-ws-name-taken>{tr(locale, "wsNameTaken", { name: workspaceTitle(locale, taken) })}</span>}
         </label>
-        <label className="orch-field"><span>{tk(locale, "wsFolder")}</span>
-          <span className="orch-field__row">
-            <input value={root} onChange={(event) => { setRoot(event.target.value); setConfirmedTwin(false); }} placeholder="/" data-ws-root spellCheck={false} />
-            <button type="button" onClick={() => void window.canvasTTY.dialog.pickDirectory(folder || undefined).then((picked) => {
-              if (!picked) return;
-              setRoot(picked);
-              setConfirmedTwin(false);
-              if (!title.trim()) setTitle(folderName(picked));
-            })}>{tk(locale, "wsPickFolder")}</button>
-          </span>
-        </label>
-        <p className="orch-hint">{tk(locale, "wsFolderHint")}</p>
+        {/* mock 25: one 12px line under the name — «Папка: путь · Изменить…» / «Папка не выбрана · Выбрать…»; the path is mono, its end is cut, the whole one is the tooltip */}
+        <div className="ws-folder-line" data-ws-folder>
+          {folder ? <><span>{tk(locale, "wsFolderShort")}</span><code title={folder} data-ws-root>{folder}</code></> : <span data-ws-root>{tk(locale, "wsNoFolder")}</span>}
+          <span aria-hidden="true">·</span>
+          <button type="button" data-ws-pick onClick={() => void window.canvasTTY.dialog.pickDirectory(folder || undefined).then((picked) => {
+            if (!picked) return;
+            setRoot(picked);
+            setConfirmedTwin(false);
+            if (!title.trim()) setTitle(folderName(picked));
+          })}>{tk(locale, folder ? "wsChangeFolder" : "wsPickFolder")}</button>
+        </div>
         {twin && !id && (
           <div className="orch-hint orch-hint--warn" role="status" data-ws-twin>
             {tr(locale, "wsTwin", { name: workspaceTitle(locale, twin) })}
@@ -207,6 +206,33 @@ function WorkspaceForm({ controls, locale, id, onClose }: { controls: WorkspaceC
         </div>
         {error && <div className="dialog-error" role="alert">{error}</div>}
       </form>
+    </Dialog>
+  );
+}
+
+// Deleting a workspace asks first (mock 17): it cannot be undone; main still refuses one that has cards or history.
+function RemoveDialog({ controls, locale, id, onClose }: { controls: WorkspaceControls; locale: LocaleId; id: string; onClose(): void }): React.JSX.Element {
+  const w = controls.state.workspaces.find((x) => x.id === id);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async (): Promise<void> => {
+    setBusy(true);
+    const text = await controls.remove(id);
+    setBusy(false);
+    if (text) setError(text);
+    else onClose();
+  };
+  return (
+    <Dialog label={tr(locale, "wsDeleteTitle", { name: workspaceTitle(locale, w) })} onClose={onClose} locale={locale} className="ws-dialog">
+      <div className="orch-form" data-ws-delete>
+        <p>{tk(locale, "wsDeleteText")}</p>
+        <p className="orch-hint">{tk(locale, "wsDeleteHint")}</p>
+        {error && <div className="dialog-error" role="alert">{error}</div>}
+        <div className="orch-form__actions">
+          <button type="button" className="orch-cancel" onClick={onClose}>{t(locale, "orchCancel")}</button>
+          <button type="button" className="orch-danger" data-ws-delete-go disabled={busy} onClick={() => void submit()}>{tk(locale, "wsDelete")}</button>
+        </div>
+      </div>
     </Dialog>
   );
 }
@@ -419,12 +445,13 @@ function HistoryDialog({ controls, orch, locale, id, onClose, onOpenRun }: {
         <ul className="ws-list">
           {runs?.map((r) => (
             <li key={r.runId} data-ws-history-run={r.runId}>
-              <span>{r.project || r.runId.slice(0, 8)}</span>
+              <span className="ws-history__run"><span>{r.project || r.runId.slice(0, 8)}</span><code>{r.runId.slice(0, 8)}</code></span>
               <span className="ws-list__state" data-ws-history-state={r.status}>{r.status === "newer" ? tk(locale, "orchReadOnly") : tk(locale, `orchStatus_${r.status}`)}</span>
               <button type="button" data-ws-history-open onClick={() => { onOpenRun(r.runId); onClose(); }}>{t(locale, TERMINAL_STATUSES.includes(r.status) || r.status === "completed_no_checks" ? "orchTab_summary" : "orchOpenRun")}</button>
             </li>
           ))}
         </ul>
+        {runs && runs.length > 0 && <p className="orch-hint">{tk(locale, "wsHistoryHint")}</p>}
       </div>
     </Dialog>
   );
@@ -550,6 +577,7 @@ export function WorkspaceDialogs({ dialog, controls, counts, orch, layout, local
     case "settings": return <WorkspaceForm controls={controls} locale={locale} id={dialog.id} onClose={onClose} />;
     case "move": return <MoveDialog controls={controls} orch={orch} locale={locale} layout={layout} item={dialog.item} id={dialog.id} label={dialog.label} onClose={onClose} />;
     case "close": return <CloseDialog controls={controls} orch={orch} locale={locale} id={dialog.id} onClose={onClose} onOpenRun={onOpenRun} />;
+    case "remove": return <RemoveDialog controls={controls} locale={locale} id={dialog.id} onClose={onClose} />;
     case "history": return <HistoryDialog controls={controls} orch={orch} locale={locale} id={dialog.id} onClose={onClose} onOpenRun={onOpenRun} />;
     case "arrange": return <ArrangeDialog controls={controls} orch={orch} locale={locale} layout={layout} id={dialog.id} onClose={onClose} />;
     case "hidden": return <HiddenDialog controls={controls} counts={counts} locale={locale} onClose={onClose} />;

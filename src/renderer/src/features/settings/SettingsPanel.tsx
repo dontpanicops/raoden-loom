@@ -36,7 +36,6 @@ import type {
   ZoomSensitivity
 } from "../../../../shared/contracts";
 import {
-  BROWSER_PROVIDER_COLORS,
   CANVAS_LAUNCHER_ITEMS,
   DEFAULT_CANVAS_LAUNCHER_ITEMS,
   DEFAULT_RADIAL_LAUNCHER_ITEMS,
@@ -528,6 +527,7 @@ export function SettingsPanel({
                 plugins={plugins}
                 onChange={onChange}
                 onSetPluginHookEnabled={onSetPluginHookEnabled}
+                part="core"
               />
               <AgentProviderTable
                 locale={locale}
@@ -553,12 +553,10 @@ export function SettingsPanel({
               {sw(t(locale, "quickLauncher"), t(locale, "quickLauncherDescription"), settings.radialLauncherEnabled,
                 (next) => void onChange({ radialLauncherEnabled: next }))}
               <SettingGroup
-                layout="stacked"
                 label={t(locale, "canvasLauncherItems")}
                 description={t(locale, "canvasLauncherItemsDescription")}
               >
                 <div className="canvas-menu canvas-launcher-settings-menu">
-                  <CanvasMenuLabel>{t(locale, "canvasLauncherSettingsLabel")}</CanvasMenuLabel>
                   {CANVAS_LAUNCHER_ITEMS.map((item: CanvasLauncherItemId) => {
                     const enabled = settings.canvasLauncherItems.includes(item);
                     return (
@@ -620,6 +618,13 @@ export function SettingsPanel({
                 </div>
               </section>
               )}
+              <AgentHooksSettings
+                settings={settings}
+                plugins={plugins}
+                onChange={onChange}
+                onSetPluginHookEnabled={onSetPluginHookEnabled}
+                part="optional"
+              />
             </>
           )}
 
@@ -712,6 +717,10 @@ export function SettingsPanel({
                 {shortcutError && capturing === "renameWindow" && (
                   <p className="shortcut-editor__error" role="alert">{shortcutError}</p>
                 )}
+                <div className="shortcut-editor__row">
+                  <span>{t(locale, "commandPalette")}</span>
+                  <div className="shortcut-editor__actions"><span className="shortcut-editor__key">{window.canvasTTY.window.isMacOS ? "⌘K" : "Ctrl+K"}</span></div>
+                </div>
                 <CanvasNavigationShortcutEditor
                   open={open}
                   locale={locale}
@@ -921,15 +930,11 @@ function BrowserActivityList({
         const provider = event.provider ?? "unknown";
         return (
           <div className={`browser-settings__activity ${event.ok ? "" : "browser-settings__activity--failed"}`} key={event.sequence}>
-            <span
-              className="browser-settings__agent-mark"
-              style={{ "--agent-color": BROWSER_PROVIDER_COLORS[provider] } as React.CSSProperties}
-              aria-hidden="true"
-            />
-            <span className="browser-settings__row-copy">
-              <strong title={event.agentId ?? t(locale, "browserYou")}>{event.agentId ?? t(locale, "browserYou")}</strong>
-              <small>{activityOperationLabel(locale, event.operation)}</small>
+            <span className="browser-settings__badge" title={event.agentId ?? t(locale, "browserYou")}>
+              {provider !== "unknown" && <ProviderIcon provider={provider} size="small" />}
+              {event.agentId ?? t(locale, "browserYou")}
             </span>
+            <span className="browser-settings__op">{activityOperationLabel(locale, event.operation)}</span>
             <time dateTime={new Date(event.timestamp).toISOString()}>
               {new Date(event.timestamp).toLocaleTimeString(locale === "ru" ? "ru-RU" : "en-GB", {
                 hour: "2-digit",

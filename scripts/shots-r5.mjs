@@ -153,6 +153,19 @@ const pairView = async (...ids) => {
   await app.panBy({ x: 720 - b.cx, y: 470 - b.cy }); await sleep(700);
 };
 
+// «plugins-list» only: installed plugins written where main reads them at start (userData/plugins/<id>, plugins.json);
+// canvas apps only, so that HOME and the dock of the other scenes stay as they are. The update line and the load error need main's help (not seeded).
+if (ONLY?.split(",").includes("plugins-list")) {
+  const reg = {};
+  for (const [id, name, version, desc, enabled] of [["com.example.pomodoro", "Pomodoro", "1.2.0", "Таймер для работы и перерывов", true], ["com.example.agent-guard", "Agent Guard", "0.4.1", "Следит за запросами прав у агентов", false]]) {
+    const dir = path.join(userData, "plugins", id);
+    fs.mkdirSync(path.join(dir, "apps"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "apps", "main.html"), "<!doctype html><title>x</title>");
+    fs.writeFileSync(path.join(dir, "canvastty.plugin.json"), JSON.stringify({ apiVersion: 1, id, name, version, description: desc, permissions: ["storage"], contributions: [{ id: "main", kind: "canvas-app", title: name, entry: "apps/main.html", defaultSize: { width: 480, height: 320 } }] }));
+    reg[id] = { sourceUrl: `https://github.com/example/${id.split(".").pop()}`, enabled, installedAt: Date.now() };
+  }
+  fs.writeFileSync(path.join(userData, "plugins.json"), JSON.stringify(reg));
+}
 try {
   app = await launch({ userData, providers, port: PORT, shots: OUT, env: { CANVASTTY_SMOKE_CLI_DIR: cliBin, CANVASTTY_USER_DATA_DIR: userData, CANVASTTY_SMOKE_IMPORT_FILE: BOARD_FILE } });
   await laptop();
@@ -334,6 +347,18 @@ try {
       await shot("overlay-context-menu");
       await esc();
     });
+    await scene("overlay-menu-agent-sub", async () => {
+      // mock 22 «Как в макете»: the submenu of «Агент оркестрации ›» open
+      await app.key("Home", "Home", 36); await sleep(900);
+      const spot = await app.freeRect(40, 40);
+      await app.click(spot.x + 20, spot.y + 20, "right"); await sleep(500);
+      await app.waitFor(`${q(".canvas-menu")} && true`, "menu");
+      const row = await app.ev(`(() => { const b = [...document.querySelectorAll(".canvas-menu [role=menuitem]")].find((e) => /Агент оркестрации/.test(e.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+      if (!row) throw new Error("no «Агент оркестрации» row in the menu");
+      await app.click(row.x, row.y); await sleep(600);
+      await shot("overlay-context-menu-agent-sub");
+      await esc();
+    });
     await scene("overlay-menu-detailed", async () => {
       // «Вид меню: Подробное» (D-037): a row per agent role instead of one «Агент оркестрации»
       await app.ev(`window.canvasTTY.settings.update({ canvasMenuStyle: "detailed" }).then(() => true)`);
@@ -385,6 +410,9 @@ try {
         console.log("[shots-r5] banner state", await app.ev(`JSON.stringify({ focus: document.hasFocus(), un: localStorage.getItem("orch.notify.unavailable"), n: localStorage.getItem("orch.notified.v1") })`));
         await app.waitFor(`${q("[data-notify-banner]")} && true`, "the banner", 15_000);
         await shot("overlay-banner");
+        // mock 22 «long text»: the text is cut with «…»; focus on it shows the ring (the tooltip itself is native and not in a screenshot)
+        await app.ev(`document.querySelector("[data-notify-banner] .notify-banner__item > span")?.focus()`); await sleep(300);
+        await shot("overlay-banner-long");
       } finally {
         await app.call("Emulation.setFocusEmulationEnabled", { enabled: true });
         await app.ev(`(() => { localStorage.removeItem("orch.notify.unavailable"); document.querySelectorAll("[data-notify-banner] button[aria-label]").forEach((b) => b.click()); return true; })()`);
@@ -410,6 +438,14 @@ try {
           }
         } catch (e) { failed.push(`${theme} settings-${tab}: ${String(e.message).slice(0, 120)}`); }
       }
+      await app.clickEl(q(".settings-panel__close")); await sleep(500);
+    });
+
+    await scene("plugins-list", async () => {
+      await app.clickEl(q(".settings-button"));
+      await app.waitFor(`${q(".settings-backdrop--open")} && true`, "settings open", 10_000);
+      await app.clickEl(q("#settings-tab-plugins")); await sleep(700);
+      await shot("settings-plugins-list");
       await app.clickEl(q(".settings-panel__close")); await sleep(500);
     });
 
@@ -516,6 +552,31 @@ try {
       await app.waitFor(`${q("[data-ws-browser-elsewhere]")} && true`, "the browser notice", 5000);
       await shot("ws-browser-elsewhere"); await esc(); await sleep(300);
       await go(WS.common);
+    });
+    // mock 17: the confirmation of deleting an empty space, and the window after «Остановить и скрыть»
+    await scene("ws-delete", async () => {
+      const menuOpen = () => app.ev(`!!${q(".workspace-bar__menu")}`);
+      const name = theme === "sand" ? "Гамма-2" : "Дельта-2";
+      await app.clickEl(q("[data-workspace-new]")); await sleep(500);
+      await app.type(q("[data-ws-title]"), name); await app.clickEl(q("[data-ws-submit]")); await sleep(1500);
+      await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
+      await app.clickEl(q('[data-ws-action="remove"]')); await sleep(700);
+      await app.waitFor(`${q("[data-ws-delete]")} && true`, "the delete dialog", 5000);
+      await shot("ws-delete-empty"); await esc(); await sleep(300);
+      if (await menuOpen()) await app.clickEl(q("[data-workspace-menu]"));
+      // a working session in the same space, then «Скрыть» → «Остановить и скрыть»
+      const sid = (await app.ev(`window.canvasTTY.workspaces.get()`)).workspaces.find((w) => w.title === name).id;
+      await session("claude", `stop-hide-${name}`, "stop-hide-api", elsewhere(3200, 3200), sid); await sleep(2000);
+      await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
+      await app.clickEl(q('[data-ws-action="close"]')); await sleep(900);
+      await app.waitFor(`${q("[data-ws-close-stop]")} && true`, "the stop button", 5000);
+      // the dialog hides the space itself once everything has stopped: the frame is taken right after the click
+      await app.clickEl(q("[data-ws-close-stop]")); await sleep(150);
+      await shot("ws-stop-hide");
+      await sleep(2500);
+      if (await app.ev(`!!${q("[data-ws-close-hide]")}`)) await app.clickEl(q("[data-ws-close-hide]"));
+      await sleep(900);
+      if (await menuOpen()) await app.clickEl(q("[data-workspace-menu]"));
     });
     // goal dialog and project settings
     await scene("goal", async () => {

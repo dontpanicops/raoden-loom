@@ -194,12 +194,12 @@ test("the redesigned menus use shared tokens, em geometry, and the configured UI
   assert.match(styles, /\.canvas-menu__row \{[^}]*font-weight: 400;/);
   assert.match(styles, /\.canvas-menu__icon \{[^}]*width: 1\.5em;[^}]*height: 1\.5em;[^}]*color: var\(--text-secondary\)/);
   assert.match(styles, /\.canvas-menu__kbd \{[^}]*margin-left: auto;[^}]*color: var\(--text-muted\)/);
-  assert.match(styles, /\.canvas-menu__swatches \{[^}]*gap: \.45em/);
+  assert.match(styles, /\.canvas-menu__swatches \{[^}]*gap: \.55em/);
   assert.match(styles, /\.canvas-command-palette__footer \{[^}]*border-top:/);
   assert.match(menuPrimitives, /<span className="canvas-menu__icon">[\s\S]*<UiIcon name=\{icon\} size="1\.23em" \/>/);
   assert.match(contextMenu, /"ctxRegion"/); // R5e: mock 10 labels, no "here" hints
   assert.match(contextMenu, /"ctxConfigureList"/);
-  assert.match(contextMenu, /CANVAS_REGION_COLORS\.map/);
+  assert.match(contextMenu, /CANVAS_REGION_COLORS\.slice\(0, 5\)/);
   assert.match(contextMenu, /canvas-menu__swatch--selected/);
   assert.match(contextMenu, /canvasMenuRegionContentsStay/);
   assert.match(commandPalette, /CanvasMenuLabel>\{t\(locale, "canvasMenuSessions"\)\}/);
@@ -208,7 +208,7 @@ test("the redesigned menus use shared tokens, em geometry, and the configured UI
   assert.match(commandPalette, /canvas-palette__chip/);
   assert.match(settings, /className="canvas-menu canvas-launcher-settings-menu"/);
   assert.match(settings, /icon=\{enabled \? "minus" : "plus"\}/);
-  assert.match(settings, /layout="stacked"\s+label=\{t\(locale, "canvasLauncherItems"\)\}/);
+  assert.match(settings, /<SettingGroup\s+label=\{t\(locale, "canvasLauncherItems"\)\}/); // R12c: the list sits on the right, as in mock 11
   assert.match(settings, /<AgentProviderTable/);
   assert.match(settings, /setHomeLauncherProviderEnabled\(homeLauncherProviders, provider, enabled\)/);
   assert.match(settings, /setHomeLimitProviderEnabled\(homeLimitProviders, provider, enabled\)/);

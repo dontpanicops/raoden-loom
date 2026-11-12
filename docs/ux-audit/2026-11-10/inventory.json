@@ -977,11 +977,11 @@
    "mock": "22-menu-banner",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 400, "y": 104, "w": 472, "h": 200 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-overlay-context-menu-agent-sub.png" },
+   "appCrop": { "x": 30, "y": 78, "w": 480, "h": 203 },
    "scale": "100%",
    "data": "«Как в макете»: подменю «Агент оркестрации ›» открыто",
-   "notes": "",
-   "missing": "сцена контекстного меню с открытым подменю «Агент оркестрации»"
+   "notes": ""
   },
   {
    "id": "22-banner-one",
@@ -1001,11 +1001,11 @@
    "mock": "22-menu-banner",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 612, "w": 560, "h": 120 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-overlay-banner-long.png" },
+   "appCrop": { "x": 440, "y": 0, "w": 560, "h": 120 },
    "scale": "100%",
    "data": "длинный текст баннера: «…» и подсказка при наведении",
-   "notes": "",
-   "missing": "сцена баннера с длинным заголовком и наведением"
+   "notes": "подсказка при наведении — родная (title), в кадр не попадает; кадр с фокусом на тексте"
   },
   {
    "id": "22-banner-two",
@@ -1016,7 +1016,7 @@
    "scene": null,
    "scale": "100%",
    "data": "ждущий и упавший — две строки",
-   "notes": "",
+   "notes": "в стенде нет упавшего запуска с баннером; без нового фикстурного запуска сцену не снять",
    "missing": "сцена баннера с ждущим и упавшим запуском"
   },
   {
@@ -1064,7 +1064,7 @@
    "scene": null,
    "scale": "100%",
    "data": "«Остановить всё и скрыть»: ход остановки по пунктам",
-   "notes": "",
+   "notes": "fake-терминал останавливается мгновенно, диалог скрывает пространство до кадра; состояние «идёт остановка» не снять",
    "missing": "сцена «Остановить всё и скрыть» с идущей остановкой"
   },
   {
@@ -1073,11 +1073,11 @@
    "mock": "17-workspaces",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 509, "y": 321, "w": 421, "h": 298 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-delete-empty.png" },
+   "appCrop": { "x": 500, "y": 315, "w": 450, "h": 318 },
    "scale": "100%",
    "data": "«Удалить …?» для пустого пространства",
-   "notes": "",
-   "missing": "сцена ws-delete снимает меню с недоступным «Удалить»; нужно пустое пространство и открытый диалог"
+   "notes": ""
   },
   {
    "id": "17-move",
@@ -1793,11 +1793,11 @@
    "mock": "15-project-settings",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 174, "y": 555, "w": 1092, "h": 405 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-project-settings-scrolled.png" },
+   "appCrop": { "x": 175, "y": 150, "w": 1100, "h": 408 },
    "scale": "100%",
    "data": "Push, выгрузка ревью, MCP и окружение",
-   "notes": "",
-   "missing": "сцена project-settings с прокруткой до Push / ревью / MCP"
+   "notes": "в приложении блоки Push, выгрузка ревью и MCP стоят иначе, чем в 15: расхождение вида, не сцена"
   },
   {
    "id": "16-general",
@@ -1878,11 +1878,11 @@
    "mock": "26-plugins",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 40, "y": 96, "w": 664, "h": 700 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-settings-plugins-list.png" },
+   "appCrop": { "x": 200, "y": 100, "w": 1050, "h": 752 },
    "scale": "100%",
    "data": "установленные плагины: обновление, выключенный, ошибка загрузки",
-   "notes": "",
-   "missing": "сцена с установленными плагинами (обновление и loadError — новое в коде)"
+   "notes": "сцена наполняет userData/plugins только при --only plugins-list; строку «Доступно обновление» и ошибку загрузки не снять (loadError — этап функций)"
   },
   {
    "id": "26-plugins-empty",

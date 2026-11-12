@@ -326,8 +326,10 @@ button { border: 0; }
 .canvas-menu__submenu { top: -.45em; left: calc(100% + .55em); z-index: 1; width: 15.5em; min-width: 15.5em; margin: 0; }
 .canvas-menu__submenu--left { right: calc(100% + .55em); left: auto; }
 .canvas-menu__palette-row { cursor: default; }
-.canvas-menu__swatches { display: flex; gap: .45em; padding: .15em .3em; }
-.canvas-menu__swatch { width: 1.5em; height: 1.5em; flex: 0 0 auto; border: .08em solid var(--border-strong); border-radius: .45em; outline: 0; cursor: pointer; }
+.canvas-menu__color-title { cursor: default; }
+.canvas-menu__swatches { display: flex; gap: .55em; padding: .1em .8em .5em 2.95em; }
+.canvas-menu__note { margin: -.35em 0 0; padding: 0 .8em .5em 2.95em; color: var(--text-muted); font-size: .85em; line-height: 1.25; }
+.canvas-menu__swatch { width: 1.5em; height: 1.5em; flex: 0 0 auto; border: .08em solid var(--border-strong); border-radius: 50%; outline: 0; cursor: pointer; }
 .canvas-menu__swatch:hover, .canvas-menu__swatch:focus-visible { box-shadow: 0 0 0 .12em var(--focus); }
 .canvas-menu__swatch--selected { box-shadow: 0 0 0 .15em var(--text-primary); }
 
@@ -582,8 +584,9 @@ button { border: 0; }
 .orch-dialog .orch-form button.launch-card__btn { height: var(--control-h-m); padding: 0 14px; flex: 0 0 auto; border: 1px solid var(--border-strong); border-radius: 8px; color: var(--text-primary); background: var(--surface-sunken); cursor: pointer; font-size: 13px; box-shadow: none; }
 .orch-dialog .orch-form button.launch-card__btn:hover { background: color-mix(in srgb, var(--text-primary) 14%, var(--surface-sunken)); }
 .launch-card__hint { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.4; }
-.launch-card__recent button { padding: 0; color: inherit; background: none; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
-.launch-card__recent button:hover { color: var(--text-primary); }
+.launch-card__recent { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.orch-dialog .orch-form .launch-card__recent button { height: auto; min-height: 0; padding: 0; border: 0; border-radius: 0; color: var(--text-secondary); background: none; cursor: pointer; font: inherit; box-shadow: none; }
+.orch-dialog .orch-form .launch-card__recent button:hover { color: var(--text-primary); text-decoration: underline; }
 .launch-card__text { margin: 0; color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
 .launch-card__row--buttons .orch-primary { padding: 0 14px; height: var(--control-h-m); border-radius: 8px; font-size: 13px; }
 .orch-dialog .orch-form button.launch-card__link { align-self: flex-start; padding: 0 4px; color: var(--text-secondary); background: none; cursor: pointer; font-size: 13px; box-shadow: none; }
@@ -649,6 +652,10 @@ button { border: 0; }
 .color-field__hex:focus { border-color: var(--focus); box-shadow: 0 0 0 .14em color-mix(in srgb, var(--focus) 24%, transparent); }
 .canvas-launcher-settings-menu { position: relative; left: auto; top: auto; z-index: auto; width: 100%; min-width: 0; max-width: 100%; background: var(--surface-sunken); box-shadow: none; }
 .canvas-launcher-settings-menu .canvas-menu__icon { background: var(--surface-2); }
+/* mock 11: a short list on the right, the − / + at the row's right edge */
+.setting-group:not(.setting-group--stacked) .canvas-launcher-settings-menu { width: 260px; }
+.canvas-launcher-settings-menu .canvas-menu__row > .canvas-menu__icon { order: 2; }
+.canvas-launcher-settings-menu .canvas-menu__row { min-height: 0; padding-block: .25em; }
 .ui-scale-setting { display: grid; grid-template-columns: minmax(0, 1fr) 4.6em; align-items: center; gap: 1em; }
 .ui-scale-setting input { width: 100%; accent-color: var(--focus); }
 .ui-scale-setting output { min-height: 2.7em; display: grid; place-items: center; border-radius: .65em; color: var(--text-primary); background: var(--surface-2-b); font: 700 .82em/1 var(--font-mono); }
@@ -719,10 +726,14 @@ button { border: 0; }
 .browser-settings__row-copy small { color: var(--text-muted); font-size: 9px; font-weight: 750; }
 .browser-settings__progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; overflow: hidden; background: var(--surface-sunken); }
 .browser-settings__progress span { display: block; height: 100%; background: var(--surface-2); }
-.browser-settings__activity { grid-template-columns: 14px minmax(0, 1fr) auto; }
+.browser-settings__activity { grid-template-columns: auto minmax(0, 1fr) auto; }
+/* mock 16: «badge · action · time» on one line */
+.browser-settings__badge { max-width: 9em; min-width: 0; display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 5px; overflow: hidden; border: 1px solid var(--border-strong); border-radius: 999px; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.browser-settings__badge .provider-icon { flex: 0 0 auto; }
+.browser-settings__op { min-width: 0; overflow: hidden; color: var(--text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .browser-settings__activity--failed { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-failed) 55%, transparent); }
 .browser-settings__agent-mark { --agent-color: var(--status-idle); width: 9px; height: 15px; border-radius: 5px 1px 5px 5px; background: var(--agent-color); transform: rotate(-18deg); }
-.browser-settings__activity time { color: var(--text-muted); font: 800 9px var(--font-mono); }
+.browser-settings__activity time { color: var(--text-muted); font: 500 11px var(--font-mono); }
 .browser-settings__data-actions { display: flex; align-items: center; gap: 7px; }
 .browser-settings__clear, .browser-settings__cancel { min-height: 39px; padding: 8px 12px; border-radius: 9px; color: var(--text-primary); background: var(--surface-2); cursor: pointer; font-size: 11px; font-weight: 850; }
 .browser-settings__clear--confirm { color: var(--danger-text); background: var(--danger); }
@@ -799,25 +810,7 @@ button { border: 0; }
 .plugin-showcase-group { margin-top: 4px; }
 .plugin-showcase-wrap { position: relative; margin-top: 4px; }
 .plugin-showcase-wrap .plugin-showcase-group { margin-top: 0; }
-.plugin-showcase-group--off { filter: grayscale(1) opacity(.28); pointer-events: none; user-select: none; }
-.plugin-showcase-lock {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: auto;
-}
-.plugin-showcase-lock span {
-  padding: 8px 16px;
-  border-radius: 10px;
-  background: var(--surface-2);
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 850;
-  box-shadow: 0 0 0 1px var(--border-strong), var(--elev-3);
-}
+.plugin-showcase-group--off { filter: grayscale(1) opacity(.45); pointer-events: none; user-select: none; }
 .plugin-showcase-search { margin-top: 12px; }
 .plugin-pagination { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
 .plugin-pagination button { min-width: 28px; min-height: 24px; padding: 0 8px; border-radius: 7px; color: var(--accent-text); background: var(--accent-bg); font-size: 13px; font-weight: 850; cursor: pointer; }
@@ -993,7 +986,6 @@ button { border: 0; }
 .settings-panel :is(.plugin-github-code strong, .plugin-github-copied, .plugin-github-flow a) { color: var(--focus); }
 .settings-panel .plugin-github-copied { background: color-mix(in srgb, var(--focus) 14%, transparent); }
 .settings-panel .plugin-github-dot { background: var(--status-working); box-shadow: 0 0 0 .22em color-mix(in srgb, var(--status-working) 22%, transparent); }
-.settings-panel .plugin-showcase-lock span { color: var(--text-primary); background: var(--surface-sunken); box-shadow: var(--elev-3); }
 .settings-panel .plugin-icon--fallback { color: var(--accent-text); background: var(--accent-bg); }
 .settings-panel .canvas-launcher-settings-menu .canvas-menu__row--muted .canvas-menu__grow { color: var(--text-secondary); }
 
@@ -1686,14 +1678,14 @@ button { border: 0; }
 
 /* UX audit PR 3: the in-window banner where macOS shows no notification */
 /* at the bottom, over the canvas and the run panel (the workspace tabs and the panel stand at the top and the right) */
-.notify-banner { position: fixed; top: 108px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 6px; width: min(520px, calc(100vw - 32px)); font-size: 13px; line-height: 1.35; }
+.notify-banner { position: fixed; top: 4px; left: 50%; transform: translateX(-50%); z-index: 9100; -webkit-app-region: no-drag; /* in the title bar's free middle: over HOME nothing */ display: flex; flex-direction: column; gap: 6px; width: min(560px, calc(100vw - 32px)); font-size: 13px; line-height: 1.35; }
 .notify-banner__item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--radius-lg, 12px); background: var(--surface-3-solid); color: var(--text-primary); box-shadow: inset 0 0 0 1px var(--status-waiting), 0 0 14px color-mix(in srgb, var(--status-waiting) 40%, transparent), var(--elev-4); }
 .notify-banner__item > .ui-icon { flex: none; color: var(--status-waiting); }
 .notify-banner__item--completed, .notify-banner__item--completed_no_checks { box-shadow: inset 0 0 0 1px var(--focus), var(--elev-4); }
 .notify-banner__item--completed > .ui-icon, .notify-banner__item--completed_no_checks > .ui-icon { color: var(--focus); }
 .notify-banner__item--failed { box-shadow: inset 0 0 0 1px var(--status-failed), var(--elev-4); }
 .notify-banner__item--failed > .ui-icon { color: var(--status-failed); }
-.notify-banner__item > span { flex: 1; min-width: 0; }
+.notify-banner__item > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .notify-banner__item > button { flex: none; font-size: 12px; }
 .notify-banner__show { padding: 4px 12px; border: 0; border-radius: 8px; color: var(--accent-text); background: var(--accent-bg); font-weight: 600; cursor: pointer; }
 .notify-banner__close { border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; }
@@ -2094,7 +2086,11 @@ button { border: 0; }
 /* R6-B: link popover (mock 18) */
 .terminal-link-dialog.launch-popover { width: 340px; padding: 16px; border-radius: 16px; }
 .terminal-link-dialog__actions { display: flex; flex-direction: column; gap: 8px; }
-.terminal-link-dialog__actions button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; }
+.terminal-link-dialog__actions button { display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; }
+/* mock 18: a 14px title, no cross (Esc and a click outside close it), text-only buttons */
+.terminal-link-dialog .orch-dialog__title { font-size: 14px; font-weight: 600; }
+.terminal-link-dialog .launch-dialog__close { display: none; }
+.terminal-link-dialog .launch-dialog__toolbar { height: auto; margin: 0 0 10px; }
 .terminal-link-dialog__copy { min-height: 32px; border: 0; border-radius: var(--radius-sm); color: var(--text-secondary); background: transparent; font: inherit; cursor: pointer; }
 .terminal-link-dialog__copy:hover { color: var(--text-primary); background: var(--surface-hover, var(--surface-sunken)); }
 
@@ -2114,7 +2110,9 @@ button { border: 0; }
 .orch-access__seg.orch-seg2 { flex: 1 1 auto; display: flex; }
 .orch-access__seg.orch-seg2 > button { flex: 1 1 auto; min-width: 0; padding-inline: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .orch-hint--line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ws-dialog .orch-form__actions { flex-wrap: wrap; }
+.ws-dialog .orch-form__actions { flex-wrap: wrap; box-shadow: inset 0 1px 0 var(--border); } /* mock 17: a divider over the buttons, no shadow dimming the last row of a list */
+.orch-dialog.ws-dialog:has([data-ws-browser-elsewhere]) { width: min(520px, 100%); }
+.ws-pick { max-height: 252px; overflow-y: auto; }
 .ws-dialog .orch-form__actions button { white-space: nowrap; }
 .ws-dialog .orch-form__actions button[data-ws-browser-go] { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ws-dialog [data-ws-browser-elsewhere] .orch-form__actions { flex-wrap: nowrap; }
@@ -2132,6 +2130,13 @@ button { border: 0; }
 :is(.terminal-card, .agent-card, .board-card, .browser-card, .sticky-note-card, .plugin-canvas-card):is(.terminal-card--selected, .agent-card--selected, .board-card--selected, .browser-card--selected, .sticky-note-card--selected, .plugin-canvas-card--selected):hover > .terminal-card__resize-handle::after { opacity: 1; }
 .terminal-card__resize-handle:active::after { background: var(--focus); }
 .resize-size-badge { position: fixed; z-index: 9000; padding: .25em .75em; border-radius: 999px; background: var(--surface-4-solid); box-shadow: inset 0 0 0 1px var(--border-strong), var(--elev-2); color: var(--text-primary); font: 600 12px/1.4 var(--font-mono); pointer-events: none; }
+
+/* workspace form: the main folder is one small secondary line */
+.orch-dialog .orch-form .ws-folder-line { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; }
+.orch-dialog .orch-form .ws-folder-line code { min-width: 0; overflow: hidden; color: var(--text-secondary); font: 12px var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+.orch-dialog .orch-form .ws-folder-line button { height: auto; min-height: 0; padding: 0; border: 0; color: var(--text-primary); background: none; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; box-shadow: none; }
+.ws-dialog [data-ws-delete] p { margin: 0; }
+.orch-dialog .orch-form [data-ws-delete-go] { color: var(--danger-text); background: var(--danger); box-shadow: none; }
 /* R12b: a task card is the title, the status line, one line of substance and the actions; the rest opens under «Details» */
 .board-task__more { display: flex; flex-direction: column; gap: .3em; }
 .board-task__more > summary { width: max-content; color: var(--text-secondary); font-size: .85em; cursor: pointer; list-style: none; }
@@ -2158,3 +2163,25 @@ button { border: 0; }
 .orch-card2 .orch-models [data-orch-model] > select { flex: 0 0 58%; width: auto; min-width: 0; }
 .orch-card2 .orch-models [data-orch-model] > input { flex: 1 1 100%; }
 .orch-dialog--pinned .orch-form__actions > .orch-cancel { margin-right: auto; }
+
+/* mock 26: a plugin row — icon 28, name, «version · what it gives», switch, a quiet «Удалить» */
+.installed-plugin .plugin-icon { width: 28px; height: 28px; }
+.installed-plugin__header button.installed-plugin__remove { min-height: 0; padding: 0 4px; color: var(--text-secondary); background: none; font-weight: 400; }
+.installed-plugin__header button.installed-plugin__remove:hover { color: var(--text-primary); }
+.installed-plugin__header > div { display: flex; align-items: center; gap: 10px; }
+.plugin-settings__empty--box { min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--border); border-radius: 12px; text-align: center; }
+.plugin-settings__empty--box span { max-width: 32ch; color: var(--text-muted); font-size: 12px; }
+.notify-banner__body { color: var(--text-secondary); }
+.notify-banner__item { min-height: 40px; box-sizing: border-box; }
+.notify-banner__item--failed .notify-banner__show, .notify-banner__item--completed .notify-banner__show { color: var(--text-primary); background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); }
+.notify-banner__item > span:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+.ws-history__run { display: flex; flex-direction: column; gap: 1px; }
+.ws-history__run code { color: var(--text-muted); font: 11px var(--font-mono); }
+.canvas-menu__role { font-family: var(--font-ui); font-size: .92em; }
+.settings-panel .installed-plugin__header button.installed-plugin__remove { min-height: 0; padding: 0 4px; color: var(--text-secondary); background: none; font-weight: 400; }
+.settings-panel .installed-plugin__header button.installed-plugin__remove:hover { color: var(--text-primary); }
+.settings-panel .installed-plugin__header button.switch { width: 2.5em; height: 1.55em; min-height: 0; padding: 0; border-radius: 999px; background: color-mix(in srgb, var(--text-primary) 22%, transparent); }
+.settings-panel .installed-plugin__header button.switch--on { background: var(--accent-bg); }
+.settings-panel .installed-plugin__header > div { align-items: center; }
+.settings-panel .installed-plugin__header { align-items: center; }
+.orch-dialog .orch-form button.orch-danger[data-ws-delete-go] { color: var(--danger-text); background: var(--danger); box-shadow: none; }
