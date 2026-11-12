@@ -3,6 +3,7 @@ import { UiIcon, type UiIconName } from "./UiIcon";
 
 interface CanvasMenuRowProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
   icon?: UiIconName;
+  iconNode?: ReactNode;
   children: ReactNode;
   right?: ReactNode;
   muted?: boolean;
@@ -13,6 +14,7 @@ interface CanvasMenuRowProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
 
 export function CanvasMenuRow({
   icon,
+  iconNode,
   children,
   right,
   muted = false,
@@ -36,6 +38,7 @@ export function CanvasMenuRow({
       type={buttonProps.type ?? "button"}
     >
       {icon && <CanvasMenuIcon icon={icon} />}
+      {iconNode && <span className="canvas-menu__icon">{iconNode}</span>}
       <span className="canvas-menu__grow">{children}</span>
       {right}
     </button>
@@ -45,7 +48,7 @@ export function CanvasMenuRow({
 export function CanvasMenuIcon({ icon }: { icon: UiIconName }): React.JSX.Element {
   return (
     <span className="canvas-menu__icon">
-      <UiIcon name={icon} size="1.05em" />
+      <UiIcon name={icon} size="1.23em" />
     </span>
   );
 }

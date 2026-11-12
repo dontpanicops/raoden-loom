@@ -155,6 +155,7 @@ export class SettingsStore {
         || !("canvasLauncherItems" in source)
         || !("radialLauncherItems" in source)
         || !("radialLauncherEnabled" in source)
+        || !("canvasMenuStyle" in source)
         || !("agentLifecycleHooksEnabled" in source)
         || !("uiScale" in source)
         || !("canvasColor" in source)
@@ -291,6 +292,7 @@ function createDefaults(systemLocale: string, platform: CanvasNavigationPlatform
     canvasLauncherItems: [...DEFAULT_CANVAS_LAUNCHER_ITEMS],
     radialLauncherItems: [...DEFAULT_RADIAL_LAUNCHER_ITEMS],
     radialLauncherEnabled: false,
+    canvasMenuStyle: "mock",
     agentLifecycleHooksEnabled: true,
     uiScale: DEFAULT_UI_SCALE,
     canvasColor: "theme",
@@ -442,6 +444,9 @@ export function normalizeSettings(
     radialLauncherEnabled: typeof source.radialLauncherEnabled === "boolean"
       ? source.radialLauncherEnabled
       : fallback.radialLauncherEnabled ?? false,
+    canvasMenuStyle: source.canvasMenuStyle === "mock" || source.canvasMenuStyle === "detailed"
+      ? source.canvasMenuStyle
+      : fallback.canvasMenuStyle ?? "mock",
     agentLifecycleHooksEnabled: typeof source.agentLifecycleHooksEnabled === "boolean"
       ? source.agentLifecycleHooksEnabled
       : fallback.agentLifecycleHooksEnabled,

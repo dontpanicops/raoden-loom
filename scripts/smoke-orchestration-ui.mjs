@@ -152,7 +152,7 @@ try {
   // run 1: to completed; the executor is held mid-turn and shown working until the turn ends
   fs.writeFileSync(HOLD, "");
   await startGoal(app, link.linkId);
-  await app.waitFor(`${card(exec.agentId, ".agent-card__state")}?.textContent === "Работает"`, "executor working", 60_000);
+  await app.waitFor(`${card(exec.agentId, ".agent-card__state")}?.textContent?.startsWith("Работает")`, "executor working", 60_000);
   const leadWhile = await cardText(app, lead.agentId, ".agent-card__state");
   const workingText = await app.ev(`${q("[data-orch-working]")}.textContent`);
   expect(leadWhile === "Ждёт свой ход" && workingText.startsWith("Claude"), "while the executor works: its card and the panel say so, the lead waits", [leadWhile, workingText]);
@@ -161,7 +161,7 @@ try {
   expect(JSON.stringify(actions1) === JSON.stringify(["Пауза после хода", "Остановить запуск"]), "running: only Pause and Stop in the footer (and clarify)", actions1);
   await app.shot("05-executor-working");
   await sleep(1500);
-  expect((await cardText(app, exec.agentId, ".agent-card__state")) === "Работает", "the executor stays shown as working for the whole turn", null);
+  expect((await cardText(app, exec.agentId, ".agent-card__state")).startsWith("Работает"), "the executor stays shown as working for the whole turn", null);
   fs.rmSync(HOLD);
   await app.waitFor(`${q(".orch-panel__status--completed")} && true`, "run 1 completed", 90_000);
   // v1: the lead's final verdict; v2 has none (the reviewer marks requirements): the result line itself
@@ -262,7 +262,7 @@ try {
   await app.clickEl(q(".orch-panel__close"));
   fs.writeFileSync(HOLD, "");
   await startGoal(app, link.linkId);
-  await app.waitFor(`${card(exec.agentId, ".agent-card__state")}?.textContent === "Работает"`, "run 3 executor working", 60_000);
+  await app.waitFor(`${card(exec.agentId, ".agent-card__state")}?.textContent?.startsWith("Работает")`, "run 3 executor working", 60_000);
   await app.clickEl(q("[data-orch-stop]"));
   await app.waitFor(`${q(".orch-panel__status--stopped")} && true`, "run 3 stopped", 30_000);
   fs.rmSync(HOLD, { force: true });

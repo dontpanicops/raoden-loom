@@ -12,6 +12,7 @@ import type {
   CanvasLauncherItemId,
   CanvasColorId,
   CanvasOverlayPlacement,
+  CanvasMenuStyle,
   CanvasPatternId,
   CanvasWheelCaptureMode,
   EdgePanSpeed,
@@ -539,6 +540,16 @@ export function SettingsPanel({
                   homeLimitProviders: setHomeLimitProviderEnabled(homeLimitProviders, provider, enabled)
                 })}
               />
+              <SettingGroup label={t(locale, "canvasMenuStyle")} description={t(locale, "canvasMenuStyleDescription")}>
+                <Segmented
+                  value={settings.canvasMenuStyle}
+                  options={([
+                    ["mock", t(locale, "canvasMenuStyleMock")],
+                    ["detailed", t(locale, "canvasMenuStyleDetailed")]
+                  ] as [CanvasMenuStyle, string][])}
+                  onChange={(value) => void onChange({ canvasMenuStyle: value as CanvasMenuStyle })}
+                />
+              </SettingGroup>
               {sw(t(locale, "quickLauncher"), t(locale, "quickLauncherDescription"), settings.radialLauncherEnabled,
                 (next) => void onChange({ radialLauncherEnabled: next }))}
               <SettingGroup

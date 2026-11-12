@@ -395,8 +395,15 @@ export async function createAgent(app, label, projectDir) {
   const point = { x: spot.x + 20, y: spot.y + 20 };
   if (!(await app.isEmpty(point.x, point.y))) throw new Error(`not empty canvas at ${JSON.stringify(point)}`);
   await app.click(point.x, point.y, "right");
-  await app.waitFor(`${byText(".canvas-menu [role=menuitem]", label)} && true`, `menu item ${label}`);
-  await app.clickEl(byText(".canvas-menu [role=menuitem]", label));
+  // «Как в макете» (default): one «Агент оркестрации» row opens a submenu with the lead and the executor.
+  // «Подробное»: a row per role right in the menu (D-037). Both ways are taken, whichever the menu shows.
+  const parent = byText(".canvas-menu [role=menuitem]", "Агент оркестрации");
+  await app.waitFor(`(${parent} || ${byText(".canvas-menu [role=menuitem]", label)}) && true`, `menu item ${label}`);
+  if (await app.ev(`!!(${parent})`)) {
+    await app.clickEl(parent);
+    await app.waitFor(`${byText(".canvas-menu__submenu [role=menuitem]", label)} && true`, `submenu item ${label}`);
+    await app.clickEl(byText(".canvas-menu__submenu [role=menuitem]", label));
+  } else await app.clickEl(byText(".canvas-menu [role=menuitem]", label));
   await app.waitFor(`${q(".orch-dialog input")} && true`, "agent dialog");
   await app.type(q(".orch-dialog input"), projectDir);
   await app.clickEl(q(".orch-dialog button[type=submit]"));

@@ -29,7 +29,7 @@ test("launcher submenu chooses its side before it is mounted", async () => {
 
   const component = await readFile(contextMenuComponentPath, "utf8");
   const sideChoice = component.indexOf("setSubmenuSide(chooseCanvasSubmenuSide(");
-  const firstRender = component.indexOf("setLauncherOpen(true)", sideChoice);
+  const firstRender = component.indexOf("setSubmenu(which)", sideChoice);
   assert.ok(sideChoice >= 0 && firstRender > sideChoice);
   assert.doesNotMatch(component, /requestAnimationFrame/);
 });

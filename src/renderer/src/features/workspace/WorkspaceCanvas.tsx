@@ -821,6 +821,10 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
         setContextMenu(null);
         setRegionEditor(null);
         setCommandPaletteOpen((current) => !current);
+      } else if (window.canvasTTY.window.isMacOS && event.metaKey && !event.ctrlKey && !event.shiftKey && matchesPhysicalOrLayoutKey(event, "KeyT", "t")) {
+        // ⌘T: a new terminal in the middle of the view, the same as the launch menu's Terminal (Ctrl+T is the terminal's own)
+        event.preventDefault();
+        launchAt("terminal", viewportCenterWorldPoint());
       } else if (matchesPhysicalOrLayoutKey(event, "Comma", ",")) {
         event.preventDefault();
         setContextMenu(null);
@@ -831,7 +835,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     };
     window.addEventListener("keydown", handleShortcut, true);
     return () => window.removeEventListener("keydown", handleShortcut, true);
-  }, [browserViewVisible, homeEditing, onOpenSettings, settings.shortcuts.home, settings.shortcuts.renameWindow, workspace]);
+  }, [browserViewVisible, homeEditing, launchAt, onOpenSettings, viewportCenterWorldPoint, settings.shortcuts.home, settings.shortcuts.renameWindow, workspace]);
 
   return (
     <div
@@ -1202,6 +1206,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           position={contextMenu.position}
           locale={settings.locale}
           launcherItems={settings.canvasLauncherItems}
+          menuStyle={settings.canvasMenuStyle}
           currentRegionColor={contextRegion?.color ?? null}
           onCreateRegion={() => {
             setRegionEditor({ mode: "create", focus: "title", position: contextMenu.position, worldPoint: contextMenu.worldPoint });

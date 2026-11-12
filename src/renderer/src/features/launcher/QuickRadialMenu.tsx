@@ -129,7 +129,7 @@ export function RadialLauncher({
             onClick={() => onActivate(item)}
           >
             <span className="radial-launcher__icon">{renderIcon(item)}</span>
-            <span>{itemLabel(locale, item)}</span>
+            <span>{itemLabel(locale, item).split(" ")[0]}</span>
           </button>
         );
       })}
