@@ -521,14 +521,14 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
           )}
         </div>
         <div className="orch-field">
-          <span>{t(locale, "orchGoalCommands")}</span>
+          <span title={t(locale, "orchGoalCommandsHint")}>{t(locale, "orchGoalCommands")}</span>
           <GoalRows text={commandsText} onText={(v) => { edited.current = true; setCommandsText(v); }} locale={locale} attr="data-orch-commands" mono label={t(locale, "orchGoalCommands")}
             placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
           {/* D-025: one line — the shell runs the commands (a risk fact); the headings already say the rest */}
-          <small className="orch-hint">{t(locale, "orchGoalCommandsHint")}{optionalChecks && <span data-orch-commands-optional> · {t(locale, "orchCommandsOptional")}</span>}{commandsText.trim() && !edited.current ? ` ${t(locale, "orchGoalCommandsFilled")}` : ""}</small>
+          <small className="orch-hint orch-hint--sr">{t(locale, "orchGoalCommandsHint")}{optionalChecks && <span data-orch-commands-optional> · {t(locale, "orchCommandsOptional")}</span>}{commandsText.trim() && !edited.current ? ` ${t(locale, "orchGoalCommandsFilled")}` : ""}</small>
           <p className="orch-profile" data-orch-profile={profile.state.kind === "ready" ? (profile.state.info.saved ? "saved" : "suggested") : profile.state.kind}>
-            {profile.state.kind === "ready" ? t(locale, profile.state.info.saved ? "orchProfileSaved" : "orchProfileSuggested")
-              : profile.state.kind === "error" ? `${t(locale, "orchProfileFailed")} (${tr(locale, `orchError_${profile.state.code}`)})` : t(locale, "orchLoading")}
+            <span className={profile.state.kind === "ready" ? "orch-sr" : undefined}>{profile.state.kind === "ready" ? t(locale, profile.state.info.saved ? "orchProfileSaved" : "orchProfileSuggested")
+              : profile.state.kind === "error" ? `${t(locale, "orchProfileFailed")} (${tr(locale, `orchError_${profile.state.code}`)})` : t(locale, "orchLoading")}</span>
             {" "}{info
               ? <button type="button" className="orch-linkish" data-orch-open-settings onClick={() => setSettingsOpen(true)}>{t(locale, "orchProfileOpen")}</button>
               : profile.state.kind === "error" && <button type="button" className="orch-linkish" onClick={profile.reload}>{t(locale, "orchRepeat")}</button>}

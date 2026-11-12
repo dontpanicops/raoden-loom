@@ -304,7 +304,8 @@
   --ansi-black:#2B2924;--ansi-red:#AE3626;--ansi-green:#286B32;--ansi-yellow:#8F5400;
   --ansi-blue:#2A5FC0;--ansi-magenta:#8A3D7A;--ansi-cyan:#1F6F6A;--ansi-white:#D9D4C9;
   --ansi-bright-black:#6E685D;--ansi-bright-red:#C2412F;--ansi-bright-green:#2F7D3A;--ansi-bright-yellow:#A15F00;
-  --ansi-bright-blue:#3566A8;--ansi-bright-magenta:#9E4B8C;--ansi-bright-cyan:#2A807A;--ansi-bright-white:#FBFAF6;}
+  --ansi-bright-blue:#3566A8;--ansi-bright-magenta:#9E4B8C;--ansi-bright-cyan:#2A807A;--ansi-bright-white:#FBFAF6;
+  --status-waiting-bg:color-mix(in srgb, var(--status-waiting) 9%, transparent); /* cold theme: a pale amber, not a brown tint (mock 09) */}
 
 /* canvas backgrounds: independent of the theme */
 .app--canvas-stone{

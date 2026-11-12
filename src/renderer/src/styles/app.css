@@ -1241,7 +1241,7 @@ button { border: 0; }
 /* R5b (P-01): in the panel a danger button is outlined like Stop; the fill stays only on the zone's main button where Stop is all main allows (D-002) */
 .orch-panel button.orch-danger { color: var(--danger-fg); background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger-fg) 65%, transparent); }
 .orch-panel .orch-zone__actions button.orch-danger { color: var(--danger-text); background: var(--danger); box-shadow: none; }
-.orch-panel .orch-permission button.orch-danger { color: var(--text-primary); box-shadow: none; font-weight: 600; } /* "Decline" of the mock-up is a plain text button */
+.orch-panel .orch-permission button.orch-danger { color: var(--text-secondary); box-shadow: none; font-weight: 400; } /* "Decline" of the mock-up is a plain text button */
 .orch-panel button.orch-primary, .orch-form button.orch-primary { color: var(--accent-text); background: var(--accent); }
 /* UX audit (PR 1): Stop beside a pause's main action is secondary — outlined, last in the row */
 .orch-panel button.orch-stop { color: var(--danger-fg); background: transparent; box-shadow: inset 0 0 0 2px var(--danger-fg); }
@@ -1323,7 +1323,7 @@ button { border: 0; }
 .orch-table > li { padding: 8px 12px; display: flex; justify-content: space-between; gap: 12px; }
 .orch-table > li + li { border-top: 1px solid var(--border-strong); }
 .orch-table > li > span:last-child { font-family: var(--font-mono); text-align: right; }
-.orch-panel { position: absolute; right: 16px; top: 16px; bottom: 16px; z-index: 510; width: min(calc(400px * var(--ui-scale, 1)), calc(100% - 32px)); display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-xl); color: var(--text-primary); background: var(--surface-3-solid); box-shadow: var(--elev-4); font-size: calc(13px * var(--ui-scale, 1)); }
+.orch-panel { position: absolute; right: 16px; top: 16px; bottom: 16px; z-index: 510; width: min(calc(400px * var(--ui-scale, 1)), calc(100% - 32px)); display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-xl); color: var(--text-primary); background: var(--surface-3-solid); box-shadow: var(--elev-4); font-size: calc(12px * var(--ui-scale, 1)); }
 /* R5b (P-07, P-16): the header is the panel's own colour (no band): the title with the project, the pair of agents in mono under it, the icons without a frame */
 .orch-panel__header { padding: 16px 12px 6px 16px; display: flex; align-items: flex-start; gap: 4px; }
 .orch-panel__title { min-width: 0; margin-right: auto; display: flex; flex-direction: column; gap: 2px; }
@@ -1378,12 +1378,13 @@ button { border: 0; }
 .orch-zone--waiting .orch-zone__label { color: var(--status-waiting); }
 .orch-zone--calm .orch-zone__label { color: var(--text-secondary); }
 .orch-zone__headline { display: flex; flex-direction: column; gap: 6px; }
-.orch-zone__headline strong { font-size: 17px; font-weight: 600; }
+.orch-zone__headline strong { font-size: 15px; font-weight: 600; }
 .orch-zone__why { margin: 0; color: var(--text-secondary); }
 .orch-zone__who, .orch-summary__who { margin: 0; }
 .orch-zone__stages { margin: 0; padding: 0 0 0 22px; display: flex; flex-direction: column; gap: 4px; }
 /* R5a: a text button of the mock-up (no box), the dangerous row under a line with its hint, Pause as text at the left of the footer */
-.orch-panel button.orch-textual { padding-inline: 0; color: var(--text-primary); background: transparent; box-shadow: none; font-weight: 600; }
+.orch-panel button.orch-textual { padding-inline: 0; color: var(--text-secondary); background: transparent; box-shadow: none; font-weight: 400; }
+.orch-panel button.orch-textual:hover:not(:disabled) { color: var(--text-primary); }
 .orch-zone__text { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
 .orch-zone__danger { display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid var(--border-strong); }
 .orch-zone__danger-row { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 8px; }
@@ -1628,7 +1629,7 @@ button { border: 0; }
 .agent-card__body button.agent-card__summary { color: var(--accent-text); background: var(--accent-bg); }
 
 /* The run panel: wider for the summary, expandable to the window. */
-.orch-panel--wide { width: min(calc(760px * var(--ui-scale, 1)), calc(100% - 32px)); }
+.orch-panel--wide { width: min(calc(520px * var(--ui-scale, 1)), calc(100% - 32px)); }
 .orch-panel--full { left: 16px; width: auto; }
 .orch-ended { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--focus) 26%, var(--surface-2)); font-weight: 700; }
 .orch-src { margin-left: .6em; padding: .1em .5em; border-radius: 99px; font-size: 10px; font-weight: 800; letter-spacing: 0; text-transform: none; }
@@ -1885,9 +1886,9 @@ button { border: 0; }
 .board-ap-form__actions { margin-top: 1em; display: flex; gap: .5em; }
 
 /* R1.6 controls (components-reference.css). One look on any background: a chosen radio is filled, an empty checkbox is empty (Н10) */
-.orch-panel button, .orch-form button { border-radius: var(--radius-sm); font-weight: 500; background: var(--surface-sunken); box-shadow: var(--edge), inset 0 0 0 1px var(--border-strong); }
+.orch-panel button, .orch-form button { border-radius: var(--radius-sm); font-weight: 400; background: var(--surface-sunken); box-shadow: var(--edge), inset 0 0 0 1px var(--border-strong); }
 .orch-form button { min-height: var(--control-h-m); padding: 0 14px; }
-.orch-panel button.orch-primary, .orch-form button.orch-primary { color: var(--accent-text); background: var(--accent-bg); box-shadow: var(--edge), 0 1px 2px var(--edge-dark); font-weight: 600; }
+.orch-panel button.orch-primary, .orch-form button.orch-primary { color: var(--accent-text); background: var(--accent-bg); box-shadow: var(--edge), 0 1px 2px var(--edge-dark); font-weight: 500; }
 .orch-dialog .orch-form button.orch-cancel { color: var(--text-secondary); background: transparent; box-shadow: none; }
 .orch-dialog .orch-form button.orch-cancel:hover { color: var(--text-primary); background: var(--surface-sunken); }
 .orch-dialog .orch-form button.orch-danger { color: var(--danger-fg); background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger-fg) 60%, transparent); }
@@ -2021,7 +2022,8 @@ button { border: 0; }
 .orch-kv dd code, .orch-kv code { font-family: var(--font-mono); font-size: .92em; }
 .orch-kv--status .ui-icon { color: var(--status-done); }
 .orch-kv--status .orch-kv__row:has([data-sum-outcome]) dd { text-align: right; }
-.orch-kv .orch-textual { padding: 0; font-weight: 500; }
+.orch-kv .orch-textual { padding: 0; font-weight: 400; }
+.orch-kv dd, .orch-kv dt { font-weight: 400; }
 .orch-people dt { display: block; }
 .orch-people dt strong { color: var(--text-primary); font-weight: 500; }
 .orch-people dt .orch-hint { margin-left: 6px; }
@@ -2048,7 +2050,7 @@ button { border: 0; }
 .orch-zone__error { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--surface-sunken); font: 12px/1.5 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .orch-people .orch-kv__row dd { flex: 0 0 auto; white-space: nowrap; }
 .orch-field > span.orch-field__lead { color: var(--text-secondary); font-size: inherit; font-weight: 400; opacity: 1; }
-.orch-form__foot button.orch-textual[data-orch-danger] { flex: 1 1 100%; justify-content: flex-start; padding-inline: 11px; color: var(--text-secondary); font-weight: 500; }
+.orch-form__foot button.orch-textual[data-orch-danger] { flex: 1 1 100%; justify-content: flex-start; padding-inline: 11px; color: var(--text-secondary); font-weight: 400; text-align: left; }
 
 /* R5d: cards as in mock-up 06 — the header is neutral, the provider's colour is the dot only; header buttons stay for the keyboard and fade in on hover */
 .agent-card__dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--status-done); box-shadow: 0 0 0 2px var(--surface-2); }
@@ -2108,7 +2110,7 @@ button { border: 0; }
 .orch-zone__warn { color: var(--status-waiting); font-weight: 700; }
 .orch-proposal__lost { margin: 0; color: var(--danger-fg); font-weight: 600; }
 .orch-zone .orch-proposal__head { margin: 0; padding: 4px 12px; border-radius: 12px; background: var(--surface-sunken); }
-.orch-zone[data-orch-zone="newer_version"] [data-orch-zone-action="copy_id"] { padding-inline: 0; background: transparent; box-shadow: none; font-weight: 600; }
+.orch-zone[data-orch-zone="newer_version"] [data-orch-zone-action="copy_id"] { padding-inline: 0; background: transparent; box-shadow: none; font-weight: 400; }
 .orch-zone .orch-release { display: inline-flex; flex-direction: column; gap: 6px; }
 .orch-sum-fold > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; list-style: none; }
 .orch-sum-fold > summary::-webkit-details-marker { display: none; }
@@ -2311,7 +2313,7 @@ button { border: 0; }
 .orch-dialog--pinned .orch-form__body:has(.orch-goal__how) :is(.orch-field > span:first-child, .orch-field > legend) { font-weight: 400; }
 .orch-field > .orch-profile { margin-top: 0; }
 /* R12g (gate Z6, F2): in paper and frost the waiting zone is the light warm tone of mock 07, not the sunken beige */
-.app--paper .orch-zone--waiting, .app--frost .orch-zone--waiting { --zone-bg: color-mix(in srgb, var(--status-waiting) 5%, transparent); }
+.app--paper .orch-zone--waiting, .app--frost .orch-zone--waiting { --zone-bg: color-mix(in srgb, var(--status-waiting) 8%, var(--surface-4-solid)); }
 /* R12g (mock 07-04): a stage not begun is a dashed circle */
 .orch-kv__dash { width: 14px; height: 14px; flex: 0 0 14px; box-sizing: border-box; display: inline-block; border: 1.5px dashed currentColor; border-radius: 50%; opacity: .75; }
 /* R12g (mock 13 «Записи»): one list with dividers, the expander a plain chevron row, the output inset inside the row */
@@ -2324,4 +2326,23 @@ button { border: 0; }
 .orch-history .orch-details__toggle[aria-expanded="true"] .ui-icon { transform: rotate(180deg); }
 .orch-history .orch-details__body { background: var(--surface-sunken); }
 /* R12g (mock 13): «Завершён» is a neutral zone with a thin ring, no blue frame */
-.orch-zone--completed, .app--paper .orch-zone--completed { --zone-bg: var(--surface-sunken); box-shadow: 0 0 0 1px var(--border-strong); }
+.orch-zone--completed { box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-done) 45%, transparent); }
+.app--paper .orch-zone--completed, .app--frost .orch-zone--completed { --zone-bg: color-mix(in srgb, var(--status-done) 7%, var(--surface-4-solid)); }
+
+/* R12i (gate Z5/Z6 r2, G2): the zone's boxed buttons are 13px and 34px tall as in mock 07 (the panel text itself is 12px) */
+.orch-panel .orch-zone__actions button:not(.orch-textual), .orch-panel .orch-permission > .orch-panel__actions button:not(.orch-textual) { min-height: calc(34px * var(--ui-scale, 1)); padding: 0 1.1em; font-size: calc(13px * var(--ui-scale, 1)); }
+/* R12i (mock 09): the commands' run-in-terminal note and the project-settings line sit in the heading's tooltip and for screen readers, not in the flow */
+.orch-hint--sr, .orch-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* R12i (mock 09): the goal dialog requirement and command rows are regular UI text */
+.orch-dialog--pinned .orch-rows input, .orch-dialog--pinned .orch-rows .orch-rows__mono { font-family: var(--font-ui); font-size: 13px; font-weight: 400; }
+.orch-dialog--pinned .orch-form__body:has(.orch-goal__how) .orch-seg2 button:not(.orch-seg2__on) { font-weight: 400; }
+/* R12i (gate Z5 r2, mock 24): the three buttons of a collapsed card stay in one row; the push card is tinted with grey filled quiet buttons */
+.board-task__foot { gap: 4px; }
+.board-task__foot .board-task__actions > button, .board-task__foot .board-task__toggle { padding-inline: .3em; font-size: .8em; white-space: nowrap; }
+.board-task[data-board-reason="push_option_field"] { background: color-mix(in srgb, var(--status-failed) 4%, var(--surface-2)); }
+.board-task[data-board-reason="push_option_field"] .board-task__actions > button { color: var(--text-secondary); background: color-mix(in srgb, var(--text-primary) 8%, transparent); box-shadow: none; font-weight: 400; }
+/* the quiet board-card buttons: regular weight (the common rule above is 800) */
+.board-card button:not(.orch-primary) { font-weight: 400; }
+/* R12i (mock 08): the autopilot card: the description and unit captions are muted, the main button regular-medium */
+.board-ap-form__hint, .board-ap-form__pair small { color: var(--text-muted); }
+.board-card .board-ap-form__actions button.orch-primary { font-weight: 500; }
