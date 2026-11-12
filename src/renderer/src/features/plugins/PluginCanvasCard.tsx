@@ -1,3 +1,4 @@
+import { chromeScale } from "../../lib/cardChrome";
 import { useEffect, useRef, useState } from "react";
 import type {
   InstalledPlugin,
@@ -212,6 +213,7 @@ export function PluginCanvasCard({
         width: size.width,
         height: size.height,
         zIndex: stackIndex,
+        "--chrome-k": chromeScale(zoom),
         transform: `translate(${position.x}px, ${position.y}px)`,
         "--summary-scale": summaryScale
       } as React.CSSProperties}

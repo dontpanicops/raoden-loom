@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import { chromeScale } from "../../lib/cardChrome";
 import { type ITheme, Terminal } from "@xterm/xterm";
 import {
   INITIAL_TERMINAL_COLS,
@@ -446,7 +447,7 @@ export function TerminalCard({
 
   return (
     <article
-      className={`terminal-card terminal-card--${session.provider} ${summaryMode ? "terminal-card--summary" : ""} ${selected || groupSelected ? "terminal-card--selected" : ""} ${session.status === "needs_approval" ? "terminal-card--waiting" : ""}`}
+      className={`terminal-card terminal-card--${session.provider} ${summaryMode ? "terminal-card--summary" : ""} ${selected || groupSelected ? "terminal-card--selected" : ""} ${session.status === "needs_approval" ? "terminal-card--waiting" : ""} ${session.status === "failed" ? "terminal-card--failed" : ""}`}
       data-interactive="true"
       data-canvas-layer-id={`terminal:${session.id}`}
       data-canvas-widget-id={terminalCanvasWidgetId(session.id)}
@@ -487,6 +488,7 @@ export function TerminalCard({
         width: size.width,
         height: size.height,
         zIndex: stackIndex,
+        "--chrome-k": chromeScale(zoom),
         transform: `translate(${position.x}px, ${position.y}px)`,
         "--summary-scale": summaryScale,
         "--summary-content-width": `${Math.max(0, (size.width - 72) / summaryScale)}px`
@@ -570,7 +572,13 @@ export function TerminalCard({
       >
         <div className="terminal-card__summary-content">
           <ProviderIcon provider={session.provider} size="large" />
-          <div className="terminal-card__summary-copy"><strong>{session.title}</strong><span>{session.closeUnconfirmed && session.exitCode === null ? t(locale, "wsStop_unconfirmed") : sessionStatusLabel(locale, session.status, session.provider)}</span></div>
+          <div className="terminal-card__summary-copy">
+            <strong>{session.title}</strong>
+            {session.closeUnconfirmed && session.exitCode === null
+              ? <span className="terminal-card__summary-path">{t(locale, "wsStop_unconfirmed")}</span>
+              : <CardStatus kind={sessionCardStatus(session.status)} label={sessionStatusLabel(locale, session.status, session.provider)} />}
+            <span className="terminal-card__summary-path">{compactPath(session.cwd)}</span>
+          </div>
         </div>
       </button>
       {RESIZE_DIRECTIONS.map((direction) => (

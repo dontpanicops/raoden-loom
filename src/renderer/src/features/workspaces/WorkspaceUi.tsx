@@ -113,7 +113,7 @@ export function WorkspaceBar({ controls, counts, locale, onDialog, board }: {
               onClick={() => controls.switchTo(w.id)}>
               <span className="workspace-bar__name">{workspaceTitle(locale, w)}</span>
               {c.runs > 0 && <span className="workspace-bar__count workspace-bar__count--runs" data-ws-runs={c.runs} aria-label={tr(locale, "wsCountRuns", { n: String(c.runs) })}><UiIcon name="working" size={12} />{c.runs}</span>}
-              {c.cli > 0 && <span className="workspace-bar__count workspace-bar__count--cli" data-ws-cli={c.cli} aria-label={tr(locale, "wsCountCli", { n: String(c.cli) })}><UiIcon name="terminal" size={12} />{c.cli}</span>}
+              {c.cli > 0 && <span className="workspace-bar__count workspace-bar__count--cli" data-ws-cli={c.cli} aria-label={tr(locale, "wsCountCli", { n: String(c.cli) })}><UiIcon name="working" size={12} />{c.cli}</span>}
               {c.attention > 0 && <span className="workspace-bar__count workspace-bar__count--attention" data-ws-attention={c.attention} aria-label={tr(locale, "wsCountAttention", { n: String(c.attention) })}><UiIcon name="bell" size={12} />{c.attention}</span>}
             </button>
           );

@@ -1,3 +1,4 @@
+import { chromeScale } from "../../lib/cardChrome";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   AgentPresenceSnapshot,
@@ -15,7 +16,7 @@ import type {
 } from "../../../../shared/contracts";
 import { BROWSER_PROVIDER_COLORS } from "../../../../shared/contracts";
 import { UiIcon } from "../../components/UiIcon";
-import { t } from "../../lib/i18n";
+import { pluralForm, t } from "../../lib/i18n";
 import { shouldActivateCanvasFromClick } from "../workspace/focus";
 import { snapMove, snapResize, type ResizeDirection } from "../workspace/snap";
 import { browserCanvasWidgetId } from "../workspace/canvasWidgetFocus";
@@ -409,6 +410,7 @@ export function BrowserCard({
         width: size.width,
         height: size.height,
         zIndex: stackIndex,
+        "--chrome-k": chromeScale(zoom),
         transform: `translate(${position.x}px, ${position.y}px)`,
         "--summary-scale": summaryScale,
         "--summary-content-width": `${Math.max(0, (size.width - 48) / summaryScale)}px`
@@ -426,7 +428,7 @@ export function BrowserCard({
           <UiIcon name="browser" size="1.69em" />
           <span>
             <strong>{t(locale, "browser")}</strong>
-            <small title={activeTab?.title}>{activeTab?.title || t(locale, "newTab")}</small>
+            <small>{t(locale, `browserTabCount_${pluralForm(locale, browser.tabs.length)}`).replace("{n}", String(browser.tabs.length))}</small>
           </span>
         </span>
         <button className="browser-card__hide" type="button" onClick={onClose} title={t(locale, "hideBrowser")} aria-label={t(locale, "hideBrowser")}>
@@ -479,9 +481,11 @@ export function BrowserCard({
           className="browser-card__close-all"
           type="button"
           disabled={browser.tabs.length === 0}
+          title={t(locale, "closeAllTabsShort")}
+          aria-label={t(locale, "closeAllTabsShort")}
           onClick={() => setPanel((current) => current === "close-all" ? null : "close-all")}
         >
-          {t(locale, "closeAllTabsShort")}
+          <UiIcon name="trash" size={16} />
         </button>
       </div>
 
