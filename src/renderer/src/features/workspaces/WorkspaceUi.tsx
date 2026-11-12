@@ -628,6 +628,8 @@ function HiddenDialog({ controls, counts, locale, onClose }: { controls: Workspa
             </li>
           ))}
         </ul>
+        {/* hidden workspaces keep running agents — said where they are listed (a fact about work out of sight, kept beside mock 25) */}
+        <p className="orch-hint">{tk(locale, "wsHiddenHint")}</p>
       </div>
     </Dialog>
   );
