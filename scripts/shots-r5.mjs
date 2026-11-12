@@ -950,6 +950,7 @@ try {
         await app.clickEl(q("[data-board-import-close]"));
         await clip("board-queue", ["[data-board]"]);
         await app.clickEl(q("[data-board-autopilot-start]")); await sleep(500);
+        await app.ev(`document.activeElement?.blur?.(), true`); await sleep(200); // R12k: no focus ring on the field in the frame
         await clip("board-form", ["[data-board]", ".board-asides"]);
         hold("claude", true);
         await app.clickEl(q("[data-board-autopilot-yes]"));
@@ -960,9 +961,10 @@ try {
         writeBoard(WS.alpha, [row("A", { title: "Экспорт заметок в Markdown" }), row("E", { title: "Поиск по заметкам" }), row("F", { title: "Удаление заметок" })]);
         await app.clickEl(q("[data-board-import]")); await app.waitFor(`${q("[data-board-import-report]")} && true`, "the report");
         await sleep(600); await clip("board-report", ["[data-board]", "[data-board-aside]"]);
+        await app.clickEl(q("[data-board-import-close]")); // R12k: the board frame is the board alone, as in the mock (no import panel)
       }
       await sleep(800);
-      await clip("board", ["[data-board]", "[data-board-aside]"]);
+      await clip("board", ["[data-board]"]);
     });
     await scene("cards-agents-working", async () => {
       await app.key("Home", "Home", 36); await sleep(500);
