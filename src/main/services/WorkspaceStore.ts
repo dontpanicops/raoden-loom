@@ -7,6 +7,7 @@ import { join } from "node:path";
 import {
   COMMON_WORKSPACE_ID,
   type CameraState,
+  type WorkspaceLabel,
   type WorkspaceRecord,
   type WorkspacesResult,
   type WorkspacesState
@@ -33,6 +34,8 @@ const common = (): WorkspaceRecord => ({
   id: COMMON_WORKSPACE_ID, title: "", root: null, createdAt: new Date().toISOString(), closed: false, camera: null
 });
 
+export const validLabel = (v: unknown): v is WorkspaceLabel => typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 5;
+
 export function validCamera(value: unknown): CameraState | null {
   if (!value || typeof value !== "object") return null;
   const c = value as Partial<CameraState>;
@@ -56,7 +59,9 @@ function parseFile(raw: string): FileState | null {
     if (w.closed !== undefined && typeof w.closed !== "boolean") return null;
     const camera = w.camera == null ? null : validCamera(w.camera);
     if (w.camera != null && !camera) return null;
-    workspaces.push({ id: w.id, title: w.title, root: w.root, createdAt: w.createdAt, closed: w.closed === true, camera });
+    // The label is optional: a file of 1.5.20 has none; an unknown value is dropped, not a reason to call the file damaged.
+    const label = validLabel(w.label) && w.id !== COMMON_WORKSPACE_ID ? { label: w.label as WorkspaceLabel } : {};
+    workspaces.push({ id: w.id, title: w.title, root: w.root, createdAt: w.createdAt, closed: w.closed === true, camera, ...label });
   }
   // The common canvas always exists: every card without a known workspace is shown there.
   if (!workspaces.some((w) => w.id === COMMON_WORKSPACE_ID)) workspaces.unshift(common());
@@ -214,22 +219,28 @@ export class WorkspaceStore {
     return { available: this.available, error: this.error, activeId: s.activeId, workspaces: structuredClone(s.workspaces) };
   }
 
-  create(input: { title: string; root: string | null; activate?: boolean }): Promise<WorkspacesResult<WorkspacesState>> {
+  create(input: { title: string; root: string | null; label?: WorkspaceLabel | null; activate?: boolean }): Promise<WorkspacesResult<WorkspacesState>> {
     return this.change((s) => {
       if (s.workspaces.length >= MAX_WORKSPACES) refuse("too_many_workspaces", `at most ${MAX_WORKSPACES} workspaces`);
       const title = input.title.trim().slice(0, 80);
       if (!title) refuse("invalid_argument", "a workspace needs a name");
-      const w: WorkspaceRecord = { id: randomUUID(), title, root: input.root, createdAt: new Date().toISOString(), closed: false, camera: null };
+      const w: WorkspaceRecord = { id: randomUUID(), title, root: input.root, createdAt: new Date().toISOString(), closed: false, camera: null, ...(validLabel(input.label) ? { label: input.label } : {}) };
       return this.withState({ ...s, activeId: input.activate === false ? s.activeId : w.id, workspaces: [...s.workspaces, w] });
     });
   }
 
-  update(id: string, patch: { title?: string; root?: string | null }): Promise<WorkspacesResult<WorkspacesState>> {
+  update(id: string, patch: { title?: string; root?: string | null; label?: WorkspaceLabel | null }): Promise<WorkspacesResult<WorkspacesState>> {
     return this.change((s) => {
       const w = this.find(s, id);
       const title = patch.title === undefined ? w.title : patch.title.trim().slice(0, 80);
       if (!title && id !== COMMON_WORKSPACE_ID) refuse("invalid_argument", "a workspace needs a name");
-      const next = { ...w, title, root: patch.root === undefined ? w.root : patch.root };
+      const next: WorkspaceRecord = { ...w, title, root: patch.root === undefined ? w.root : patch.root };
+      // null clears the label; the common canvas never has one
+      if (patch.label !== undefined && id !== COMMON_WORKSPACE_ID) {
+        if (patch.label === null) delete next.label;
+        else if (validLabel(patch.label)) next.label = patch.label;
+        else refuse("invalid_argument", "the label is 1 to 5 or null");
+      }
       return this.withState({ ...s, workspaces: s.workspaces.map((x) => (x.id === id ? next : x)) });
     });
   }

@@ -32,7 +32,7 @@ import { assertMainRenderer } from "./mainRenderer";
 import { importFilePicker, registerOrchestrationIpc } from "./orchestrationIpc";
 import type { RunManager } from "../services/orchestration/manager";
 import type { WorkspaceStore } from "../services/WorkspaceStore";
-import type { CameraState } from "../../shared/contracts";
+import type { CameraState, WorkspaceLabel } from "../../shared/contracts";
 import { PROVIDER_CLI_IDS, type ProviderCliRegistry } from "../services/providerCliRegistry";
 import { effectiveTheme, toLegacyPalette } from "../../shared/appearance";
 
@@ -675,17 +675,22 @@ export function registerIpc({
     if (typeof v !== "string" || !isAbsolute(v) || v.length > 4_096 || v.includes("\0")) throw new Error("Invalid workspace folder.");
     return v;
   };
+  const wsLabel = (v: unknown): WorkspaceLabel | null => {
+    if (v === null) return null;
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > 5) throw new Error("Invalid workspace label.");
+    return v as WorkspaceLabel;
+  };
   handleMain(IPC.workspacesGet, () => workspaces.get());
   handleMain(IPC.workspacesCreate, (_event, input: unknown) => {
-    const o = input as { title?: unknown; root?: unknown; activate?: unknown } | null;
+    const o = input as { title?: unknown; root?: unknown; label?: unknown; activate?: unknown } | null;
     if (!o || typeof o !== "object" || typeof o.title !== "string" || o.title.length > 200) throw new Error("Invalid workspace request.");
     if (o.activate !== undefined && typeof o.activate !== "boolean") throw new Error("Invalid workspace request.");
-    return workspaces.create({ title: o.title, root: wsRoot(o.root ?? null), ...(o.activate === false ? { activate: false } : {}) });
+    return workspaces.create({ title: o.title, root: wsRoot(o.root ?? null), ...(o.label !== undefined ? { label: wsLabel(o.label) } : {}), ...(o.activate === false ? { activate: false } : {}) });
   });
   handleMain(IPC.workspacesUpdate, (_event, id: unknown, patch: unknown) => {
-    const o = patch as { title?: unknown; root?: unknown } | null;
+    const o = patch as { title?: unknown; root?: unknown; label?: unknown } | null;
     if (!o || typeof o !== "object" || (o.title !== undefined && (typeof o.title !== "string" || o.title.length > 200))) throw new Error("Invalid workspace request.");
-    return workspaces.update(wsId(id), { ...(o.title !== undefined ? { title: o.title as string } : {}), ...(o.root !== undefined ? { root: wsRoot(o.root) } : {}) });
+    return workspaces.update(wsId(id), { ...(o.title !== undefined ? { title: o.title as string } : {}), ...(o.root !== undefined ? { root: wsRoot(o.root) } : {}), ...(o.label !== undefined ? { label: wsLabel(o.label) } : {}) });
   });
   handleMain(IPC.workspacesActivate, (_event, id: unknown) => workspaces.activate(wsId(id)));
   handleMain(IPC.workspacesSetCamera, (_event, id: unknown, camera: unknown) => workspaces.setCamera(wsId(id), camera as CameraState));

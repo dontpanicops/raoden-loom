@@ -938,6 +938,18 @@
    "notes": ""
   },
   {
+   "id": "10-palette-footer",
+   "zone": "Z3",
+   "mock": "10-overlays",
+   "themes": ["sand", "paper", "frost"],
+   "mockCrop": { "x": 520, "y": 458, "w": 600, "h": 34 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-overlay-palette-waiting.png" },
+   "appCrop": { "x": 420, "y": 625, "w": 600, "h": 34 },
+   "scale": "100%",
+   "data": "подвал палитры: ↑↓ выбрать, ↵ открыть, ⌘↵ в новом пространстве (D-041, F-a)",
+   "notes": "выбрана строка ждущей сессии: подсказка включена"
+  },
+  {
    "id": "10-radial",
    "zone": "Z3",
    "mock": "10-overlays",
@@ -1202,6 +1214,18 @@
    "scale": "100%",
    "data": "папка строкой под названием, метки 5 цветов",
    "notes": "метки — новое в коде (SPEC §11.7)"
+  },
+  {
+   "id": "25-create-label",
+   "zone": "Z4",
+   "mock": "25-workspaces-more",
+   "themes": ["sand", "paper", "frost"],
+   "mockCrop": { "x": 66, "y": 244, "w": 410, "h": 56 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-create.png" },
+   "appCrop": { "x": 510, "y": 490, "w": 430, "h": 56 },
+   "scale": "100%",
+   "data": "ряд меток: без метки и 5 цветов, выбрана бирюзовая",
+   "notes": "F-a: метки пространств"
   },
   {
    "id": "25-rename",

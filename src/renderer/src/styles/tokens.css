@@ -126,6 +126,7 @@
   --danger-text:#FFFFFF;
   --status-idle:#B8B2A5;
   --status-working:#93C98B;
+  --wsl-1:#A898D8; --wsl-2:#6BB8B4; --wsl-3:#D99AB9; --wsl-4:#C98F6E; --wsl-5:#9A958A; /* workspace labels, SPEC 11.7 */
   --status-waiting:#F5B94C;
   --status-paused:#D6CFC1;
   --status-failed:#F59585;
@@ -178,6 +179,7 @@
   --danger-text:#FFFFFF;
   --status-idle:#9AA5B8;
   --status-working:#5FD3A6;
+  --wsl-1:#A898D8; --wsl-2:#6BB8B4; --wsl-3:#D99AB9; --wsl-4:#C98F6E; --wsl-5:#9A958A; /* workspace labels, SPEC 11.7 */
   --status-waiting:#FFC24A;
   --status-paused:#C3CBDB;
   --status-failed:#FF7A7A;
@@ -231,6 +233,7 @@
   --danger-text:#FFFFFF;
   --status-idle:#6B655A;
   --status-working:#286B32;
+  --wsl-1:#7560C2; --wsl-2:#2C8782; --wsl-3:#B5568A; --wsl-4:#A65E37; --wsl-5:#6B665C;
   --status-waiting:#8F5400;
   --status-paused:#4A463F;
   --status-failed:#AE3626;
@@ -284,6 +287,7 @@
   --danger-text:#FFFFFF;
   --status-idle:#5B6680;
   --status-working:#1A6B4C;
+  --wsl-1:#7560C2; --wsl-2:#2C8782; --wsl-3:#B5568A; --wsl-4:#A65E37; --wsl-5:#6B665C;
   --status-waiting:#8A5200;
   --status-paused:#3C4659;
   --status-failed:#C13B3B;
