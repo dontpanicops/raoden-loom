@@ -172,6 +172,8 @@ async function appServer(args) {
       "mcpServerStatus/list": { data: [{ name: "mock-mcp", runtimeStatus: "ready", authStatus: "notLoggedIn" }] },
       "hooks/list": { data: [{ cwd: "", hooks: [{ eventName: "SessionStart" }] }] },
       "account/read": { account: { type: "chatgpt", planType: "pro" }, requiresOpenaiAuth: false },
+      // MOCK_CODEX_RATE_LIMITS=1: a weekly window (HOME frames of R10); absent: the method is unknown, as before
+      ...(process.env.MOCK_CODEX_RATE_LIMITS ? { "account/rateLimits/read": { rateLimits: { primary: { usedPercent: 30, resetsAt: Math.floor(Date.now() / 1000) + 2 * 86400 + 4 * 3600, windowDurationMins: 10080 }, secondary: null } } } : {}),
       // MOCK_CODEX_MODELS: the account's models, comma-separated (a "~" prefix: hidden from the picker)
       "model/list": { data: (process.env.MOCK_CODEX_MODELS ?? "gpt-mock,gpt-mock-mini,~gpt-mock-hidden").split(",").filter(Boolean)
         .filter((m) => p.includeHidden === true || !m.startsWith("~"))

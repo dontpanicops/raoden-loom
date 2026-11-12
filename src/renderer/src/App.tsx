@@ -1307,6 +1307,7 @@ export function App(): React.JSX.Element {
           onOpenAgent={openAgent}
           onOpenTerminal={(position) => void openTerminal(position)}
           onOpenBrowser={openBrowserFromUi}
+          onSetDockProviders={(next) => void saveSettings({ homeLauncherProviders: next })}
           onOpenTerminalUrl={(url) => {
             try {
               setPendingTerminalUrl(normalizeExternalUrl(url));

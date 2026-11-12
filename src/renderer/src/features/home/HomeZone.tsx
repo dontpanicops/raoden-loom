@@ -23,6 +23,7 @@ import { ProviderIcon } from "../../components/ProviderIcon";
 import { UiIcon } from "../../components/UiIcon";
 import { t } from "../../lib/i18n";
 import {
+  AGENT_PROVIDERS,
   homeLauncherColumnCount,
   PROVIDERS,
   resolveHomeLimitProviders,
@@ -77,6 +78,7 @@ interface HomeZoneProps {
   onOpenAgent(provider: AgentProviderId, anchor?: DOMRect): void;
   onOpenTerminal(): void;
   onOpenBrowser(): void;
+  onSetDockProviders(next: AgentProviderId[]): void;
   onFocusSession(session: SessionSnapshot): void;
   onRequestMedia(): Promise<void>;
   onRemoveMedia(): Promise<void>;
@@ -274,6 +276,7 @@ export function HomeZone({
   onOpenAgent,
   onOpenTerminal,
   onOpenBrowser,
+  onSetDockProviders,
   onFocusSession,
   onRequestMedia,
   onRemoveMedia,
@@ -289,6 +292,17 @@ export function HomeZone({
   const locale = settings.locale;
   const theme = useEffectiveTheme(settings);
   const launcherProviders = resolveHomeLauncherProviders(settings);
+  const dockCandidates = AGENT_PROVIDERS.filter((provider) => !launcherProviders.includes(provider));
+  const [dockMenuOpen, setDockMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!dockMenuOpen) return undefined;
+    const close = (event: PointerEvent | KeyboardEvent): void => {
+      if (event instanceof KeyboardEvent ? event.key === "Escape" : !(event.target as Element | null)?.closest?.(".launcher-add-menu, .launcher-button--add")) setDockMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", close); };
+  }, [dockMenuOpen]);
   const limitProviders = resolveHomeLimitProviders(settings);
   const [now, setNow] = useState(() => new Date());
   // biome-ignore lint/correctness/useExhaustiveDependencies: limitProviders is a fresh array each render; settings.homeLimitProviders is its source
@@ -578,10 +592,50 @@ export function HomeZone({
             <UiIcon name="browser" size="1.9em" /><span>{t(locale, "browser")}</span>
           </button>
           {launcherProviders.map((provider) => (
-            <button className="launcher-button" type="button" key={provider} onClick={(event) => onOpenAgent(provider, event.currentTarget.getBoundingClientRect())} title={PROVIDERS[provider].label}>
-              <ProviderIcon provider={provider} size="small" /><span>{PROVIDERS[provider].label}</span>
-            </button>
+            <div className="launcher-cell" key={provider}>
+              <button className="launcher-button" type="button" onClick={(event) => onOpenAgent(provider, event.currentTarget.getBoundingClientRect())} title={PROVIDERS[provider].label}>
+                <ProviderIcon provider={provider} size="small" /><span>{PROVIDERS[provider].label}</span>
+              </button>
+              <button
+                className="launcher-cell__remove"
+                type="button"
+                aria-label={`${t(locale, "dockRemove")}: ${PROVIDERS[provider].label}`}
+                title={t(locale, "dockRemove")}
+                onClick={() => onSetDockProviders(launcherProviders.filter((p) => p !== provider))}
+              >
+                <UiIcon name="close" size={12} />
+              </button>
+            </div>
           ))}
+          {dockCandidates.length > 0 && (
+            <div className="launcher-cell">
+              <button
+                className="launcher-button launcher-button--add"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={dockMenuOpen}
+                title={t(locale, "dockAdd")}
+                onClick={() => setDockMenuOpen((open) => !open)}
+              >
+                <UiIcon name="plus" size="1.9em" /><span>{t(locale, "dockAdd")}</span>
+              </button>
+              {dockMenuOpen && (
+                <div className="launcher-add-menu" role="menu" data-dock-add-menu>
+                  {dockCandidates.map((provider) => (
+                    <button
+                      key={provider}
+                      className="launcher-add-menu__item"
+                      type="button"
+                      role="menuitem"
+                      onClick={() => { onSetDockProviders(AGENT_PROVIDERS.filter((p) => p === provider || launcherProviders.includes(p))); setDockMenuOpen(false); }}
+                    >
+                      <ProviderIcon provider={provider} size="small" /><span>{PROVIDERS[provider].label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </section>
       );
     }

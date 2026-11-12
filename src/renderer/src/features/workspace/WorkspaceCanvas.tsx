@@ -164,6 +164,7 @@ interface WorkspaceCanvasProps {
   onOpenAgent(provider: AgentProviderId, position?: Point, anchor?: DOMRect): void;
   onOpenTerminal(position?: Point): void;
   onOpenBrowser(position?: Point): void;
+  onSetDockProviders(next: AgentProviderId[]): void;
   onOpenTerminalUrl(url: string): void;
   onFocusSession(session: SessionSnapshot): void;
   activeSessionId: string | null;
@@ -206,7 +207,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
   const {
     settings, workspace, mediaData, sessions, sessionsLoadState, onRetrySessions, limits, limitsLoadState, plugins, browser,
     browserViewVisible, homeEditing, camera, onCameraChange, onGoHome,
-    onOpenSettings, onOpenAgent, onOpenTerminal, onOpenBrowser, onOpenTerminalUrl, onFocusSession,
+    onOpenSettings, onOpenAgent, onOpenTerminal, onOpenBrowser, onSetDockProviders, onOpenTerminalUrl, onFocusSession,
     activeSessionId, browserSelected, renamingSessionId, onSelectSession,
     onSelectBrowser, onClearCanvasSelection, onRenameSession, onRenameEnd,
     onRequestMedia, onRemoveMedia, onHomeLayoutChange, onHomeGridSizeChange,
@@ -951,6 +952,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           onOpenSettings={onOpenSettings}
           onOpenAgent={(provider, anchor) => onOpenAgent(provider, undefined, anchor)}
           onOpenTerminal={onOpenTerminal}
+          onSetDockProviders={onSetDockProviders}
           onOpenBrowser={() => {
             if (settings.browserCanvas) {
               raiseLayer(browserLayerId);

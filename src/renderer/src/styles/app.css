@@ -131,9 +131,9 @@ button { border: 0; }
 .radial-launcher__icon { height: 2.2em; display: grid; place-items: center; }
 .radial-launcher__item .provider-icon { --provider-icon-art-size: 1.85em; }
 
-.tile { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--edge), var(--elev-2); }
+.tile { position: relative; isolation: isolate; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--edge), var(--elev-2); }
 /* Volume at any tile colour (R2): a light top edge and a darker foot from the edge tokens, over the tile's own colour */
-.tile::after { content: ""; position: absolute; inset: 0; z-index: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(180deg, var(--edge-light), transparent 38%, transparent 78%, var(--edge-dark)); }
+.tile::after { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; background: linear-gradient(180deg, var(--edge-light), transparent 38%, transparent 78%, var(--edge-dark)); }
 
 .home-zone { position: absolute; left: 0; top: 0; display: grid; gap: 18px; border-radius: calc(var(--radius-xl) + 4px); }
 .home-zone--editing { outline: 2px dashed var(--canvas-ink); outline-offset: 10px; background-color: color-mix(in srgb, var(--canvas-ink) 6%, transparent); background-image: linear-gradient(to right, color-mix(in srgb, var(--canvas-ink) 20%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--canvas-ink) 20%, transparent) 1px, transparent 1px); background-size: 100px 90px; }
@@ -174,7 +174,7 @@ button { border: 0; }
 .mini-media:hover .mini-media__remove, .mini-media:focus-within .mini-media__remove { opacity: 1; transform: none; }
 .mini-media__remove:hover { color: var(--danger-text); background: var(--danger); }
 .clock-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--home-clock-text); background: var(--home-clock); }
-.clock-tile__time { font: 600 72px/1 var(--font-mono); letter-spacing: -.04em; white-space: nowrap; }
+.clock-tile__time { font: 600 86px/1 var(--font-ui); font-variant-numeric: tabular-nums; letter-spacing: -.03em; white-space: nowrap; }
 .clock-tile__date { color: var(--text-secondary); font-size: 22px; }
 
 .agent-overview { padding: 20px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; scrollbar-width: thin; background: var(--surface-2); }
@@ -217,18 +217,33 @@ button { border: 0; }
 .usage-row__failure-copy { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; color: var(--text-secondary); background: color-mix(in srgb, var(--text-primary) 10%, transparent); cursor: pointer; }
 .usage-row__failure-copy:hover, .usage-row__failure-copy:focus-visible { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 20%, transparent); }
 .usage-row .ui-icon--working { animation: spin 1.7s linear infinite; }
-.launcher-dock { padding: .62em; display: grid; grid-template-columns: repeat(auto-fill, minmax(7em, 1fr)); grid-auto-rows: 5.2em; align-content: center; gap: .62em; border: 0; border-radius: 1.23em; background: var(--home-dock); font-size: calc(13px * var(--ui-scale, 1)); }
+/* R10 (mock 05): the dock is rows of equal, fixed-size tiles (icon above the label); more tiles than a row holds wrap onto a new row and the
+   panel grows, none shrinks or scrolls. The panel is as high as its rows, not as its slot; the settings tile beside it is one row high. */
+.launcher-dock { --dock-tile-h: 6.9em; padding: .7em; display: grid; grid-template-columns: repeat(auto-fill, 9.8em); grid-auto-rows: var(--dock-tile-h); justify-content: start; gap: .6em; border: 0; border-radius: 1.4em; background: var(--home-dock); font-size: calc(13px * var(--ui-scale, 1)); overflow: visible; }
+.home-widget-slot > .launcher-dock { height: auto; min-height: 8.3em; }
+.home-widget-slot > .launcher-dock, .home-widget-slot > .settings-button { align-self: start; box-sizing: border-box; }
+.home-widget-slot > .settings-button { height: 8.3em; }
+.launcher-cell { position: relative; display: grid; min-width: 0; }
+.launcher-cell > .launcher-button { width: 100%; height: 100%; }
+.launcher-cell__remove { position: absolute; top: .4em; right: .4em; z-index: 2; width: 1.9em; height: 1.9em; display: grid; place-items: center; border-radius: 50%; color: var(--text-secondary); background: var(--surface-3-solid); opacity: 0; cursor: pointer; transition: opacity .12s ease; }
+.launcher-cell:hover .launcher-cell__remove, .launcher-cell__remove:focus-visible { opacity: 1; }
+.launcher-cell__remove:hover { color: var(--text-primary); }
+.launcher-button--add { color: var(--text-muted); background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); }
+.launcher-button--add:hover { color: var(--text-primary); background: var(--home-dock-tile); }
+.launcher-add-menu { position: absolute; bottom: calc(100% + .4em); left: 0; z-index: 60; min-width: 16em; padding: .5em; display: flex; flex-direction: column; gap: .2em; border: 1px solid var(--border-strong); border-radius: 1em; color: var(--text-primary); background: var(--surface-3-solid); box-shadow: var(--elev-3); }
+.launcher-add-menu__item { display: flex; align-items: center; gap: .8em; padding: .5em .7em; border-radius: .7em; color: inherit; background: transparent; cursor: pointer; font-size: 1.3em; text-align: left; }
+.launcher-add-menu__item:hover, .launcher-add-menu__item:focus-visible { background: var(--surface-sunken); }
 .launcher-button, .settings-button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35em; min-width: 0; color: var(--home-dock-tile-text); background: var(--home-dock-tile); cursor: pointer; transition: background .15s ease, filter .15s ease; }
-.launcher-button span:last-child, .settings-button span:last-child { max-width: 100%; overflow: hidden; font-size: 1.25em; text-overflow: ellipsis; white-space: nowrap; }
-.launcher-button { border-radius: .92em; }
-.settings-button { color: var(--home-settings-text); background: var(--home-settings); font-size: 13px; }
+.launcher-button span:last-child, .settings-button span:last-child { max-width: 100%; overflow: hidden; font-size: 1.3em; text-overflow: ellipsis; white-space: nowrap; }
+.launcher-button { padding: 0 .3em; border-radius: .92em; }
+.settings-button { color: var(--home-settings-text); background: var(--home-settings); font-size: calc(13px * var(--ui-scale, 1)); }
 .launcher-dock .provider-icon--small { --provider-icon-art-size: 2.1em; width: 2.5em; height: 2.5em; }
 .launcher-button:hover { filter: brightness(1.05); background: var(--home-dock-tile); }
-.launcher-button--terminal { color: var(--text-primary); background: var(--surface-2); }
-.launcher-button--terminal:hover { background: var(--surface-sunken); }
+.launcher-button--terminal { color: var(--text-primary); background: var(--home-dock-tile); }
+.launcher-button--terminal:hover { background: var(--home-dock-tile); }
 .launcher-button--browser { position: relative; color: var(--home-browser-text); background: var(--home-browser); }
 .launcher-button--browser:hover { filter: brightness(1.05); background: var(--home-browser); }
-.settings-button { color: var(--home-settings-text); background: var(--home-settings); font-size: 13px; }
+.settings-button { color: var(--home-settings-text); background: var(--home-settings); font-size: calc(13px * var(--ui-scale, 1)); }
 .settings-button:hover { filter: brightness(1.04); }
 
 .ui-icon, .provider-icon__system { display: inline-block; flex: 0 0 auto; background-color: currentColor; -webkit-mask-position: center; mask-position: center; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: contain; mask-size: contain; }
@@ -2080,14 +2095,11 @@ button { border: 0; }
 .activity-run .usage-row { align-items: center; padding-top: 3px; padding-bottom: 3px; }
 .activity-run__detail, .activity-run__people { display: none; }
 .activity-run__main .usage-row__chip { text-transform: none; }
-/* R6-B: 11 dock buttons fit one row of the default 11-column dock */
-.launcher-dock { grid-template-columns: repeat(auto-fill, minmax(5.6em, 1fr)); }
 
 /* R6-B: the folder stays beside a renamed terminal's name (mock 06) */
 .terminal-card__cwd { min-width: 0; overflow: hidden; color: var(--text-secondary); font: 500 .86em var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
 .terminal-link-dialog .terminal-link-dialog__actions .orch-cancel { border: 1px solid var(--border-strong, var(--border)); }
 .terminal-link-dialog .terminal-link-dialog__actions .terminal-link-dialog__copy { border: 0; background: transparent; }
-.launcher-dock { grid-template-columns: repeat(auto-fit, minmax(5.6em, 1fr)); }
 /* R6-C (M6, M9): the rights of an agent are one row of short labels (the full name is the tooltip); the steps and checks are rows
    as in the goal dialog; «Скрыть пространство» keeps the labels of its buttons on one line (mock 17) */
 .orch-access__row { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
