@@ -463,6 +463,13 @@ export function PluginSettingsSection({
     }
   };
 
+  // «Open the plugins folder» (mock 26): Finder on the one folder main keeps the packages in
+  const openFolderButton = (
+    <button type="button" className="set-btn" data-plugins-open-folder onClick={() => void window.canvasTTY.plugins.openFolder().then((failure) => { if (failure) setError(failure); }, () => setError(t(locale, "pluginActionFailed")))}>
+      <UiIcon name="folder" size={14} />{t(locale, "pluginsOpenFolder")}
+    </button>
+  );
+
   const renderHostTag = (minHostVersion: string | undefined): React.JSX.Element | null => {
     if (!minHostVersion) return null;
     const hostMatch = compareSemver(minHostVersion, hostVersion);
@@ -655,7 +662,7 @@ export function PluginSettingsSection({
               onClick={() => void runCheckUpdates()}
             >{checkingUpdates ? t(locale, "checkingUpdates") : t(locale, "checkUpdates")}</button>}
         </h3>
-        {plugins.length === 0 ? <div className="plugin-settings__empty plugin-settings__empty--box"><UiIcon name="plug" size={26} /><strong>{t(locale, "noPlugins")}</strong><span>{t(locale, "pluginsEmptyHint")}</span></div> : (
+        {plugins.length === 0 ? <div className="plugin-settings__empty plugin-settings__empty--box"><UiIcon name="plug" size={26} /><strong>{t(locale, "noPlugins")}</strong><span>{t(locale, "pluginsEmptyHint")}</span>{openFolderButton}</div> : (
           <>
           <div className="installed-plugin-list">
             {paginate(plugins, installedPage, INSTALLED_PAGE_SIZE).map((plugin) => {
@@ -663,21 +670,27 @@ export function PluginSettingsSection({
               const expanded = Boolean(expandedInstalled[plugin.manifest.id]);
               const remoteIcon = installedIcons[plugin.manifest.id];
               return (
-              <article className={`installed-plugin ${plugin.enabled ? "" : "installed-plugin--disabled"} ${expanded ? "installed-plugin--expanded" : ""}`} key={plugin.manifest.id}>
+              <article className={`installed-plugin ${plugin.enabled ? "" : "installed-plugin--disabled"} ${plugin.loadError ? "installed-plugin--error" : ""} ${expanded ? "installed-plugin--expanded" : ""}`} key={plugin.manifest.id}>
                 <header className="installed-plugin__header" onClick={() => setExpandedInstalled((current) => ({ ...current, [plugin.manifest.id]: !current[plugin.manifest.id] }))}>
                   <span className="installed-plugin__title">
                     <PluginIcon pluginId={plugin.manifest.id} icon={plugin.manifest.icon} name={plugin.manifest.name} remoteIcon={remoteIcon} />
                     <span className="installed-plugin__version">
                       <strong>{plugin.manifest.name}</strong>
-                      <small>
-                        v{plugin.manifest.version} · {[...new Set(plugin.manifest.contributions.map((c) => t(locale, contributionKindKey(c.kind))))].join(", ")}
+                      {(!plugin.loadError || plugin.manifest.version) && <small>
+                        v{plugin.manifest.version}{plugin.manifest.contributions.length > 0 && ` · ${[...new Set(plugin.manifest.contributions.map((c) => t(locale, contributionKindKey(c.kind))))].join(", ")}`}
                         {update && (
                           <>
                             <span className="installed-plugin__version-arrow" aria-hidden="true">→</span>
                             <span className="installed-plugin__version-new">v{update.latestVersion}</span>
                           </>
                         )}
-                      </small>
+                      </small>}
+                      {plugin.loadError && (
+                        <span className="installed-plugin__error" role="alert" data-plugin-load-error>
+                          <UiIcon name="status-failed" size={14} />
+                          <span>{t(locale, "pluginLoadFailed").replace("{reason}", plugin.loadError)}</span>
+                        </span>
+                      )}
                       {renderInstalledHostTag(plugin.manifest.minHostVersion)}
                     </span>
                   </span>
@@ -789,6 +802,7 @@ export function PluginSettingsSection({
               );
             })}
           </div>
+          <p className="plugin-folder-row">{openFolderButton}</p>
           {installedPageCount > 1 && (
             <div className="plugin-pagination" role="navigation" aria-label={t(locale, "paginationPage")} ref={installedPaginationRef}>
               <button type="button" disabled={installedPage <= 0} onClick={() => startInstalledPageChange(installedPage - 1)} aria-label="‹">‹</button>

@@ -26,14 +26,24 @@ export interface PopupDecision {
 }
 
 export class BrowserPolicyService {
-  readonly downloadRoot: string;
+  downloadRoot: string;
   readonly uploadStagingRoot: string;
   private readonly uploadRoots: string[];
+  private readonly downloaded = new Set<string>();
 
   constructor(options: BrowserPolicyOptions) {
     this.downloadRoot = resolve(options.downloadRoot);
     this.uploadStagingRoot = resolve(options.uploadStagingRoot ?? resolve(this.downloadRoot, ".upload-staging"));
     this.uploadRoots = (options.uploadRoots ?? []).filter(isAbsolute).map((path) => resolve(path));
+  }
+
+  /**
+   * Settings → Browser → Downloads: later downloads go to `root`. The folder does NOT become an upload root (a wide
+   * folder would let a page, or an agent through the browser, send any file in it): only the files the browser itself
+   * saved (`downloaded`) and the session folder the policy started with can be sent.
+   */
+  setDownloadRoot(root: string): void {
+    this.downloadRoot = resolve(root);
   }
 
   normalizeHumanInput(value: unknown): string {
@@ -91,6 +101,7 @@ export class BrowserPolicyService {
     if (!isInside(this.downloadRoot, target)) {
       throw new BrowserKernelError("PATH_DENIED", "Download path escaped the managed directory.");
     }
+    this.downloaded.add(target);
     return target;
   }
 
@@ -110,7 +121,8 @@ export class BrowserPolicyService {
       }
     }));
     const allowedRoots = roots.filter((path): path is string => Boolean(path));
-    if (allowedRoots.length === 0) {
+    const savedFiles = new Set((await Promise.all([...this.downloaded].map((path) => realpath(path).catch(() => null)))).filter((path): path is string => Boolean(path)));
+    if (allowedRoots.length === 0 && savedFiles.size === 0) {
       throw new BrowserKernelError("PATH_DENIED", "No upload directory is authorized for this browser actor.");
     }
 
@@ -127,7 +139,7 @@ export class BrowserPolicyService {
       } catch {
         throw new BrowserKernelError("PATH_DENIED", "Upload file does not exist.");
       }
-      if (!allowedRoots.some((root) => isInside(root, canonical))) {
+      if (!savedFiles.has(canonical) && !allowedRoots.some((root) => isInside(root, canonical))) {
         throw new BrowserKernelError("PATH_DENIED", "Upload file is outside authorized directories.");
       }
       const metadata = await stat(canonical);

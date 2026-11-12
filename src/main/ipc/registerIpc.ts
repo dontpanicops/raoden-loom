@@ -16,6 +16,7 @@ import type {
 import { IPC } from "../../shared/contracts";
 import { isCanvasNavigationMouseButton } from "../../shared/canvasNavigation";
 import { observeWindowState, readWindowState } from "../windowState";
+import { checkForUpdate } from "../services/updateCheck";
 import type { SettingsStore } from "../services/SettingsStore";
 import type { TerminalManager } from "../services/TerminalManager";
 import type { LimitsService } from "../services/LimitsService";
@@ -150,6 +151,10 @@ export function registerIpc({
     assertMainRenderer(event, getMainWindow);
     return app.getVersion();
   });
+  // «Check for updates»: the public releases feed only. An isolated smoke answers from the file named by an absolute
+  // CANVASTTY_SMOKE_RELEASE_JSON (no network in a smoke).
+  const smokeRelease = smokeImport.isolated && process.env.CANVASTTY_SMOKE_RELEASE_JSON?.startsWith("/") ? process.env.CANVASTTY_SMOKE_RELEASE_JSON : null;
+  handleMain(IPC.updatesCheck, () => checkForUpdate(app.getVersion(), smokeRelease ? async () => JSON.parse(await readFile(smokeRelease, "utf8")) : undefined));
   handleMain(IPC.settingsGet, () => settings.get());
   handleMain(IPC.settingsUpdate, async (_event, patch: Partial<AppSettings>) => {
     const next = await settings.update(patch);
@@ -300,6 +305,11 @@ export function registerIpc({
       throw new Error("Plugin hook state is invalid.");
     }
     return plugins.setHookEnabled(pluginId, hookId, enabled);
+  });
+  // «Open the plugins folder» (empty state of Settings → Plugins): the one folder main owns, nothing from the window
+  handleMain(IPC.pluginsOpenFolder, async () => {
+    if (smokeImport.isolated) { console.log("[smoke] plugins open-folder"); return ""; }
+    return shell.openPath(plugins.folder());
   });
   handleMain(IPC.pluginsUninstall, async (_event, pluginId: string) => {
     closePluginWindows(pluginId);

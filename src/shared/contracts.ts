@@ -25,7 +25,10 @@ export type CanvasOverlayPlacement = "top-left" | "top-right" | "bottom-left" | 
 export type MinimapInteractionMode = "click" | "drag";
 export type BrowserViewportSurface = "native" | "placeholder" | "hidden";
 export type FocusActivation = "off" | "single" | "double";
-export type ShortcutAction = "home" | "renameWindow";
+export type ShortcutAction = "home" | "renameWindow" | "commandPalette";
+
+/** The answer of «Check for updates»: no download, no install, only a version and the page. */
+export type UpdateCheckResult = { status: "latest" } | { status: "available"; version: string; url: string } | { status: "failed" };
 export type CanvasLauncherItemId = ProviderId;
 export type RadialLauncherActionId = "note" | "browser" | "settings";
 export type RadialLauncherItemId = ProviderId | RadialLauncherActionId;
@@ -230,7 +233,7 @@ export interface WorkspacesApi {
 
 // Notifications of orchestration runs (UX audit PR 3): which events tell the person, and the Dock.
 // boardHead (C4): «the board's result updated» — off by default, under «board»
-export interface NotificationSettings { waiting: boolean; completed: boolean; failed: boolean; dockBadge: boolean; bounce: boolean; board: boolean; boardHead: boolean }
+export interface NotificationSettings { waiting: boolean; completed: boolean; failed: boolean; dockBadge: boolean; bounce: boolean; board: boolean; boardHead: boolean; banner: boolean; system: boolean }
 
 export interface AppSettings {
   locale: LocaleId;
@@ -288,6 +291,12 @@ export interface AppSettings {
   browserShowAgentPresence: boolean;
   browserRestoreTabs: boolean;
   notifications: NotificationSettings;
+  /** The chord that opens the command palette; null: the built-in ⌘K / Ctrl+K. */
+  commandPaletteShortcut: string | null;
+  /** Where the browser card saves downloads; null: the app's own folder inside the system Downloads. */
+  browserDownloadDir: string | null;
+  /** Ask GitHub Releases once a day whether a newer version exists (off by default; nothing is installed). */
+  checkUpdates: boolean;
 }
 
 export interface CreateSessionRequest {
@@ -523,6 +532,8 @@ export interface InstalledPlugin {
   selectedModules: string[];
   /** Hook ids explicitly trusted by the user. Never populated during install or update. */
   enabledHooks: string[];
+  /** Why the installed package could not be read (main's first line of the error); absent when it loaded. */
+  loadError?: string;
 }
 
 export interface PluginInstallPreview {
@@ -982,6 +993,7 @@ export interface CanvasTTYApi {
   orchestration: import('./orchestration.ts').OrchestrationApi;
   workspaces: WorkspacesApi;
   appVersion(): Promise<string>;
+  updates: { check(): Promise<UpdateCheckResult> };
   notify: {
     // shown: false where the system has no notifications; a later refusal comes by onFailed
     show(note: { runId: string; title: string; body: string }): Promise<{ shown: boolean }>;
@@ -1031,6 +1043,8 @@ export interface CanvasTTYApi {
     setEnabled(pluginId: string, enabled: boolean): Promise<InstalledPlugin>;
     setHookEnabled(pluginId: string, hookId: string, enabled: boolean): Promise<InstalledPlugin>;
     uninstall(pluginId: string): Promise<void>;
+    /** Opens the folder the plugins live in (Finder); resolves to an error text, "" when it opened. */
+    openFolder(): Promise<string>;
     openCanvas(pluginId: string, contributionId: string, sourceCanvasInstanceId?: string): Promise<void>;
     openWindow(pluginId: string, contributionId: string): Promise<void>;
     openExternal(pluginId: string, url: string): Promise<void>;
@@ -1149,6 +1163,7 @@ export const IPC = {
   pluginsSetEnabled: "plugins:set-enabled",
   pluginsSetHookEnabled: "plugins:set-hook-enabled",
   pluginsUninstall: "plugins:uninstall",
+  pluginsOpenFolder: "plugins:open-folder",
   pluginsOpenCanvas: "plugins:open-canvas",
   pluginsOpenWindow: "plugins:open-window",
   pluginsOpenExternal: "plugins:open-external",
@@ -1265,6 +1280,7 @@ export const IPC = {
   canvasNavigationPointerGesture: "canvas-navigation:pointer-gesture",
   canvasNavigationOverrideState: "canvas-navigation:override-state",
   appVersion: "app:version",
+  updatesCheck: "updates:check",
   githubAuthStatus: "github-auth:status",
   githubAuthStart: "github-auth:start",
   githubAuthSignOut: "github-auth:sign-out",

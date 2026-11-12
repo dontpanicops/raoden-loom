@@ -65,6 +65,8 @@ import {
   setHomeLimitProviderEnabled,
   setHomeLauncherProviderEnabled
 } from "../../lib/providers";
+import { isTooBroadDownloadFolder } from "../../../../shared/downloadFolder";
+import { UpdateStatusLine } from "./UpdateStatus";
 import { shortcutFromKeyboardEvent, shortcutFromPointerEvent } from "../../lib/shortcuts";
 import { t, type TranslationKey } from "../../lib/i18n";
 import { installUrl } from "../onboarding/OnboardingCard";
@@ -237,8 +239,10 @@ export function SettingsPanel({
     }
   };
 
+  const [downloadFolderError, setDownloadFolderError] = useState(false);
   const saveShortcut = async (action: ShortcutAction, shortcut: string): Promise<void> => {
-    const conflict = Object.entries(settings.shortcuts).find(
+    const chords: [string, string][] = [...Object.entries(settings.shortcuts), ...(settings.commandPaletteShortcut ? [["commandPalette", settings.commandPaletteShortcut] as [string, string]] : [])];
+    const conflict = chords.find(
       ([candidateAction, value]) => candidateAction !== action && value.toLowerCase() === shortcut.toLowerCase()
     );
     const conflictsWithNavigation = settings.canvasNavigationOverride !== null
@@ -252,7 +256,7 @@ export function SettingsPanel({
     }
 
     setShortcutError(null);
-    await onChange({ shortcuts: { ...settings.shortcuts, [action]: shortcut } });
+    await onChange(action === "commandPalette" ? { commandPaletteShortcut: shortcut } : { shortcuts: { ...settings.shortcuts, [action]: shortcut } });
     setCapturing(null);
   };
 
@@ -368,6 +372,9 @@ export function SettingsPanel({
                 (next) => void onChange({ persistCanvasRegions: next }))}
               {sw(t(locale, "persistStickyNotes"), undefined, settings.persistStickyNotes,
                 (next) => void onChange({ persistStickyNotes: next }))}
+              {sw(t(locale, "checkUpdatesSwitch"), t(locale, "checkUpdatesSwitchDescription"), settings.checkUpdates,
+                (next) => void onChange({ checkUpdates: next }))}
+              <UpdateStatusLine locale={locale} quiet />
             </>
           )}
 
@@ -665,7 +672,7 @@ export function SettingsPanel({
                     locale={locale}
                     label={t(locale, "canvasWheelOverride")}
                     binding={settings.canvasWheelOverride}
-                    actionShortcuts={Object.values(settings.shortcuts)}
+                    actionShortcuts={[...Object.values(settings.shortcuts), ...(settings.commandPaletteShortcut ? [settings.commandPaletteShortcut] : [])]}
                     allowDisable={false}
                     onCaptureStart={() => {
                       setCapturing(null);
@@ -725,7 +732,7 @@ export function SettingsPanel({
                   locale={locale}
                   label={t(locale, "canvasNavigationOverrideHint")}
                   binding={settings.canvasNavigationOverride}
-                  actionShortcuts={Object.values(settings.shortcuts)}
+                  actionShortcuts={[...Object.values(settings.shortcuts), ...(settings.commandPaletteShortcut ? [settings.commandPaletteShortcut] : [])]}
                   allowDisable
                   onCaptureStart={() => {
                     setCapturing(null);
@@ -733,10 +740,25 @@ export function SettingsPanel({
                   }}
                   onChange={(canvasNavigationOverride) => onChange({ canvasNavigationOverride })}
                 />
-                <div className="shortcut-editor__row">
-                  <span>{t(locale, "commandPalette")}</span>
-                  <div className="shortcut-editor__actions"><span className="shortcut-editor__key">{window.canvasTTY.window.isMacOS ? "⌘K" : "Ctrl+K"}</span></div>
-                </div>
+                <ShortcutRow
+                  locale={locale}
+                  label={t(locale, "commandPalette")}
+                  value={settings.commandPaletteShortcut ?? (window.canvasTTY.window.isMacOS ? "⌘K" : "Ctrl+K")}
+                  capturing={capturing === "commandPalette"}
+                  onStart={() => {
+                    setShortcutError(null);
+                    setCapturing("commandPalette");
+                  }}
+                  onCancel={() => {
+                    setShortcutError(null);
+                    setCapturing(null);
+                  }}
+                  onKeyDown={(event) => captureShortcut("commandPalette", event)}
+                  onPointerDown={() => undefined}
+                />
+                {shortcutError && capturing === "commandPalette" && (
+                  <p className="shortcut-editor__error" role="alert">{shortcutError}</p>
+                )}
                 <p className="shortcut-editor__hint">{t(locale, "shortcutsAccepted")}</p>
               </section>
               {sw(t(locale, "hoverFocus"), t(locale, "hoverFocusDescription"), settings.hoverFocus,
@@ -813,7 +835,20 @@ export function SettingsPanel({
                 (next) => void onChange({ browserShowAgentPresence: next }))}
               {sw(t(locale, "browserRestoreTabs"), t(locale, "browserRestoreTabsDescription"), settings.browserRestoreTabs,
                 (next) => void onChange({ browserRestoreTabs: next }))}
-              <SettingGroup layout="stacked" label={t(locale, "browserDownloads")}>
+              <section className="setting-group setting-group--field setting-group--download-folder" data-browser-download-folder>
+                <div className="setting-group__copy">
+                  <h3>{t(locale, "browserDownloads")}</h3>
+                  <p className="setting-group__description setting-path" title={settings.browserDownloadDir ?? undefined}>{settings.browserDownloadDir ?? t(locale, "browserDownloadsDefaultPath")}</p>
+                </div>
+                <div className="setting-group__control">
+                  {settings.browserDownloadDir !== null && (
+                    <button type="button" className="set-btn set-btn--quiet" onClick={() => void onChange({ browserDownloadDir: null })}>{t(locale, "browserDownloadsReset")}</button>
+                  )}
+                  <button type="button" className="set-btn" data-browser-download-change onClick={() => void window.canvasTTY.dialog.pickDirectory(settings.browserDownloadDir ?? undefined).then((picked) => { if (!picked) return; if (isTooBroadDownloadFolder(picked)) { setDownloadFolderError(true); return; } setDownloadFolderError(false); void onChange({ browserDownloadDir: picked }); })}>{t(locale, "browserDownloadsChange")}</button>
+                </div>
+              </section>
+              {downloadFolderError && <p className="update-status update-status--failed" role="alert" data-download-folder-error>{t(locale, "browserDownloadsTooBroad")}</p>}
+              <SettingGroup layout="stacked" label={t(locale, "browserDownloadsRecent")}>
                 <BrowserDownloadList downloads={browser.downloads} locale={locale} />
               </SettingGroup>
               <SettingGroup layout="caps" label={t(locale, "browserActivity")}>
@@ -1102,6 +1137,7 @@ function NotificationSettingsGroup({ settings, onChange }: { settings: AppSettin
   useEffect(() => { try { setUnavailable(localStorage.getItem(NOTIFY_UNAVAILABLE_KEY) === "1"); } catch { /* no storage: nothing to say */ } }, []);
   const set = (key: keyof NotificationSettings, value: boolean): void => void onChange({ notifications: { ...settings.notifications, [key]: value } });
   const switches: [keyof NotificationSettings, TranslationKey, TranslationKey][] = [
+    ["banner", "notifyBannerChannel", "notifyBannerChannelDescription"], ["system", "notifySystemChannel", "notifySystemChannelDescription"],
     ["dockBadge", "notifyDockBadge", "notifyDockBadgeDescription"], ["bounce", "notifyBounce", "notifyBounceDescription"],
     ["board", "notifyBoard", "notifyBoardDescription"],
     // C4: under «board», shown while it is on

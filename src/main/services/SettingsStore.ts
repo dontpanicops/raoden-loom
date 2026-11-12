@@ -1,6 +1,11 @@
+import { isTooBroadDownloadFolder } from "../../shared/downloadFolder.ts";
 import { homedir } from "node:os";
+import { realpathSync } from "node:fs";
+
+// the folder as the file system sees it (symlinks resolved); a folder not there yet is checked as written
+const realFolder = (folder: string): string => { try { return realpathSync.native(folder); } catch { return folder; } };
 import { LEGACY_PALETTE_TO_PALETTE, PALETTE_IDS } from "../../shared/appearance.ts";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import type {
   AgentProviderId,
@@ -330,7 +335,10 @@ function createDefaults(systemLocale: string, platform: CanvasNavigationPlatform
     browserAgentAccess: true,
     browserShowAgentPresence: true,
     browserRestoreTabs: true,
-    notifications: { ...DEFAULT_NOTIFICATIONS }
+    notifications: { ...DEFAULT_NOTIFICATIONS },
+    commandPaletteShortcut: null,
+    browserDownloadDir: null,
+    checkUpdates: false
   };
 }
 
@@ -522,16 +530,24 @@ export function normalizeSettings(
     browserRestoreTabs: typeof source.browserRestoreTabs === "boolean"
       ? source.browserRestoreTabs
       : fallback.browserRestoreTabs,
-    notifications: normalizeNotifications(source.notifications, fallback.notifications ?? DEFAULT_NOTIFICATIONS)
+    notifications: normalizeNotifications(source.notifications, fallback.notifications ?? DEFAULT_NOTIFICATIONS),
+    commandPaletteShortcut: source.commandPaletteShortcut === null || isValidShortcut(source.commandPaletteShortcut)
+      ? source.commandPaletteShortcut as string | null
+      : fallback.commandPaletteShortcut ?? null,
+    browserDownloadDir: source.browserDownloadDir === null
+      || (typeof source.browserDownloadDir === "string" && isAbsolute(source.browserDownloadDir) && source.browserDownloadDir.length <= 4096 && !isTooBroadDownloadFolder(realFolder(source.browserDownloadDir), homedir()))
+      ? source.browserDownloadDir as string | null
+      : fallback.browserDownloadDir ?? null,
+    checkUpdates: typeof source.checkUpdates === "boolean" ? source.checkUpdates : fallback.checkUpdates ?? false
   };
 }
 
 // Each switch on its own: a missing or broken one keeps its default, the others stay as saved.
-const DEFAULT_NOTIFICATIONS: NotificationSettings = { waiting: true, completed: true, failed: true, dockBadge: true, bounce: false, board: true, boardHead: false };
+const DEFAULT_NOTIFICATIONS: NotificationSettings = { waiting: true, completed: true, failed: true, dockBadge: true, bounce: false, board: true, boardHead: false, banner: true, system: true };
 function normalizeNotifications(value: unknown, fallback: NotificationSettings = DEFAULT_NOTIFICATIONS): NotificationSettings {
   const o = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
   const pick = (k: keyof NotificationSettings): boolean => (typeof o[k] === "boolean" ? o[k] as boolean : fallback[k]);
-  return { waiting: pick("waiting"), completed: pick("completed"), failed: pick("failed"), dockBadge: pick("dockBadge"), bounce: pick("bounce"), board: pick("board"), boardHead: pick("boardHead") };
+  return { waiting: pick("waiting"), completed: pick("completed"), failed: pick("failed"), dockBadge: pick("dockBadge"), bounce: pick("bounce"), board: pick("board"), boardHead: pick("boardHead"), banner: pick("banner"), system: pick("system") };
 }
 
 export function normalizeCanvasLauncherItems(

@@ -2,6 +2,7 @@ import appManifest from "../../../../../package.json";
 import type { LocaleId } from "../../../../shared/contracts";
 import { t, type TranslationKey } from "../../lib/i18n";
 import { AppMark } from "../../components/AppMark";
+import { CheckUpdatesButton, UpdateStatusLine } from "./UpdateStatus";
 
 const FAQ: ReadonlyArray<readonly [TranslationKey, TranslationKey]> = [
   ["aboutFaqStatusQuestion", "aboutFaqStatusAnswer"],
@@ -22,6 +23,7 @@ export function AboutSettings({ locale }: { locale: LocaleId }): React.JSX.Eleme
   const channel = import.meta.env.DEV ? "DEV" : "RELEASE";
   return (
     <section className="about-settings">
+      <div className="about-settings__top">
       <header className="about-settings__header">
         <span className="about-settings__icon"><AppMark size={28} /></span>
         <span className="about-settings__name">
@@ -29,6 +31,9 @@ export function AboutSettings({ locale }: { locale: LocaleId }): React.JSX.Eleme
           <small>{t(locale, "aboutVersion")} {appManifest.version} · macOS · {channel}</small>
         </span>
       </header>
+      <CheckUpdatesButton locale={locale} />
+      </div>
+      <UpdateStatusLine locale={locale} />
 
       <div className="about-settings__faq">
         <h3>{t(locale, "aboutFaq")}</h3>
