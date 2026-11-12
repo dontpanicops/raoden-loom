@@ -153,10 +153,28 @@ const fit = async () => {
 let world = {};
 // R12a: the mocks marked «1:1» are taken at 100%: the zoom button until the scene is at scale 1, then the card is brought to the middle
 const zoom100 = async (target) => {
+  // R12f: the card is brought to the middle first: the zoom buttons work about the window's middle, and at 100% there is no empty canvas left to pan by
+  if (target) {
+    await app.reveal(target).catch(() => {}); await sleep(500);
+    const c = await app.center(target).catch(() => null); // reveal leaves a card that is already on the screen where it is: it is brought to the middle by hand
+    if (c) { await app.panBy({ x: Math.round(720 - c.x), y: Math.round(450 - c.y) }).catch(() => {}); await sleep(500); }
+  }
   for (let i = 0; i < 6; i++) {
     const z = await app.ev(`(() => { const m = document.querySelector(".workspace__scene")?.style.transform.match(/scale\\(([\\d.]+)\\)/); return m ? Number(m[1]) : 1; })()`);
     if (z >= 0.99) break;
     await app.clickEl(`document.querySelectorAll(".canvas-controls button, .zoom-controls button")[2]`).catch(() => {}); await sleep(250);
+  }
+  // R12f: the buttons step by 1.22 and stop at 99.7%, a hair under 1 (the cards then keep the chrome of the zoomed-out mode, 28 / 24 instead of 44 / 33):
+  // the last bit is a ctrl + wheel, its strength learnt from the first turn, until the scene is at 1.000..1.012
+  const sceneZoom = () => app.ev(`(() => { const m = document.querySelector(".workspace__scene")?.style.transform.match(/scale\\(([\\d.]+)\\)/); return m ? Number(m[1]) : 1; })()`);
+  let k = 0.005;
+  for (let i = 0; i < 8; i++) {
+    const z = await sceneZoom();
+    if (z >= 1 && z < 1.012) break;
+    const dy = -Math.log(1.005 / z) / k;
+    await app.call("Input.dispatchMouseEvent", { type: "mouseWheel", x: 720, y: 450, deltaX: 0, deltaY: dy, modifiers: 2 }); await sleep(500);
+    const z2 = await sceneZoom();
+    if (Math.abs(z2 - z) > 1e-4) k = Math.log(z2 / z) / -dy;
   }
   if (target) { await app.reveal(target).catch(() => {}); await sleep(500); }
 };
@@ -347,6 +365,21 @@ try {
       }
       await app.panBy({ x: 250, y: 60 }).catch(() => {}); // HOME out of the window: nothing but the six cards under the minimap
       await sleep(600); await shot("cards-summary");
+      // R12f (mock 21, 28%): two steps further out, the cards are summaries
+      for (let i = 0; i < 2; i++) { await app.clickEl(`document.querySelectorAll(".canvas-controls button, .zoom-controls button")[1]`).catch(() => {}); await sleep(300); }
+      await sleep(600); await shot("cards-summary-30");
+      await app.key("Home", "Home", 36); await sleep(600);
+      // R12f (mock 06): every state at 100% and at the mock's size 420x260, one frame per card, the card in the middle of the window
+      const sized = { idle: [world.term, R(0, 0)], working: [world.cards.working.id, R(1, 0)], waiting: [world.cards.waiting.id, R(2, 0)], exited: [world.cards.exited.id, R(0, 1)], failed: [world.cards.failed.id, R(1, 1)] };
+      for (const [id, r] of Object.values(sized)) await app.ev(`window.canvasTTY.terminal.setBounds(${JSON.stringify(id)}, ${JSON.stringify({ position: r.position, size: { width: 420, height: 260 } })})`);
+      await sleep(600);
+      const layer = (id) => `document.querySelector('[data-canvas-layer-id="terminal:${id}"]')`;
+      for (const [key, [id]] of Object.entries(sized)) {
+        await app.key("Home", "Home", 36); await sleep(500); await zoom100(layer(id)); await sleep(600);
+        if (key === "working") { await app.clickEl(`${layer(id)}.querySelector(".terminal-card__header")`); await sleep(400); } // mock: the working card is the selected one
+        await shot(`cards-terminal-${key}`);
+      }
+      await app.ev(`window.canvasTTY.terminal.setBounds(${JSON.stringify(world.term)}, ${JSON.stringify(R(0, 0))})`); // the ~/dev terminal stays as the later scenes know it
       await app.key("Home", "Home", 36); await sleep(600);
       for (const x of Object.values(world.cards)) await app.ev(`window.canvasTTY.terminal.dispose(${JSON.stringify(x.id)}).then(() => true)`); // the palette lists sessions: no doubles
     });
@@ -681,9 +714,22 @@ try {
       await shot("link-executor-left");
       await app.key("Home", "Home", 36); await sleep(500);
     });
+    // R12f (mock 18, 06): the linking mode at 100%: the lead, the lit executor and the one of another folder fit the window together (300x222 cards)
+    const modeView100 = async () => {
+      // the camera is written to the space (zoom 1, the three cards in the middle) and the window reads it again: no empty canvas is left to pan by at 100%
+      const st = await canvasState(app), bs = [world.modeLead, world.modeFit, world.modeFar].map((id) => st.agents.find((a) => a.agentId === id).bounds);
+      const x0 = Math.min(...bs.map((b) => b.position.x)), x1 = Math.max(...bs.map((b) => b.position.x + b.size.width));
+      const y0 = Math.min(...bs.map((b) => b.position.y)), y1 = Math.max(...bs.map((b) => b.position.y + b.size.height));
+      const active = (await app.ev(`window.canvasTTY.workspaces.get()`)).activeId;
+      await app.ev(`window.canvasTTY.workspaces.setCamera(${JSON.stringify(active)}, ${JSON.stringify({ x: Math.round(720 - (x0 + x1) / 2), y: Math.round(480 - (y0 + y1) / 2), zoom: 1 })}).then(() => true)`);
+      await app.call("Page.reload", {}); await sleep(2500); await laptop();
+      await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
+      await app.waitFor(`${card(world.modeLead, ".agent-card__port")} && true`, "the lead's port", 10_000); await sleep(800);
+    };
     await scene("link-mode", async () => {
       await app.key("Home", "Home", 36); await sleep(800);
       await app.waitFor(`${card(world.modeLead, ".agent-card__port")} && true`, "the lead's port", 10_000);
+      await modeView100();
       const from = await app.center(card(world.modeLead, ".agent-card__port"));
       await app.mouse("mouseMoved", from.x, from.y); await app.mouse("mousePressed", from.x, from.y, "left", 1);
       for (let i = 1; i <= 8; i++) { await app.mouse("mouseMoved", from.x + 18 * i, from.y + 10 * i, "left", 1); await sleep(40); }
@@ -691,8 +737,8 @@ try {
       const fit = await app.center(card(world.modeFit, ".agent-card__body")), far = await app.center(card(world.modeFar, ".agent-card__body"));
       await app.mouse("mouseMoved", fit.x, fit.y, "left", 1); await sleep(500); await shot("link-mode");
       await app.mouse("mouseMoved", far.x, far.y, "left", 1); await sleep(500); await shot("link-mode-far");
-      await app.mouse("mouseMoved", 700, 560, "left", 1); await sleep(200);
-      await app.mouse("mouseReleased", 700, 560, "left", 0); await sleep(300); await esc();
+      await app.mouse("mouseMoved", 900, 820, "left", 1); await sleep(200);
+      await app.mouse("mouseReleased", 900, 820, "left", 0); await sleep(300); await esc();
     });
     // R12a (mock 06): a link between agents of different folders is refused, the lead's card says why
     // R12a (mock 03): «Меньше прозрачности»
@@ -703,16 +749,18 @@ try {
     });
     // R12a (mock 06): the browser under an open run panel: the page is hidden while the panel is open
     await scene("browser-hidden", async () => {
+      // the page is hidden while a panel of the card (the downloads) is open: the semantic surface says so (mock 06, SPEC 11)
       await app.key("Home", "Home", 36); await sleep(700);
-      await app.clickEl(card(world.groupBLead ?? leadB.agentId, ".agent-card__open")); await sleep(1200);
+      await zoom100(q('[data-canvas-layer-id="browser"]')); await sleep(700);
+      await app.clickEl(q('[data-canvas-layer-id="browser"] .browser-card__downloads')); await sleep(900);
       await shot("cards-browser-hidden");
-      await esc(); await sleep(400);
-      if (await app.ev(`!!document.querySelector(".orch-panel")`)) await app.clickEl(`document.querySelector(".orch-panel [aria-label], .orch-panel button")`).catch(() => {});
+      await app.clickEl(q('[data-canvas-layer-id="browser"] .browser-card__downloads')).catch(() => {}); await sleep(400);
       await app.key("Home", "Home", 36); await sleep(500);
     });
     await scene("link-refused-folder", async () => {
       await app.key("Home", "Home", 36); await sleep(800);
       await app.waitFor(`${card(world.modeLead, ".agent-card__port")} && true`, "the lead's port", 10_000);
+      await modeView100();
       const from = await app.center(card(world.modeLead, ".agent-card__port"));
       await app.mouse("mouseMoved", from.x, from.y); await app.mouse("mousePressed", from.x, from.y, "left", 1);
       const far = await app.center(card(world.modeFar, ".agent-card__body"));
@@ -723,10 +771,14 @@ try {
     // R12a (mock 06): a card as it is, selected (level 2), with the keyboard focus (Tab, level 3)
     await scene("card-focus", async () => {
       await app.key("Home", "Home", 36); await sleep(700);
-      await app.reveal(card(lead.agentId)); await sleep(600); await shot("card-focus-plain");
+      await zoom100(card(lead.agentId)); await sleep(600); await shot("card-focus-plain");
       await app.clickEl(card(lead.agentId, ".agent-card__header")); await sleep(500); await shot("card-focus-selected");
+      // selected + the keyboard focus (Tab twice reaches the card), then the selection is taken off by a click on empty canvas: the focus alone
       await app.ev(`document.activeElement?.blur()`);
-      await app.key("Tab", "Tab", 9); await sleep(300); await app.key("Tab", "Tab", 9); await sleep(500); await shot("card-focus-tab");
+      const kb = async () => { await app.key("Tab", "Tab", 9); await sleep(300); await app.ev(`${card(lead.agentId, ".agent-card__expand")}.focus()`); await sleep(500); }; // a key, then the focus: it is the keyboard's
+      await kb(); await shot("card-focus-both");
+      await app.click(1000, 760); await sleep(400); await esc(); await app.ev(`document.activeElement?.blur()`); await sleep(300);
+      await kb(); await shot("card-focus-tab");
       await app.key("Home", "Home", 36); await sleep(300);
     });
     await scene("zoom-waiting", async () => {
@@ -828,6 +880,7 @@ try {
 
     // link dialog from the terminal output (cmd+click on the url)
     await scene("link-dialog", async () => {
+      await app.key("Home", "Home", 36); await sleep(600); // the 100% of the scene before leaves no empty canvas to pan by
       await app.reveal(`document.querySelector('[data-canvas-layer-id="terminal:${t.id}"]')`); await sleep(500);
       const pt = await app.ev(`(() => { const rows = [...document.querySelectorAll(".terminal-card .xterm-rows > div")]; const r = rows.find((e) => e.textContent.trim().endsWith("localhost:5173/")); if (!r) return null; const txt = r.textContent; const rg = document.createRange(); rg.selectNodeContents(r); const b = rg.getBoundingClientRect(); const cw = b.width / Math.max(txt.length, 1); const i = txt.indexOf("http"); return { x: b.left + cw * (i + 12), y: b.top + b.height / 2 }; })()`);
       if (!pt) throw new Error("no url row");
@@ -897,10 +950,20 @@ try {
       await clip("board", ["[data-board]", "[data-board-aside]"]);
     });
     await scene("cards-agents-working", async () => {
+      await app.key("Home", "Home", 36); await sleep(500);
       await app.key("Escape", "Escape", 27);
       if (await app.ev(`!!${q("[data-board-menu]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500); }
       await app.reveal(card(lead.agentId)); await pairView(lead.agentId, exec.agentId); await sleep(500);
       await shot("cards-agents-working");
+      // R12f (mock 06 is 1:1): the pair at 100%, where the status is still in the body
+      await zoom100(card(exec.agentId)); await shot("cards-agents-working-100"); await app.key("Home", "Home", 36); await sleep(500);
+      await app.reveal(card(lead.agentId)); await pairView(lead.agentId, exec.agentId); await sleep(500);
+      // R12f (mock 21): the pair at 45% (the status in the footer, the tail «· этап 1 из 2» gone) and at 30% (name and glyph)
+      const out = (n) => app.clickEl(`document.querySelectorAll(".canvas-controls button, .zoom-controls button")[1]`).catch(() => {}).then(() => sleep(300));
+      await out(); await out(); await sleep(500); await shot("cards-agents-working-45");
+      await out(); await out(); await sleep(500); await shot("cards-agents-working-30");
+      await app.key("Home", "Home", 36); await sleep(500);
+      await app.reveal(card(lead.agentId)); await pairView(lead.agentId, exec.agentId); await sleep(500);
       // R7b: the two cards close up (twice the pixels), the pair of the mock's «Агенты оркестрации» row
       const cr = await app.ev(`(() => { const r = [...document.querySelectorAll("[data-agent-id]")].map((e) => e.getBoundingClientRect());
         const x = Math.min(...r.map((b) => b.left)) - 12, y = Math.min(...r.map((b) => b.top)) - 12; return { x, y, width: Math.max(...r.map((b) => b.right)) - x + 12, height: Math.max(...r.map((b) => b.bottom)) - y + 12 }; })()`);

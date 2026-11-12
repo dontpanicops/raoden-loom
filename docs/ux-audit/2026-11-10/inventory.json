@@ -330,13 +330,13 @@
    "id": "03-reduce",
    "zone": "Z1",
    "mock": "03-canvas",
+   "mockSuffix": "-reduce",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 0, "y": 0, "w": 1440, "h": 900 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-canvas-reduce.png" },
    "scale": "67% (D-016)",
    "data": "«Меньше прозрачности» (макет только в redesign/shots/03-canvas-*-reduce.png)",
-   "notes": "",
-   "missing": "сцена холста с включённым «Меньше прозрачности и движения»"
+   "notes": ""
   },
   {
    "id": "04-firstrun",
@@ -488,11 +488,10 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 960, "y": 70, "w": 424, "h": 420 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-note-snapshot.png" },
-   "appCrop": { "x": 500, "y": 315, "w": 450, "h": 275 },
+   "appCrop": { "x": 390, "y": 240, "w": 660, "h": 400 },
    "scale": "100%",
    "data": "заметка-снимок итога запуска",
-   "notes": "кадр на 67%",
-   "honest": false
+   "notes": ""
   },
   {
    "id": "18-link-mode",
@@ -501,11 +500,10 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 590, "w": 424, "h": 420 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-link-mode.png" },
-   "appCrop": { "x": 1000, "y": 360, "w": 440, "h": 300 },
+   "appCrop": { "x": 390, "y": 235, "w": 665, "h": 430 },
    "scale": "100%",
    "data": "режим связывания: подсвеченная цель «Отпустите — связать», неподходящая гаснет",
-   "notes": "кадр на 67%; дальняя цель — сцена link-mode-far",
-   "honest": false
+   "notes": "кадр на 100%: ведущий, свободный исполнитель (подсвечен) и исполнитель другой папки (гаснет)"
   },
   {
    "id": "18-home-edit",
@@ -525,24 +523,59 @@
    "mock": "18-canvas-bits",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 960, "y": 590, "w": 424, "h": 420 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-card-resize.png" },
-   "appCrop": { "x": 520, "y": 330, "w": 400, "h": 250 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-card-resize-drag.png" },
+   "appCrop": { "x": 445, "y": 275, "w": 600, "h": 385 },
    "scale": "100%",
    "data": "маркеры ресайза у карточки терминала, размер",
-   "notes": "кадр на 67%; во время жеста — card-resize-drag",
-   "honest": false
+   "notes": ""
   },
   {
-   "id": "18-focus",
+   "id": "18-focus-plain",
    "zone": "Z1",
    "mock": "18-canvas-bits",
    "themes": ["sand", "paper", "frost"],
-   "mockCrop": { "x": 56, "y": 1128, "w": 1328, "h": 220 },
-   "scene": null,
+   "mockCrop": { "x": 70, "y": 1148, "w": 290, "h": 180 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-card-focus-plain.png" },
+   "appCrop": { "x": 550, "y": 322, "w": 340, "h": 258 },
    "scale": "100%",
-   "data": "карточка: обычная, выбрана, фокус клавиатуры, выбрана + фокус",
-   "notes": "",
-   "missing": "сцена карточек в состояниях «выбрана» и «фокус с клавиатуры» (Tab)"
+   "data": "карточка обычная",
+   "notes": ""
+  },
+  {
+   "id": "18-focus-selected",
+   "zone": "Z1",
+   "mock": "18-canvas-bits",
+   "themes": ["sand", "paper", "frost"],
+   "mockCrop": { "x": 380, "y": 1148, "w": 300, "h": 180 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-card-focus-selected.png" },
+   "appCrop": { "x": 550, "y": 322, "w": 340, "h": 258 },
+   "scale": "100%",
+   "data": "карточка выбрана: контур",
+   "notes": ""
+  },
+  {
+   "id": "18-focus-tab",
+   "zone": "Z1",
+   "mock": "18-canvas-bits",
+   "themes": ["sand", "paper", "frost"],
+   "mockCrop": { "x": 690, "y": 1148, "w": 300, "h": 180 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-card-focus-tab.png" },
+   "appCrop": { "x": 550, "y": 322, "w": 340, "h": 258 },
+   "scale": "100%",
+   "data": "фокус клавиатуры: кольцо 2 px с отступом 3 px",
+   "notes": ""
+  },
+  {
+   "id": "18-focus-both",
+   "zone": "Z1",
+   "mock": "18-canvas-bits",
+   "themes": ["sand", "paper", "frost"],
+   "mockCrop": { "x": 1000, "y": 1148, "w": 295, "h": 180 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-card-focus-both.png" },
+   "appCrop": { "x": 550, "y": 322, "w": 340, "h": 258 },
+   "scale": "100%",
+   "data": "выбрана и в фокусе: оба признака",
+   "notes": ""
   },
   {
    "id": "20-dock-add",
@@ -574,11 +607,11 @@
    "mock": "20-home-dock",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 64, "y": 718, "w": 816, "h": 445 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-canvas.png" },
-   "appCrop": { "x": 190, "y": 115, "w": 795, "h": 440 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-mock-dock-nine.png" },
+   "appCrop": { "x": 62, "y": 95, "w": 830, "h": 460 },
    "scale": "67% (D-016)",
    "data": "9+ агентов: вторая строка дока, HOME растёт",
-   "notes": "в сцене home-mock-dock-added «Добавить» тоже уходит во вторую строку"
+   "notes": "девять агентов в доке: вторая строка, HOME вырос"
   },
   {
    "id": "20-dock-all-added",
@@ -586,11 +619,10 @@
    "mock": "20-home-dock",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 898, "y": 443, "w": 268, "h": 56 },
-   "scene": null,
    "scale": "67% (D-016)",
    "data": "строка «Все агенты уже в доке»",
    "notes": "",
-   "missing": "в коде плитка «Добавить» прячется, строки нет; кадр нужен, только если плитку решат не прятать"
+   "skip": "по SPEC §11.1 плитка «Добавить» прячется, когда добавлять некого; строка «Все агенты уже в доке» в коде не нужна (решение SPEC, не вид)"
   },
   {
    "id": "06-term-idle",
@@ -598,12 +630,11 @@
    "mock": "06-cards",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 64, "y": 100, "w": 422, "h": 260 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-terminal.png" },
-   "appCrop": { "x": 60, "y": 288, "w": 436, "h": 254 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-terminal-idle.png" },
+   "appCrop": { "x": 507, "y": 315, "w": 426, "h": 268 },
    "scale": "100%",
    "data": "терминал ~/dev, Свободен",
-   "notes": "кадр на 67% (сцена cards-terminal), макет 06 нарисован 1:1",
-   "honest": false
+   "notes": "кадр на 100%, карточка 420×260 как в макете"
   },
   {
    "id": "06-term-working",
@@ -611,12 +642,11 @@
    "mock": "06-cards",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 508, "y": 100, "w": 424, "h": 262 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-terminal.png" },
-   "appCrop": { "x": 506, "y": 288, "w": 436, "h": 254 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-terminal-working.png" },
+   "appCrop": { "x": 507, "y": 315, "w": 426, "h": 268 },
    "scale": "100%",
    "data": "project-a, Работает",
-   "notes": "кадр на 67% (сцена cards-terminal), макет 06 нарисован 1:1",
-   "honest": false
+   "notes": "кадр на 100%, карточка 420×260 как в макете"
   },
   {
    "id": "06-term-waiting",
@@ -624,12 +654,11 @@
    "mock": "06-cards",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 954, "y": 100, "w": 424, "h": 262 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-terminal.png" },
-   "appCrop": { "x": 954, "y": 282, "w": 432, "h": 262 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-terminal-waiting.png" },
+   "appCrop": { "x": 507, "y": 315, "w": 426, "h": 268 },
    "scale": "100%",
    "data": "project-b, Ждёт одобрения, жёлтая рамка",
-   "notes": "кадр на 67% (сцена cards-terminal), макет 06 нарисован 1:1",
-   "honest": false
+   "notes": "кадр на 100%, карточка 420×260 как в макете"
   },
   {
    "id": "06-term-exited",
@@ -637,12 +666,11 @@
    "mock": "06-cards",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 64, "y": 384, "w": 422, "h": 260 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-terminal.png" },
-   "appCrop": { "x": 60, "y": 568, "w": 436, "h": 254 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-terminal-exited.png" },
+   "appCrop": { "x": 507, "y": 315, "w": 426, "h": 268 },
    "scale": "100%",
    "data": "notes-api, Вышел · код 0, Restart",
-   "notes": "кадр на 67% (сцена cards-terminal), макет 06 нарисован 1:1",
-   "honest": false
+   "notes": "кадр на 100%, карточка 420×260 как в макете"
   },
   {
    "id": "06-term-failed",
@@ -650,12 +678,11 @@
    "mock": "06-cards",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 508, "y": 384, "w": 424, "h": 260 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-terminal.png" },
-   "appCrop": { "x": 506, "y": 568, "w": 436, "h": 254 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-terminal-failed.png" },
+   "appCrop": { "x": 507, "y": 315, "w": 426, "h": 268 },
    "scale": "100%",
    "data": "infra, Упал · код 1, Restart",
-   "notes": "кадр на 67% (сцена cards-terminal), макет 06 нарисован 1:1",
-   "honest": false
+   "notes": "кадр на 100%, карточка 420×260 как в макете"
   },
   {
    "id": "06-term-summary",
@@ -663,11 +690,11 @@
    "mock": "06-cards",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 954, "y": 384, "w": 424, "h": 204 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-summary.png" },
-   "appCrop": { "x": 1120, "y": 400, "w": 315, "h": 190 },
-   "scale": "45%",
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-summary-30.png" },
+   "appCrop": { "x": 975, "y": 415, "w": 240, "h": 140 },
+   "scale": "30% (макет < 0.4)",
    "data": "сводка при зуме < 0.5: имя, статус, путь",
-   "notes": ""
+   "notes": "сводка: плашка статуса, имя, путь коротко"
   },
   {
    "id": "06-browser",
@@ -676,11 +703,10 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 64, "y": 728, "w": 640, "h": 400 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-browser.png" },
-   "appCrop": { "x": 1005, "y": 335, "w": 425, "h": 300 },
+   "appCrop": { "x": 398, "y": 244, "w": 644, "h": 394 },
    "scale": "100%",
    "data": "браузер: вкладки, бейдж агента, адрес, полоса загрузки",
-   "notes": "кадр на 67%",
-   "honest": false
+   "notes": "кадр на 100%"
   },
   {
    "id": "06-browser-hidden",
@@ -688,11 +714,12 @@
    "mock": "06-cards",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 728, "y": 728, "w": 648, "h": 220 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-browser-hidden.png" },
+   "appCrop": { "x": 398, "y": 244, "w": 644, "h": 394 },
    "scale": "100%",
    "data": "браузер под панелью: «Страница скрыта, пока открыта панель»",
-   "notes": "",
-   "missing": "сцена браузера при открытой панели или модалке (семантическая поверхность)"
+   "notes": "в приложении при открытой панели «Загрузки» страница остаётся снимком, поверхности «Страница скрыта, пока открыта панель · вкладки живы» нет — новая функция, на решение владельца",
+   "honest": false
   },
   {
    "id": "06-agent-idle",
@@ -701,11 +728,10 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 64, "y": 1212, "w": 300, "h": 222 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-agents-idle.png" },
-   "appCrop": { "x": 30, "y": 78, "w": 245, "h": 160 },
+   "appCrop": { "x": 565, "y": 335, "w": 310, "h": 232 },
    "scale": "100%",
    "data": "лид Codex, Свободен, порт связи",
-   "notes": "кадр на 67%",
-   "honest": false
+   "notes": "кадр на 100%"
   },
   {
    "id": "06-agent-working",
@@ -713,11 +739,11 @@
    "mock": "06-cards",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 388, "y": 1212, "w": 300, "h": 222 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-agents-working-zoom.png" },
-   "appCrop": { "x": 735, "y": 0, "w": 735, "h": 516 },
-   "scale": "100% (кадр 3× от 67%)",
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-agents-working-100.png" },
+   "appCrop": { "x": 560, "y": 330, "w": 320, "h": 240 },
+   "scale": "100%",
    "data": "исполнитель Claude: Работает · этап 1 из 2, лента",
-   "notes": "сцена после доски: в темах, снятых позже, исполнитель уже ждёт решения — данные расходятся"
+   "notes": "сцена после доски: в темах, снятых позже, исполнитель может уже ждать решения — данные расходятся"
   },
   {
    "id": "06-agent-failed",
@@ -729,7 +755,7 @@
    "scale": "100%",
    "data": "агент: Упал на этапе 2, «Открыть запуск»",
    "notes": "",
-   "missing": "сцена упавшего запуска на карточке агента"
+   "missing": "запуск доходит до «failed» только при повреждённом журнале; сбой CLI в фикстуре даёт «paused · environment_error» («Нужно вмешательство»), не «Упал на этапе 2». Нужна фикстура журнала или тестовый ход (решение владельца)"
   },
   {
    "id": "06-agent-refused",
@@ -737,11 +763,11 @@
    "mock": "06-cards",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 1036, "y": 1212, "w": 300, "h": 222 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-link-refused-folder.png" },
+   "appCrop": { "x": 390, "y": 232, "w": 320, "h": 240 },
    "scale": "100%",
    "data": "отказ main на карточке лида: «Связь не создана: разные папки проекта»",
-   "notes": "",
-   "missing": "сцена отказа связи по разным папкам (link-repeat даёт отказ «пара уже связана» — строка 19-repeat)"
+   "notes": "связь с исполнителем другой папки отказана, причина на карточке ведущего"
   },
   {
    "id": "19-repeat",
@@ -809,11 +835,11 @@
    "mock": "21-cards-zoom",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 138, "w": 1306, "h": 218 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-terminal.png" },
-   "appCrop": { "x": 60, "y": 282, "w": 1330, "h": 545 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-terminal-67.png" },
+   "appCrop": { "x": 55, "y": 278, "w": 1330, "h": 268 },
    "scale": "67%",
    "data": "шапка 28 и подвал 24 экранного размера; агент со статусом в подвале",
-   "notes": "в кадре две строки карточек"
+   "notes": "первая строка карточек на 67%"
   },
   {
    "id": "21-agent67",
@@ -834,10 +860,22 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 416, "w": 900, "h": 150 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-summary.png" },
-   "appCrop": { "x": 980, "y": 400, "w": 460, "h": 380 },
+   "appCrop": { "x": 520, "y": 400, "w": 900, "h": 180 },
    "scale": "45%",
    "data": "45%: шапка и подвал экранного размера, путь режется раньше имени",
-   "notes": "в коде при 45% уже сводка (< 0.5), в макете ещё тело — свериться со SPEC §11.2"
+   "notes": "45%: тело и подвал, шапка и подвал экранного размера"
+  },
+  {
+   "id": "21-agent45",
+   "zone": "Z2",
+   "mock": "21-cards-zoom",
+   "themes": ["sand", "paper", "frost"],
+   "mockCrop": { "x": 810, "y": 408, "w": 150, "h": 120 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-agents-working-45.png" },
+   "appCrop": { "x": 555, "y": 395, "w": 330, "h": 140 },
+   "scale": "45%",
+   "data": "агент при зуме 45%: статус в подвале без хвоста «· этап 1 из 2»",
+   "notes": ""
   },
   {
    "id": "21-zoom28",
@@ -845,10 +883,22 @@
    "mock": "21-cards-zoom",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 662, "w": 585, "h": 96 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-zoom-waiting.png" },
-   "appCrop": { "x": 380, "y": 460, "w": 860, "h": 160 },
-   "scale": "28%",
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-summary-30.png" },
+   "appCrop": { "x": 585, "y": 420, "w": 620, "h": 255 },
+   "scale": "30%",
    "data": "сводки: плашка статуса, имя, короткий путь; агент — имя и глиф",
+   "notes": "сводки терминалов; сводка агента — строка 21-agent28"
+  },
+  {
+   "id": "21-agent28",
+   "zone": "Z2",
+   "mock": "21-cards-zoom",
+   "themes": ["sand", "paper", "frost"],
+   "mockCrop": { "x": 545, "y": 670, "w": 105, "h": 80 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-agents-working-30.png" },
+   "appCrop": { "x": 600, "y": 425, "w": 240, "h": 90 },
+   "scale": "30%",
+   "data": "сводка агента: имя и глиф статуса",
    "notes": ""
   },
   {
