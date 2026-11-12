@@ -272,14 +272,17 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                       data-board-task={task.key} data-board-task-column={st.column} data-board-done={st.done ?? undefined} data-board-reason={st.reason ?? undefined}>
                       <button type="button" className="board-task__title" aria-label={`${task.key} ${task.title}. ${line}`}
                         onClick={() => (runId ? ui.openRunById(runId) : setForm({ task }))} title={task.title}>
-                        <span className="board-task__key">{task.key}</span> {task.title}
+                        {task.title}
                       </button>
-                      <div className="board-task__line" data-board-line title={line}>
+                      {st.reason === "push_option_field" ? <>
+                        <div className="board-task__mono" data-board-push-option>{`push-option: {${st.field ?? "issue"}}`}</div>
+                        <div className="board-task__risk board-task__risk--push" data-board-line title={line}><UiIcon name="error" size="1.15em" /><span data-board-line-text>{line}</span></div>
+                      </> : <div className="board-task__line" data-board-line title={line}>
                         {st.done === "confirmed" ? <span className="board-task__badge board-task__badge--confirmed board-task__glyph board-task__glyph--done" aria-hidden="true"><UiIcon name="status-done" size="1.15em" /></span>
                           : st.done ? <span className={`board-task__badge board-task__badge--${st.done}`} aria-hidden="true">✋</span>
                           : tone && <span className={`board-task__glyph board-task__glyph--${tone}`} aria-hidden="true"><UiIcon name={tone === "waiting" ? "bell" : tone === "danger" ? "error" : "working"} size="1.15em" /></span>}
                         <span data-board-line-text>{line}</span>
-                      </div>
+                      </div>}
                       {essence && <div className="board-task__essence" data-board-essence title={essence}>{essence}</div>}
                       {/* §11.6: the risk is in view always — a permission request (amber) and the blocking findings (red) */}
                       {permission && <div className="board-task__risk board-task__risk--ask" data-board-risk="permission">
@@ -398,7 +401,7 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                                 onClick={() => (head && fact?.board === head.ref ? void mergeTask(task) : setMerging(task.id))}>{t(locale, "boardMerge")}</button>}
                               {mark?.kind === "not_merged" && !mark.waits && mark.reason !== "skipped" && <button type="button" data-board-merge-skip-failed
                                 onClick={async () => { const f = failure(await board.skip(mark.runId)); if (f) say(task.id, f); }}>{t(locale, "boardMergeSkip")}</button>}
-                              {st.reason === "push_option_field" && <button type="button" className="orch-primary" data-board-open-task onClick={() => setForm({ task })}>{t(locale, "boardOpenTask")}</button>}
+                              {st.reason === "push_option_field" && <button type="button" data-board-open-task onClick={() => setForm({ task })}>{t(locale, "boardOpenTask")}</button>}
                               {(st.column === "queue" || st.column === "done") && <button type="button" data-board-edit onClick={() => setForm({ task })}>{t(locale, "boardEdit")}</button>}
                               {(st.column === "queue" || st.column === "done") && <button type="button" data-board-archive onClick={() => void board.archive(task.id, true)}>{t(locale, "boardArchive")}</button>}
                             </>
@@ -436,9 +439,9 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
               onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeReport(); } }}>
               <div className="board-aside__head">
                 <strong>{t(locale, "boardImportAside")}</strong>
-                <button type="button" className="board-aside__close" data-board-import-close aria-label={t(locale, "orchClose")} onClick={closeReport}><UiIcon name="close" size="1.15em" /></button>
               </div>
               <ImportReportView locale={locale} report={report} tasks={view?.inbox?.find((r) => r.file === report.file)?.tasks ?? []} board={tasks} />
+              <div className="board-aside__foot"><button type="button" data-board-import-close onClick={closeReport}>{t(locale, "orchClose")}</button></div>
             </aside>
           )}
           {apAsking && view && orch.canvas.links.some((l) => l.linkId === apAsking) && (

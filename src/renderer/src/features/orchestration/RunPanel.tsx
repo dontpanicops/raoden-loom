@@ -754,7 +754,7 @@ function Section({ id, title, aside, attrs, children }: { id: string; title?: st
 }
 // a row of a plate: the name on the left, the value (the same line) on the right
 function Row({ label, mark, dd, children, attrs }: { label: React.ReactNode; mark?: "done" | "idle" | "failed" | "paused" | "waiting"; dd?: Record<string, string | undefined>; children?: React.ReactNode; attrs?: Record<string, string | undefined> }): React.JSX.Element {
-  return <div className="orch-kv__row" {...attrs}><dt>{mark && <UiIcon name={mark === "waiting" ? "bell" : `status-${mark}`} size={14} />}{label}</dt><dd {...dd}>{children}</dd></div>;
+  return <div className="orch-kv__row" {...attrs}><dt>{mark === "idle" ? <span className="orch-kv__dash" aria-hidden="true" /> : mark && <UiIcon name={mark === "waiting" ? "bell" : `status-${mark}`} size={14} />}{label}</dt><dd {...dd}>{children}</dd></div>;
 }
 
 // R6-A (mock-up 13): the steps after success the run asked for, one row each: the step and what is known of it

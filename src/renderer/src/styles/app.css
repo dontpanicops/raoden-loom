@@ -2275,3 +2275,53 @@ button { border: 0; }
 .orch-tip { box-shadow: 0 0 0 1px var(--border-strong), var(--elev-4); }
 .orch-tip::before { box-shadow: -1px -1px 0 var(--border-strong); }
 .orch-tip--above::before { box-shadow: 1px 1px 0 var(--border-strong); }
+
+/* R12g (gate Z5): the mock's task card is regular weight (the title, the lines); the status line of a running or waiting task is medium; no key before the title */
+.board-card .board-task__title { font-weight: 400; }
+.board-task__line[data-board-line] { font-weight: 400; }
+.board-task--work [data-board-line], .board-task--review [data-board-line], .board-task[data-board-reason="waits_permission"] [data-board-line] { font-weight: 600; }
+.board-task__foot { flex-wrap: nowrap; }
+.board-task__foot > .board-task__actions { flex: 0 1 auto; }
+/* the push card (mock 08): the option in mono, the error in a tinted inset with the icon in plain text, «Открыть задачу» a quiet button at the left */
+.board-task__mono { color: var(--text-secondary); font: 12px/1.4 var(--font-mono); overflow-wrap: anywhere; }
+.board-task[data-board-reason="push_option_field"] { background: var(--surface-2); box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-failed) 55%, transparent), var(--elev-1); }
+.board-task__risk--push, .board-task[data-board-reason="push_option_field"] .board-task__risk--push[data-board-line] { color: var(--text-primary); font-weight: 400; background: color-mix(in srgb, var(--status-failed) 10%, var(--surface-2)); box-shadow: none; }
+.board-task__risk--push > .ui-icon { color: var(--danger-fg); }
+.board-task[data-board-reason="push_option_field"] .board-task__actions { position: static; }
+.board-task[data-board-reason="push_option_field"] .board-task__actions > button { opacity: 1; }
+/* the autopilot's form (mock 08): labels regular and muted, the fields keep the weight */
+.board-ap-form__field > span:first-child { color: var(--text-secondary); font-weight: 400; }
+.board-ap-form__hint { font-weight: 400; }
+.board-card .board-ap-form .board-seg button { font-weight: 400; }
+.board-card .board-ap-form .board-seg button[aria-pressed="true"] { font-weight: 500; }
+/* the import report (mock 24): a green «+», a red «!», lines above and below the list only; «Закрыть» at the foot */
+.board-import__list li { padding: 10px 0; box-shadow: none; }
+.board-aside .board-import__list { box-shadow: inset 0 1px 0 var(--border), inset 0 -1px 0 var(--border); }
+.board-import__list li[data-board-import-created] .board-import__sign { color: var(--status-working); font-weight: 700; }
+.board-import__list li.board-import__warn .board-import__sign { font-weight: 700; }
+.board-import__ref { color: var(--text-primary); }
+.board-aside__foot { padding: 0 1.2em 1.2em; display: flex; }
+.board-card .board-aside__foot button { background: transparent; box-shadow: none; font-weight: 400; color: var(--text-secondary); padding-left: 0; }
+.board-card .board-aside__foot button:hover { color: var(--text-primary); }
+
+/* R12g (gate Z5, mocks 09 and 23): in the light themes the dialog is the tinted surface of the mock (paper cream, frost blue-grey), not white;
+   the goal dialog's field names are regular weight; the project-settings line sits under the command rows */
+.app--paper .orch-dialog:has(.orch-form__actions), .app--frost .orch-dialog:has(.orch-form__actions),
+.app--paper .orch-dialog .orch-form__actions, .app--frost .orch-dialog .orch-form__actions { background: var(--surface-0-hi); }
+.orch-dialog--pinned .orch-form__body:has(.orch-goal__how) :is(.orch-field > span:first-child, .orch-field > legend) { font-weight: 400; }
+.orch-field > .orch-profile { margin-top: 0; }
+/* R12g (gate Z6, F2): in paper and frost the waiting zone is the light warm tone of mock 07, not the sunken beige */
+.app--paper .orch-zone--waiting, .app--frost .orch-zone--waiting { --zone-bg: color-mix(in srgb, var(--status-waiting) 5%, transparent); }
+/* R12g (mock 07-04): a stage not begun is a dashed circle */
+.orch-kv__dash { width: 14px; height: 14px; flex: 0 0 14px; box-sizing: border-box; display: inline-block; border: 1.5px dashed currentColor; border-radius: 50%; opacity: .75; }
+/* R12g (mock 13 «Записи»): one list with dividers, the expander a plain chevron row, the output inset inside the row */
+.orch-history { gap: 0; border-radius: 12px; overflow: hidden; background: var(--surface-sunken); }
+.orch-history li { padding: 10px 12px; border-radius: 0; background: none; }
+.orch-history li + li { box-shadow: inset 0 1px 0 var(--border); }
+.orch-history .orch-details { margin: 4px 0 0; }
+.orch-history .orch-details__toggle { padding: 0 !important; display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); background: none; box-shadow: none; font-size: 12px; font-weight: 400; }
+.orch-history .orch-details__toggle:hover { color: var(--text-primary); }
+.orch-history .orch-details__toggle[aria-expanded="true"] .ui-icon { transform: rotate(180deg); }
+.orch-history .orch-details__body { background: var(--surface-sunken); }
+/* R12g (mock 13): «Завершён» is a neutral zone with a thin ring, no blue frame */
+.orch-zone--completed, .app--paper .orch-zone--completed { --zone-bg: var(--surface-sunken); box-shadow: 0 0 0 1px var(--border-strong); }
