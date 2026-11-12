@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { LocaleId, SessionBounds } from "../../../../shared/contracts";
 import type { OrchestrationActivityEntry, OrchestrationAgentCard } from "../../../../shared/orchestration";
 import { ProviderIcon } from "../../components/ProviderIcon";
+import { Term } from "../../components/Term";
 import { UiIcon } from "../../components/UiIcon";
 import { CARD_STATUS_ICON, agentCardStatus } from "../../lib/cardStatus";
 import { t, type TranslationKey } from "../../lib/i18n";
@@ -108,7 +109,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
           <ProviderIcon provider={card.provider} size="small" />
           <i className="agent-card__dot" aria-hidden="true" />
           <strong>{card.provider === "codex" ? "Codex" : "Claude"}</strong>
-          <small title={t(locale, card.role === "lead" ? "orchTerm_lead" : "orchTerm_executor")} data-term={card.role}>{t(locale, card.role === "lead" ? "orchRoleLead" : "orchRoleExecutor")}</small>
+          <small><Term locale={locale} id={card.role}>{t(locale, card.role === "lead" ? "orchRoleLead" : "orchRoleExecutor")}</Term></small>
         </span>
         <span className="agent-card__header-actions">
           <button className="agent-card__expand" type="button" data-agent-expand={compact ? "compact" : "expanded"} onClick={toggle}

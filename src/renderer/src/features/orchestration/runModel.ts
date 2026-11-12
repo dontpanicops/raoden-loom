@@ -1001,7 +1001,11 @@ export const GLOSSARY = {
   finding: { ru: "замечани(?:е|я|ю|ем|и|й|ям|ями|ях)", en: "findings?" },
   // UX audit PR 3
   checkpoint: { ru: "контрольн(?:ая|ой|ую|ые|ых) точк(?:а|и|е|у|ой)", en: "checkpoints?" },
-  worktree: { ru: "worktree", en: "worktrees?" },
+  worktree: { ru: "(?:worktree|отдельн(?:ая|ой|ую) рабоч(?:ая|ей|ую) коп(?:ия|ии|ию))", en: "worktrees?" },
+  autopilot: { ru: "автопилот(?:а|у|ом|е)?", en: "(?:the )?autopilot" },
+  stepwise: { ru: "по шагам", en: "step by step" },
+  snapshot: { ru: "снимок на старте", en: "(?:the )?start snapshot" },
+  direnv: { ru: "\\.envrc \\(direnv\\)", en: "\\.envrc \\(direnv\\)" },
   journal: { ru: "подтверждено журналом", en: "confirmed by the journal" },
   claim: { ru: "со слов агента", en: "the agent's claim" },
   branch: { ru: "canvastty/[\\w./-]*", en: "canvastty/[\\w./-]*" }
