@@ -48,3 +48,22 @@
 | Z8 | Токены и компоненты | 01, 02, 12 |
 
 R12 (правки по сверке 3) уже идёт тремя исполнителями; его результат принимается через эти ворота по зонам.
+
+## Инструменты
+
+Опись: `docs/ux-audit/2026-11-10/inventory.json` (строка = область макета; `mockCrop` в пикселях JPEG `redesign/preview`,
+для PNG 2× из `redesign/shots` масштабируется по ширине; `appCrop` в пикселях кадра; `honest: false` — кадр не на масштабе
+макета; `skip` — строку заменил другой макет; `scene: null` + `missing` — сцены нет).
+
+```sh
+# пары зоны (или всей описи без --zone) и страница для владельца
+node scripts/conformance-pairs.mjs --inventory docs/ux-audit/2026-11-10/inventory.json \
+  --shots <кадры shots-r5>,<кадры доски>,<кадры shots-r3b>,<кадры shots-r3a> --out <dir> [--zone Z1] --html \
+  --mocks-png ~/dev/raoden-loom/docs/ux-audit/2026-11-10/redesign/shots   # PNG макетов Иней (в репозиторий не входят)
+# регрессии: app-кадры новых пар против принятых
+node scripts/conformance-diff.mjs --a <принятые пары> --b <новые пары> [--threshold 0.02]
+```
+
+`conformance-pairs` выходит с 1, если у строки зоны нет сцены или кадра, кадр пуст или меньше вырезки, или в каталоге кадров
+непустой `failed.txt`. `conformance-diff` всегда выходит с 0: печатает изменившиеся строки и пишет `<b>/diff.json`.
+Оба без зависимостей: режут и декодируют через `sips` (macOS).
