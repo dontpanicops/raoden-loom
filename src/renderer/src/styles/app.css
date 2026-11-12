@@ -2766,3 +2766,5 @@ html:not([data-kbd]) .workspace-bar__tab:focus-visible, html:not([data-kbd]) .wo
 .orch-panel .orch-zone .orch-zone__danger .orch-zone__danger-row > button:not(.orch-textual) { height: calc(24px * var(--ui-scale, 1)); padding: 0 9px; font-size: calc(12px * var(--ui-scale, 1)); }
 /* Z1 the «Работает» zone: a dark fill in the status tone, a hairline instead of a border (mock 07-01) */
 .orch-zone.orch-zone--working { --zone-bg: color-mix(in srgb, var(--status-working) 4%, var(--surface-sunken)); box-shadow: 0 0 0 1px var(--border); }
+/* gate Z5/Z6 r6 (Z1 rest): in the dark themes the «Работает» zone is darker than the panel and has no edge line (mock 07-01: #211e19 on #322f28) */
+.app--sand .orch-zone.orch-zone--working, .app--bay .orch-zone.orch-zone--working { --zone-bg: color-mix(in srgb, var(--status-working) 4%, rgba(0, 0, 0, .4)); box-shadow: none; }
