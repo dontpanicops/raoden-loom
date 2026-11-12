@@ -2143,9 +2143,12 @@ button { border: 0; }
 .board-task { position: relative; }
 .board-task__actions:not(:has(.orch-primary)) { position: absolute; right: .5em; bottom: .4em; margin: 0; }
 .board-task__actions:not(:has(.orch-primary)) > button { background: var(--surface-2); }
-.board-card:has(:focus-visible):not(.board-card--selected) { box-shadow: var(--edge), 0 0 0 2px var(--focus), var(--elev-3); }
+[data-board-form] input[type="number"], .board-card input[type="number"] { appearance: textfield; }
 /* requirement rows (mock 09): the cross sits inside the field at its right edge; command rows keep it outside */
 .orch-rows--inset .orch-rows__row { position: relative; }
 .orch-rows--inset .orch-rows__row input { padding-right: calc(var(--control-h-m) - 4px); }
 .orch-rows--inset button.orch-rows__x { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); min-width: calc(var(--control-h-m) - 4px); min-height: calc(var(--control-h-m) - 4px); }
 .orch-rows--inset .orch-form button.orch-rows__x:active:not(:disabled) { transform: translateY(-50%); filter: none; }
+.orch-limits__more { grid-column: 1 / -1; }
+.orch-limits__more > summary { width: max-content; color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+.orch-limits__rare { margin-top: 6px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

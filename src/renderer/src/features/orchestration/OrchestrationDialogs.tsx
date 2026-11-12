@@ -58,7 +58,8 @@ function AgentCreateDialog({ ui, locale, defaultProject }: { ui: AgentCanvasUi; 
 }
 
 const providerLabel = (p: string | undefined): string => (p === "codex" ? "Codex" : p === "claude" ? "Claude" : "—");
-const LIMITS: OrchestrationLimitKind[] = ["turns", "roundsPerStage", "replans", "runMs"];
+const LIMITS: OrchestrationLimitKind[] = ["turns", "runMs", "roundsPerStage", "replans"];
+const RARE_LIMITS: OrchestrationLimitKind[] = ["roundsPerStage", "replans"];
 const tr = (locale: LocaleId, key: string): string => t(locale, key as TranslationKey) ?? key;
 
 // Readiness before the start (stages 11–12): asked from main whenever the check commands or the work place change, shown
@@ -469,6 +470,13 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
   const advSummary = [tr(locale, `orchWorkMode_${workMode}`), acc && `${t(locale, "orchAdvRights")}: ${rightsShort}`,
     optionalChecks && `${t(locale, "orchAdvModels")}: ${t(locale, modelsSet ? "orchAdvModelsSet" : "orchModelCli")}`,
     chosen && `${t(locale, "orchAdvAfter")}: ${after}`].filter(Boolean).join(" · ");
+  const limitField = (kind: OrchestrationLimitKind): React.JSX.Element => (
+    <label key={kind}>
+      <input type="number" min={1} step={1} inputMode="numeric" value={limits[kind] ?? ""}
+        onChange={(e) => setLimits((cur) => ({ ...cur, [kind]: e.target.value }))} />
+      <span>{t(locale, `orchLimit_${kind}` as TranslationKey)}</span>
+    </label>
+  );
   return (
     <Dialog label={t(locale, "orchNewGoal")} sub={`${providerLabel(lead.provider)} → ${providerLabel(exec?.provider)} · ${lead.project}`} className="orch-dialog--pinned" onClose={ui.closeGoal} locale={locale}>
       <form className="orch-form" onSubmit={(event) => { event.preventDefault(); if (complete && ready) { if (failing.length) setChoosing(true); else void submit(); } }}>
@@ -536,13 +544,12 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
           </fieldset>
           <fieldset className="orch-field orch-limits">
             <legend>{t(locale, "orchGoalLimits")}</legend>
-            {LIMITS.map((kind) => (
-              <label key={kind}>
-                <input type="number" min={1} step={1} inputMode="numeric" value={limits[kind] ?? ""}
-                  onChange={(e) => setLimits((cur) => ({ ...cur, [kind]: e.target.value }))} />
-                <span>{t(locale, `orchLimit_${kind}` as TranslationKey)}</span>
-              </label>
-            ))}
+            {LIMITS.filter((kind) => !RARE_LIMITS.includes(kind)).map(limitField)}
+            {/* mock 09: two fields in view; the rare limits open under «More limits», open at once when one is filled */}
+            <details className="orch-limits__more" open={RARE_LIMITS.some((kind) => !!limits[kind]?.trim()) || undefined}>
+              <summary>{t(locale, "orchLimitsMore")}</summary>
+              <div className="orch-limits__rare">{RARE_LIMITS.map(limitField)}</div>
+            </details>
           </fieldset>
         </div>
         {info && (
