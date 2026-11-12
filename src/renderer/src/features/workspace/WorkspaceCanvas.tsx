@@ -1197,6 +1197,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
       {homeEditing && (
         <div className="home-editor-toolbar" data-interactive="true">
           <strong>{t(settings.locale, "homeEditor")}</strong>
+          {!homeLayoutValid && <span className="home-editor-toolbar__note">{t(settings.locale, "homeLayoutOutside")}</span>}
           <button type="button" onClick={onResetHomeLayout}>{t(settings.locale, "resetHome")}</button>
           <button className="home-editor-toolbar__done" type="button" disabled={!homeLayoutValid}
             title={homeLayoutValid ? undefined : t(settings.locale, "homeLayoutOutside")}
@@ -1374,9 +1375,9 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
             {settings.canvasControlsPlacement === placement && (
               <div className="canvas-controls surface-3" data-interactive="true">
                 <button type="button" onClick={onGoHome} title={t(settings.locale, "home")}><UiIcon name="home" size={17} /></button>
-                <button type="button" onClick={() => wheelNavigation.zoomBy(0.82)} title={t(settings.locale, "zoomOut")}><UiIcon name="zoom-out" size={17} /></button>
+                <button type="button" onClick={() => wheelNavigation.zoomBy(0.82)} title={t(settings.locale, "zoomOut")}><UiIcon name="minus" size={17} /></button>
                 <span className="canvas-controls__zoom" aria-live="off">{Math.round(camera.zoom * 100)}%</span>
-                <button type="button" onClick={() => wheelNavigation.zoomBy(1.22)} title={t(settings.locale, "zoomIn")}><UiIcon name="zoom-in" size={17} /></button>
+                <button type="button" onClick={() => wheelNavigation.zoomBy(1.22)} title={t(settings.locale, "zoomIn")}><UiIcon name="plus" size={17} /></button>
               </div>
             )}
             {settings.showShortcutHints && settings.shortcutHintsPlacement === placement && (

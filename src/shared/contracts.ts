@@ -141,12 +141,12 @@ export interface HomeWidgetPlacement {
 // mocks 03 and 05 inside the 12×8 grid: limits | clock with the media under it | sessions as one top band,
 // the dock of 11 buttons in one row and the settings tile beside it (two columns: its label fits, as in mock 05)
 export const DEFAULT_HOME_LAYOUT: HomeWidgetPlacement[] = [
-  { widgetId: "core.limits", column: 0, row: 0, columnSpan: 5, rowSpan: 5 },
+  { widgetId: "core.limits", column: 0, row: 0, columnSpan: 5, rowSpan: 4 },
   { widgetId: "core.clock", column: 5, row: 0, columnSpan: 3, rowSpan: 3 },
-  { widgetId: "core.media", column: 5, row: 3, columnSpan: 3, rowSpan: 2 },
-  { widgetId: "core.sessions", column: 8, row: 0, columnSpan: 4, rowSpan: 5 },
-  { widgetId: "core.launcher", column: 0, row: 5, columnSpan: 10, rowSpan: 2 },
-  { widgetId: "core.settings", column: 10, row: 5, columnSpan: 2, rowSpan: 2 }
+  { widgetId: "core.media", column: 5, row: 3, columnSpan: 3, rowSpan: 1 },
+  { widgetId: "core.sessions", column: 8, row: 0, columnSpan: 4, rowSpan: 4 },
+  { widgetId: "core.launcher", column: 0, row: 4, columnSpan: 10, rowSpan: 2 },
+  { widgetId: "core.settings", column: 10, row: 4, columnSpan: 2, rowSpan: 2 }
 ];
 
 export interface ShortcutBindings {

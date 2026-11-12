@@ -308,10 +308,10 @@
    "mock": "03-canvas",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 1215, "y": 785, "w": 205, "h": 50 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-overlay-toast.png" },
-   "appCrop": { "x": 1000, "y": 680, "w": 440, "h": 210 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-overlay-toast-created.png" },
+   "appCrop": { "x": 1180, "y": 826, "w": 240, "h": 60 },
    "scale": "100%",
-   "data": "тост «Терминал создан» (в кадре три тоста)",
+   "data": "тост «Терминал создан» (один)",
    "notes": ""
   },
   {
@@ -355,9 +355,9 @@
    "mock": "04-first-run",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 720, "y": 128, "w": 560, "h": 600 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-firstrun.png" },
-   "appCrop": { "x": 1005, "y": 243, "w": 420, "h": 642 },
-   "scale": "100%",
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-firstrun-wide.png" },
+   "appCrop": { "x": 1336, "y": 262, "w": 560, "h": 600 },
+   "scale": "100% (окно 1920, карточка 560)",
    "data": "три шага, «Новый терминал», «Как установить», «Скрыть»",
    "notes": "найдено 0 из 9 — данные фикстуры"
   },
@@ -452,7 +452,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 895, "y": 198, "w": 384, "h": 214 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-failed-popover.png" },
-   "appCrop": { "x": 436, "y": 458, "w": 520, "h": 200 },
+   "appCrop": { "x": 560, "y": 300, "w": 400, "h": 290 },
    "scale": "67% (D-016)",
    "data": "поповер упавшей сессии: хвост вывода и «Скопировать»",
    "notes": "вырезка ниже первых строк поповера: там приглашение оболочки с именем пользователя (сцену надо поправить)"
@@ -476,7 +476,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 508, "y": 70, "w": 424, "h": 420 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-canvas-region-menu.png" },
-   "appCrop": { "x": 1100, "y": 395, "w": 340, "h": 225 },
+   "appCrop": { "x": 1000, "y": 340, "w": 424, "h": 420 },
    "scale": "100%",
    "data": "меню региона: переименовать, цвет, заметка, удалить",
    "notes": ""
@@ -512,9 +512,9 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 508, "y": 590, "w": 424, "h": 420 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-edit.png" },
-   "appCrop": { "x": 170, "y": 60, "w": 1110, "h": 790 },
+   "appCrop": { "x": 520, "y": 330, "w": 760, "h": 560 },
    "scale": "67% (D-016)",
-   "data": "редактор HOME: сетка, рамка, «Сохранить»",
+   "data": "редактор HOME: черновик с плиткой «Медиа» за границей, в панели причина, «Сохранить» недоступно",
    "notes": ""
   },
   {
@@ -584,7 +584,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 64, "y": 375, "w": 720, "h": 270 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-mock-dock-menu.png" },
-   "appCrop": { "x": 70, "y": 180, "w": 800, "h": 320 },
+   "appCrop": { "x": 70, "y": 345, "w": 720, "h": 270 },
    "scale": "67% (D-016)",
    "data": "док с открытым поповером «Добавить»: агенты, «CLI найден / не найден»",
    "notes": "подпись про CLI — новое в коде (SPEC §11.1)"
@@ -596,7 +596,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 78, "y": 378, "w": 600, "h": 82 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-home-mock-dock-hover.png" },
-   "appCrop": { "x": 78, "y": 400, "w": 800, "h": 140 },
+   "appCrop": { "x": 78, "y": 340, "w": 600, "h": 82 },
    "scale": "67% (D-016)",
    "data": "наведение на плитку агента: «×» в углу",
    "notes": ""
@@ -776,8 +776,8 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 70, "w": 424, "h": 340 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-link-repeat.png" },
-   "appCrop": { "x": 480, "y": 360, "w": 500, "h": 200 },
-   "scale": "100%",
+   "appCrop": { "x": 430, "y": 345, "w": 424, "h": 340 },
+   "scale": "67%",
    "data": "повторная пара: отказ на карточке лида",
    "notes": ""
   },
@@ -800,9 +800,9 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 960, "y": 70, "w": 424, "h": 340 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-link-executor-left.png" },
-   "appCrop": { "x": 400, "y": 600, "w": 620, "h": 300 },
+   "appCrop": { "x": 300, "y": 240, "w": 848, "h": 680 },
    "scale": "100%",
-   "data": "исполнитель левее лида: связь обходит карточки, чип «Нужно разрешение»",
+   "data": "исполнитель левее лида при 100%: связь обходит карточки; состояние связи без запуска («Новая цель»), в макете «Нужно разрешение» — нужен живой запрос разрешения",
    "notes": ""
   },
   {
@@ -812,7 +812,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 543, "w": 424, "h": 340 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-zoom-out.png" },
-   "appCrop": { "x": 560, "y": 380, "w": 300, "h": 180 },
+   "appCrop": { "x": 520, "y": 330, "w": 424, "h": 340 },
    "scale": "28% (макет 20%)",
    "data": "связь при сильном отдалении, чип со статусом",
    "notes": "в макете ждущая связь с чипом; в сцене zoom-waiting другой кадр того же зума"
@@ -848,7 +848,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 1158, "y": 138, "w": 204, "h": 152 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-agents-working.png" },
-   "appCrop": { "x": 480, "y": 360, "w": 500, "h": 200 },
+   "appCrop": { "x": 750, "y": 390, "w": 204, "h": 152 },
    "scale": "67%",
    "data": "агент при зуме < 1: статус в подвале",
    "notes": ""
@@ -872,7 +872,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 810, "y": 408, "w": 150, "h": 120 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-cards-agents-working-45.png" },
-   "appCrop": { "x": 555, "y": 395, "w": 330, "h": 140 },
+   "appCrop": { "x": 735, "y": 410, "w": 150, "h": 120 },
    "scale": "45%",
    "data": "агент при зуме 45%: статус в подвале без хвоста «· этап 1 из 2»",
    "notes": ""
