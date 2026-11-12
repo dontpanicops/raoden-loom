@@ -753,6 +753,8 @@ try {
       await app.fillRows(q("[data-orch-requirements]"), "Без новых зависимостей\nТесты на пустой список заметок".split("\n"));
       await app.fillRows(q("[data-orch-commands]"), ("node --test\nnpm run lint").split("\n"));
       await sleep(2500);
+      // readiness check must finish first, or the footer differs by theme (gate Z3-Z8 control)
+      await app.waitFor(`!${q("[data-orch-not-ready]")}`, "readiness checked", 30_000).catch(() => console.log("[shots-r5] goal: readiness still pending"));
       await shot("goal-dialog");
       await app.ev(SCROLL_DIALOG); await sleep(400);
       await shot("goal-scrolled");
