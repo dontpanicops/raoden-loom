@@ -180,7 +180,7 @@ if (ONLY?.split(",").includes("plugins-list")) {
   fs.writeFileSync(path.join(userData, "plugins.json"), JSON.stringify(reg));
 }
 try {
-  app = await launch({ userData, providers, port: PORT, shots: OUT, env: { CANVASTTY_SMOKE_CLI_DIR: cliBin, CANVASTTY_USER_DATA_DIR: userData, CANVASTTY_SMOKE_IMPORT_FILE: BOARD_FILE } });
+  app = await launch({ userData, providers, port: PORT, shots: OUT, env: { CANVASTTY_SMOKE_CLI_DIR: cliBin, CANVASTTY_USER_DATA_DIR: userData, CANVASTTY_SMOKE_IMPORT_FILE: BOARD_FILE, CANVASTTY_SMOKE_STOP_DELAY_MS: "4000" } });
   await laptop();
   await app.waitFor(`${q(".workspace")} && true`, "window", 30_000);
 
@@ -436,6 +436,10 @@ try {
         // mock 22 «long text»: the text is cut with «…»; focus on it shows the ring (the tooltip itself is native and not in a screenshot)
         await app.ev(`document.querySelector("[data-notify-banner] .notify-banner__item > span")?.focus()`); await sleep(300);
         await shot("overlay-banner-long");
+        // mock 22 «waiting and failed together»: each its own line; the failed one is added by the driver hook (no failing run in the stand)
+        await app.ev(`document.activeElement?.blur()`);
+        await app.ev(`window.dispatchEvent(new CustomEvent("canvastty:banner", { detail: { runId: "r12e-failed", signal: "failed", title: "Бета · infra", body: "запуск остановлен ошибкой", place: "Бета" } }))`); await sleep(400);
+        await shot("overlay-banner-two");
       } finally {
         await app.call("Emulation.setFocusEmulationEnabled", { enabled: true });
         await app.ev(`(() => { localStorage.removeItem("orch.notify.unavailable"); document.querySelectorAll("[data-notify-banner] button[aria-label]").forEach((b) => b.click()); return true; })()`);
@@ -595,8 +599,8 @@ try {
       await app.waitFor(`${q("[data-ws-close-stop]")} && true`, "the stop button", 5000);
       // the dialog hides the space itself once everything has stopped: the frame is taken right after the click
       await app.clickEl(q("[data-ws-close-stop]")); await sleep(150);
-      await shot("ws-stop-hide");
-      await sleep(2500);
+      await shot("ws-stop-hide"); // the fake terminal stops at once: main answers 4 s late (CANVASTTY_SMOKE_STOP_DELAY_MS), so the row reads «останавливается»
+      await sleep(5000);
       if (await app.ev(`!!${q("[data-ws-close-hide]")}`)) await app.clickEl(q("[data-ws-close-hide]"));
       await sleep(900);
       if (await menuOpen()) await app.clickEl(q("[data-workspace-menu]"));
@@ -642,6 +646,9 @@ try {
       await shot("term-hints");
       await app.ev(`document.activeElement?.blur()`);
       await app.mouse("mouseMoved", 5, 5); await sleep(300);
+      // mock 15's lower half: the card «Push» at the top of the body, with «Выгрузка ревью» and «MCP» beside it
+      await app.ev(`document.querySelector("[data-orch-settings-branches]")?.scrollIntoView({ block: "start" })`); await sleep(400);
+      await shot("project-settings-push");
       await app.ev(SCROLL_DIALOG); await sleep(400);
       await shot("project-settings-scrolled");
       await esc(); await sleep(300); await esc();
