@@ -103,7 +103,8 @@ export function ActionZone(p: ActionZoneProps): React.JSX.Element {
       return text ? <DangerConfirm key={`${p.runKey}:${b.action}`} locale={locale} label={b.label} text={text} disabled={off} attr={attr} onConfirm={() => p.onButton(b)} />
         : <button key={b.action} type="button" className="orch-stop" disabled={off} {...attr} onClick={() => p.onButton(b)}>{b.label}</button>;
     }
-    const cls = kind === "primary" ? (b.danger ? "orch-danger" : "orch-primary") : text || TEXTUAL.has(b.action) ? "orch-textual" : undefined;
+    // the journal opener of a failed or halted run is the mock's outlined button, not the filled main one
+    const cls = kind === "primary" ? (b.danger ? "orch-danger" : b.action === "open_journal" ? undefined : "orch-primary") : text || TEXTUAL.has(b.action) ? "orch-textual" : undefined;
     return <button key={b.action} type="button" className={cls} disabled={off} {...attr} data-orch-primary={kind === "primary" ? ATTR[b.action] ?? b.action : undefined}
       onClick={() => p.onButton(b)}>{b.label}</button>;
   };

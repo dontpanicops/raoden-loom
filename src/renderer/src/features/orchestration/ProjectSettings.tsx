@@ -188,9 +188,10 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
     <form className="orch-form orch-settings" data-orch-settings onSubmit={(e) => { e.preventDefault(); void save(); }}>
       <div className="orch-form__body">
         <div className="orch-settings__grid" data-orch-advanced>
-          <Card title={t(locale, "orchSettingsAccess")} hint={t(locale, "orchSettingsAccessHint")}>
+          <Card title={t(locale, "orchSettingsAccess")}>
             {accessSelect("claude")}
             {accessSelect("codex")}
+            <p className="orch-hint">{t(locale, "orchSettingsAccessHint")}</p>
             {toTerminal && (
               <label className="orch-check" data-orch-terminal-confirm>
                 <input type="checkbox" checked={confirmTerminal} onChange={(e) => setConfirmTerminal(e.target.checked)} />
