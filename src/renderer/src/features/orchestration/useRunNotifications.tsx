@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LocaleId, NotificationSettings } from "../../../../shared/contracts";
 import { t } from "../../lib/i18n";
+import { UiIcon } from "../../components/UiIcon";
 import { NOTIFIED_KEY, NOTIFY_UNAVAILABLE_KEY, boardHeadNotes, boardNotes, notifyStep, pruneNotified, splitNotes, type Note } from "./notify";
 import { boardOptsOf, type AutopilotState, type BoardHead, type BoardView } from "../../../../shared/taskBoard";
 import type { RunActivityState, RunState } from "./useOrchestration";
@@ -68,17 +69,32 @@ export function useRunNotifications({ locale, prefs, runs, activity, title, open
   return { banner, dismiss, openNote: useCallback((runId: string) => { dismiss(runId); openRef.current(runId); }, [dismiss]) };
 }
 
+const many = (locale: LocaleId, n: number): "one" | "few" | "many" => locale === "ru" ? (n % 10 === 1 && n % 100 !== 11 ? "one" : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? "few" : "many") : n === 1 ? "one" : "many";
+const fill = (text: string, vars: Record<string, string>): string => Object.entries(vars).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, v), text);
+
+// Mock 10: the runs waiting for the person are one line at the top of the canvas («2 runs wait for you in Beta and Alpha»,
+// «Show»); a run that failed or ended keeps its own line.
 export function NotifyBanner({ locale, notes, onOpen, onDismiss }: { locale: LocaleId; notes: Note[]; onOpen(runId: string): void; onDismiss(runId: string): void }): React.JSX.Element | null {
   if (!notes.length) return null;
+  const waiting = notes.filter((n) => n.signal === "waiting");
+  // the place is the workspace before « · » in the note's title (it is there only while there are several workspaces)
+  const places = [...new Set(waiting.map((n) => (n.title.includes(" · ") ? n.title.split(" · ")[0] : "")).filter(Boolean))];
+  const where = places.length ? ` ${fill(t(locale, `orchNotifyIn_${many(locale, places.length)}` as never), { places: new Intl.ListFormat(locale, { style: "long", type: "conjunction" }).format(places) })}` : "";
+  const row = (key: string, signal: string, text: React.ReactNode, onShow: () => void, onClose: () => void, run?: string): React.JSX.Element => (
+    <div key={key} className={`notify-banner__item notify-banner__item--${signal}`} data-notify-run={run}>
+      <UiIcon name="bell" size={16} />
+      <span>{text}</span>
+      <button type="button" className="notify-banner__show" onClick={onShow}>{t(locale, "orchNotifyBannerOpen")}</button>
+      <button type="button" className="notify-banner__close" aria-label={t(locale, "orchNotifyBannerClose")} onClick={onClose}>×</button>
+    </div>
+  );
   return (
     <div className="notify-banner" role="status" data-interactive="true" data-notify-banner>
-      {notes.map((n) => (
-        <div key={n.runId} className={`notify-banner__item notify-banner__item--${n.signal}`} data-notify-run={n.runId}>
-          <span><b>{n.title}</b> {n.body}</span>
-          <button type="button" onClick={() => onOpen(n.runId)}>{t(locale, "orchNotifyBannerOpen")}</button>
-          <button type="button" aria-label={t(locale, "orchNotifyBannerClose")} onClick={() => onDismiss(n.runId)}>×</button>
-        </div>
-      ))}
+      {waiting.length > 0 && row("waiting", "waiting",
+        <><b>{fill(t(locale, `orchNotifyWait_${many(locale, waiting.length)}` as never), { n: String(waiting.length) })}</b>{where}</>,
+        () => { for (const n of waiting.slice(1)) onDismiss(n.runId); onOpen(waiting[0].runId); },
+        () => { for (const n of waiting) onDismiss(n.runId); })}
+      {notes.filter((n) => n.signal !== "waiting").map((n) => row(n.runId, n.signal, <><b>{n.title}</b> {n.body}</>, () => onOpen(n.runId), () => onDismiss(n.runId), n.runId))}
     </div>
   );
 }

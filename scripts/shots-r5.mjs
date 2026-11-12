@@ -398,6 +398,9 @@ try {
       const name = theme === "sand" ? "Гамма" : "Дельта";
       await app.clickEl(q("[data-workspace-new]")); await sleep(500);
       await app.type(q("[data-ws-title]"), name); await app.clickEl(q("[data-ws-submit]")); await sleep(1500);
+      // mock 17 «Скрытые»: «Песочница» has work going on (the chip «1 работает»)
+      const gid = (await app.ev(`window.canvasTTY.workspaces.get()`)).workspaces.find((w) => w.title === name).id;
+      await session("claude", `hidden-working-${name}`, "hidden-api", elsewhere(3200, 3200), gid); await sleep(2000);
       await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
       await app.clickEl(q('[data-ws-action="close"]')); await sleep(900);
       if (await app.ev(`!!${q("[data-ws-close]")}`)) { await app.clickEl(q("[data-ws-close-hide]")); await sleep(900); }
