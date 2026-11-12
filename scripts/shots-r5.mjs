@@ -96,15 +96,27 @@ const laptop = () => app.call("Emulation.setDeviceMetricsOverride", { width: 144
 const wanted = (name) => !ONLY || ONLY.split(",").some((x) => name.includes(x)); // --only a,b: several scenes
 const shot = async (name) => {
   await sleep(500);
+  await measure(name);
   const z = await app.ev(`(() => { const m = document.querySelector(".workspace__scene")?.style.transform.match(/scale\\(([\\d.]+)\\)/); return m ? Number(m[1]) : null; })()`).catch(() => null);
   console.log(`[shots-r5] frame ${theme}-${name} zoom ${z}`);
   await app.shot(`${theme}-${name}`);
 };
 const esc = async () => { for (let i = 0; i < 3; i++) { await app.key("Escape", "Escape", 27); await sleep(150); } };
 const hideOnboarding = () => app.ev(`(() => { if (!document.getElementById("r5-hide")) { const s = document.createElement("style"); s.id = "r5-hide"; s.textContent = "[data-onboarding] { display: none !important; }"; document.head.append(s); } return true; })()`);
+// R9: computed font sizes of the visible text on the canvas cards, the board and dialogs (MEASURE=1): <out>/fonts-<theme>-<label>.json
+const measure = async (label) => {
+  if (!process.env.MEASURE) return;
+  const rows = await app.ev(`(() => { const out = []; const seen = new Set();
+    for (const root of document.querySelectorAll("[data-agent-id], [data-board], [data-board-aside], [data-canvas-layer-id], [role=dialog]")) { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      for (let n; (n = w.nextNode()); ) { const t = n.textContent.trim(); const e = n.parentElement; if (!t || seen.has(n) || !e) continue; seen.add(n);
+        const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); if (!r.width || !r.height || cs.visibility === "hidden" || cs.display === "none" || e.closest(".xterm")) continue;
+        out.push({ px: parseFloat(cs.fontSize), cls: e.tagName.toLowerCase() + (typeof e.className === "string" && e.className.trim() ? "." + e.className.trim().split(/\\s+/).join(".") : ""), text: t.slice(0, 50) }); } }
+    return out; })()`);
+  fs.writeFileSync(path.join(OUT, `fonts-${theme}-${label}.json`), JSON.stringify(rows));
+};
 const WS = { common: "common", alpha: null, beta: null };
 const BETA_SCENES = new Set(["link-executor-left", "link-mode"]);
-const ALPHA_SCENES = new Set(["cards-agents", "goal", "cards-agents-idle", "link-repeat", "link-selected", "zoom-out", "board", "board-waiting", "board-push", "cards-agents-working"]);
+const ALPHA_SCENES = new Set(["cards-agents", "goal", "cards-agents-idle", "link-repeat", "link-selected", "zoom-out", "board", "board-waiting", "board-push", "cards-agents-working", "board-newtask"]);
 // the tab of a space is clicked (the renderer follows its own state); the common canvas is the first tab
 const go = async (id) => {
   const st = await app.ev(`window.canvasTTY.workspaces.get()`);
@@ -631,6 +643,7 @@ try {
       if (!(await app.ev(`!!${q("[data-board]")}`))) await app.clickEl(q("[data-board-button]"));
       await app.waitFor(`${q("[data-board]")} && true`, "the board");
       const clip = async (name, selectors) => { // a clip of the union of the elements, twice the pixels, like shots-r4c
+        await measure(name);
         const r = await app.ev(`(() => { const els = ${JSON.stringify(selectors)}.map((x) => document.querySelector(x)).filter(Boolean).map((e) => e.getBoundingClientRect());
           const x = Math.min(...els.map((b) => b.left)), y = Math.min(...els.map((b) => b.top)); return { x, y, width: Math.max(...els.map((b) => b.right)) - x, height: Math.max(...els.map((b) => b.bottom)) - y }; })()`);
         const shotData = await app.call("Page.captureScreenshot", { format: "png", clip: { ...r, scale: 2 } });
@@ -693,6 +706,16 @@ try {
       });
     }
 
+    // R9: the «new task» form of the board (font measure and a frame)
+    await scene("board-newtask", async () => {
+      await app.key("Home", "Home", 36); await sleep(500);
+      if (!(await app.ev(`!!${q("[data-board]")}`))) await app.clickEl(q("[data-board-button]"));
+      await app.waitFor(`${q("[data-board]")} && true`, "the board");
+      await app.clickEl(q("[data-board-new]")); await app.waitFor(`${q("[data-board-form]")} && true`, "the form");
+      await shot("board-newtask");
+      await esc();
+      await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500);
+    });
     // R7b (mock 08-board-states): the autopilot's push is on in the profile and a task asks for a field it has not — a red card in «Очередь».
     // The mock's «Ждёт вашего решения» in «Проверка» needs a run through the final review and the finish confirmation; the fake lead's
     // script is one per CLI, not per run, so the order of two parallel runs' turns is not fixed (see the D-NNN proposal in the R7b report)
