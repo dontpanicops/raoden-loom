@@ -80,3 +80,10 @@ test("toggling a HOME limit provider preserves the other limit choices", () => {
     ["codex", "kimi", "grok"]
   );
 });
+
+test("the HOME dock is editable in place: a plus tile lists the agents not on it, each agent tile has a remove button, Terminal and Browser have none", async () => {
+  const source = await readFile(new URL("../src/renderer/src/features/home/HomeZone.tsx", import.meta.url), "utf8");
+  assert.match(source, /launcher-button--add/);
+  assert.match(source, /dockCandidates = AGENT_PROVIDERS\.filter\(\(provider\) => !launcherProviders\.includes\(provider\)\)/);
+  assert.equal((source.match(/className="launcher-cell__remove"/g) ?? []).length, 1);
+});

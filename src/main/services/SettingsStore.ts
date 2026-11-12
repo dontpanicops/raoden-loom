@@ -287,7 +287,8 @@ function createDefaults(systemLocale: string, platform: CanvasNavigationPlatform
     homeAccentPreset: "theme",
     homeAccentColors: { ...DEFAULT_HOME_ACCENT_COLORS },
     sessionRowColorMode: "status",
-    homeLauncherProviders: [...AGENT_PROVIDERS],
+    // a fresh profile's dock as in the HOME mockup; the operator adds the rest with «+»
+    homeLauncherProviders: ["codex", "claude", "qwen", "kimi"],
     homeLimitProviders: [...LIMIT_PROVIDERS],
     canvasLauncherItems: [...DEFAULT_CANVAS_LAUNCHER_ITEMS],
     radialLauncherItems: [...DEFAULT_RADIAL_LAUNCHER_ITEMS],

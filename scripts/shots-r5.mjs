@@ -71,7 +71,7 @@ fs.writeFileSync(SHELL, `#!/bin/sh\n[ "$1" = "-ilc" ] && shift\nexec /bin/sh -c 
 const env = (extra) => ({ HOME: D("mock-state"), MOCK_STATE: D("mock-state"), MOCK_LEDGER: D("ledger.jsonl"), ...extra });
 const providers = D("providers.json");
 fs.writeFileSync(providers, JSON.stringify({
-  codex: { executable: wrap("codex"), version: "codex-cli 0.155.1", path: PATHS, env: env({ MOCK_SCRIPT: codexScript, CODEX_HOME: D("mock-state", ".codex") }) },
+  codex: { executable: wrap("codex"), version: "codex-cli 0.155.1", path: PATHS, env: env({ MOCK_SCRIPT: codexScript, CODEX_HOME: D("mock-state", ".codex"), MOCK_CODEX_RATE_LIMITS: "1" }) },
   claude: { executable: wrap("claude"), version: "2.1.281 (Claude Code)", path: PATHS, env: env({ MOCK_SCRIPT: claudeScript }) },
   shell: SHELL, checkEnv: { PATH: PATHS, HOME: D("mock-state") }
 }));
@@ -166,6 +166,56 @@ try {
     });
   }
   if (fs.existsSync(path.join(cliBin, "claude.off"))) fs.renameSync(path.join(cliBin, "claude.off"), path.join(cliBin, "claude"));
+
+  // ---- R10 «home-mock»: the mock's own HOME (05) with the mock's own data, on a bare canvas: two limits (Codex from the fake
+  // app-server; Claude's limits come from the real usage API and keychain, which a frame must not touch, so its row is as the app shows it),
+  // four sessions (waiting / working / failed / free), the dock of six (Terminal, Browser, Claude, Codex, Qwen, Kimi), three terminals under HOME
+  for (theme of THEMES) {
+    await scene("home-mock", async () => {
+      const mk = (name) => { const d = path.join(termDir, name); fs.mkdirSync(d, { recursive: true }); return d; };
+      // Codex is «found» (a stub that runs the fake app-server), so its limit row reads the fake rate limits; removed after the scene
+      fs.writeFileSync(path.join(cliBin, "codex"), `#!/bin/sh\nexec "${wrap("codex")}" "$@"\n`, { mode: 0o755 });
+      await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ palette: theme, followSystem: false, canvasColor: "theme", homeAccentPreset: "theme", uiScale: 1, onboardingDismissed: true, lastDirectory: termDir,
+        homeLauncherProviders: ["codex", "claude", "qwen", "kimi"], homeLimitProviders: ["codex", "claude"] })}).then(() => true)`);
+      await app.call("Page.reload", {}); await sleep(1500); await laptop();
+      await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
+      await hideOnboarding(); await app.key("Home", "Home", 36); await sleep(1200);
+      // HOME in the top-left corner as in the mock (64, 96); the zoom is the app's own fit (0.67: the HOME sizes are made for it, D-016)
+      const at = await app.ev(`(() => { const r = document.querySelector(".home-widget-slot").getBoundingClientRect(); return { x: r.left, y: r.top }; })()`);
+      await app.panBy({ x: 80 - at.x, y: 112 - at.y }); await sleep(700);
+      const cam = await app.ev(`(() => { const m = document.querySelector(".workspace__scene").style.transform.match(/translate\\(([-\\d.]+)px, ([-\\d.]+)px\\) scale\\(([\\d.]+)\\)/); return { x: +m[1], y: +m[2], z: +m[3] }; })()`);
+      const B = (sx, sy, sw, sh) => ({ position: { x: Math.round((sx - cam.x) / cam.z), y: Math.round((sy - cam.y) / cam.z) }, size: { width: Math.round(sw / cam.z), height: Math.round(sh / cam.z) } });
+      const made = [];
+      const sess = async (provider, name, title, bounds) => {
+        const x = await app.ev(`window.canvasTTY.terminal.create({ provider: ${JSON.stringify(provider)}, profile: "normal", cwd: ${JSON.stringify(mk(name))}, position: ${JSON.stringify(bounds.position)} })`);
+        await app.ev(`window.canvasTTY.terminal.setBounds(${JSON.stringify(x.id)}, ${JSON.stringify(bounds)})`);
+        await app.ev(`window.canvasTTY.terminal.rename(${JSON.stringify(x.id)}, ${JSON.stringify(title)}).then(() => true)`);
+        made.push(x.id); return x;
+      };
+      const top = Math.round(cam.y + 7 * 90 * cam.z + 30 * cam.z);
+      await sess("claude", "project-a-working", "project-a", B(cam.x, top, 330, 190));
+      await sess("claude", "project-b-waiting", "project-b", B(cam.x + 350, top, 330, 190));
+      const infra = await sess("terminal", "infra", "infra", B(cam.x + 700, top, 330, 190));
+      const dev = await sess("terminal", "dev", "~/dev", B(cam.x + 1050, top, 330, 190));
+      await sleep(1500);
+      await app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(dev.id)}, ${JSON.stringify("PS1='$ ' PROMPT='$ '; clear\r")})`); // no user name in the prompt
+      await app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(infra.id)}, ${JSON.stringify("PS1='$ ' PROMPT='$ '; clear; echo \"Error: ENOENT: no such file, open '.env.production'\"; exit 1\r")})`);
+      await sleep(3500);
+      await shot("home-mock");
+      // the dock is the person's own list: «+» opens the agents not on it, a click adds one (the row wraps), a tile shows «×» under the pointer
+      const rect = (sel) => app.ev(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+      let c = await rect(".launcher-button--add"); await app.mouse("mouseMoved", c.x, c.y); await app.clickEl(q(".launcher-button--add")); await sleep(500);
+      await shot("home-mock-dock-menu");
+      await app.clickEl(q(".launcher-add-menu__item")); await sleep(900);
+      await shot("home-mock-dock-added");
+      c = await rect(".launcher-cell:nth-of-type(4) .launcher-button"); await app.mouse("mouseMoved", c.x, c.y); await sleep(500);
+      await shot("home-mock-dock-hover");
+      await app.mouse("mouseMoved", 700, 880);
+      await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ homeLauncherProviders: ["codex", "claude", "qwen", "kimi", "opencode", "hermes", "grok", "omp", "pi"], homeLimitProviders: ["codex", "claude", "qwen", "kimi", "opencode", "grok"] })}).then(() => true)`);
+      fs.rmSync(path.join(cliBin, "codex"), { force: true });
+      for (const id of made) await app.ev(`window.canvasTTY.terminal.dispose(${JSON.stringify(id)}).then(() => true)`);
+    });
+  }
 
   // ---- world: terminal with a link in its output, note, two agents with a link
   await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ palette: "sand", onboardingDismissed: true, lastDirectory: termDir, persistStickyNotes: true,

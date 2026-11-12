@@ -84,7 +84,7 @@
   --home-dock-text: var(--text-primary);
   --home-dock-tile: var(--surface-sunken);
   --home-dock-tile-text: var(--text-primary);
-  --home-browser: var(--surface-2);
+  --home-browser: var(--home-dock-tile);
   --home-browser-text: var(--text-primary);
   --home-settings: var(--surface-2);
   --home-settings-text: var(--text-primary);
