@@ -2747,3 +2747,42 @@ html:not([data-kbd]) .workspace-bar__tab:focus-visible, html:not([data-kbd]) .wo
 .home-editor-toolbar strong { white-space: nowrap; }
 .canvas-region { border-width: 1.5px; border-color: color-mix(in srgb, var(--canvas-region-color) 34%, transparent); background: color-mix(in srgb, var(--canvas-region-color) 12%, transparent); } /* as drawn in the mock-up's frames: the tint reads on all three themes */
 .canvas-region__title { color: color-mix(in srgb, var(--canvas-region-color) 55%, var(--canvas-ink)); }
+
+/* R12r (mock 18 «Изменить HOME»): the empty places are quiet outlines of the cell (82x72, gap 18), no fill; the tiles show their own content, no caption on top;
+   the bar is «Черновик · плитка «Медиа» выходит за границу» in two lines, 13 px, the word «Черновик» 600 */
+.home-zone--editing::before { -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='90'><rect x='.75' y='.75' width='80.5' height='70.5' rx='10' fill='none' stroke='black' stroke-opacity='.34' stroke-width='1.5'/></svg>") 0 0 / 100px 90px; }
+.home-zone--editing .home-widget-slot__move { font-size: 0; }
+.home-editor-toolbar__note { max-width: 15em; font-size: 13px; font-weight: 400; line-height: 1.35; }
+.home-editor-toolbar__note strong { margin: 0; font-weight: 600; white-space: normal; }
+
+/* R12r (mock 03/06/21, S1): the agent card's body is the mock's: «Открыть запуск» and «Наблюдать» keep their place in the foot row (nothing moves
+   when they show) but are drawn only on hover, keyboard focus or a selected card, as the header's buttons are */
+.agent-card__actions .agent-card__run-action { opacity: 0; transition: opacity .15s ease; }
+.agent-card:is(:hover, :focus-within, .agent-card--selected) .agent-card__actions .agent-card__run-action { opacity: 1; }
+/* R12r (mock 19/03, S4): the link's chip is one state, 12 px, no wider than the label; the run's buttons are a row under it, shown on hover, focus or a selected link */
+.agent-link__chip { outline: none; }
+.agent-link__chip:focus-visible { box-shadow: 0 0 0 2px var(--focus), var(--elev-2); }
+.agent-link__actions { position: absolute; top: 100%; left: 50%; padding-top: 4px; display: flex; gap: 2px; visibility: hidden; transform: translateX(-50%); }
+.agent-link__actions::before { content: ""; position: absolute; inset: 4px 0 0; z-index: -1; border-radius: 99px; background: var(--surface-3-solid); box-shadow: var(--edge), var(--elev-3); }
+.agent-link__chip:hover .agent-link__actions, .agent-link__chip:focus-within .agent-link__actions, .agent-link__chip[data-link-selected] .agent-link__actions,
+.agent-link__actions:has([data-orch-release-confirm]) { visibility: visible; }
+.agent-link__chip:has(.agent-link__actions [data-orch-release-confirm]) { flex-wrap: nowrap; width: auto; border-radius: 99px; }
+.agent-link__actions:has([data-orch-release-confirm]) { flex-wrap: wrap; width: min(420px, 90vw); }
+.agent-link__actions:has([data-orch-release-confirm])::before { border-radius: 14px; }
+/* R12r (SPEC 11.2, mock 21, S7): below 100% the role stays beside the name and is cut with «…» (at least «Исп…»); the r12n wrap moved a role that did not fit
+   whole onto the hidden second line, so the executor lost it at 67% and 45% */
+[data-zoomed] .agent-card__identity { flex-wrap: nowrap; height: auto; }
+[data-zoomed] .agent-card__identity small { flex: 1 1 0; min-width: 0; max-width: max-content; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-zoomed] .agent-card__identity small .orch-term { max-width: 100%; }
+[data-zoomed] .agent-card__role { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* the Term is a button (an atomic box, no «…» of its own): the text inside it is cut */
+/* the hidden header buttons take no room from the role below 100%: they lie over the header's end and show on hover (with the header's own fill) */
+[data-zoomed].agent-card .agent-card__header { position: relative; }
+[data-zoomed] .agent-card__header-actions { position: absolute; top: 0; right: 0; bottom: 0; padding: 0 calc(4px * var(--iz)) 0 calc(6px * var(--iz)); align-items: center; background: var(--surface-2); border-radius: 0 14px 0 0; }
+
+/* R12r (mock 03 at the HOME zoom .67, D-016): the note's first line «Перед релизом: прогнать e2e» is .84 of the card's width (17 px gave .66) */
+.sticky-note-card__editor { font-size: calc(20px * var(--app-ui-scale, 1)); padding: 1em 1.05em; }
+/* R12r (mock 18, 1:1): a run's snapshot reads as a document copy: 13 px secondary text, the card 360 wide */
+.sticky-note-card--sourced .sticky-note-card__editor { padding: .9em 1.1em; color: var(--text-secondary); font-size: calc(13px * var(--app-ui-scale, 1)); line-height: 1.55; }
+
+/* R12r (mock 05): the failed session's popover has the ⚠ before its title (an inline span had no width before) */
+.usage-row__failure-title > .ui-icon { display: inline-block; margin-right: .45em; vertical-align: -.12em; }

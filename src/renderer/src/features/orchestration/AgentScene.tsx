@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { LinkBend } from "../../../../shared/linkBend";
 import type { LocaleId, Point, SessionBounds } from "../../../../shared/contracts";
 import type { OrchestrationAgentCard, OrchestrationAgentLink } from "../../../../shared/orchestration";
-import { t, type TranslationKey } from "../../lib/i18n";
+import { pluralForm, t, type TranslationKey } from "../../lib/i18n";
 import { tr } from "./boardModel";
 import { agentLayerId, pastCanvasDragThreshold } from "../workspace/canvasSelectionGesture";
 import { AgentCard } from "./AgentCard";
@@ -288,24 +288,18 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
         const label = shown?.permission ? t(locale, "orchLinkNeedsYou") : shown?.newer ? t(locale, "orchReadOnly") : working ? `${t(locale, "orchAgentWorking")} · ${working}` : shown ? viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ?? t(locale, `orchStatus_${runStatusKey(shown)}` as TranslationKey) : t(locale, "orchNoRun");
         // on the curve, off the cards (and the bend handle when selected) (Н14, linkChip.ts)
         const g = linkGeometry(rightMid(from), leftMid(to), bendDrag?.linkId === link.linkId ? bendDrag.bend : link.bend);
-        const at = chipOnCurve(g, [...agents.map(({ bounds }) => rect(bounds)), ...(props.regionTitles ?? [])], chipSize(label, (busy ? 0 : 2) + (view ? 2 : 0) + (view?.newer ? 1 : 0) + (link.bend ? 1 : 0) + (liveViews.length > 1 ? 1 : 0), invZoom(zoom)) /* new goal, ×, open run, observe, release, reset, runs: every button counts; below 100% the chip is in screen px (R12j) */, selectedLink === link.linkId, [rect(from), rect(to)]);
-        return (
-          <div key={link.linkId} className={`agent-link__chip${view?.permission ? " agent-link__chip--needs-you" : ""}`} data-interactive="true" data-agent-link-id={link.linkId} data-tone={view?.permission ? "waiting" : busy ? "working" : "idle"}
-            role="group" aria-label={t(locale, "orchLink")}
-            style={{ left: at.x, top: at.y, "--iz": invZoom(zoom),
-              zIndex: Math.max(props.zIndexOf(agentLayerId(link.fromAgentId)), props.zIndexOf(agentLayerId(link.toAgentId))) } as React.CSSProperties}>
-            <span className="agent-link__state">
-              {label}
-            </span>
-            {!busy && <button type="button" disabled={entry.disabled} title={entry.hint ? t(locale, entry.hint) : undefined}
-              onClick={() => ui.openGoal(link.linkId)}>{t(locale, "orchNewGoal")}</button>}
+        // R12r (mock 03/19): a busy link's chip is its state alone; the run's actions are a row under it, shown on hover, focus or a selected link.
+        // An idle link keeps «Новая цель» and «×» on the chip: they are its next step.
+        const at = chipOnCurve(g, [...agents.map(({ bounds }) => rect(bounds)), ...(props.regionTitles ?? [])], chipSize(label, busy ? 0 : 2, invZoom(zoom)) /* below 100% the chip is in screen px (R12j) */, selectedLink === link.linkId, [rect(from), rect(to)]);
+        const runActions = (
+          <>
             {liveViews.length > 1 && (() => {
               const live = liveOf(link);
               const i = Math.max(0, live.indexOf(runIdOf(link) ?? ""));
               return (
                 <button type="button" data-agent-runs={live.length} title={tr(locale, "agentRunPick", { n: i + 1, total: live.length })}
                   onClick={() => ui.pickRun(link.linkId, live[(i + 1) % live.length])}>
-                  {`${tr(locale, "agentRuns", { n: live.length })} · ${i + 1}/${live.length} ›`}</button>
+                  {`${tr(locale, `agentRuns_${pluralForm(locale, live.length)}`, { n: live.length })} · ${i + 1}/${live.length} ›`}</button>
               );
             })()}
             {view && <button type="button" onClick={() => openRunOf(link)}>{t(locale, "orchOpenRun")}</button>}
@@ -315,10 +309,26 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
               ui.openPanel(link.linkId, { tab: "work", mode: "feed", role: r === "check" ? "check" : r ?? "executor" });
             }}>{t(locale, "orchObserve")}</button>}
             {link.bend && <button type="button" className="agent-link__reset" onClick={() => { bendRef.current = null; setBendDrag(null); void orch.setLinkBend(link.linkId, null); }}>{t(locale, "orchLinkBendReset")}</button>}
+          </>
+        );
+        const hasRunActions = liveViews.length > 1 || !!view || !!link.bend;
+        return (
+          <div key={link.linkId} className={`agent-link__chip${view?.permission ? " agent-link__chip--needs-you" : ""}`} data-interactive="true" data-agent-link-id={link.linkId} data-tone={view?.permission ? "waiting" : busy ? "working" : "idle"}
+            data-hover-host="" data-link-selected={selectedLink === link.linkId ? "" : undefined}
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: the chip is the keyboard's way to its run actions, which show on its focus
+            role="group" aria-label={t(locale, "orchLink")} tabIndex={hasRunActions ? 0 : undefined}
+            style={{ left: at.x, top: at.y, "--iz": invZoom(zoom),
+              zIndex: Math.max(props.zIndexOf(agentLayerId(link.fromAgentId)), props.zIndexOf(agentLayerId(link.toAgentId))) } as React.CSSProperties}>
+            <span className="agent-link__state" data-hover-anchor="">
+              {label}
+            </span>
+            {!busy && <button type="button" disabled={entry.disabled} title={entry.hint ? t(locale, entry.hint) : undefined}
+              onClick={() => ui.openGoal(link.linkId)}>{t(locale, "orchNewGoal")}</button>}
             {!busy && (
               <button type="button" className="agent-link__delete" onClick={() => void ui.deleteLink(link)}
                 title={t(locale, "orchDeleteLink")} aria-label={t(locale, "orchDeleteLink")}>×</button>
             )}
+            {hasRunActions && <span className="agent-link__actions">{runActions}</span>}
           </div>
         );
       })}

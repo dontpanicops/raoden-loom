@@ -113,6 +113,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
       data-agent-tight={zoom < 0.6 ? "" : undefined}
       data-agent-id={card.agentId}
       data-agent-role={card.role}
+      data-hover-host=""
       data-canvas-layer-id={`agent:${card.agentId}`}
       aria-label={`${card.provider === "codex" ? "Codex" : "Claude"} — ${t(locale, card.role === "lead" ? "orchRoleLead" : "orchRoleExecutor")}`}
       style={{ zIndex: props.stackIndex, width: size.width, height: size.height, transform: `translate(${position.x}px, ${position.y}px)`, "--iz": invZoom(zoom) } as React.CSSProperties}
@@ -121,8 +122,8 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
         <span className="agent-card__identity">
           <ProviderIcon provider={card.provider} size="small" />
           <i className="agent-card__dot" aria-hidden="true" />
-          <strong>{card.provider === "codex" ? "Codex" : "Claude"}</strong>
-          <small><Term locale={locale} id={card.role}>{t(locale, card.role === "lead" ? "orchRoleLead" : "orchRoleExecutor")}</Term></small>
+          <strong data-hover-anchor="">{card.provider === "codex" ? "Codex" : "Claude"}</strong>
+          <small><Term locale={locale} id={card.role}><span className="agent-card__role">{t(locale, card.role === "lead" ? "orchRoleLead" : "orchRoleExecutor")}</span></Term></small>
         </span>
         <span className="agent-card__header-actions">
           <button className="agent-card__expand" type="button" data-agent-expand={compact ? "compact" : "expanded"} onClick={toggle}
@@ -167,11 +168,12 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
           {props.ended && (
             <button className="agent-card__summary" type="button" onClick={() => props.onSummary(card.agentId)}>{t(locale, "orchSummaryButton")}</button>
           )}
+          {/* R12r (mock 03/06/21): the run's two ways in keep their place in the row but show only on hover, focus or a selected card */}
           {props.hasRun && (
-            <button className="agent-card__open" type="button" onClick={() => props.onOpenRun(card.agentId)}>{t(locale, "orchOpenRun")}</button>
+            <button className="agent-card__open agent-card__run-action" type="button" onClick={() => props.onOpenRun(card.agentId)}>{t(locale, "orchOpenRun")}</button>
           )}
           {props.hasRun && (
-            <button className="agent-card__observe" type="button" onClick={() => props.onObserve(card.agentId)}>{t(locale, "orchObserve")}</button>
+            <button className="agent-card__observe agent-card__run-action" type="button" onClick={() => props.onObserve(card.agentId)}>{t(locale, "orchObserve")}</button>
           )}
         </div>
       </div>

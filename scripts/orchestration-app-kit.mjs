@@ -197,6 +197,14 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
       // drag on empty canvas, the run panel is scrolled with the wheel), then elementFromPoint must land inside it.
       async clickEl(selector) {
         step(`click ${selector.slice(0, 200)}`);
+        // a button that shows on its host's hover (the link chip's run row, R12r): the host is brought into view and the pointer rests on it
+        // first, as a person's would; then the button itself
+        const anchor = `(() => { const el = ${selector}; const h = el?.closest("[data-hover-host]"); return h && h !== el ? h.querySelector("[data-hover-anchor]") ?? h : null; })()`;
+        if (await app.ev(`!!${anchor}`)) {
+          await app.reveal(anchor);
+          const a = await app.center(anchor);
+          await app.mouse("mouseMoved", a.x, a.y); await sleep(60);
+        }
         await app.reveal(selector);
         const c = await app.center(selector);
         const hit = await app.ev(`(() => { const el = ${selector}; const h = document.elementFromPoint(${c.x}, ${c.y}); return !!el && !!h && (el === h || el.contains(h)); })()`);

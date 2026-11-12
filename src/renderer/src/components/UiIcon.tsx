@@ -11,6 +11,7 @@ import triangleAlertIcon from "../assets/icons/lucide/triangle-alert.svg";
 import closeIcon from "../assets/icons/lucide/x.svg";
 import copyIcon from "../assets/icons/lucide/copy.svg";
 import errorIcon from "../assets/icons/lucide/circle-alert.svg";
+import downloadIcon from "../assets/icons/lucide/download.svg";
 import folderIcon from "../assets/icons/lucide/folder.svg";
 import browserIcon from "../assets/icons/lucide/globe.svg";
 import bringToFrontIcon from "../assets/icons/lucide/bring-to-front.svg";
@@ -125,7 +126,7 @@ const ICONS: Record<UiIconName, string> = {
   reload: workingIcon,
   arrow: arrowIcon,
   chevron: chevronIcon,
-  download: chevronIcon,
+  download: downloadIcon,
   plus: plusIcon,
   palette: paletteIcon,
   pencil: pencilIcon,
