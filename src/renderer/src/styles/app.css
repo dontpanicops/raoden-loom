@@ -228,7 +228,7 @@ button { border: 0; }
 .usage-row .ui-icon--working { animation: spin 1.7s linear infinite; }
 /* R10 (mock 05): the dock is rows of equal, fixed-size tiles (icon above the label); more tiles than a row holds wrap onto a new row and the
    panel grows, none shrinks or scrolls. The panel is as high as its rows, not as its slot; the settings tile beside it is one row high. */
-.launcher-dock { --dock-tile-h: 6.9em; padding: .7em; display: grid; grid-template-columns: repeat(auto-fill, 9.9em); grid-auto-rows: var(--dock-tile-h); justify-content: start; gap: .7em; border: 0; border-radius: 1.4em; background: var(--home-dock); font-size: calc(13px * var(--ui-scale, 1)); overflow: visible; }
+.launcher-dock { --dock-tile-h: 6.9em; padding: .7em; display: grid; grid-template-columns: repeat(auto-fill, 7.6em); grid-auto-rows: var(--dock-tile-h); justify-content: start; gap: .7em; border: 0; border-radius: 1.4em; background: var(--home-dock); font-size: calc(13px * var(--ui-scale, 1)); overflow: visible; }
 .home-widget-slot > .launcher-dock { height: auto; min-height: 8.3em; }
 .home-widget-slot > .launcher-dock, .home-widget-slot > .settings-button { align-self: start; box-sizing: border-box; }
 .home-widget-slot > .settings-button { width: 9.8em; height: 8.3em; font-size: calc(13px * var(--ui-scale, 1)); } /* a dock tile wide (mock 05) */
@@ -2197,14 +2197,12 @@ button { border: 0; }
 [data-agent-far] .agent-card__header > * { display: none; }
 .agent-card__far { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: calc(6px * var(--iz, 1)); padding: calc(8px * var(--iz, 1)); overflow: hidden; font-size: calc(11px * var(--iz, 1)); pointer-events: none; }
 .agent-card__far strong { max-width: 100%; min-width: 8ch; overflow: hidden; font: 600 calc(14px * var(--iz, 1))/1.2 var(--font-ui, inherit); text-overflow: ellipsis; white-space: nowrap; }
-/* R12j (gate S2): a header below 100% never overlaps: the name stays whole, the role shortens with «…», the buttons come with the pointer;
-   between 40% and 60% the body is too short for its buttons, they would show as a sliver above the footer */
+/* R12j (gate S2): a header below 100% never overlaps: the name stays whole, the role shortens with «…»;
+   between 40% and 60% the body is too short for its buttons: they stay whole at its foot instead of a sliver above the footer */
 [data-zoomed] .agent-card__identity { flex: 1 1 0; min-width: 0; overflow: hidden; }
 [data-zoomed] .agent-card__identity strong { min-width: 0; flex: 0 0 auto; white-space: nowrap; }
 [data-zoomed] .agent-card__identity small { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-[data-zoomed] .agent-card__header-actions { display: none; }
-[data-zoomed].agent-card:is(:hover, :focus-within, .agent-card--selected) .agent-card__header-actions { display: flex; }
-[data-agent-tight] .agent-card__actions { display: none; }
+[data-agent-tight] .agent-card__actions { position: sticky; bottom: 0; padding-top: .3em; background: var(--surface-2); } /* the buttons stay whole at the body's foot, never a sliver */
 /* R12j (gate S1, mock 06): the card's lines are plain text, the buttons are the quiet ones of the body (no fill, no bold) */
 .agent-card__body button, .agent-card__body button.agent-card__observe { font-weight: 500; }
 .agent-card__body button.agent-card__observe { color: var(--text-primary); background: var(--surface-2-b); }
