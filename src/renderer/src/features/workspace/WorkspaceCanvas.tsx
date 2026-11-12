@@ -1343,6 +1343,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           onShowGettingStarted={() => { setCommandPaletteOpen(false); setOnboardingPinned(true); onShowOnboarding(); onGoHome(); }}
           workspaces={workspace.state.workspaces.filter((w) => !w.closed).map((w) => ({ id: w.id, title: workspaceTitle(settings.locale, w) }))}
           onSwitchWorkspace={(id) => { setCommandPaletteOpen(false); workspace.switchTo(id); }}
+          onOpenInNewWorkspace={(session) => { void workspace.openInNewWorkspace(session.id).then((text) => { if (text) workspace.notify(text); }); }}
           onClose={() => setCommandPaletteOpen(false)}
         />
       )}

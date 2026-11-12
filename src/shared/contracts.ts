@@ -198,6 +198,7 @@ export interface CameraState extends Point {
 // Project workspaces (docs/agent-orchestration/implementation/workspaces-spec.md). A card belongs to the workspace its
 // optional `workspaceId` names; a missing or unknown id means the common canvas, where every older card lives.
 export const COMMON_WORKSPACE_ID = "common";
+export type WorkspaceLabel = 1 | 2 | 3 | 4 | 5; // the five label colours of SPEC 11.7 (--wsl-1..5)
 export interface WorkspaceRecord {
   id: string;
   title: string; // "" for the common canvas until renamed: the renderer shows its localized name
@@ -205,6 +206,7 @@ export interface WorkspaceRecord {
   createdAt: string;
   closed: boolean; // hidden from the switcher; nothing in it is stopped
   camera: CameraState | null; // null: the HOME camera on the first visit
+  label?: WorkspaceLabel; // absent: no label (older files, the common canvas)
 }
 export interface WorkspacesState {
   available: boolean; // false: the migration could not make its backup; only the common canvas, in memory
@@ -216,8 +218,8 @@ export type WorkspacesResult<T> = { ok: true; value: T } | { ok: false; code: st
 export interface WorkspacesApi {
   get(): Promise<WorkspacesState>;
   // activate: false keeps the active workspace (arranging older cards into new workspaces).
-  create(input: { title: string; root: string | null; activate?: boolean }): Promise<WorkspacesResult<WorkspacesState>>;
-  update(id: string, patch: { title?: string; root?: string | null }): Promise<WorkspacesResult<WorkspacesState>>;
+  create(input: { title: string; root: string | null; label?: WorkspaceLabel | null; activate?: boolean }): Promise<WorkspacesResult<WorkspacesState>>;
+  update(id: string, patch: { title?: string; root?: string | null; label?: WorkspaceLabel | null }): Promise<WorkspacesResult<WorkspacesState>>;
   activate(id: string): Promise<WorkspacesResult<WorkspacesState>>;
   // Always names the workspace the camera belongs to: a late write lands there and nowhere else.
   setCamera(id: string, camera: CameraState): Promise<WorkspacesResult<null>>;

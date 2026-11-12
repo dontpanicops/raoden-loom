@@ -316,7 +316,8 @@ try {
   await app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(infra.id)}, ${JSON.stringify("PS1='$ ' PROMPT='$ '; clear; for i in $(seq 1 30); do echo \"  deploy step $i ok\"; done; echo '$ npm run deploy:qa'; echo \"Error: ENOENT: no such file, open '.env.production'\"; exit 1\r")})`);
   world.mock = { a, b, infra, B };
   // two more spaces (mock 03: Альфа with work going on, Бета waiting): the badges of their tabs come from their sessions
-  for (const title of ["Альфа", "Бета"]) await app.ev(`window.canvasTTY.workspaces.create({ title: ${JSON.stringify(title)}, root: null, activate: false }).then((r) => r.ok)`);
+  // F-a (mock 25): Альфа lilac (1), Бета teal (2)
+  for (const [title, label] of [["Альфа", 1], ["Бета", 2]]) await app.ev(`window.canvasTTY.workspaces.create({ title: ${JSON.stringify(title)}, root: null, label: ${label}, activate: false }).then((r) => r.ok)`);
   const wsState = await app.ev(`window.canvasTTY.workspaces.get()`);
   WS.alpha = wsState.workspaces.find((w) => w.title === "Альфа").id; WS.beta = wsState.workspaces.find((w) => w.title === "Бета").id;
   const elsewhere = (x, y) => ({ position: { x, y }, size: { width: 640, height: 380 } });
@@ -558,6 +559,7 @@ try {
     await scene("ws-create", async () => {
       await app.clickEl(q("[data-workspace-new]")); await sleep(700);
       await app.type(q("[data-ws-title]"), "Гамма"); await sleep(300);
+      await app.clickEl(q('[data-ws-label-pick="2"]')); await sleep(200); // F-a (mock 25): a label chosen
       await shot("ws-create"); await esc();
     });
     await scene("ws-dialogs", async () => {
@@ -605,6 +607,7 @@ try {
       await app.type(q("[data-ws-title]"), name); await app.clickEl(q("[data-ws-submit]")); await sleep(1500);
       // mock 17 «Скрытые»: «Песочница» has work going on (the chip «1 работает»)
       const gid = (await app.ev(`window.canvasTTY.workspaces.get()`)).workspaces.find((w) => w.title === name).id;
+      await app.ev(`window.canvasTTY.workspaces.update(${JSON.stringify(gid)}, { label: 3 }).then((r) => r.ok)`); // F-a (mock 25): «Песочница» pink
       await session("claude", `hidden-working-${name}`, "hidden-api", elsewhere(3200, 3200), gid); await sleep(2000);
       const hideActive = async () => {
         await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
@@ -616,7 +619,7 @@ try {
       // R7d (mock 17): a second hidden space with no work (no chip), the rows' buttons side by side
       const quiet = theme === "sand" ? "Архив идей" : theme === "paper" ? "Архив" : "Склад";
       await app.clickEl(q("[data-workspace-new]")); await sleep(500);
-      await app.type(q("[data-ws-title]"), quiet); await app.clickEl(q("[data-ws-submit]")); await sleep(1500);
+      await app.type(q("[data-ws-title]"), quiet); await app.clickEl(q('[data-ws-label-pick="5"]')); await app.clickEl(q("[data-ws-submit]")); await sleep(1500); // F-a: «Архив идей» graphite
       await hideActive();
       await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
       await app.clickEl(q('[data-ws-action="hidden"]')); await sleep(700);

@@ -2504,3 +2504,26 @@ button { border: 0; }
 /* R12j (gate S8): the opened menu's first row and the link dialog's first button show no ring unless a key was the last input (main.tsx) */
 html:not([data-kbd]) .canvas-menu__row:focus-visible { box-shadow: none; }
 html:not([data-kbd]) .terminal-link-dialog :is(button, a):focus-visible { outline: 0; box-shadow: none; }
+
+/* F-a (SPEC 11.7, mock 25): workspace labels. An 8px square, radius 2.5 (a circle is a status glyph). */
+.ws-label { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 2.5px; }
+.ws-label--1 { background: var(--wsl-1); } .ws-label--2 { background: var(--wsl-2); } .ws-label--3 { background: var(--wsl-3); }
+.ws-label--4 { background: var(--wsl-4); } .ws-label--5 { background: var(--wsl-5); }
+.ws-pick__name { min-width: 0; display: inline-flex; align-items: center; gap: 8px; }
+.ws-list li > .ws-pick__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.orch-dialog .orch-form .ws-label-field { gap: 8px; }
+.ws-label-pick { display: flex; gap: 10px; }
+.orch-dialog .orch-form .ws-label-pick button { flex: 0 0 auto; width: 24px; height: 24px; min-height: 0; padding: 0; display: grid; place-items: center; border: 0; border-radius: 6px; cursor: pointer; }
+.orch-dialog .orch-form .ws-label-pick__none { color: var(--text-secondary); background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); }
+.orch-dialog .orch-form .ws-label-pick button[aria-checked="true"] { box-shadow: 0 0 0 2px var(--surface-3-solid), 0 0 0 4px var(--focus); }
+.ws-label-pick__swatch.ws-label--1 { background: var(--wsl-1); } .ws-label-pick__swatch.ws-label--2 { background: var(--wsl-2); } .ws-label-pick__swatch.ws-label--3 { background: var(--wsl-3); }
+.ws-label-pick__swatch.ws-label--4 { background: var(--wsl-4); } .ws-label-pick__swatch.ws-label--5 { background: var(--wsl-5); }
+.orch-dialog .orch-form .ws-label-pick__swatch { width: 24px; height: 24px; border-radius: 6px; }
+.orch-dialog .orch-form .ws-pick__row--new { color: var(--text-primary); }
+.orch-dialog .orch-form .ws-pick__row--new .ws-pick__name { color: var(--text-primary); font-size: inherit; }
+.ws-arrange__select { position: relative; display: block; }
+.ws-arrange__select > .ws-label { position: absolute; left: 12px; top: 50%; margin-top: -4px; pointer-events: none; }
+.ws-arrange__select:has(> .ws-label) > select { padding-left: 28px; }
+.canvas-command-palette__footer [aria-disabled="true"] { opacity: .45; }
+.ws-label--hollow { box-shadow: inset 0 0 0 1px var(--border-strong); }
+.ws-label--blank { visibility: hidden; }

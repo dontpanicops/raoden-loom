@@ -27,6 +27,7 @@ import type {
   SessionSnapshot,
   StickyNote,
   WindowState,
+  WorkspaceLabel,
   WorkspaceRecord,
   WorkspacesState
 } from "../../shared/contracts";
@@ -1226,14 +1227,14 @@ export function App(): React.JSX.Element {
       isHomeCamera.current = false;
       setCamera(focusCamera(bounds.position, bounds.size));
     },
-    create: async (title: string, root: string | null, activate?: boolean) => {
-      const r = await window.canvasTTY.workspaces.create({ title, root, ...(activate === false ? { activate: false } : {}) }).catch(() => null);
+    create: async (title: string, root: string | null, activate?: boolean, label?: WorkspaceLabel | null) => {
+      const r = await window.canvasTTY.workspaces.create({ title, root, ...(label ? { label } : {}), ...(activate === false ? { activate: false } : {}) }).catch(() => null);
       if (!r) return t(settingsRef.current.locale, "wsActionFailed");
       if (!r.ok) return workspaceError(r);
       adoptWorkspaces(r.value);
       return null;
     },
-    update: async (id: string, patch: { title?: string; root?: string | null }) => {
+    update: async (id: string, patch: { title?: string; root?: string | null; label?: WorkspaceLabel | null }) => {
       const r = await window.canvasTTY.workspaces.update(id, patch).catch(() => null);
       if (!r) return t(settingsRef.current.locale, "wsActionFailed");
       if (!r.ok) return workspaceError(r);
@@ -1273,6 +1274,26 @@ export function App(): React.JSX.Element {
       if (activeIdRef.current !== target) return; // switched away meanwhile: the camera shown is left alone
       setBrowserSelected(true);
       changeCamera(focusCamera(moved.position, moved.size), target);
+    },
+    // Palette ⌘↵ (mock 10, D-041): the selected terminal's card moves into a new workspace named after it and is shown there;
+    // the process is not restarted.
+    openInNewWorkspace: async (id: string) => {
+      const session = sessions.find((s) => s.id === id);
+      if (!session) return t(settingsRef.current.locale, "wsActionFailed");
+      const before = new Set(workspacesRef.current.workspaces.map((w) => w.id));
+      const r = await window.canvasTTY.workspaces.create({ title: session.title || "Terminal", root: null, activate: false }).catch(() => null);
+      if (!r) return t(settingsRef.current.locale, "wsActionFailed");
+      if (!r.ok) return workspaceError(r);
+      const record = r.value.workspaces.find((w) => !before.has(w.id));
+      adoptWorkspaces(r.value);
+      if (!record) return t(settingsRef.current.locale, "wsActionFailed");
+      const error = await moveItem("terminal", id, record.id);
+      if (error) return error;
+      switchWorkspace(record.id, record);
+      setActiveSessionId(id);
+      isHomeCamera.current = false;
+      setCamera(focusCamera(session.position, session.size));
+      return null;
     },
     disposeSession: (id: string) => window.canvasTTY.terminal.dispose(id),
     stopSession: (id: string) => window.canvasTTY.terminal.stop(id),

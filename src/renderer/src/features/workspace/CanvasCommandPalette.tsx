@@ -36,6 +36,8 @@ interface CanvasCommandPaletteProps {
   // Project workspaces: one command per open workspace, in the switcher's order (⌘1…⌘9 on macOS).
   workspaces?: readonly { id: string; title: string }[];
   onSwitchWorkspace?(id: string): void;
+  // Cmd+Enter on a terminal row (mock 10): the card goes to a new workspace named after it. Absent: the hint is not shown.
+  onOpenInNewWorkspace?(session: SessionSnapshot): void;
   onClose(): void;
 }
 
@@ -48,6 +50,7 @@ type CommandItem = {
   icon?: UiIconName;
   provider?: ProviderId;
   status?: SessionSnapshot["status"];
+  session?: SessionSnapshot;
   shortcut?: string;
   disabledHint?: string; // shown, not run (orchestration where it is unavailable)
   run(): void;
@@ -76,6 +79,7 @@ export function CanvasCommandPalette({
   onShowGettingStarted,
   workspaces = [],
   onSwitchWorkspace,
+  onOpenInNewWorkspace,
   onClose
 }: CanvasCommandPaletteProps): React.JSX.Element {
   const input = useRef<HTMLInputElement>(null);
@@ -90,6 +94,7 @@ export function CanvasCommandPalette({
       searchDetail: PROVIDERS[session.provider].label,
       provider: session.provider,
       status: session.status,
+      session,
       run: () => onFocusSession(session)
     })),
     ...workspaces.map((w, i) => ({
@@ -300,7 +305,10 @@ export function CanvasCommandPalette({
             setSelected((current) => filtered.length === 0 ? 0 : (current - 1 + filtered.length) % filtered.length);
           } else if (event.key === "Enter") {
             event.preventDefault();
-            run(filtered[selectedIndex]);
+            const row = filtered[selectedIndex];
+            if ((event.metaKey || event.ctrlKey) && onOpenInNewWorkspace) {
+              if (row?.session) { onOpenInNewWorkspace(row.session); onClose(); }
+            } else run(row);
           }
         }}
       >
@@ -342,6 +350,7 @@ export function CanvasCommandPalette({
         <footer className="canvas-command-palette__footer">
           <span>{t(locale, "paletteFooterChoose")}</span>
           <span>{t(locale, "paletteFooterOpen")}</span>
+          {onOpenInNewWorkspace && <span data-palette-new-ws aria-disabled={!filtered[selectedIndex]?.session}>{t(locale, "paletteFooterNewWorkspace")}</span>}
         </footer>
       </section>
     </div>

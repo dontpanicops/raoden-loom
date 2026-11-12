@@ -444,6 +444,65 @@ try {
   await app.shot("08-history-after-restart-1280");
   await app.key("Escape", "Escape", 27);
 
+  // ---------- F-a (D-041, SPEC 11.7): labels, «New workspace…» in the move dialog, ⌘↵ in the palette ----------
+  const termsNow = () => app.ev("window.canvasTTY.terminal.list()");
+  await switchTo(A);
+  await app.clickEl(q("[data-workspace-menu]"));
+  await app.clickEl(q('[data-ws-action="settings"]'));
+  await app.waitFor(`${q("[data-ws-form]")} && ${q("[data-ws-label-pick]")} && true`, "F-a: the settings dialog with the label row");
+  expect(await app.ev(`${q('[data-ws-label-pick="0"]')}.getAttribute("aria-checked") === "true" && document.querySelectorAll("[data-ws-label-pick]").length === 6`), "F-a: five colours and «no label», none chosen yet", null);
+  await app.shot("09-label-form-1280");
+  await app.clickEl(q('[data-ws-label-pick="3"]'));
+  await app.clickEl(q("[data-ws-submit]"));
+  await app.waitFor(`!${q("[data-ws-form]")}`, "F-a: saved");
+  expect((await state()).workspaces.find((w) => w.id === A).label === 3, "F-a: the label is stored in main", null);
+  const dot = await app.ev(`(() => { const el = ${tab(A)}.querySelector("[data-ws-label]"); if (!el) return null; const r = el.getBoundingClientRect(); const s = getComputedStyle(el); const name = ${tab(A)}.querySelector(".workspace-bar__name").getBoundingClientRect(); return { w: r.width, h: r.height, radius: s.borderTopLeftRadius, bg: s.backgroundColor, left: r.right <= name.left + 1 }; })()`);
+  expect(dot && dot.w === 8 && dot.h === 8 && dot.radius === "2.5px" && dot.bg !== "rgba(0, 0, 0, 0)" && dot.left, "F-a: an 8px square left of the name in the tab", dot);
+  expect(await app.ev(`!${tab("common")}.querySelector("[data-ws-label]")`), "F-a: the common canvas has no label", null);
+  // «New workspace…» in «Move card»: the form, then the card goes there and the view stays
+  const termF = await api(`window.canvasTTY.terminal.create({ provider: "terminal", profile: "normal", cwd: ${JSON.stringify(projectA)}, position: { x: 1500, y: 1300 } })`);
+  await app.waitFor(`${q(`[data-canvas-layer-id="terminal:${termF.id}"] .xterm-rows`)} && true`, "F-a: terminal drawn");
+  await moveMenu(`[data-canvas-layer-id="terminal:${termF.id}"]`, ".terminal-card__header");
+  expect(await app.ev(`!!${q("[data-ws-move-new]")}`), "F-a: the new-workspace row is in the list", null);
+  await app.shot("10-move-new-row-1280");
+  await app.clickEl(q("[data-ws-move-new]"));
+  await app.waitFor(`${q("[data-ws-form]")} && true`, "F-a: the create form from the move dialog");
+  await app.type(q("[data-ws-title]"), "Гамма");
+  await app.clickEl(q('[data-ws-label-pick="4"]'));
+  await app.clickEl(q("[data-ws-submit]"));
+  await app.waitFor(`!${q("[data-ws-form]")} && !${q("[data-ws-move]")}`, "F-a: created and moved");
+  const sg = await state();
+  const G = sg.workspaces.find((w) => w.title === "Гамма");
+  expect(G?.label === 4 && sg.activeId === A, "F-a: Gamma has its label and the view stays in A", sg);
+  expect((await termsNow()).find((s) => s.id === termF.id)?.workspaceId === G?.id, "F-a: the card is in the new workspace", null);
+  // the palette: ⌘↵ on a terminal row opens it in a new workspace named after it
+  const termH = await api(`window.canvasTTY.terminal.create({ provider: "terminal", profile: "normal", cwd: ${JSON.stringify(projectA)}, position: { x: 1500, y: 1700 } })`);
+  await api(`window.canvasTTY.terminal.rename(${JSON.stringify(termH.id)}, "Фокус-Т")`);
+  await app.waitFor(`${q(`[data-canvas-layer-id="terminal:${termH.id}"] .xterm-rows`)} && true`, "F-a: terminal H drawn");
+  await chord("k", "KeyK", 75);
+  await app.type(q(".canvas-command-palette__search input"), "Фокус-Т");
+  await app.waitFor(`${q("[data-palette-new-ws]")} && ${q("[data-palette-new-ws]")}.getAttribute("aria-disabled") === "false"`, "F-a: the footer hint, enabled on a terminal row");
+  expect(/⌘↵/.test(await text(q("[data-palette-new-ws]"))), "F-a: the footer says ⌘↵", await text(q("[data-palette-new-ws]")));
+  await app.shot("11-palette-new-ws-1280");
+  await chord("Enter", "Enter", 13);
+  await app.waitFor(`!${q(".canvas-command-palette")}`, "F-a: palette closed");
+  await app.waitFor(`document.querySelector("[data-workspace-tab][aria-selected=true]")?.textContent.includes("Фокус-Т")`, "F-a: the new workspace is shown");
+  const sh = await state();
+  const H = sh.workspaces.find((w) => w.title === "Фокус-Т");
+  expect(H && sh.activeId === H.id && (await termsNow()).find((s) => s.id === termH.id)?.workspaceId === H.id, "F-a: ⌘↵ moved the terminal into a new workspace and showed it", sh);
+  expect(await app.ev(`!!${q(`[data-canvas-layer-id="terminal:${termH.id}"]`)}`), "F-a: the terminal card is drawn there", null);
+  // ⌘↵ on an action row does nothing
+  await chord("k", "KeyK", 75);
+  await app.type(q(".canvas-command-palette__search input"), "HOME");
+  await app.waitFor(`${q("[data-palette-new-ws]")}?.getAttribute("aria-disabled") === "true"`, "F-a: the hint is dim on an action row");
+  const count = (await state()).workspaces.length;
+  await chord("Enter", "Enter", 13);
+  await sleep(300);
+  expect((await state()).workspaces.length === count, "F-a: ⌘↵ on an action row creates nothing", null);
+  await app.key("Escape", "Escape", 27);
+  await app.waitFor(`!${q(".canvas-command-palette")}`, "F-a: palette closed again");
+  await switchTo(A);
+
   // ---------- the removal rules seen from the UI ----------
   await app.clickEl(q("[data-workspace-menu]"));
   await app.clickEl(q('[data-ws-action="remove"]'));

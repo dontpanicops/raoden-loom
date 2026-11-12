@@ -1,7 +1,7 @@
 // Project workspaces: the switcher and its dialogs (docs/agent-orchestration/implementation/workspaces-spec.md §5).
 // Every rule is main's; these views only ask, show main's answer and never move or stop anything without a click.
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AppSettings, LocaleId, SessionSnapshot, TerminalStopResult, WorkspaceRecord, WorkspacesState } from "../../../../shared/contracts";
+import type { AppSettings, LocaleId, SessionSnapshot, TerminalStopResult, WorkspaceLabel, WorkspaceRecord, WorkspacesState } from "../../../../shared/contracts";
 import { pluralForm, t, type TranslationKey } from "../../lib/i18n";
 import { UiIcon } from "../../components/UiIcon";
 import { Dialog } from "../../components/Dialog";
@@ -36,6 +36,13 @@ async function moveOne(controls: WorkspaceControls, orch: Orchestration, locale:
 
 const tr = (locale: LocaleId, key: string, vars: Record<string, string> = {}): string =>
   Object.entries(vars).reduce((s, [k, v]) => s.replaceAll(`{${k}}`, v), t(locale, key as TranslationKey) ?? key);
+// SPEC 11.7: the label is an 8px square (circle = status glyph); none for the common canvas and for an unlabeled space.
+// slot: a list that lines the names up (mock 25 «Move card»): an unlabeled row keeps the place; the common canvas shows a hollow square.
+export function WsLabel({ w, slot }: { w: WorkspaceRecord | undefined | null; slot?: boolean }): React.JSX.Element | null {
+  if (w?.label) return <span className={`ws-label ws-label--${w.label}`} data-ws-label={w.label} aria-hidden="true" />;
+  return slot ? <span className={`ws-label ${w && isCommon(w.id) ? "ws-label--hollow" : "ws-label--blank"}`} aria-hidden="true" /> : null;
+}
+const LABELS: WorkspaceLabel[] = [1, 2, 3, 4, 5];
 const tk = (locale: LocaleId, key: string): string => tr(locale, key);
 // «5 карточек»: the cards of a workspace, HOME (always in occupiedIn, the first box) not counted
 const cards = (locale: LocaleId, n: number): string => tr(locale, `wsMoveCards_${pluralForm(locale, n)}`, { n: String(n) });
@@ -51,8 +58,8 @@ export interface WorkspaceControls {
   allSettings: AppSettings;
   switchTo(id: string): void;
   focusBounds(bounds: { position: { x: number; y: number }; size: { width: number; height: number } }): void;
-  create(title: string, root: string | null, activate?: boolean): Promise<string | null>;
-  update(id: string, patch: { title?: string; root?: string | null }): Promise<string | null>;
+  create(title: string, root: string | null, activate?: boolean, label?: WorkspaceLabel | null): Promise<string | null>;
+  update(id: string, patch: { title?: string; root?: string | null; label?: WorkspaceLabel | null }): Promise<string | null>;
   close(id: string): Promise<string | null>;
   remove(id: string): Promise<string | null>;
   moveItem(kind: MovableKind, id: string, target: string, dx?: number): Promise<string | null>;
@@ -63,6 +70,8 @@ export interface WorkspaceControls {
   disposeSession(id: string): Promise<void>;
   // "Stop and hide": resolves with main's answer — a confirmed exit, a failed signal or no exit within the limit.
   stopSession(id: string): Promise<TerminalStopResult>;
+  // Palette: moves the terminal's card into a new workspace named after it and shows it there.
+  openInNewWorkspace(id: string): Promise<string | null>;
   // Shows the terminal's card (its workspace, focused); false when the window has no card for it.
   openSession(id: string): boolean;
   notify(text: string): void;
@@ -121,6 +130,7 @@ export function WorkspaceBar({ controls, counts, locale, onDialog, board }: {
             <button key={w.id} type="button" role="tab" className="workspace-bar__tab" aria-selected={w.id === controls.activeId}
               data-workspace-tab={w.id} title={`${workspaceTitle(locale, w)}${w.root ? ` — ${w.root}` : ""}\n${countsHint(locale, c)}${window.canvasTTY.window.isMacOS && i < 9 ? `\n⌘${i + 1}` : ""}`}
               onClick={() => controls.switchTo(w.id)}>
+              <WsLabel w={w} />
               <span className="workspace-bar__name">{workspaceTitle(locale, w)}</span>
               {c.runs > 0 && <span className="workspace-bar__count workspace-bar__count--runs" data-ws-runs={c.runs} aria-label={tr(locale, "wsCountRuns", { n: String(c.runs) })}><UiIcon name="working" size={12} />{c.runs}</span>}
               {c.cli > 0 && <span className="workspace-bar__count workspace-bar__count--cli" data-ws-cli={c.cli} aria-label={tr(locale, "wsCountCli", { n: String(c.cli) })}><UiIcon name="working" size={12} />{c.cli}</span>}
@@ -157,12 +167,23 @@ export function WorkspaceBar({ controls, counts, locale, onDialog, board }: {
 }
 
 // Create, or change the name and main folder of one workspace.
-function WorkspaceForm({ controls, locale, id, onClose }: { controls: WorkspaceControls; locale: LocaleId; id: string | null; onClose(): void }): React.JSX.Element {
+// Creates a workspace and answers its id (main answers the whole state; the new one is the id that was not there).
+async function createWorkspace(controls: WorkspaceControls, title: string, root: string | null, label: WorkspaceLabel | null, activate: boolean): Promise<{ text: string | null; id: string | null }> {
+  const before = new Set(controls.state.workspaces.map((w) => w.id));
+  const text = await controls.create(title, root, activate, label);
+  if (text) return { text, id: null };
+  const created = (await window.canvasTTY.workspaces.get()).workspaces.find((w) => !before.has(w.id));
+  return { text: null, id: created?.id ?? null };
+}
+
+// onCreated: the dialog was opened from «Move card»; the new workspace is not shown, the card goes there.
+function WorkspaceForm({ controls, locale, id, onClose, onCreated }: { controls: WorkspaceControls; locale: LocaleId; id: string | null; onClose(): void; onCreated?(id: string): Promise<string | null> }): React.JSX.Element {
   const current = id ? controls.state.workspaces.find((w) => w.id === id) ?? null : null;
   const [title, setTitle] = useState(current ? workspaceTitle(locale, current) : "");
   const [root, setRoot] = useState(current?.root ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [label, setLabel] = useState<WorkspaceLabel | null>(current?.label ?? null);
   const [confirmedTwin, setConfirmedTwin] = useState(false);
   const folder = root.trim();
   const twin = folder ? controls.state.workspaces.find((w) => w.root === folder && w.id !== id) ?? null : null;
@@ -172,9 +193,12 @@ function WorkspaceForm({ controls, locale, id, onClose }: { controls: WorkspaceC
     if ((twin && !confirmedTwin && !id) || taken) return;
     setBusy(true);
     const name = title.trim() || folderName(folder);
-    const text = id
-      ? await controls.update(id, { title: name, root: folder || null })
-      : await controls.create(name, folder || null);
+    let text: string | null;
+    if (id) text = await controls.update(id, { title: name, root: folder || null, label: isCommon(id) ? undefined : label });
+    else {
+      const made = await createWorkspace(controls, name, folder || null, label, !onCreated);
+      text = made.text ?? (onCreated ? (made.id ? await onCreated(made.id) : tk(locale, "wsActionFailed")) : null);
+    }
     setBusy(false);
     if (text) setError(text);
     else onClose();
@@ -199,6 +223,18 @@ function WorkspaceForm({ controls, locale, id, onClose }: { controls: WorkspaceC
             if (!title.trim()) setTitle(folderName(picked));
           })}>{tk(locale, folder ? "wsChangeFolder" : "wsPickFolder")}</button>
         </div>
+        {!(id && isCommon(id)) && (
+          <div className="orch-field ws-label-field" data-ws-label-field><span>{tk(locale, "wsLabel")}</span>
+            <div className="ws-label-pick" role="radiogroup" aria-label={tk(locale, "wsLabel")}>
+              <button type="button" role="radio" aria-checked={label === null} className="ws-label-pick__none" data-ws-label-pick="0"
+                title={tk(locale, "wsLabel_0")} aria-label={tk(locale, "wsLabel_0")} onClick={() => setLabel(null)}><UiIcon name="close" size={12} /></button>
+              {LABELS.map((n) => (
+                <button key={n} type="button" role="radio" aria-checked={label === n} className={`ws-label-pick__swatch ws-label--${n}`} data-ws-label-pick={n}
+                  title={tk(locale, `wsLabel_${n}`)} aria-label={tk(locale, `wsLabel_${n}`)} onClick={() => setLabel(n)} />
+              ))}
+            </div>
+          </div>
+        )}
         {twin && !id && (
           <div className="orch-hint orch-hint--warn" role="status" data-ws-twin>
             {tr(locale, "wsTwin", { name: workspaceTitle(locale, twin) })}
@@ -256,6 +292,7 @@ function MoveDialog({ controls, orch, locale, layout, item, id, label, onClose }
   const [target, setTarget] = useState(targets[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [creating, setCreating] = useState(false);
   const group = item === "agents" ? linkedGroup(orch.canvas, id) : [];
   const groupLinks = orch.canvas.links.filter((l) => group.includes(l.fromAgentId));
   const blocked = groupLinks.some((l) => l.runIds.some((r) => UNFINISHED.includes(orch.runs[r]?.view.status ?? "")));
@@ -266,6 +303,15 @@ function MoveDialog({ controls, orch, locale, layout, item, id, label, onClose }
     if (text) setError(text);
     else onClose();
   };
+  // «+ New workspace…»: the usual create dialog, then the card goes into the new workspace (which stays in the background)
+  if (creating) {
+    return <WorkspaceForm controls={controls} locale={locale} id={null} onClose={() => setCreating(false)}
+      onCreated={async (newId) => {
+        const text = await moveOne(controls, orch, locale, layout, item, item === "agents" ? group : [id], newId);
+        if (!text) onClose();
+        return text;
+      }} />;
+  }
   return (
     <Dialog label={tk(locale, "wsMoveTitle")} onClose={onClose} locale={locale} className="ws-dialog">
       <form className="orch-form" data-ws-move onSubmit={(event) => { event.preventDefault(); void submit(); }}>
@@ -285,14 +331,19 @@ function MoveDialog({ controls, orch, locale, layout, item, id, label, onClose }
           ? <p className="orch-hint" data-ws-move-none>{tk(locale, "wsMoveNoTarget")}</p>
           : (
             <ul className="ws-pick">
-              <li className="ws-pick__row ws-pick__row--here"><span>{workspaceTitle(locale, controls.state.workspaces.find((w) => w.id === controls.activeId))}</span><span>{tk(locale, "wsMoveHere")}</span></li>
+              <li className="ws-pick__row ws-pick__row--here"><span className="ws-pick__name"><WsLabel slot w={controls.state.workspaces.find((w) => w.id === controls.activeId)} />{workspaceTitle(locale, controls.state.workspaces.find((w) => w.id === controls.activeId))}</span><span>{tk(locale, "wsMoveHere")}</span></li>
               {targets.map((w) => (
                 <li key={w.id}>
                   <button type="button" aria-pressed={w.id === target} className="ws-pick__row" data-ws-move-target={w.id} onClick={() => setTarget(w.id)}>
-                    <span>{workspaceTitle(locale, w)}</span><span>{cards(locale, layout.occupiedIn(w.id).length - 1)}</span>
+                    <span className="ws-pick__name"><WsLabel slot w={w} />{workspaceTitle(locale, w)}</span><span>{cards(locale, layout.occupiedIn(w.id).length - 1)}</span>
                   </button>
                 </li>
               ))}
+              {controls.state.available && (
+                <li><button type="button" className="ws-pick__row ws-pick__row--new" data-ws-move-new onClick={() => setCreating(true)}>
+                  <span className="ws-pick__name"><UiIcon name="plus" size={14} />{tk(locale, "wsMoveNew")}</span>
+                </button></li>
+              )}
             </ul>
           )}
         <div className="orch-form__actions">
@@ -533,10 +584,13 @@ function ArrangeDialog({ controls, orch, locale, layout, id, onClose }: {
           <section key={g.folder} className="ws-arrange__group" data-ws-arrange-folder={g.folder}>
             <h3>{g.folder}</h3>
             <label className="orch-field ws-arrange__to"><span>{tk(locale, "wsMoveTo")}</span>
+              <span className="ws-arrange__select">
+                <WsLabel w={others.find((w) => w.id === targetOf(g.folder))} />
               <select value={targetOf(g.folder)} onChange={(event) => setTargets((cur) => ({ ...cur, [g.folder]: event.target.value }))} data-ws-arrange-target>
                 <option value="new">{tr(locale, "wsArrangeNew", { name: folderName(g.folder) || g.folder })}</option>
                 {others.map((w) => <option key={w.id} value={w.id}>{workspaceTitle(locale, w)}</option>)}
               </select>
+              </span>
             </label>
             {g.items.map((i) => (
               <div key={i.key} className="ws-arrange__item">
@@ -568,7 +622,7 @@ function HiddenDialog({ controls, counts, locale, onClose }: { controls: Workspa
         <ul className="ws-list" data-ws-hidden>
           {hidden.map((w) => (
             <li key={w.id} data-ws-hidden-item={w.id}>
-              <span>{workspaceTitle(locale, w)}</span>
+              <span className="ws-pick__name"><WsLabel w={w} />{workspaceTitle(locale, w)}</span>
               {(counts[w.id]?.runs ?? 0) + (counts[w.id]?.cli ?? 0) > 0 && <span className="ws-chip" data-ws-hidden-working>{tr(locale, `wsHiddenWorking_${pluralForm(locale, (counts[w.id]?.runs ?? 0) + (counts[w.id]?.cli ?? 0))}`, { n: String((counts[w.id]?.runs ?? 0) + (counts[w.id]?.cli ?? 0)) })}</span>}
               <button type="button" onClick={() => { controls.switchTo(w.id); onClose(); }}>{tk(locale, "wsShow")}</button>
             </li>
