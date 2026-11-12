@@ -40,7 +40,7 @@ export function Term({ locale, id, hint, plain = false, children }: { locale: Lo
     <>
       {/* plain (the notification banner): a focusable span, not a button, so that its container can cut the text with «…» (a button is an atomic box and is clipped without one) */}
       {plain
-        ? <span ref={word} tabIndex={0} className="orch-term orch-term--plain" aria-describedby={open ? tipId : undefined} data-term={id}
+        ? <span ref={word} role="button" tabIndex={0} className="orch-term orch-term--plain" aria-describedby={open ? tipId : undefined} data-term={id}
             onMouseEnter={() => show(HOVER_MS)} onMouseLeave={hide} onFocus={() => show(0)} onBlur={hide}>{children}</span>
         : <button ref={word as React.RefObject<HTMLButtonElement>} type="button" className="orch-term" aria-describedby={open ? tipId : undefined} data-term={id}
             onMouseEnter={() => show(HOVER_MS)} onMouseLeave={hide} onFocus={() => show(0)} onBlur={hide}>{children}</button>}
