@@ -348,7 +348,7 @@ button { border: 0; }
 .sticky-note-card { --card-header-height: calc(var(--card-header-h) * var(--ui-scale, 1)); position: absolute; left: 0; top: 0; overflow: hidden; border: 1px solid var(--status-waiting); border-radius: 14px; color: var(--text-primary); background: var(--surface-2); box-shadow: var(--edge), var(--elev-2); font-size: calc(13px * var(--ui-scale, 1)); }
 .sticky-note-card:focus-within, .sticky-note-card--selected { box-shadow: var(--edge), 0 0 0 2px var(--focus), var(--elev-3); }
 .sticky-note-card__header { height: var(--card-header-height); padding: 0 .5em 0 .9em; display: flex; align-items: center; justify-content: space-between; gap: .75em; color: var(--text-primary); background: var(--status-waiting-bg); cursor: move; touch-action: none; }
-.sticky-note-card__header > span { display: flex; align-items: center; gap: .55em; font: 850 .8em/1 var(--font-mono); text-transform: uppercase; }
+.sticky-note-card__header > span { display: flex; align-items: center; gap: .55em; font: 600 .95em/1 var(--font-ui, inherit); }
 .sticky-note-card__close { width: 2.15em; height: 2.15em; flex: 0 0 auto; display: grid; place-items: center; border-radius: .54em; color: color-mix(in srgb, var(--text-primary) 72%, transparent); background: color-mix(in srgb, var(--text-primary) 6%, transparent); cursor: pointer; transition: color .15s ease, background .15s ease; }
 .sticky-note-card__close:hover, .sticky-note-card__close:focus-visible { color: var(--danger-text); background: var(--danger); }
 .sticky-note-card__source { min-height: 2.2em; padding: .4em .9em; display: flex; align-items: center; justify-content: space-between; gap: .75em; font: 700 .75em/1 var(--font-mono); color: color-mix(in srgb, var(--text-primary) 72%, transparent); }
@@ -1163,7 +1163,8 @@ button { border: 0; }
 .agent-card { --card-header-height: calc(var(--card-header-h) * var(--ui-scale, 1)); position: absolute; left: 0; top: 0; display: flex; flex-direction: column; overflow: visible; border: 1px solid color-mix(in srgb, var(--surface-2) 70%, transparent); border-radius: 14px; color: var(--text-primary); background: var(--surface-2); box-shadow: var(--edge), var(--elev-2); font-size: calc(13px * var(--ui-scale, 1)); }
 .agent-card:focus-within, .agent-card--selected { box-shadow: var(--edge), 0 0 0 2px var(--focus), var(--elev-3); }
 .agent-card--offer-ok, .agent-card--offer-drop { box-shadow: var(--edge), 0 0 0 1.5px var(--focus), var(--elev-3); }
-.agent-card--offer-drop { box-shadow: var(--edge), 0 0 0 2px var(--focus), 0 0 0 5px color-mix(in srgb, var(--focus) 28%, transparent), var(--elev-3); }
+.agent-card--offer-drop { box-shadow: var(--edge), 0 0 0 3px var(--focus), 0 0 0 8px color-mix(in srgb, var(--focus) 28%, transparent), var(--elev-3); }
+.agent-card.agent-card--offer-source .agent-card__port { border-color: var(--focus); background: var(--focus); box-shadow: none; }
 .agent-card--offer-dim, .agent-card--offer-dim-over { opacity: .45; }
 .agent-card__offer { position: absolute; left: 50%; top: 56%; z-index: 30; padding: .3em .8em; border: 1px solid color-mix(in srgb, var(--focus) 45%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--focus) 18%, var(--surface-4-solid)); color: var(--text-primary); font: 600 .85em/1.2 var(--font-ui, inherit); white-space: nowrap; pointer-events: none; transform: translate(-50%, -50%); }
 .agent-card--offer-dim-over .agent-card__offer { border-color: var(--border-strong); background: var(--surface-4-solid); }
@@ -1226,9 +1227,10 @@ button { border: 0; }
 .agent-link__hit { fill: none; stroke: transparent; stroke-width: 14px; vector-effect: non-scaling-stroke; pointer-events: stroke; cursor: pointer; }
 .agent-link--busy .agent-link__line { stroke: var(--status-working); }
 .agent-link--busy .agent-link__arrow { fill: var(--status-working); }
-.agent-link--waiting .agent-link__line, .agent-link--preview .agent-link__line { stroke: var(--status-waiting); }
-.agent-link--waiting .agent-link__arrow, .agent-link--preview .agent-link__arrow { fill: var(--status-waiting); }
-.agent-link--preview { opacity: .9; }
+.agent-link--waiting .agent-link__line { stroke: var(--status-waiting); }
+.agent-link--waiting .agent-link__arrow { fill: var(--status-waiting); }
+.agent-link--preview .agent-link__line { stroke: var(--focus); stroke-width: 4px; stroke-dasharray: 8 6; }
+.agent-link--preview .agent-link__arrow { fill: var(--focus); }
 .agent-link--waiting .agent-link__line { stroke-dasharray: 8 6; animation: agent-link-march 1s linear infinite; }
 @keyframes agent-link-march { to { stroke-dashoffset: -14; } }
 .agent-link--selected .agent-link__line { stroke-width: 3px; }
@@ -1647,7 +1649,7 @@ button { border: 0; }
 .ws-list li { display: flex; align-items: center; gap: 10px; min-height: 32px; }
 .ws-list li > span:first-child { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ws-list__state { opacity: .7; font-size: 12px; }
-.ws-chip { flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; font-size: 12px; color: var(--status-done); background: color-mix(in srgb, var(--status-done) 16%, transparent); }
+.ws-chip { flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; font-size: 12px; color: var(--status-working); background: var(--status-working-bg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-working) 40%, transparent); }
 .ws-pick { display: grid; gap: 2px; margin: 0; padding: 0 0 4px; list-style: none; }
 .orch-dialog .orch-form .ws-pick__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 38px; padding: 0 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; }
 .ws-pick__row > span:last-child { color: var(--text-secondary); font-size: 12px; }
@@ -2093,6 +2095,10 @@ button { border: 0; }
 .orch-hint--line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ws-dialog .orch-form__actions { flex-wrap: wrap; }
 .ws-dialog .orch-form__actions button { white-space: nowrap; }
+.ws-dialog .orch-form__actions button[data-ws-browser-go] { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ws-dialog [data-ws-browser-elsewhere] .orch-form__actions { flex-wrap: nowrap; }
+.orch-dialog .ws-list[data-ws-hidden] li > button { flex: 0 0 auto; border: 1px solid var(--border-strong); background: var(--surface-sunken); }
+.orch-dialog .orch-form__actions.ws-hidden__actions { box-shadow: inset 0 1px 0 var(--border); }
 
 /* Card resize (mock 18): eight square markers on the selected card while the pointer is over it, and the size badge during the drag */
 .terminal-card__resize-handle::after { content: ""; position: absolute; width: 12px; height: 12px; box-sizing: border-box; border: 1.5px solid var(--focus); border-radius: 4px; background: var(--surface-3-solid); opacity: 0; pointer-events: none; }
@@ -2103,4 +2109,5 @@ button { border: 0; }
 .terminal-card__resize-handle--e::after, .terminal-card__resize-handle--ne::after, .terminal-card__resize-handle--se::after { right: 0; }
 .terminal-card__resize-handle--w::after, .terminal-card__resize-handle--nw::after, .terminal-card__resize-handle--sw::after { left: 0; }
 :is(.terminal-card, .agent-card, .board-card, .browser-card, .sticky-note-card, .plugin-canvas-card):is(.terminal-card--selected, .agent-card--selected, .board-card--selected, .browser-card--selected, .sticky-note-card--selected, .plugin-canvas-card--selected):hover > .terminal-card__resize-handle::after { opacity: 1; }
+.terminal-card__resize-handle:active::after { background: var(--focus); }
 .resize-size-badge { position: fixed; z-index: 9000; padding: .25em .75em; border-radius: 999px; background: var(--surface-4-solid); box-shadow: inset 0 0 0 1px var(--border-strong), var(--elev-2); color: var(--text-primary); font: 600 12px/1.4 var(--font-mono); pointer-events: none; }

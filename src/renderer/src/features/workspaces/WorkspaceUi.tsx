@@ -243,7 +243,7 @@ function MoveDialog({ controls, orch, locale, layout, item, id, label, onClose }
             </ul>
             <p className="orch-hint">{tk(locale, "wsMoveHistoryStays")}</p>
           </div>
-        ) : <p className="orch-hint" data-ws-move-item>{label}</p>}
+        ) : <p className="orch-hint" data-ws-move-item>{item === "terminal" ? tr(locale, "wsMoveTerminal", { name: label }) : label}</p>}
         {blocked && <div className="orch-hint orch-hint--warn" role="status" data-ws-move-blocked>{t(locale, "orchError_group_active_run")}</div>}
         {targets.length === 0
           ? <p className="orch-hint" data-ws-move-none>{tk(locale, "wsMoveNoTarget")}</p>
@@ -517,7 +517,7 @@ function HiddenDialog({ controls, counts, locale, onClose }: { controls: Workspa
           ))}
         </ul>
         <p className="orch-hint">{tk(locale, "wsHiddenHint")}</p>
-        <div className="orch-form__actions"><button type="button" className="orch-cancel" onClick={onClose}>{tk(locale, "wsHiddenClose")}</button></div>
+        <div className="orch-form__actions ws-hidden__actions"><button type="button" className="orch-cancel" onClick={onClose}>{tk(locale, "wsHiddenClose")}</button></div>
       </div>
     </Dialog>
   );

@@ -206,7 +206,7 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
             ended={view !== null && TERMINAL_STATUSES.includes(view.status)}
             message={ui.messages[card.agentId] ?? null}
             linking={ui.linkingFrom === card.agentId ? "source" : ui.linkingFrom && card.role === "executor" ? "target" : null}
-            offer={preview && card.agentId !== preview.from ? offerOf(card, agents.find((a) => a.card.agentId === preview.from)?.card, orch.canvas.links.some((l) => l.fromAgentId === preview.from && l.toAgentId === card.agentId), dropOver === card.agentId) : null}
+            offer={preview ? card.agentId === preview.from ? "source" : offerOf(card, agents.find((a) => a.card.agentId === preview.from)?.card, orch.canvas.links.some((l) => l.fromAgentId === preview.from && l.toAgentId === card.agentId), dropOver === card.agentId) : null}
             linked={link !== undefined}
             hasRun={!!link?.runIds.length}
             selected={props.groupSelected(layerId)}

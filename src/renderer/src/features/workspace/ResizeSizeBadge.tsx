@@ -11,7 +11,7 @@ export function ResizeSizeBadge(): React.JSX.Element | null {
     const show = (): void => {
       if (!card) return;
       const box = card.getBoundingClientRect();
-      setBadge({ text: `${card.offsetWidth} × ${card.offsetHeight}`, right: box.right, top: box.bottom + 8 });
+      setBadge({ text: `${card.offsetWidth} × ${card.offsetHeight}`, right: box.right, top: box.bottom + 14 });
     };
     const down = (event: PointerEvent): void => {
       if (!(event.target instanceof Element)) return;

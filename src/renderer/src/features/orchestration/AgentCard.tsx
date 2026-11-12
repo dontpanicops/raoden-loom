@@ -30,7 +30,7 @@ interface AgentCardProps {
   message: CardMessage | null;
   linking: "source" | "target" | null; // keyboard/click linking mode
   linked: boolean;
-  offer?: "ok" | "drop" | "dim" | "dim-over" | null; // while a link is dragged from a port (mock 18): fits / under the pointer / other role or folder / the latter under the pointer
+  offer?: "source" | "ok" | "drop" | "dim" | "dim-over" | null; // while a link is dragged from a port (mock 18): fits / under the pointer / other role or folder / the latter under the pointer
   hasRun: boolean;
   selected: boolean;
   snapEnabled: boolean;
