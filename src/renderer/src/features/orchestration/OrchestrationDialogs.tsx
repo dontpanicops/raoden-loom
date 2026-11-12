@@ -528,17 +528,15 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
           )}
         </div>
         <div className="orch-field">
-          <span>{t(locale, "orchGoalCommands")} <small className="orch-field__aside">· {t(locale, "orchGoalCommandsHint")}</small></span>
+          <span title={t(locale, "orchGoalCommandsHint")}>{t(locale, "orchGoalCommands")}</span>
           <GoalRows text={commandsText} onText={(v) => { edited.current = true; setCommandsText(v); }} locale={locale} attr="data-orch-commands" mono label={t(locale, "orchGoalCommands")}
             placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
-          {/* D-025: the shell runs the commands — a risk fact, so it stays visible beside the heading */}
-          <small className="orch-hint orch-hint--sr">{optionalChecks && <span data-orch-commands-optional> · {t(locale, "orchCommandsOptional")}</span>}{commandsText.trim() && !edited.current ? ` ${t(locale, "orchGoalCommandsFilled")}` : ""}</small>
+          {/* D-025: the shell runs the commands — a risk fact; mock 09 has no visible hint, so it is the heading's tooltip and read by screen readers */}
+          <small className="orch-hint orch-hint--sr">{t(locale, "orchGoalCommandsHint")}{optionalChecks && <span data-orch-commands-optional> · {t(locale, "orchCommandsOptional")}</span>}{commandsText.trim() && !edited.current ? ` ${t(locale, "orchGoalCommandsFilled")}` : ""}</small>
           <p className="orch-profile" data-orch-profile={profile.state.kind === "ready" ? (profile.state.info.saved ? "saved" : "suggested") : profile.state.kind}>
             <span className={profile.state.kind === "ready" ? "orch-sr" : undefined}>{profile.state.kind === "ready" ? t(locale, profile.state.info.saved ? "orchProfileSaved" : "orchProfileSuggested")
               : profile.state.kind === "error" ? `${t(locale, "orchProfileFailed")} (${tr(locale, `orchError_${profile.state.code}`)})` : t(locale, "orchLoading")}</span>
-            {" "}{info
-              ? <button type="button" className="orch-linkish" data-orch-open-settings onClick={() => setSettingsOpen(true)}>{t(locale, "orchProfileOpen")}</button>
-              : profile.state.kind === "error" && <button type="button" className="orch-linkish" onClick={profile.reload}>{t(locale, "orchRepeat")}</button>}
+            {" "}{!info && profile.state.kind === "error" && <button type="button" className="orch-linkish" onClick={profile.reload}>{t(locale, "orchRepeat")}</button>}
           </p>
         </div>
         {/* F-c (D-041 p. 5, mock-up 23): who leads, who executes, who reviews — from the link and the journal's version; the words explained on hover */}
@@ -547,7 +545,7 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
             <strong>{t(locale, "orchRolesTitle")}</strong>
             <span data-orch-roles-line><Termed locale={locale} text={`${t(locale, "orchRoleLead")} ${providerName(lead.provider)} · ${t(locale, "orchRoleExecutor")} ${exec ? providerName(exec.provider) : "—"} · ${t(locale, "orchRoleReviewer")} ${optionalChecks ? providerName(lead.provider) : t(locale, "orchRolesNone")}`} /></span>
           </div>
-          {info && <button type="button" data-orch-roles-change onClick={() => setSettingsOpen(true)}>{t(locale, "orchRolesChange")}</button>}
+          {info && <button type="button" data-orch-roles-change data-orch-open-settings onClick={() => setSettingsOpen(true)}>{t(locale, "orchRolesChange")}</button>}
         </div>
         <div className="orch-goal__how">
           <fieldset className="orch-field orch-runmode" data-orch-runmode={mode}>

@@ -288,7 +288,7 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                       {/* §11.6: the risk is in view always — a permission request (amber) and the blocking findings (red) */}
                       {permission && <div className="board-task__risk board-task__risk--ask" data-board-risk="permission">
                         <UiIcon name="status-failed" size="1.15em" />
-                        <span><code>{tr(locale, "boardRiskPermission", { what: permission.summary })}</code>
+                        <span><span data-board-risk-text>{t(locale, "boardRiskPermission").split("{what}")[0]}<code>{permission.summary}</code>{t(locale, "boardRiskPermission").split("{what}")[1] ?? ""}</span>
                           {(permission.why?.text || permission.why?.type) && <small>{`${t(locale, "orchCliWhy")}: ${permission.why?.text || permission.why?.type}`}</small>}</span>
                       </div>}
                       {blocking.length > 0 && <div className="board-task__risk board-task__risk--block" data-board-risk="blocking" title={blocking.map((x) => x.problem).join("\n")}>
