@@ -516,6 +516,31 @@ try {
       await shot("ws-browser-elsewhere"); await esc(); await sleep(300);
       await go(WS.common);
     });
+    // mock 17: the confirmation of deleting an empty space, and the window after «Остановить и скрыть»
+    await scene("ws-delete", async () => {
+      const menuOpen = () => app.ev(`!!${q(".workspace-bar__menu")}`);
+      const name = theme === "sand" ? "Гамма-2" : "Дельта-2";
+      await app.clickEl(q("[data-workspace-new]")); await sleep(500);
+      await app.type(q("[data-ws-title]"), name); await app.clickEl(q("[data-ws-submit]")); await sleep(1500);
+      await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
+      await app.clickEl(q('[data-ws-action="remove"]')); await sleep(700);
+      await app.waitFor(`${q("[data-ws-delete]")} && true`, "the delete dialog", 5000);
+      await shot("ws-delete-empty"); await esc(); await sleep(300);
+      if (await menuOpen()) await app.clickEl(q("[data-workspace-menu]"));
+      // a working session in the same space, then «Скрыть» → «Остановить и скрыть»
+      const sid = (await app.ev(`window.canvasTTY.workspaces.get()`)).workspaces.find((w) => w.title === name).id;
+      await session("claude", `stop-hide-${name}`, "stop-hide-api", elsewhere(3200, 3200), sid); await sleep(2000);
+      await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
+      await app.clickEl(q('[data-ws-action="close"]')); await sleep(900);
+      await app.waitFor(`${q("[data-ws-close-stop]")} && true`, "the stop button", 5000);
+      // the dialog hides the space itself once everything has stopped: the frame is taken right after the click
+      await app.clickEl(q("[data-ws-close-stop]")); await sleep(150);
+      await shot("ws-stop-hide");
+      await sleep(2500);
+      if (await app.ev(`!!${q("[data-ws-close-hide]")}`)) await app.clickEl(q("[data-ws-close-hide]"));
+      await sleep(900);
+      if (await menuOpen()) await app.clickEl(q("[data-workspace-menu]"));
+    });
     // goal dialog and project settings
     await scene("goal", async () => {
       await app.reveal(card(lead.agentId)); await fit();

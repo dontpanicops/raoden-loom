@@ -443,8 +443,10 @@ try {
   // ---------- the removal rules seen from the UI ----------
   await app.clickEl(q("[data-workspace-menu]"));
   await app.clickEl(q('[data-ws-action="remove"]'));
-  await app.waitFor(`${q("[data-ws-message]")} && true`, "removal refused");
-  expect((await text(q("[data-ws-message]"))).length > 0 && (await state()).workspaces.some((w) => w.id === A), "a workspace with cards and history is not removed", await text(q("[data-ws-message]")));
+  await app.waitFor(`${q("[data-ws-delete]")} && true`, "the delete confirmation");
+  await app.clickEl(q("[data-ws-delete-go]"));
+  await app.waitFor(`${q("[data-ws-delete] .dialog-error")} && true`, "removal refused");
+  expect((await text(q("[data-ws-delete] .dialog-error"))).length > 0 && (await state()).workspaces.some((w) => w.id === A), "a workspace with cards and history is not removed", await text(q("[data-ws-delete] .dialog-error")));
 } catch (error) {
   failures.push(`error: ${error?.stack ?? error}`);
   try { await app?.shot("failure"); } catch {}

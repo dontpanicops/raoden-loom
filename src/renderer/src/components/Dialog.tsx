@@ -19,7 +19,7 @@ function popoverStyle(anchor: DOMRect, width: number): React.CSSProperties {
   // a tall card keeps its place and may cover the opener row: it never climbs under the title bar (the effect slides it down)
   return anchor.top > window.innerHeight / 2
     ? { left, width, bottom: window.innerHeight - anchor.top + 10, maxHeight: window.innerHeight - POPOVER_TOP - 12, overflowY: "auto" }
-    : { left, width, top: anchor.bottom + 10, maxHeight: window.innerHeight - anchor.bottom - 10 - 12, overflowY: "auto" };
+    : { left, width, top: anchor.bottom + 10, maxHeight: window.innerHeight - POPOVER_TOP - 12, overflowY: "auto" };
 }
 
 export function Dialog({ label, onClose, children, locale, className = "", backdropClassName = "", anchor = null, width = 420, lead, sub }: {
@@ -47,15 +47,19 @@ export function Dialog({ label, onClose, children, locale, className = "", backd
     return () => { if (back?.isConnected) back.focus({ preventScroll: true }); };
   }, []);
 
-  // a bottom-anchored popover that grows (the YOLO note) slides down over the opener row instead of under the title bar
+  // a popover that grows (the YOLO note) slides up (opened below the opener) or down (opened above it) so it stays inside the window
   useLayoutEffect(() => {
     const node = root.current;
-    const base = node ? parseFloat(node.style.bottom) : Number.NaN;
-    if (!anchor || !node || Number.isNaN(base)) return;
+    if (!anchor || !node) return;
+    const below = node.style.top !== "";
+    const base = parseFloat(below ? node.style.top : node.style.bottom);
+    if (Number.isNaN(base)) return;
     const fit = (): void => {
-      node.style.bottom = `${base}px`;
-      const top = node.getBoundingClientRect().top;
-      if (top < POPOVER_TOP) node.style.bottom = `${Math.max(12, base - (POPOVER_TOP - top))}px`;
+      const edge = below ? "top" : "bottom";
+      node.style[edge] = `${base}px`;
+      const rect = node.getBoundingClientRect();
+      const over = below ? rect.bottom - (window.innerHeight - 12) : POPOVER_TOP - rect.top;
+      if (over > 0) node.style[edge] = `${Math.max(below ? POPOVER_TOP : 12, base - over)}px`;
     };
     fit();
     const observer = new ResizeObserver(fit);

@@ -16,7 +16,6 @@ import {
   CanvasMenuDivider,
   CanvasMenuIcon,
   CanvasMenuKbd,
-  CanvasMenuLabel,
   CanvasMenuRow
 } from "../../components/CanvasMenuPrimitives";
 import {
@@ -201,26 +200,27 @@ export function CanvasContextMenu({
         <>
           <CanvasMenuRow
             icon="pencil"
-            right={<CanvasMenuKbd>R</CanvasMenuKbd>}
             role="menuitem"
             onClick={onRenameRegion}
           >{t(locale, "canvasMenuRenameRegion")}</CanvasMenuRow>
-          <div className="canvas-menu__row canvas-menu__palette-row" role="group" aria-label={t(locale, "canvasRegionColor")}>
+          <div className="canvas-menu__row canvas-menu__color-title" aria-hidden="true">
             <CanvasMenuIcon icon="palette" />
-            <div className="canvas-menu__swatches">
-              {CANVAS_REGION_COLORS.map((color) => (
-                <button
-                  className={`canvas-menu__swatch ${color === currentRegionColor ? "canvas-menu__swatch--selected" : ""}`}
-                  type="button"
-                  role="menuitemradio"
-                  key={color}
-                  style={{ background: color }}
-                  aria-label={`${t(locale, "canvasRegionColor")} ${color}`}
-                  aria-checked={color === currentRegionColor}
-                  onClick={() => onChangeRegionColor(color)}
-                />
-              ))}
-            </div>
+            <span className="canvas-menu__grow">{t(locale, "canvasMenuColor")}</span>
+          </div>
+          <div className="canvas-menu__swatches" role="group" aria-label={t(locale, "canvasRegionColor")}>
+            {/* mock 18: five colors; the region's own color stays among them when it is one of the rest */}
+            {[...CANVAS_REGION_COLORS.slice(0, 5), ...(currentRegionColor && !CANVAS_REGION_COLORS.slice(0, 5).some((c) => c === currentRegionColor) ? [currentRegionColor] : [])].map((color) => (
+              <button
+                className={`canvas-menu__swatch ${color === currentRegionColor ? "canvas-menu__swatch--selected" : ""}`}
+                type="button"
+                role="menuitemradio"
+                key={color}
+                style={{ background: color }}
+                aria-label={`${t(locale, "canvasRegionColor")} ${color}`}
+                aria-checked={color === currentRegionColor}
+                onClick={() => onChangeRegionColor(color)}
+              />
+            ))}
           </div>
           <CanvasMenuRow icon="sticky-note" role="menuitem" onClick={onCreateNote}>
             {t(locale, "canvasMenuNoteInRegion")}
@@ -232,7 +232,7 @@ export function CanvasContextMenu({
           <CanvasMenuRow icon="trash" danger role="menuitem" onClick={onDeleteRegion}>
             {t(locale, "canvasMenuDeleteRegion")}
           </CanvasMenuRow>
-          <CanvasMenuLabel>{t(locale, "canvasMenuRegionContentsStay")}</CanvasMenuLabel>
+          <div className="canvas-menu__note">{t(locale, "canvasMenuRegionContentsStay")}</div>
         </>
       )}
 
