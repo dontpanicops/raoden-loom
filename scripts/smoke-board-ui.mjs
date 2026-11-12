@@ -192,11 +192,14 @@ try {
   await app.waitFor(`${q("[data-orch-permission]")} && true`, "permission prompt", 60_000);
   await closePanel();
   const waiting = await until("T-2", (s) => s.reason === "waits_permission", "T-2 waits for a permission", 30_000);
-  expect(waiting.column === "work" && waiting.line.startsWith("Ждёт разрешения: ls src") && waiting.buttons.includes("Ответить на запрос"),
-    "T-2 at work: «Waits for a permission: <what>», «Answer the request»", waiting);
-  expect(waiting.line.includes(`причина CLI: ${CLI_WHY}`), "the line gives the CLI's reason as it said it", waiting.line);
-  const asksFact = await app.ev(`${q(task("T-2"))}.querySelector("[data-board-facts]")?.textContent ?? ""`);
-  expect(asksFact.includes("вопросов о правах: 1"), "the task counts the permission prompts of its run", asksFact);
+  expect(waiting.column === "work" && waiting.line === "Ждёт вас · агент просит разрешения" && waiting.buttons.includes("Ответить") && waiting.buttons.includes("Открыть запуск"),
+    "T-2 at work: «Waits for a permission», «Answer», «Open the run»", waiting);
+  const risk = await app.ev(`${q(task("T-2"))}.querySelector('[data-board-risk="permission"]')?.textContent ?? ""`);
+  expect(risk.includes("ls src") && risk.includes(`причина CLI: ${CLI_WHY}`), "the permission is in view on the card: what is asked and the CLI's reason as it said it", risk);
+  await app.clickEl(`${q(task("T-2"))}.querySelector("[data-board-more]")`);
+  const asksFact = await app.ev(`${q(task("T-2"))}.querySelector('[data-board-kv="asks"]')?.textContent ?? ""`);
+  expect(asksFact.startsWith("1"), "the task counts the permission prompts of its run under «Details»", asksFact);
+  await app.clickEl(`${q(task("T-2"))}.querySelector("[data-board-more]")`);
   const cardTask = await app.ev(`${q(`[data-agent-id="${exec.agentId}"] [data-agent-task]`)}?.textContent ?? null`);
   expect(cardTask === "T-2 · Модуль two", "the agent card at work shows «T-2 · Модуль two»", cardTask);
   await app.shot("board-05a-waits-permission");
@@ -277,7 +280,8 @@ try {
   const t4Wait = await shown("T-4");
   expect(t4Wait.reason === "waits_permission", "T-4 still waits (the autopilot never answers)", t4Wait);
   // the run started in main reaches the window: the line names the request, the agent card the task, the badge counts it
-  expect(t4Wait.line.startsWith("Ждёт разрешения: ls src"), "T-4's line names the request of the autopilot's run", t4Wait.line);
+  const t4Risk = await app.ev(`${q(task("T-4"))}.querySelector('[data-board-risk="permission"]')?.textContent ?? ""`);
+  expect(t4Wait.line.startsWith("Ждёт вас") && t4Risk.includes("ls src"), "T-4 names the request of the autopilot's run on the card", [t4Wait.line, t4Risk]);
   const cardT4 = await app.ev(`${q(`[data-agent-id="${exec.agentId}"] [data-agent-task]`)}?.textContent ?? null`);
   expect(cardT4 === "T-4 · Модуль four", "the agent card shows the autopilot's task", cardT4);
   expect(lastBadge() >= 1, "the Dock badge counts the autopilot's run waiting for you", lastBadge());

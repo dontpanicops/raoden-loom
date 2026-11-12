@@ -53,9 +53,12 @@ const script = (p, turns) => {
 // board's run has two stages, so its executor is «Работает · этап 1 из 2»; every later plan is the same, for any run that starts
 const cond = (text, covers) => ({ keep: null, text, covers, evidence: { kind: "change", check: null } });
 const plan = (stages) => ({ report: { stages: stages.map(([title, task, covers]) => ({ title, task, conditions: [cond(`${task} сделано`, covers)] })), dropped: [], dropRequirements: [], question: null } });
+// R12d (mock 24): the review of the board's second run (the 4th call of the lead's CLI) finds two blocking problems — «Проверка» shows them
+const finding = (problem) => ({ id: null, severity: "blocking", condition: null, problem, evidence: "src/model.mjs", closeWhen: "исправлено", status: "open", paths: ["src/model.mjs"], relation: null });
+const reviewBlocking = { report: { conditions: [{ id: "C1", status: "not_met", paths: [], note: "модель без миграции" }], findings: [finding("гонка при записи"), finding("нет миграции")], request: "none", question: null } };
 const codexScript = script("codex", [
   plan([["Заметки в Markdown", "Добавить src/notes.mjs", ["R1"]]]), // the run on project-b (its lead asks a question first)
-  ...Array.from({ length: 8 }, () => plan([["Модель заметки", "Добавить src/model.mjs", ["R1"]], ["Экспорт в Markdown", "Добавить src/export.mjs", []]])) // the board's runs, a failing run
+  ...Array.from({ length: 8 }, (_, i) => i === 2 ? reviewBlocking : plan([["Модель заметки", "Добавить src/model.mjs", ["R1"]], ["Экспорт в Markdown", "Добавить src/export.mjs", []]])) // the board's runs, a failing run
 ]);
 fs.writeFileSync(path.join(codexScript, "1.asks.json"), JSON.stringify([{ tool: "question", question: "Какой формат экспорта поддержать первым?", options: ["Markdown", "JSON"] }]));
 const claudeScript = script("claude", Array.from({ length: 6 }, (_, i) => ({ report: { summary: "Готово.", done: true }, writes: [[`src/note${i}.mjs`, "export const x = 1;\n"]] })));
@@ -117,7 +120,7 @@ const measure = async (label) => {
 };
 const WS = { common: "common", alpha: null, beta: null };
 const BETA_SCENES = new Set(["link-executor-left", "link-mode"]);
-const ALPHA_SCENES = new Set(["cards-agents", "goal", "cards-agents-idle", "link-repeat", "link-selected", "zoom-out", "board", "board-waiting", "board-push", "cards-agents-working", "board-newtask"]);
+const ALPHA_SCENES = new Set(["cards-agents", "goal", "cards-agents-idle", "link-repeat", "link-selected", "zoom-out", "board", "board-waiting", "board-push", "cards-agents-working", "board-newtask", "board-expanded"]);
 // the tab of a space is clicked (the renderer follows its own state); the common canvas is the first tab
 const go = async (id) => {
   const st = await app.ev(`window.canvasTTY.workspaces.get()`);
@@ -530,11 +533,34 @@ try {
       await shot("goal-dialog");
       await app.ev(SCROLL_DIALOG); await sleep(400);
       await shot("goal-scrolled");
+      // R12d (mock 23): «Ещё лимиты» opened with «Перепланирований» = 2, then closed again: the row names the value
+      await app.clickEl(`document.querySelector(".orch-limits__more > summary")`); await sleep(300);
+      await app.type(`document.querySelectorAll(".orch-limits__rare input")[1]`, "2");
+      await app.ev(`document.querySelector(".orch-limits").scrollIntoView({ block: "center" })`); await sleep(400);
+      await shot("goal-limits-open");
+      await app.clickEl(`document.querySelector(".orch-limits__more > summary")`); await sleep(300);
+      await app.ev(`document.querySelector(".orch-limits").scrollIntoView({ block: "center" })`); await sleep(300);
+      await shot("goal-limits-set");
+      // R12d (mock 09): «Готовность» at the top of the body: the heading, the verdict and the first rows
+      await app.ev(`(() => { const h = [...document.querySelectorAll(".orch-dialog *")].find((e) => e.children.length === 0 && /^Готовность/.test(e.textContent.trim())); h?.scrollIntoView({ block: "start" }); })()`); await sleep(400);
+      await shot("goal-readiness");
       await app.ev(`(() => { for (const el of document.querySelectorAll(".orch-dialog *")) el.scrollTop = 0; })()`); await sleep(200);
       const ps = await app.ev(`(() => { const b = [...document.querySelectorAll(".orch-dialog button")].find((e) => /Настройки проекта/.test(e.textContent)); if (!b) return false; b.scrollIntoView(); b.click(); return true; })()`);
       if (!ps) { await esc(); throw new Error("no project settings button in the goal dialog"); }
       await sleep(1500);
       await shot("project-settings");
+      // R12d (mock 23): the mouse rests on «Лид» (400 ms), the keyboard is on «.envrc (direnv)»: both explanations are open
+      const hasLeadTerm = await app.ev(`!!document.querySelector('.orch-dialog [data-term="lead"]')`);
+      if (hasLeadTerm) {
+        await app.ev(`(() => { const d = document.querySelector('.orch-dialog [data-term="lead"]'); let el = d; while (el && !(el.scrollHeight > el.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(el).overflowY))) el = el.parentElement;
+          if (el) el.scrollTop += d.getBoundingClientRect().top - 200; })()`); await sleep(300);
+        const c = await app.center(`document.querySelector('.orch-dialog [data-term="lead"]')`);
+        await app.mouse("mouseMoved", c.x, c.y); await sleep(700);
+      }
+      await app.ev(`document.querySelector('.orch-dialog [data-term="direnv"]')?.focus({ preventScroll: true })`); await sleep(400);
+      await shot("term-hints");
+      await app.ev(`document.activeElement?.blur()`);
+      await app.mouse("mouseMoved", 5, 5); await sleep(300);
       await app.ev(SCROLL_DIALOG); await sleep(400);
       await shot("project-settings-scrolled");
       await esc(); await sleep(300); await esc();
@@ -774,6 +800,26 @@ try {
         if (await app.ev(`!!${q("[data-board-menu]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500); }
       });
     }
+
+    // R12d (mock 24): «Подробнее» of the work card (a permission asked) and of the review card (blocking findings) opened, in every theme:
+    // the state of board-waiting stays in the app, the columns of the opened cards grow
+    await scene("board-expanded", async () => {
+      await app.key("Home", "Home", 36); await sleep(500);
+      if (!(await app.ev(`!!${q("[data-board]")}`))) await app.clickEl(q("[data-board-button]"));
+      await app.waitFor(`${q("[data-board]")} && true`, "the board");
+      await app.waitFor(`!!document.querySelector('[data-board-task="T-1"] [data-board-more]')`, "the work card", 20_000);
+        // R12d (mock 24): the work card's «Подробнее» opened — the pairs inside the card, the risk and the actions stay in view
+        await app.ev(`document.querySelector('[data-board-task="T-1"] [data-board-more]').click()`);
+        await app.ev(`document.querySelector('[data-board-task="T-3"] [data-board-more]')?.click()`); await sleep(700);
+        const rx = await app.ev(`(() => { const els = ["[data-board]", "[data-board-aside]"].map((x) => document.querySelector(x)).filter(Boolean).map((e) => e.getBoundingClientRect());
+          const x = Math.min(...els.map((b) => b.left)), y = Math.min(...els.map((b) => b.top)); return { x, y, width: Math.max(...els.map((b) => b.right)) - x, height: Math.max(...els.map((b) => b.bottom)) - y }; })()`);
+        const dx = await app.call("Page.captureScreenshot", { format: "png", clip: { ...rx, scale: 2 } });
+        fs.writeFileSync(path.join(OUT, `${theme}-board-expanded.png`), Buffer.from(dx.data, "base64"));
+        console.log(`[shots-r5] clip ${theme}-board-expanded`);
+        await app.ev(`document.querySelector('[data-board-task="T-1"] [data-board-more]').click()`);
+        await app.ev(`document.querySelector('[data-board-task="T-3"] [data-board-more]')?.click()`); await sleep(300);
+      if (await app.ev(`!!${q("[data-board-menu]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500); }
+    });
 
     // R9: the «new task» form of the board (font measure and a frame)
     await scene("board-newtask", async () => {
