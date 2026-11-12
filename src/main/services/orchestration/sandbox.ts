@@ -438,8 +438,8 @@ export interface CheckSandboxPaths {
 export const CACHE_ENV = ["npm_config_cache", "XDG_CACHE_HOME", "PIP_CACHE_DIR", "UV_CACHE_DIR", "GOCACHE", "YARN_CACHE_FOLDER", "npm_config_store_dir", "PLAYWRIGHT_BROWSERS_PATH"];
 // review M1: with the network open, what the check can read it can send — the environment's secrets are not passed
 const SECRET_ENV = /TOKEN|SECRET|KEY|PASS|PWD|AUTH|CREDENTIAL|COOKIE|SESSION|DSN|(?:^|_)PAT(?:$|_)/i;
-// a value with a password in a URL (scheme://user:secret@host), whatever the variable is called
-const SECRET_VALUE = /:\/\/[^/\s:@]+:[^/\s@]+@/;
+// a value with any userinfo in a URL (scheme://user:secret@host, scheme://token@host), whatever the variable is called
+const SECRET_VALUE = /[a-z][a-z0-9+.-]*:\/\/[^/\s@]+@/i;
 
 // The environment of a sandboxed check: its own TMPDIR; with outside, the caches inside it and no secret-looking variable
 export function checkEnv(env: Readonly<Record<string, string>>, tmp: string, outside = false): Record<string, string> {
