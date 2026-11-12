@@ -143,7 +143,7 @@ async function renderer() { // the built RunPanel to static markup (as tests/orc
 }
 // R5h-A: the states whose frame needs what the panel loads by itself (the result to take, the changed files): drawn by the real
 // RunPanel in the page, with the application's API answered by the fixture, and waited for until nothing says «Загрузка…»
-const LIVE_FIXTURES = ["08-outcome-unknown", "15-lead-modified-tree", "17-completed", "18-failed"];
+const LIVE_FIXTURES = ["08-outcome-unknown", "15-lead-modified-tree", "17-completed", "18-failed", "19-newer-readonly", "20-newer-fallback"];
 const TAKE = { mode: "worktree", from: "checkpoint", stage: 2, files: 3, allowed: true, suggested: "raoden/notes-api-25931336", runBranch: "feat/notes", branch: null, applied: null };
 const CHANGES = { base: "baseline", at: "live_snapshot", atTs: "2026-11-11T10:31:00.000Z", truncated: false, checkpoints: [], baselineRef: "base", transferred: false,
   files: [{ path: "src/api/notes.ts", status: "added" }, { path: "src/api/notes.test.ts", status: "added" }, { path: "src/index.ts", status: "modified" }] };
@@ -202,7 +202,7 @@ const fixtureOf0 = ([, set, o]) => {
     { step: "commit", asked: true, status: "done", established: true, commit: "a1b2c3d4e5f60718", evidence: null },
     { step: "push", asked: true, status: "unconfirmed", established: false, commit: "a1b2c3d4e5f60718", evidence: null }] } }), entries: [], onMac: true };
   if (set) return fixture(set === "finish_unconfirmed" ? "awaiting_finish_confirmation" : set);
-  if (o.newerV) return { view: view("paused", "user_request", { stage: 2, newer: o.newerV }), entries: [], onMac: true };
+  if (o.newerV) return { view: view("paused", "user_request", { stage: 2, newer: o.newerV }), entries: [], records: RECORDS_17, onMac: true };
   if (o.running) return { view: view("running", null, o.running), entries: [], onMac: true };
   if (o.completed) return { view: view("completed", null, { stage: 2, turns: 22, workMode: "worktree", workDir: "~/dev/project-b", completion: { kind: "confirmed" }, progress: { ...PROGRESS_17, budget: budget({ used: { turns: 22, replans: 0 } }) } }),
     entries: [{ id: 1, ts: at(1), runId: "r", role: "lead", provider: "codex", turnId: null, kind: "session", text: "", detail: { reported: true, sandbox: "read-only", model: "gpt-5" } },
@@ -274,7 +274,7 @@ try {
     const drawLive = async (name, f, theme, scale) => {
       const file = D(`page-live-${name}.html`);
       const api = `const ok = (value) => Promise.resolve({ ok: true, value }); const none = () => Promise.resolve({ ok: false, error: { code: "fixture" } });
-        window.__fxApi = new Proxy({}, { get: () => new Proxy({ take: () => ok(${JSON.stringify(TAKE)}), changes: () => ok(${JSON.stringify(CHANGES)}) }, { get: (t, k) => t[k] ?? none }) });`;
+        window.__fxApi = new Proxy({}, { get: () => new Proxy({ take: () => ok(${JSON.stringify(TAKE)}), changes: () => ok(${JSON.stringify(CHANGES)}), history: () => ok({ records: ${JSON.stringify(f.records ?? [])}, more: false }) }, { get: (t, k) => t[k] ?? none }) });`;
       fs.writeFileSync(file, `<!doctype html><html lang="ru"><head><meta charset="utf-8"><link rel="stylesheet" href="${css}"></head>
 <body style="margin:0"><div class="app app--${theme} app--macos" style="--ui-scale:${scale};position:fixed;inset:0"><div class="workspace" style="position:absolute;inset:0"><div id="root"></div></div></div>
 <script>${api}</script><script src="${pathToFileURL(D("panel.js")).href}"></script><script>window.__mount(${JSON.stringify(render.props(f))});</script></body></html>`);

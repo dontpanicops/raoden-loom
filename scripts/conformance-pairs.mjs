@@ -38,16 +38,14 @@ const cut = (src, c, dst) => {
   let d;
   try { if (!fs.statSync(src).size) return "пустой файл"; d = dims(src); } catch (e) { return `не читается: ${String(e.message).split("\n")[0]}`; }
   if (!d.w || !d.h) return "пустой кадр";
-  const r = c ?? { x: 0, y: 0, w: d.w, h: d.h };
+  let r = c ?? { x: 0, y: 0, w: d.w, h: d.h };
   if (r.x < 0 || r.y < 0 || r.x + r.w > d.w || r.y + r.h > d.h) return `кадр ${d.w}×${d.h} меньше вырезки ${JSON.stringify(r)}`;
   const tmp = tmpOf(src);
-  // sips ignores the crop when it touches the bottom edge at x = 0 (y + h = height): crop the flipped image from the top instead
-  const flip = r.x === 0 && r.y > 0 && r.y + r.h === d.h;
-  if (flip) {
-    sips("-f", "vertical", src, "--out", tmp);
-    sips("-c", String(r.h), String(r.w), "--cropOffset", "0", "0", tmp, "--out", tmp);
-    sips("-f", "vertical", tmp, "--out", tmp);
-  } else sips("-c", String(r.h), String(r.w), "--cropOffset", String(r.y), String(r.x), src, "--out", tmp);
+  // sips ignores the crop when it touches the bottom edge at x = 0 (y + h = height; a crop at offset 0 0 of a flipped image is a centre crop,
+  // so flipping does not help): the crop starts one pixel to the right and is one pixel narrower
+  const shift = r.x === 0 && r.y > 0 && r.y + r.h === d.h ? 1 : 0;
+  r = { ...r, x: r.x + shift, w: r.w - shift };
+  sips("-c", String(r.h), String(r.w), "--cropOffset", String(r.y), String(r.x), src, "--out", tmp);
   dimsCache.delete(tmp);
   const got = dims(tmp);
   dimsCache.delete(tmp);

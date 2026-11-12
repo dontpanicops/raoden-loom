@@ -111,6 +111,12 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
   const [pushOptions, setPushOptions] = useState((info.profile.runPush?.options ?? []).join("\n"));
   const [pushProtected, setPushProtected] = useState((info.profile.runPush?.protected ?? []).join("\n"));
   const [confirmPush, setConfirmPush] = useState(false);
+  const [protectedDraft, setProtectedDraft] = useState("");
+  const addProtected = (): void => {
+    const b = protectedDraft.trim().replace(/,$/, "");
+    setProtectedDraft("");
+    if (b && !pushProtected.split("\n").map((x) => x.trim()).includes(b)) setPushProtected((cur) => (cur.trim() ? `${cur.trim()}\n${b}` : b));
+  };
   const lines = (text: string) => text.split("\n").map((x) => x.trim()).filter(Boolean);
   const savedPush = info.saved ? info.profile.runPush : undefined;
   // the address main reads and saves (insteadOf, pushurl), not the raw remote.<name>.url; null: not read
@@ -149,7 +155,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
       checks: checks.split("\n").map((c) => c.trim()).filter(Boolean),
       prepare: { ...p.prepare, steps: parseSteps(steps) },
       finish: { ...p.finish, qa: qaOn ? { environment: qa.environment.trim(), command: qa.command.trim(), verify: qa.verify.trim(), reportsVersion: !!qa.reportsVersion } : null },
-      ...(p.runPush ? { runPush: { ...p.runPush, options: lines(pushOptions), protected: lines(pushProtected) } } : {})
+      ...(p.runPush || lines(pushOptions).length || lines(pushProtected).length ? { runPush: { remote: info.facts.remotes[0]?.name ?? "origin", remoteUrl: null, enabled: false, confirmedAt: null, ...p.runPush, options: lines(pushOptions), protected: lines(pushProtected) } } : {})
     };
     setBusy(true);
     setError(null);
@@ -229,12 +235,51 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
               refuses them in another mode (work_mode_not_worktree, remote_base_mode) and reads the remote's address.
               F4 (§10): «The autopilot pushes» — off by default; the confirmation shows the remote, its address and the options as they are */}
           <Card title={t(locale, "projCardPush")} data-orch-settings-branches>
-            <label className="orch-field">
+            {/* mock 15: Remote, the branch template, the options, the protected branches, the autopilot — one column of rows */}
+            <label className="orch-field orch-field--line">
+              <span>{t(locale, "projPushRemote")}</span>
+              <select value={p.runPush?.remote ?? info.facts.remotes[0]?.name ?? "origin"} data-orch-settings-run-push-remote
+                onChange={(e) => set({ runPush: { remoteUrl: null, options: [], protected: [], confirmedAt: null, enabled: false, ...p.runPush, remote: e.target.value } })}>
+                {[...new Set([p.runPush?.remote ?? info.facts.remotes[0]?.name ?? "origin", ...info.facts.remotes.map((r) => r.name)])].map((name) => <option key={name} value={name}>{info.facts.remotes.find((r) => r.name === name)?.url ? `${name} · ${info.facts.remotes.find((r) => r.name === name)!.url}` : name}</option>)}
+              </select>
+            </label>
+            <label className="orch-field orch-field--line">
               <span>{t(locale, "projBranchTemplate")}</span>
               <input value={p.branchTemplate ?? ""} spellCheck={false} placeholder="{ref}" data-orch-settings-branch-template
                 onChange={(e) => setP((cur) => { const { branchTemplate: _was, ...rest } = cur; return e.target.value ? { ...rest, branchTemplate: e.target.value } : rest; })} />
               <small className="orch-hint">{t(locale, "projBranchTemplateHint")}</small>
             </label>
+            <label className="orch-field">
+              <span>{t(locale, "projRunPushOptions")}</span>
+              <textarea rows={3} value={pushOptions} spellCheck={false} data-orch-settings-run-push-options onChange={(e) => setPushOptions(e.target.value)} />
+            </label>
+            <div className="orch-field" data-orch-settings-run-push-protected>
+              <span>{t(locale, "projRunPushProtected")}</span>
+              <span className="orch-chips">
+                {lines(pushProtected).map((b) => (
+                  <span key={b} className="orch-chip"><code>{b}</code>
+                    <button type="button" aria-label={`${t(locale, "orchGoalRowRemove")} ${b}`} onClick={() => setPushProtected(lines(pushProtected).filter((x) => x !== b).join("\n"))}>×</button></span>
+                ))}
+                <input value={protectedDraft} spellCheck={false} placeholder={t(locale, "projPushProtectedAdd")} data-orch-settings-run-push-protected-add
+                  onChange={(e) => setProtectedDraft(e.target.value)} onBlur={addProtected}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addProtected(); } }} />
+              </span>
+            </div>
+            {pushAsks && (
+              <label className="orch-check" data-orch-push-confirm>
+                <input type="checkbox" checked={confirmPush} disabled={pushUrl === null} onChange={(e) => setConfirmPush(e.target.checked)} />
+                <span>{t(locale, "projRunPushConfirm").replace("{remote}", () => p.runPush!.remote).replace("{url}", () => pushUrl ?? t(locale, "projRunPushUrlUnread")).replace("{options}", () => lines(pushOptions).join(" ") || "—")}</span>
+              </label>
+            )}
+            <div className="orch-field" data-orch-settings-run-push>
+              <label className="orch-check">
+                <input type="checkbox" checked={!!p.runPush?.enabled} data-orch-settings-run-push-enabled
+                  onChange={(e) => set({ runPush: { remote: info.facts.remotes[0]?.name ?? "origin", remoteUrl: null, options: [], protected: [], confirmedAt: null, ...p.runPush, enabled: e.target.checked } })} />
+                <span>{t(locale, "projRunPush")}</span>
+              </label>
+              <small className="orch-hint">{t(locale, "projRunPushHint")}</small>
+            </div>
+            {/* F3 (§10): the remote base of a board task's run (worktree only; main reads the remote's address) */}
             <label className="orch-field">
               <span>{t(locale, "projRunBase")}</span>
               <span className="orch-field__row">
@@ -250,35 +295,6 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
               </span>
               {p.runBase?.remoteUrl && <small className="orch-hint" data-orch-settings-run-base-url>{t(locale, "projRunBaseUrl")}: <code>{p.runBase.remoteUrl}</code></small>}
             </label>
-            <div className="orch-field" data-orch-settings-run-push>
-              <label className="orch-check">
-                <input type="checkbox" checked={!!p.runPush?.enabled} data-orch-settings-run-push-enabled
-                  onChange={(e) => set({ runPush: { remote: info.facts.remotes[0]?.name ?? "origin", remoteUrl: null, options: [], protected: [], confirmedAt: null, ...p.runPush, enabled: e.target.checked } })} />
-                <span>{t(locale, "projRunPush")}</span>
-              </label>
-              <small className="orch-hint">{t(locale, "projRunPushHint")}</small>
-              {p.runPush && (
-                <>
-                  <select value={p.runPush.remote} data-orch-settings-run-push-remote onChange={(e) => set({ runPush: { ...p.runPush!, remote: e.target.value } })}>
-                    {[...new Set([p.runPush.remote, ...info.facts.remotes.map((r) => r.name)])].map((name) => <option key={name} value={name}>{name}</option>)}
-                  </select>
-                  <label className="orch-field">
-                    <span>{t(locale, "projRunPushOptions")}</span>
-                    <textarea rows={3} value={pushOptions} spellCheck={false} data-orch-settings-run-push-options onChange={(e) => setPushOptions(e.target.value)} />
-                  </label>
-                  <label className="orch-field">
-                    <span>{t(locale, "projRunPushProtected")}</span>
-                    <textarea rows={2} value={pushProtected} spellCheck={false} data-orch-settings-run-push-protected onChange={(e) => setPushProtected(e.target.value)} />
-                  </label>
-                </>
-              )}
-              {pushAsks && (
-                <label className="orch-check" data-orch-push-confirm>
-                  <input type="checkbox" checked={confirmPush} disabled={pushUrl === null} onChange={(e) => setConfirmPush(e.target.checked)} />
-                  <span>{t(locale, "projRunPushConfirm").replace("{remote}", () => p.runPush!.remote).replace("{url}", () => pushUrl ?? t(locale, "projRunPushUrlUnread")).replace("{options}", () => lines(pushOptions).join(" ") || "—")}</span>
-                </label>
-              )}
-            </div>
           </Card>
           <div className="orch-settings__stack">
           {/* F4 (§10, T-9, T-14): the review export of a board task's run, and the runs without MCP */}

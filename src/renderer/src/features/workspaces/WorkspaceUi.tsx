@@ -394,9 +394,9 @@ export function CloseDialog({ controls, orch, locale, id, onClose, onOpenRun }: 
   };
   const w = controls.state.workspaces.find((x) => x.id === id);
   return (
-    <Dialog label={tr(locale, "wsCloseTitle", { name: workspaceTitle(locale, w) })} onClose={onClose} locale={locale} className="ws-dialog">
+    <Dialog label={tr(locale, stops ? "wsStopTitle" : "wsCloseTitle", { name: workspaceTitle(locale, w) })} onClose={onClose} locale={locale} className="ws-dialog">
       <div className="orch-form" data-ws-close>
-        <p className="orch-hint">{tk(locale, "wsCloseWork")}</p>
+        {!stops && <p className="orch-hint">{tk(locale, "wsCloseWork")}</p>}
         <ul className="ws-list">
           {runs.map((r) => row(`run:${r}`, tr(locale, "wsCloseRun", { project: folderName(orch.canvas.agents.find((a) => a.agentId === orch.canvas.links.find((l) => l.runIds.includes(r))?.fromAgentId)?.project ?? ""), id: r.slice(0, 8) }), () => { onOpenRun(r); onClose(); }, unknownOf(r)))}
           {terms.map((s) => row(`term:${s.id}`, tr(locale, "wsCloseTerminal", { title: s.title }), () => {

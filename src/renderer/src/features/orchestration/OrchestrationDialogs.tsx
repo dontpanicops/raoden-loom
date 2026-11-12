@@ -245,8 +245,7 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
         <strong>{t(locale, "orchReadyTitle")}</strong>
         {state.kind === "ready" && (
           <p className={`orch-ready__summary${blockers ? " orch-ready__summary--blocked" : ""}`} data-orch-ready-summary={blockers ? "blocked" : warnings ? "warnings" : "ok"}>
-            {t(locale, "orchReadySummary").replace("{blockers}", String(blockers)).replace("{warnings}", String(warnings))}{" "}
-            {t(locale, blockers ? "orchReadySummaryBlocked" : "orchReadySummaryCan")}
+            {blockers ? t(locale, "orchReadySummaryBlocked").replace("{blockers}", String(blockers)) : warnings ? t(locale, "orchReadySummary").replace("{warnings}", String(warnings)) : t(locale, "orchReadySummaryOk")}
           </p>
         )}
       </div>
@@ -366,6 +365,7 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
   const [finish, setFinish] = useState<{ commit: boolean; push: boolean; qa: boolean }>({ commit: false, push: false, qa: false });
   const suggest = useCallback((lines: string[]) => { if (!edited.current) setCommandsText((cur) => cur || lines.join("\n")); }, []);
   const [limits, setLimits] = useState<Record<string, string>>({});
+  const [moreLimits, setMoreLimits] = useState(false);
   const [reviewPlan, setReviewPlan] = useState(false);
   const [models, setModels] = useState<OrchestrationRoleModels>(NO_MODELS);
   // a CLI without the project's rights mode, run «as in my terminal» for this run only (confirmed in the readiness)
@@ -470,11 +470,13 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
   const advSummary = [tr(locale, `orchWorkMode_${workMode}`), acc && `${t(locale, "orchAdvRights")}: ${rightsShort}`,
     optionalChecks && `${t(locale, "orchAdvModels")}: ${t(locale, modelsSet ? "orchAdvModelsSet" : "orchModelCli")}`,
     chosen && `${t(locale, "orchAdvAfter")}: ${after}`].filter(Boolean).join(" · ");
+  // «Ещё лимиты · перепланирований 2»: the value of a rare limit stays visible while the row is closed
+  const rareSet = RARE_LIMITS.filter((kind) => limits[kind]?.trim()).map((kind) => `${t(locale, `orchLimit_${kind}` as TranslationKey).toLowerCase()} ${limits[kind]!.trim()}`).join(", ");
   const limitField = (kind: OrchestrationLimitKind): React.JSX.Element => (
     <label key={kind}>
-      <input type="number" min={1} step={1} inputMode="numeric" value={limits[kind] ?? ""}
-        onChange={(e) => setLimits((cur) => ({ ...cur, [kind]: e.target.value }))} />
       <span>{t(locale, `orchLimit_${kind}` as TranslationKey)}</span>
+      <input type="number" min={1} step={1} inputMode="numeric" placeholder={t(locale, "orchLimitNone")} value={limits[kind] ?? ""}
+        onChange={(e) => setLimits((cur) => ({ ...cur, [kind]: e.target.value }))} />
     </label>
   );
   return (
@@ -499,13 +501,6 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
             <label><input type="radio" name="goal-base" checked={!fromBranch} onChange={() => setFromBranch(false)} data-goal-base-folder /> {t(locale, "goalBaseFolder")}</label>
           </fieldset>
         )}
-        <p className="orch-profile" data-orch-profile={profile.state.kind === "ready" ? (profile.state.info.saved ? "saved" : "suggested") : profile.state.kind}>
-          {profile.state.kind === "ready" ? t(locale, profile.state.info.saved ? "orchProfileSaved" : "orchProfileSuggested")
-            : profile.state.kind === "error" ? `${t(locale, "orchProfileFailed")} (${tr(locale, `orchError_${profile.state.code}`)})` : t(locale, "orchLoading")}
-          {" "}{info
-            ? <button type="button" className="orch-linkish" data-orch-open-settings onClick={() => setSettingsOpen(true)}>{t(locale, "orchProfileOpen")}</button>
-            : profile.state.kind === "error" && <button type="button" className="orch-linkish" onClick={profile.reload}>{t(locale, "orchRepeat")}</button>}
-        </p>
         <label className="orch-field">
           <span>{t(locale, "orchGoalTask")}</span>
           <textarea autoFocus rows={3} value={text} placeholder={t(locale, "orchGoalTaskPlaceholder")} onChange={(e) => setText(e.target.value)} />
@@ -531,6 +526,13 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
             placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
           {/* D-025: one line — the shell runs the commands (a risk fact); the headings already say the rest */}
           <small className="orch-hint">{t(locale, "orchGoalCommandsHint")}{optionalChecks && <span data-orch-commands-optional> · {t(locale, "orchCommandsOptional")}</span>}{commandsText.trim() && !edited.current ? ` ${t(locale, "orchGoalCommandsFilled")}` : ""}</small>
+          <p className="orch-profile" data-orch-profile={profile.state.kind === "ready" ? (profile.state.info.saved ? "saved" : "suggested") : profile.state.kind}>
+            {profile.state.kind === "ready" ? t(locale, profile.state.info.saved ? "orchProfileSaved" : "orchProfileSuggested")
+              : profile.state.kind === "error" ? `${t(locale, "orchProfileFailed")} (${tr(locale, `orchError_${profile.state.code}`)})` : t(locale, "orchLoading")}
+            {" "}{info
+              ? <button type="button" className="orch-linkish" data-orch-open-settings onClick={() => setSettingsOpen(true)}>{t(locale, "orchProfileOpen")}</button>
+              : profile.state.kind === "error" && <button type="button" className="orch-linkish" onClick={profile.reload}>{t(locale, "orchRepeat")}</button>}
+          </p>
         </div>
         <div className="orch-goal__how">
           <fieldset className="orch-field orch-runmode" data-orch-runmode={mode}>
@@ -545,10 +547,11 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
           <fieldset className="orch-field orch-limits">
             <legend>{t(locale, "orchGoalLimits")}</legend>
             {LIMITS.filter((kind) => !RARE_LIMITS.includes(kind)).map(limitField)}
-            {/* mock 09: two fields in view; the rare limits open under «More limits», open at once when one is filled */}
-            <details className="orch-limits__more" open={RARE_LIMITS.some((kind) => !!limits[kind]?.trim()) || undefined}>
-              <summary>{t(locale, "orchLimitsMore")}</summary>
+            {/* mock 09, 23: two fields in view; the rare limits open under «More limits»; closed, the row names what is set there */}
+            <details className="orch-limits__more" open={moreLimits} onToggle={(e) => setMoreLimits(e.currentTarget.open)}>
+              <summary>{t(locale, "orchLimitsMore")}{!moreLimits && rareSet ? ` · ${rareSet}` : ""}</summary>
               <div className="orch-limits__rare">{RARE_LIMITS.map(limitField)}</div>
+              <small className="orch-hint orch-limits__note">{t(locale, "orchLimitsRareNote")}</small>
             </details>
           </fieldset>
         </div>

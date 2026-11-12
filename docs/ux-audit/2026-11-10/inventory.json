@@ -1063,11 +1063,11 @@
    "mock": "22-menu-banner",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 776, "w": 560, "h": 90 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-overlay-banner-two.png" },
+   "appCrop": { "x": 440, "y": 2, "w": 560, "h": 92 },
    "scale": "100%",
    "data": "ждущий и упавший — две строки",
-   "notes": "в стенде нет упавшего запуска с баннером; без нового фикстурного запуска сцену не снять",
-   "missing": "сцена баннера с ждущим и упавшим запуском"
+   "notes": "упавшую строку добавляет хук драйвера canvastty:banner (в стенде нет упавшего запуска); ждущая — настоящий запуск"
   },
   {
    "id": "17-create",
@@ -1111,11 +1111,11 @@
    "mock": "17-workspaces",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 321, "w": 420, "h": 298 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-stop-hide.png" },
+   "appCrop": { "x": 500, "y": 340, "w": 440, "h": 266 },
    "scale": "100%",
    "data": "«Остановить всё и скрыть»: ход остановки по пунктам",
-   "notes": "fake-терминал останавливается мгновенно, диалог скрывает пространство до кадра; состояние «идёт остановка» не снять",
-   "missing": "сцена «Остановить всё и скрыть» с идущей остановкой"
+   "notes": "остановка терминала задержана на 4 с (CANVASTTY_SMOKE_STOP_DELAY_MS, только изолированный запуск); в стенде один пункт, в макете три"
   },
   {
    "id": "17-delete",
@@ -1296,7 +1296,8 @@
    "appCrop": { "x": 1395, "y": 0, "w": 389, "h": 250 },
    "scale": "100% (кадр 2×)",
    "data": "отчёт импорта из inbox",
-   "notes": "кадр — вырезка доски 2× (ширина зависит от боковой панели)"
+   "notes": "кадр — вырезка доски 2× (ширина зависит от боковой панели)",
+   "skip": "заменено макетом 24 (SPEC §11.6): строка 24-import-report"
   },
   {
    "id": "08-autopilot",
@@ -1315,9 +1316,9 @@
    "zone": "Z5",
    "mock": "08-board",
    "themes": ["sand"],
-   "mockCrop": { "x": 46, "y": 110, "w": 240, "h": 694 },
+   "mockCrop": { "x": 46, "y": 110, "w": 240, "h": 520 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-board-queue.png" },
-   "appCrop": { "x": 10, "y": 70, "w": 335, "h": 620 },
+   "appCrop": { "x": 10, "y": 50, "w": 320, "h": 690 },
    "scale": "100% (кадр 2×)",
    "data": "колонка «Очередь»",
    "notes": "сцена снимается один раз, в первой теме"
@@ -1329,7 +1330,7 @@
    "themes": ["sand"],
    "mockCrop": { "x": 298, "y": 110, "w": 480, "h": 214 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-board-states.png" },
-   "appCrop": { "x": 355, "y": 90, "w": 680, "h": 400 },
+   "appCrop": { "x": 355, "y": 90, "w": 640, "h": 285 },
    "scale": "100% (кадр 2×)",
    "data": "«Работа» и «Проверка»: карточка ждёт решения",
    "notes": "сцена снимается один раз, в первой теме"
@@ -1339,11 +1340,10 @@
    "zone": "Z5",
    "mock": "08-board",
    "themes": ["sand", "paper", "frost"],
-   "mockCrop": { "x": 58, "y": 338, "w": 216, "h": 244 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-board-push.png" },
-   "appCrop": { "x": 10, "y": 460, "w": 320, "h": 286 },
+   "mockCrop": { "x": 56, "y": 336, "w": 220, "h": 248 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-board-push-card.png" },
    "scale": "100% (кадр 2×)",
-   "data": "красная карточка в «Очереди»: нет поля для push option",
+   "data": "красная карточка в «Очереди» (свой кадр карточки): нет поля для push option",
    "notes": ""
   },
   {
@@ -1388,11 +1388,11 @@
    "mock": "09-goal-dialog",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 410, "y": 672, "w": 620, "h": 132 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-goal-readiness.png" },
+   "appCrop": { "x": 400, "y": 150, "w": 640, "h": 300 },
    "scale": "100%",
    "data": "блок «Готовность»",
-   "notes": "",
-   "missing": "сцена goal-dialog с прокруткой до «Готовности»"
+   "notes": ""
   },
   {
    "id": "23-term-hints",
@@ -1400,11 +1400,11 @@
    "mock": "23-hints-limits",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 104, "w": 600, "h": 320 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-term-hints.png" },
+   "appCrop": { "x": 150, "y": 140, "w": 1140, "h": 600 },
    "scale": "100%",
    "data": "пояснения терминов: «Лид» наведением, «.envrc (direnv)» фокусом",
-   "notes": "",
-   "missing": "сцена с открытой подсказкой термина (наведение и фокус)"
+   "notes": ""
   },
   {
    "id": "23-limits-closed",
@@ -1413,7 +1413,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 575, "w": 420, "h": 230 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-goal-dialog.png" },
-   "appCrop": { "x": 395, "y": 760, "w": 650, "h": 120 },
+   "appCrop": { "x": 400, "y": 660, "w": 640, "h": 215 },
    "scale": "100%",
    "data": "«Ходы», «Минут на запуск», «Ещё лимиты» закрыто",
    "notes": ""
@@ -1424,20 +1424,20 @@
    "mock": "23-hints-limits",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 520, "y": 575, "w": 420, "h": 315 },
-   "scene": null,
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-goal-limits-open.png" },
+   "appCrop": { "x": 400, "y": 370, "w": 640, "h": 260 },
    "scale": "100%",
    "data": "«Ещё лимиты» раскрыто: раунды, перепланирования",
-   "notes": "",
-   "missing": "сцена диалога цели с раскрытым «Ещё лимиты»"
+   "notes": ""
   },
   {
    "id": "24-task-collapsed",
    "zone": "Z5",
    "mock": "24-board-more",
    "themes": ["sand"],
-   "mockCrop": { "x": 56, "y": 105, "w": 340, "h": 375 },
+   "mockCrop": { "x": 56, "y": 105, "w": 340, "h": 400 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-board-states.png" },
-   "appCrop": { "x": 355, "y": 90, "w": 340, "h": 400 },
+   "appCrop": { "x": 355, "y": 90, "w": 453, "h": 533 },
    "scale": "100% (кадр 2×)",
    "data": "свёрнутые карточки «Работы»: суть строкой, риск на виду, «Подробнее ▾»",
    "notes": "сцена снимается один раз, в первой теме"
@@ -1447,24 +1447,24 @@
    "zone": "Z5",
    "mock": "24-board-more",
    "themes": ["sand", "paper", "frost"],
-   "mockCrop": { "x": 416, "y": 105, "w": 340, "h": 560 },
-   "scene": null,
-   "scale": "100%",
+   "mockCrop": { "x": 416, "y": 105, "w": 340, "h": 472 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-board-expanded.png" },
+   "appCrop": { "x": 262, "y": 50, "w": 453, "h": 630 },
+   "scale": "100% (кадр 2×)",
    "data": "раскрытая карточка: критерии, блокирующие, пересечения, вызовы, токены",
-   "notes": "",
-   "missing": "сцена доски с раскрытым «Подробнее»"
+   "notes": "кадр — вырезка доски 2× (ширина зависит от боковой панели); состояние board-waiting остаётся в приложении"
   },
   {
    "id": "24-review-blocking",
    "zone": "Z5",
    "mock": "24-board-more",
    "themes": ["sand", "paper", "frost"],
-   "mockCrop": { "x": 776, "y": 105, "w": 340, "h": 585 },
-   "scene": null,
-   "scale": "100%",
+   "mockCrop": { "x": 776, "y": 105, "w": 340, "h": 472 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-board-expanded.png" },
+   "appCrop": { "x": 692, "y": 50, "w": 453, "h": 630 },
+   "scale": "100% (кадр 2×)",
    "data": "«Проверка» с блокирующими замечаниями",
-   "notes": "",
-   "missing": "сцена задачи в «Проверке» с блокирующими замечаниями ревью"
+   "notes": "кадр — вырезка доски 2× (ширина зависит от боковой панели); состояние board-waiting остаётся в приложении"
   },
   {
    "id": "24-import-report",
@@ -1473,7 +1473,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 1136, "y": 104, "w": 260, "h": 285 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-board-report.png" },
-   "appCrop": { "x": 1395, "y": 0, "w": 389, "h": 250 },
+   "appCrop": { "x": 1395, "y": 0, "w": 389, "h": 470 },
    "scale": "100% (кадр 2×)",
    "data": "отчёт импорта: строка на задачу (+ = ~ !), итог",
    "notes": ""
@@ -1843,11 +1843,11 @@
    "mock": "15-project-settings",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 174, "y": 555, "w": 1092, "h": 405 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-project-settings-scrolled.png" },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-project-settings-push.png" },
    "appCrop": { "x": 175, "y": 150, "w": 1100, "h": 408 },
    "scale": "100%",
    "data": "Push, выгрузка ревью, MCP и окружение",
-   "notes": "в приложении блоки Push, выгрузка ревью и MCP стоят иначе, чем в 15: расхождение вида, не сцена"
+   "notes": "R12e: Push переложен как в макете; нет в коде: папка и формат выгрузки ревью, «Спрашивать перед каждым push», ошибка push options"
   },
   {
    "id": "16-general",
