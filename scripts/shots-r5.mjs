@@ -616,7 +616,11 @@ try {
         await shot(name); await esc(); await sleep(300);
         if (await menuOpen()) { await app.clickEl(q("[data-workspace-menu]")); await sleep(300); }
       };
+      // R12p (mock 25): the rename dialog is of «Альфа», not of the common canvas; the active space is restored after
+      const activeTab = await app.ev(`document.querySelector('[data-workspace-tab][aria-selected="true"]').dataset.workspaceTab`);
+      await app.clickEl(`[...document.querySelectorAll("[data-workspace-tab]")].find((e) => e.querySelector(".workspace-bar__name").textContent.trim() === "Альфа")`); await sleep(700);
       await open("settings", "ws-rename");
+      await app.clickEl(q(`[data-workspace-tab="${activeTab}"]`)); await sleep(700);
       await open("close", "ws-hide");
       await open("history", "ws-history");
       await open("arrange", "ws-arrange");
