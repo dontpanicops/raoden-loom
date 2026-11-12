@@ -90,8 +90,8 @@ export function PluginCanvasCard({
   const [position, setPosition] = useState(initialBounds.position);
   const [size, setSize] = useState(initialBounds.size);
   const liveBounds = useRef<SessionBounds>(initialBounds);
-  const summaryMode = zoom < 0.5;
-  const summaryScale = summaryMode ? Math.min(2.5, Math.max(1, 0.5 / zoom)) : 1;
+  const summaryMode = zoom < 0.4; // SPEC 11.2 / mock 21: the body shows at 45%, the summary at 28%
+  const summaryScale = summaryMode ? Math.min(2.5, Math.max(1, 0.4 / zoom)) : 1;
 
   useEffect(() => {
     const bounds = constrainPluginResize(

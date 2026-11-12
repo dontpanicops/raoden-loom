@@ -148,6 +148,15 @@ const fit = async () => {
   await app.panBy({ x: 720 - b.cx, y: 470 - b.cy }); await sleep(700);
 };
 let world = {};
+// R12a: the mocks marked «1:1» are taken at 100%: the zoom button until the scene is at scale 1, then the card is brought to the middle
+const zoom100 = async (target) => {
+  for (let i = 0; i < 6; i++) {
+    const z = await app.ev(`(() => { const m = document.querySelector(".workspace__scene")?.style.transform.match(/scale\\(([\\d.]+)\\)/); return m ? Number(m[1]) : 1; })()`);
+    if (z >= 0.99) break;
+    await app.clickEl(`document.querySelectorAll(".canvas-controls button, .zoom-controls button")[2]`).catch(() => {}); await sleep(250);
+  }
+  if (target) { await app.reveal(target).catch(() => {}); await sleep(500); }
+};
 const pairView = async (...ids) => {
   const b = await app.ev(`(() => { const r = ${JSON.stringify(ids)}.map((id) => document.querySelector('[data-agent-id="' + id + '"]')?.getBoundingClientRect()).filter(Boolean);
     return { cx: (Math.min(...r.map((x) => x.left)) + Math.max(...r.map((x) => x.right))) / 2, cy: (Math.min(...r.map((x) => x.top)) + Math.max(...r.map((x) => x.bottom))) / 2 }; })()`);
@@ -216,7 +225,7 @@ try {
       await app.mouse("mouseMoved", 700, 880);
       await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ homeLauncherProviders: ["codex", "claude", "qwen", "kimi", "opencode", "hermes", "grok", "omp", "pi"], homeLimitProviders: ["codex", "claude", "qwen", "kimi", "opencode", "grok"] })}).then(() => true)`);
       // R12a (mock 20): nine agents, the second row: «+» and the first candidate until none is left
-      for (let i = 0; i < 6 && await app.ev(`!!${q(".launcher-button--add")}`); i++) { await app.clickEl(q(".launcher-button--add")); await sleep(300); await app.clickEl(q(".launcher-add-menu__item")); await sleep(400); }
+      for (let i = 0; i < 6 && await app.ev(`!!${q(".launcher-button--add")}`); i++) { await app.ev(`${q(".launcher-button--add")}.click(); true`); await sleep(400); await app.ev(`${q(".launcher-add-menu__item")}?.click(); true`); await sleep(400); } // by the DOM: a click by pointer would pan the view
       await app.mouse("mouseMoved", 700, 880); await sleep(800); await shot("home-mock-dock-nine");
       fs.rmSync(path.join(cliBin, "codex"), { force: true });
       for (const id of made) await app.ev(`window.canvasTTY.terminal.dispose(${JSON.stringify(id)}).then(() => true)`);
@@ -312,7 +321,10 @@ try {
       // the grid's middle: the working card (column 2, row 1) is brought to the centre, then the view moves half a row up
       await app.reveal(`document.querySelector('[data-canvas-layer-id="terminal:${world.cards.working.id}"]')`).catch((e) => console.log("[shots-r5] reveal", e.message.slice(0, 120)));
       await app.panBy({ x: 0, y: -40 }).catch(() => {}); await sleep(500);
-      await shot("cards-terminal");
+      await shot("cards-terminal-67"); // mock 21 (67%)
+      await zoom100(`document.querySelector('[data-canvas-layer-id="terminal:${world.cards.failed.id}"]')`); await shot("cards-terminal"); // mock 06 is 1:1
+      await app.key("Home", "Home", 36); await sleep(600);
+      await app.reveal(`document.querySelector('[data-canvas-layer-id="terminal:${world.cards.working.id}"]')`).catch(() => {}); await app.panBy({ x: 0, y: -40 }).catch(() => {}); await sleep(500);
       for (let i = 0; i < 2; i++) {
         await app.clickEl(`document.querySelectorAll(".canvas-controls button, .zoom-controls button")[1]`).catch(() => {}); await sleep(200);
         if (i === 0) { await sleep(500); await shot("cards-zoom-mid"); } // R12a (mock 21): the zoom between 100% and the summary
@@ -552,7 +564,7 @@ try {
     await scene("cards-agents-idle", async () => {
       await createAgent(app, "Агент Codex (лид)", node);
       const lone = (await canvasState(app)).agents.find((x) => x.provider === "codex" && ![lead.agentId, leadB.agentId, world.leftLead, world.modeLead].includes(x.agentId));
-      await app.reveal(card(lone.agentId)); await sleep(600); await shot("cards-agents-idle");
+      await app.reveal(card(lone.agentId)); await sleep(600); await zoom100(card(lone.agentId)); await shot("cards-agents-idle");
       await app.clickEl(card(lone.agentId, ".agent-card__close")); await sleep(500);
     });
 
@@ -589,6 +601,21 @@ try {
       await app.mouse("mouseReleased", 700, 560, "left", 0); await sleep(300); await esc();
     });
     // R12a (mock 06): a link between agents of different folders is refused, the lead's card says why
+    // R12a (mock 03): «Меньше прозрачности»
+    await scene("reduce-transparency", async () => {
+      await app.ev(`window.canvasTTY.settings.update({ reduceTransparency: true }).then(() => true)`); await sleep(900);
+      await app.key("Home", "Home", 36); await sleep(700); await shot("home-canvas-reduce");
+      await app.ev(`window.canvasTTY.settings.update({ reduceTransparency: false }).then(() => true)`); await sleep(500);
+    });
+    // R12a (mock 06): the browser under an open run panel: the page is hidden while the panel is open
+    await scene("browser-hidden", async () => {
+      await app.key("Home", "Home", 36); await sleep(700);
+      await app.clickEl(card(world.groupBLead ?? leadB.agentId, ".agent-card__open")); await sleep(1200);
+      await shot("cards-browser-hidden");
+      await esc(); await sleep(400);
+      if (await app.ev(`!!document.querySelector(".orch-panel")`)) await app.clickEl(`document.querySelector(".orch-panel [aria-label], .orch-panel button")`).catch(() => {});
+      await app.key("Home", "Home", 36); await sleep(500);
+    });
     await scene("link-refused-folder", async () => {
       await app.key("Home", "Home", 36); await sleep(800);
       await app.waitFor(`${card(world.modeLead, ".agent-card__port")} && true`, "the lead's port", 10_000);
@@ -636,7 +663,7 @@ try {
       }
       await app.key("Home", "Home", 36); await sleep(600);
       await app.reveal(q('[data-note-source]') + `.closest("[data-sticky-note-id]")`); await sleep(500);
-      await shot("cards-note-snapshot");
+      await zoom100(`document.querySelector('[data-note-source]').closest("[data-sticky-note-id]")`); await shot("cards-note-snapshot");
       await app.key("Home", "Home", 36); await sleep(600);
     });
     await scene("home-edit", async () => {
@@ -661,6 +688,7 @@ try {
       await sleep(1200);
       await app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(plain.id)}, ${JSON.stringify("PS1='$ ' PROMPT='$ '; clear; echo '$ npm run dev'\r")})`); await sleep(800);
       await app.reveal(`document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"]')`); await sleep(600); // on the empty canvas, as in the mock
+      await zoom100(`document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"]')`); // mock 18 is 1:1
       const head = await app.ev(`(() => { const b = document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"]').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + 14 }; })()`);
       await app.click(head.x, head.y); await sleep(400);
       const r = await app.ev(`(() => { const b = document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"]').getBoundingClientRect(); return { x: b.right - 2, y: b.top + b.height / 2 }; })()`);
@@ -701,7 +729,7 @@ try {
       const tab = await app.ev(`window.canvasTTY.browser.getState().then((s) => s.tabs[0].id)`);
       await app.ev(`window.canvasTTY.browser.navigate(${JSON.stringify(tab)}, ${JSON.stringify(SITE + "?t=" + theme)}).then(() => true)`);
       await app.reveal(q('[data-canvas-layer-id="browser"]')); await sleep(1500);
-      await shot("cards-browser");
+      await zoom100(q('[data-canvas-layer-id="browser"]')); await shot("cards-browser");
     });
 
     // link dialog from the terminal output (cmd+click on the url)

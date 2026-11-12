@@ -141,7 +141,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
         {card.role === "lead" && !props.linked && !message && state === "idle" && <p className="agent-card__hint" data-agent-port-hint>{t(locale, "orchCardPortHint")}</p>}
         {message && <div className={`agent-card__message agent-card__message--${message.tone}`} role={message.tone === "error" ? "alert" : "status"}>{message.text}</div>}
         {/* semantic zoom: far out the card keeps its lines and gives the wheel back to the canvas */}
-        {!compact && zoom >= 0.5 && props.hasRun && <CardFeed locale={locale} entries={props.activity} role={card.role} height={size.height} />}
+        {!compact && zoom >= 0.4 && props.hasRun && <CardFeed locale={locale} entries={props.activity} role={card.role} height={size.height} />}
         {confirming && (
           <div className="agent-card__confirm" role="alertdialog" aria-label={t(locale, "orchDeleteCard")}>
             <span>{t(locale, "orchDeleteCardLinked")}</span>

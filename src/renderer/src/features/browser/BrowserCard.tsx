@@ -97,8 +97,8 @@ export function BrowserCard({
   const [panel, setPanel] = useState<BrowserPanel>(null);
   const [dialogPrompt, setDialogPrompt] = useState("");
   const [freezeFrame, setFreezeFrame] = useState<BrowserCanvasFreezeFrameEvent | null>(null);
-  const summaryMode = zoom < 0.5;
-  const summaryScale = summaryMode ? Math.min(2.5, Math.max(1, 0.5 / zoom)) : 1;
+  const summaryMode = zoom < 0.4; // SPEC 11.2 / mock 21: the body shows at 45%, the summary at 28%
+  const summaryScale = summaryMode ? Math.min(2.5, Math.max(1, 0.4 / zoom)) : 1;
   const activeAgents = useMemo(
     () => mergeAgents(activeTab?.agents ?? [], browser.agents.filter((agent) => agent.currentTabId === activeTab?.id)),
     [activeTab?.agents, activeTab?.id, browser.agents]

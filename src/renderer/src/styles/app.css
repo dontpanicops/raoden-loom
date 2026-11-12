@@ -2168,10 +2168,6 @@ button { border: 0; }
 [data-zoomed] .terminal-card__actions button, [data-zoomed] .agent-card__close, [data-zoomed] .agent-card__expand, [data-zoomed] .sticky-note-card__close, [data-zoomed] .browser-card__hide { width: calc(20px * var(--iz)); height: calc(20px * var(--iz)); flex-basis: calc(20px * var(--iz)); border-radius: calc(5px * var(--iz)); }
 [data-zoomed] .terminal-card__status { font-size: calc(11px * var(--iz)); padding: 0 calc(8px * var(--iz)); }
 [data-zoomed] .terminal-card__restart { font-size: calc(11px * var(--iz)); padding: 0 calc(6px * var(--iz)); }
-/* an agent's status leaves the body for a footer of the terminal's format */
-[data-zoomed].agent-card .agent-card__body { padding-bottom: calc(24px * var(--iz) + .4em); }
-[data-zoomed].agent-card .agent-card__status { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; height: calc(24px * var(--iz)); padding: 0 calc(8px * var(--iz)); display: flex; align-items: center; gap: calc(6px * var(--iz)); overflow: hidden; border-top: 1px solid var(--border); border-radius: 0 0 13px 13px; background: var(--surface-2-b); font-size: calc(11px * var(--iz)); white-space: nowrap; }
-[data-zoomed].agent-card .agent-card__time { display: none; }
 .sticky-note-card__editor { font-size: calc(14px * var(--app-ui-scale, 1)); }
 /* R12b: a task card is the title, the status line, one line of substance and the actions; the rest opens under «Details» */
 .board-task__more { display: flex; flex-direction: column; gap: .3em; }

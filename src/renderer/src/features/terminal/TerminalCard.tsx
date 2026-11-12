@@ -126,7 +126,7 @@ export function TerminalCard({
   const [size, setSize] = useState(session.size);
   const [restarting, setRestarting] = useState(false);
   const liveBounds = useRef<SessionBounds>({ position: session.position, size: session.size });
-  const summaryMode = zoom < 0.5;
+  const summaryMode = zoom < 0.4; // SPEC 11.2 / mock 21: the body shows at 45%, the summary at 28%
   const summaryScale = summaryMode ? 1 / zoom : 1; // the summary is in screen px (SPEC 11.2)
 
   restartAction.current = async () => {
