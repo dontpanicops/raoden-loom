@@ -2747,3 +2747,19 @@ html:not([data-kbd]) .workspace-bar__tab:focus-visible, html:not([data-kbd]) .wo
 .home-editor-toolbar strong { white-space: nowrap; }
 .canvas-region { border-width: 1.5px; border-color: color-mix(in srgb, var(--canvas-region-color) 34%, transparent); background: color-mix(in srgb, var(--canvas-region-color) 12%, transparent); } /* as drawn in the mock-up's frames: the tint reads on all three themes */
 .canvas-region__title { color: color-mix(in srgb, var(--canvas-region-color) 55%, var(--canvas-ink)); }
+
+/* R12q (gate Z5/Z6 r5): B3 the board grid after mock 08, by the ratio to the board's width (mock 1020 px wide: columns start 7.1% below the card's top, side margin and gap between columns 1.6%, a card 1.2% in from its column's edge, 1.1% between cards, a column's title 23 px above its first card). The board is drawn at the canvas zoom, hence the px */
+.board-card .board-card__columns { padding: calc(26px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1)) calc(18px * var(--ui-scale, 1)); gap: calc(14px * var(--ui-scale, 1)); }
+.board-card__column h3 { padding: 1.18em .8em 1em; }
+.board-card__list { padding: 0 calc(10.7px * var(--ui-scale, 1)) calc(10.7px * var(--ui-scale, 1)); gap: calc(10px * var(--ui-scale, 1)); }
+/* B4 a push card shows its buttons all the time (not hover-only over the card): they are .btn-sm like the other buttons of a card */
+.board-card .board-task--queue[data-board-reason="push_option_field"] .board-task__actions > button { height: calc(24px * var(--ui-scale, 1)); padding: 0 calc(9px * var(--ui-scale, 1)); }
+.board-card .board-task--queue[data-board-reason="push_option_field"] .board-task__actions { gap: calc(8px * var(--ui-scale, 1)); }
+/* V1 the pairs of an expanded card: the key is muted, the value is secondary text (mock 24) */
+.board-task__kv dt { color: var(--text-muted); }
+.board-task__kv dd { color: var(--text-secondary); }
+.board-task__kv dd.board-task__kv-warn { color: var(--danger-fg); }
+/* R1 «Вернуться к контрольной точке», «Принять снятие…»: .btn-sm 24px (mock 07-08, 07-11) */
+.orch-panel .orch-zone .orch-zone__danger .orch-zone__danger-row > button:not(.orch-textual) { height: calc(24px * var(--ui-scale, 1)); padding: 0 9px; font-size: calc(12px * var(--ui-scale, 1)); }
+/* Z1 the «Работает» zone: a dark fill in the status tone, a hairline instead of a border (mock 07-01) */
+.orch-zone.orch-zone--working { --zone-bg: color-mix(in srgb, var(--status-working) 4%, var(--surface-sunken)); box-shadow: 0 0 0 1px var(--border); }

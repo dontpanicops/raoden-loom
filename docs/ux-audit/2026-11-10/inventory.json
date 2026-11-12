@@ -1355,7 +1355,7 @@
    "themes": ["sand"],
    "mockCrop": { "x": 298, "y": 110, "w": 480, "h": 214 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-board-states.png" },
-   "appCrop": { "x": 355, "y": 90, "w": 640, "h": 285 },
+   "appCrop": { "x": 355, "y": 94, "w": 640, "h": 285 },
    "scale": "100% (кадр 2×)",
    "data": "«Работа» и «Проверка»: карточка ждёт решения",
    "notes": "сцена снимается один раз, в первой теме"
@@ -1425,7 +1425,7 @@
    "mock": "23-hints-limits",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 70, "y": 138, "w": 330, "h": 100 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-term-hints.png" },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-term-hints.png", "dpr": 2 },
    "appCrop": { "x": 730, "y": 196, "w": 340, "h": 106 },
    "scale": "100%",
    "data": "пояснение термина «Лид» при наведении: слово и подсказка",
@@ -1474,7 +1474,7 @@
    "themes": ["sand"],
    "mockCrop": { "x": 56, "y": 105, "w": 340, "h": 400 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-board-states.png" },
-   "appCrop": { "x": 355, "y": 90, "w": 453, "h": 533 },
+   "appCrop": { "x": 355, "y": 94, "w": 453, "h": 533 },
    "scale": "100% (кадр 2×)",
    "data": "свёрнутые карточки «Работы»: суть строкой, риск на виду, «Подробнее ▾»",
    "notes": "сцена снимается один раз, в первой теме"
