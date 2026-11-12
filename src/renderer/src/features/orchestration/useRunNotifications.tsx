@@ -73,7 +73,7 @@ const many = (locale: LocaleId, n: number): "one" | "few" | "many" => locale ===
 const fill = (text: string, vars: Record<string, string>): string => Object.entries(vars).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, v), text);
 
 // Mock 10: the runs waiting for the person are one line at the top of the canvas («2 runs wait for you in Beta and Alpha»,
-// «Show»); a run that failed or ended keeps its own line.
+// «Show» opens the first one, the rest stay counted in the line); a run that failed or ended keeps its own line.
 export function NotifyBanner({ locale, notes, onOpen, onDismiss }: { locale: LocaleId; notes: Note[]; onOpen(runId: string): void; onDismiss(runId: string): void }): React.JSX.Element | null {
   if (!notes.length) return null;
   const waiting = notes.filter((n) => n.signal === "waiting");
@@ -92,7 +92,7 @@ export function NotifyBanner({ locale, notes, onOpen, onDismiss }: { locale: Loc
     <div className="notify-banner" role="status" data-interactive="true" data-notify-banner>
       {waiting.length > 0 && row("waiting", "waiting",
         <><b>{fill(t(locale, `orchNotifyWait_${many(locale, waiting.length)}` as never), { n: String(waiting.length) })}</b>{where}</>,
-        () => { for (const n of waiting.slice(1)) onDismiss(n.runId); onOpen(waiting[0].runId); },
+        () => onOpen(waiting[0].runId),
         () => { for (const n of waiting) onDismiss(n.runId); })}
       {notes.filter((n) => n.signal !== "waiting").map((n) => row(n.runId, n.signal, <><b>{n.title}</b> {n.body}</>, () => onOpen(n.runId), () => onDismiss(n.runId), n.runId))}
     </div>
