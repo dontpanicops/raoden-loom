@@ -558,7 +558,8 @@ export function SettingsPanel({
                 layout="top"
               >
                 <div className="canvas-menu canvas-launcher-settings-menu">
-                  {CANVAS_LAUNCHER_ITEMS.map((item: CanvasLauncherItemId) => {
+                  {/* Terminal first, as in the menu itself and in mock 11 */}
+                  {(["terminal", ...CANVAS_LAUNCHER_ITEMS.filter((i) => i !== "terminal")] as CanvasLauncherItemId[]).map((item: CanvasLauncherItemId) => {
                     const enabled = settings.canvasLauncherItems.includes(item);
                     return (
                       <CanvasMenuRow

@@ -2,7 +2,7 @@
 // Pairs «mock | app» from the mock inventory (D-039, docs/ux-audit/2026-11-10/conformance-process.md).
 // Usage: node scripts/conformance-pairs.mjs --inventory <json> --shots <dir>[,<dir>...] --out <dir> [--zone Z1] [--html]
 //        [--mocks <preview dir>] [--mocks-png <2x png dir>]
-// Writes <out>/<zone>/<id>-<theme>-{mock,app}.jpg (JPEG 1440 wide, q70, macOS sips). Exit 1 when a row of the zone has no
+// Writes <out>/<zone>/<id>-<theme>-{mock,app}.jpg (JPEG 1440 wide; a row with sameScale saves the mock narrower, in the app's scale, q70, macOS sips). Exit 1 when a row of the zone has no
 // frame (scene missing, file absent, empty or smaller than the crop), or a shots dir has a non-empty failed.txt.
 // The mock crop is in pixels of redesign/preview/<mock>-<theme>.jpg (1440 wide); when that JPEG is absent, the 2x PNG of
 // redesign/shots/ is used and the crop is scaled by its width. Rows with "skip" are superseded by another mock and not cut.
@@ -34,7 +34,7 @@ const dims = (f) => {
 };
 const tmpOf = (src) => path.join(OUT, `.tmp${path.extname(src)}`); // sips keeps the source format on crop
 // crop (in the file's pixels) and save as JPEG 1440 wide q70; returns an error text or null
-const cut = (src, c, dst) => {
+const cut = (src, c, dst, outWidth = 1440) => {
   let d;
   try { if (!fs.statSync(src).size) return "пустой файл"; d = dims(src); } catch (e) { return `не читается: ${String(e.message).split("\n")[0]}`; }
   if (!d.w || !d.h) return "пустой кадр";
@@ -50,7 +50,7 @@ const cut = (src, c, dst) => {
   const got = dims(tmp);
   dimsCache.delete(tmp);
   if (got.w !== r.w || got.h !== r.h) { fs.rmSync(tmp, { force: true }); return `sips вырезал ${got.w}×${got.h} вместо ${r.w}×${r.h}`; }
-  sips("-s", "format", "jpeg", "-s", "formatOptions", "70", "--resampleWidth", "1440", tmp, "--out", dst);
+  sips("-s", "format", "jpeg", "-s", "formatOptions", "70", "--resampleWidth", String(outWidth), tmp, "--out", dst);
   fs.rmSync(tmp, { force: true });
   return null;
 };
@@ -81,7 +81,9 @@ for (const row of rows) {
     if (!m) entry.error = `нет макета ${row.mock}-${theme}${row.mockSuffix ?? ""}`;
     else {
       const mockOut = path.join(zdir, `${row.id}-${theme}-mock.jpg`);
-      const e = cut(m.file, scaleRect(pick(row.mockCrop, theme), m.k), mockOut);
+      // sameScale: the app crop is wider than the mock's (the panel is wider), the glyphs are the same size: the mock is saved in the same pixels per CSS pixel (1440 * mock crop / app crop wide)
+      const outW = row.sameScale ? Math.round(1440 * pick(row.mockCrop, theme).w / pick(row.appCrop, theme).w) : 1440;
+      const e = cut(m.file, scaleRect(pick(row.mockCrop, theme), m.k), mockOut, outW);
       if (e) entry.error = `макет: ${e}`; else entry.mock = path.relative(OUT, mockOut);
     }
     if (!row.scene) {

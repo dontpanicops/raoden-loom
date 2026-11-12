@@ -12,7 +12,7 @@ const GAP = 6;
 export function Term({ locale, id, hint, plain = false, children }: { locale: LocaleId; id: string; hint?: string; plain?: boolean; children: React.ReactNode }): React.JSX.Element {
   const text = hint ?? t(locale, `orchTerm_${id}` as never);
   const tipId = useId();
-  const word = useRef<HTMLButtonElement>(null);
+  const word = useRef<HTMLElement>(null);
   const tip = useRef<HTMLSpanElement>(null);
   const timer = useRef<number | undefined>(undefined);
   const [open, setOpen] = useState(false);
@@ -38,8 +38,12 @@ export function Term({ locale, id, hint, plain = false, children }: { locale: Lo
   const host = document.querySelector<HTMLElement>(".app") ?? document.body;
   return (
     <>
-      <button ref={word} type="button" className={plain ? "orch-term orch-term--plain" : "orch-term"} aria-describedby={open ? tipId : undefined} data-term={id}
-        onMouseEnter={() => show(HOVER_MS)} onMouseLeave={hide} onFocus={() => show(0)} onBlur={hide}>{children}</button>
+      {/* plain (the notification banner): a focusable span, not a button, so that its container can cut the text with «…» (a button is an atomic box and is clipped without one) */}
+      {plain
+        ? <span ref={word} tabIndex={0} className="orch-term orch-term--plain" aria-describedby={open ? tipId : undefined} data-term={id}
+            onMouseEnter={() => show(HOVER_MS)} onMouseLeave={hide} onFocus={() => show(0)} onBlur={hide}>{children}</span>
+        : <button ref={word as React.RefObject<HTMLButtonElement>} type="button" className="orch-term" aria-describedby={open ? tipId : undefined} data-term={id}
+            onMouseEnter={() => show(HOVER_MS)} onMouseLeave={hide} onFocus={() => show(0)} onBlur={hide}>{children}</button>}
       {open && createPortal(
         <span ref={tip} id={tipId} role="tooltip" className={`orch-tip${pos?.above ? " orch-tip--above" : ""}`} data-term-tip={id}
           style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0, visibility: "hidden" }}>{text}</span>, host)}
