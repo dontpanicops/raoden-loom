@@ -991,6 +991,11 @@ try {
       const d = await app.call("Page.captureScreenshot", { format: "png", clip: { ...r, scale: 2 } });
       fs.writeFileSync(path.join(OUT, `${theme}-board-push.png`), Buffer.from(d.data, "base64"));
       console.log(`[shots-r5] clip ${theme}-board-push`);
+      // R12g: the card itself (the queue is longer in some themes, so a fixed crop of the frame misses it): its own clip, twice the pixels
+      const rc = await app.ev(`(() => { const b = document.querySelector('[data-board-reason="push_option_field"]').getBoundingClientRect(); return { x: b.left, y: b.top, width: b.width, height: b.height }; })()`);
+      const dc = await app.call("Page.captureScreenshot", { format: "png", clip: { ...rc, scale: 2 } });
+      fs.writeFileSync(path.join(OUT, `${theme}-board-push-card.png`), Buffer.from(dc.data, "base64"));
+      console.log(`[shots-r5] clip ${theme}-board-push-card`);
       // the profile back as it was (the later scenes run in the copy mode)
       const back = await ipc(`saveProfile(${J(linkId)}, ${J({ ...p0 })}).then((r) => r.ok ? "ok" : r.code)`);
       console.log(`[shots-r5] profile restored: ${back}`);
