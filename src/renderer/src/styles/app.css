@@ -1282,7 +1282,7 @@ button { border: 0; }
 .orch-dialog .orch-form :is(code, kbd) { overflow-wrap: anywhere; }
 .orch-field { min-width: 0; display: flex; flex-direction: column; gap: 6px; border: 0; padding: 0; margin: 0; }
 .orch-field > span:first-child, .orch-field legend { font-size: 13px; font-weight: 600; opacity: .85; }
-.orch-field input, .orch-field textarea, .orch-panel textarea, .orch-panel input, .orch-panel select { width: 100%; padding: 9px 11px; border: 0; border-radius: 10px; color: var(--text-primary); background: var(--surface-sunken); font: inherit; }
+.orch-field input, .orch-rows input, .orch-field textarea, .orch-panel textarea, .orch-panel input, .orch-panel select { width: 100%; padding: 9px 11px; border: 0; border-radius: 10px; color: var(--text-primary); background: var(--surface-sunken); font: inherit; }
 .orch-field--check { flex-direction: row; align-items: center; }
 .orch-field--check input { width: auto; }
 .orch-field--static strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); }
@@ -1439,7 +1439,7 @@ button { border: 0; }
 .orch-diffs summary { cursor: pointer; opacity: .8; }
 .orch-diffs ul { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
 .orch-workmode label { align-items: flex-start; }
-.orch-tabs { flex: 0 0 auto; margin: 10px 12px 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.orch-tabs { flex: 0 0 auto; margin: 10px 12px 6px; display: flex; flex-wrap: wrap; gap: 4px; }
 .orch-panel .orch-tabs button { padding: .35em .7em; background: transparent; box-shadow: inset 0 0 0 1px var(--focus); color: inherit; }
 .orch-panel .orch-tabs button.orch-tabs__on { color: var(--text-primary); background: var(--surface-2-b); }
 /* R3a: the three tabs and the work modes are a segment (the redesign's .seg-wrap); the role filter keeps its pills */
@@ -1933,9 +1933,9 @@ button { border: 0; }
 .orch-access__row { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
 .orch-access__name { color: var(--text-secondary); }
 .orch-form button:active:not(:disabled) { transform: translateY(1px); filter: brightness(.93); }
-.orch-field input:not([type="checkbox"], [type="radio"]), .orch-field select, .orch-panel input:not([type="checkbox"], [type="radio"]), .orch-panel select { min-height: var(--control-h-m); padding: 0 10px; border-radius: var(--radius-sm); background: var(--surface-sunken); box-shadow: inset 0 1px 2px var(--edge-dark), inset 0 0 0 1px var(--border-strong); }
+.orch-field input:not([type="checkbox"], [type="radio"]), .orch-rows input, .orch-field select, .orch-panel input:not([type="checkbox"], [type="radio"]), .orch-panel select { min-height: var(--control-h-m); padding: 0 10px; border-radius: var(--radius-sm); background: var(--surface-sunken); box-shadow: inset 0 1px 2px var(--edge-dark), inset 0 0 0 1px var(--border-strong); }
 .orch-field textarea, .orch-panel textarea { padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-sunken); box-shadow: inset 0 1px 2px var(--edge-dark), inset 0 0 0 1px var(--border-strong); line-height: 1.5; }
-.orch-field input::placeholder, .orch-field textarea::placeholder, .orch-panel textarea::placeholder { color: var(--text-muted); }
+.orch-field input::placeholder, .orch-rows input::placeholder, .orch-field textarea::placeholder, .orch-panel textarea::placeholder { color: var(--text-muted); }
 .orch-field :is(input, select, textarea):focus-visible, .orch-panel :is(input, select, textarea):focus-visible { outline: 0; box-shadow: inset 0 0 0 1px var(--focus), 0 0 0 3px color-mix(in srgb, var(--focus) 30%, transparent); }
 .orch-dialog :is(button, a, summary):focus-visible, .orch-panel :is(button, a, summary):focus-visible { outline: var(--focus-ring-w) solid var(--focus); outline-offset: var(--focus-ring-offset); }
 :is(.orch-dialog, .orch-panel) :is(input[type="checkbox"], input[type="radio"]) { appearance: none; -webkit-appearance: none; flex: 0 0 auto; width: 16px; height: 16px; margin: 0; padding: 0; background: var(--surface-sunken); box-shadow: inset 0 0 0 1.5px var(--border-strong); }
@@ -2050,7 +2050,7 @@ button { border: 0; }
 .orch-rows { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .orch-rows .orch-rows__row { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .orch-rows .orch-rows__row input { flex: 1 1 auto; min-width: 0; }
-.orch-field .orch-rows .orch-rows__mono { font-family: var(--font-mono); font-size: 13px; }
+.orch-rows .orch-rows__mono { font-family: var(--font-mono); font-size: 13px; }
 .orch-rows button.orch-rows__x, .orch-rows button.orch-rows__add { flex: 0 0 auto; border: 0; background: transparent; box-shadow: none; color: var(--text-secondary); font: inherit; cursor: pointer; border-radius: var(--radius-sm); }
 .orch-rows button.orch-rows__x { min-width: var(--control-h-m); min-height: var(--control-h-m); font-size: 16px; line-height: 1; }
 .orch-rows button.orch-rows__add { align-self: flex-start; min-height: var(--control-h-m); padding: 0 8px; }
@@ -2144,3 +2144,8 @@ button { border: 0; }
 .board-task__actions:not(:has(.orch-primary)) { position: absolute; right: .5em; bottom: .4em; margin: 0; }
 .board-task__actions:not(:has(.orch-primary)) > button { background: var(--surface-2); }
 .board-card:has(:focus-visible):not(.board-card--selected) { box-shadow: var(--edge), 0 0 0 2px var(--focus), var(--elev-3); }
+/* requirement rows (mock 09): the cross sits inside the field at its right edge; command rows keep it outside */
+.orch-rows--inset .orch-rows__row { position: relative; }
+.orch-rows--inset .orch-rows__row input { padding-right: calc(var(--control-h-m) - 4px); }
+.orch-rows--inset button.orch-rows__x { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); min-width: calc(var(--control-h-m) - 4px); min-height: calc(var(--control-h-m) - 4px); }
+.orch-rows--inset .orch-form button.orch-rows__x:active:not(:disabled) { transform: translateY(-50%); filter: none; }

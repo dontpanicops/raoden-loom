@@ -301,7 +301,7 @@ export function GoalRows({ text, onText, locale, attr, placeholder, label, mono 
   };
   return (
     // biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box
-    <div className="orch-rows" role="group" aria-label={label} {...{ [attr]: "" }} ref={root}>
+    <div className={`orch-rows${mono ? "" : " orch-rows--inset"}`} role="group" aria-label={label} {...{ [attr]: "" }} ref={root}>
       {rows.map((row, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional; the trailing input keeps its element (and focus) when it becomes a row
         <div className="orch-rows__row" key={i} data-orch-row>
