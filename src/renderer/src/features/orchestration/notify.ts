@@ -23,8 +23,8 @@ export function runSignal(view: OrchestrationRunView, onMac = true): { signal: N
   return null;
 }
 
-export interface NotifyRun { runId: string; view: OrchestrationRunView; place: string; entries?: readonly OrchestrationActivityEntry[] }
-export interface Note { runId: string; signal: NotifySignal; title: string; body: string }
+export interface NotifyRun { runId: string; view: OrchestrationRunView; place: string; space?: string; entries?: readonly OrchestrationActivityEntry[] }
+export interface Note { runId: string; signal: NotifySignal; title: string; body: string; place?: string }
 export interface NotifyStep { notes: Note[]; badge: number; bounce: boolean; notified: Record<string, string> }
 
 // notified: the last state told per run ("" — none; absent — a run not seen before this record existed).
@@ -43,7 +43,7 @@ export function notifyStep(locale: LocaleId, runs: readonly NotifyRun[], notifie
     if (!s || before === undefined || before === s.key) continue;
     if (s.signal === "waiting" && prefs.bounce && !focused) bounce = true;
     if (focused || !prefs[s.signal === "completed_no_checks" ? "completed" : s.signal]) continue;
-    notes.push({ runId: r.runId, signal: s.signal, title: r.place, body: noteBody(locale, s.signal, r) });
+    notes.push({ runId: r.runId, signal: s.signal, title: r.place, body: noteBody(locale, s.signal, r), ...(r.space ? { place: r.space } : {}) });
   }
   return { notes, badge: prefs.dockBadge ? badge + accepting : 0, bounce, notified: next };
 }

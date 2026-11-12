@@ -2133,6 +2133,7 @@ const ru = {
   wsMoveConfirm: "Перенести",
   wsMoveConfirmTo: "Перенести в «{name}»",
   wsMoveHere: "здесь сейчас",
+  wsMoveTerminal: "Терминал {name} · процесс не перезапускается",
   wsMoveCards_one: "{n} карточка",
   wsMoveCards_few: "{n} карточки",
   wsMoveCards_many: "{n} карточек",
@@ -2151,7 +2152,9 @@ const ru = {
   wsShow: "Показать",
   wsHiddenHint: "Скрытые продолжают работать. Если там кто-то ждёт вас — появится баннер.",
   wsHiddenClose: "Закрыть",
-  wsHiddenWorking: "{n} работает",
+  wsHiddenWorking_one: "{n} работает",
+  wsHiddenWorking_few: "{n} работают",
+  wsHiddenWorking_many: "{n} работают",
   wsCloseTitle: "Скрыть «{name}»?",
   wsCloseWork: "Здесь идёт работа. Скрытие ничего не останавливает: работа продолжится и останется в общем виджете активности. Вернуть пространство — из «Скрытых».",
   wsCloseRun: "Запуск {id} · {project}",
@@ -4766,6 +4769,7 @@ const en: Record<keyof typeof ru, string> = {
   wsMoveConfirm: "Move",
   wsMoveConfirmTo: "Move to “{name}”",
   wsMoveHere: "here now",
+  wsMoveTerminal: "Terminal {name} · the process does not restart",
   wsMoveCards_one: "{n} card",
   wsMoveCards_few: "{n} cards",
   wsMoveCards_many: "{n} cards",
@@ -4784,7 +4788,9 @@ const en: Record<keyof typeof ru, string> = {
   wsShow: "Show",
   wsHiddenHint: "Hidden workspaces keep working. If one of them waits for you, a banner appears.",
   wsHiddenClose: "Close",
-  wsHiddenWorking: "{n} working",
+  wsHiddenWorking_one: "{n} working",
+  wsHiddenWorking_few: "{n} working",
+  wsHiddenWorking_many: "{n} working",
   wsCloseTitle: "Hide “{name}”?",
   wsCloseWork: "Work goes on here. Hiding stops nothing: the work continues and stays in the common activity widget. Bring the space back from “Hidden”.",
   wsCloseRun: "Run {id} · {project}",
@@ -5264,6 +5270,9 @@ const en: Record<keyof typeof ru, string> = {
 
 export type TranslationKey = keyof typeof ru;
 
+// the plural class of n: ru one/few/many, otherwise one/many
+export const pluralForm = (locale: LocaleId, n: number): "one" | "few" | "many" => locale === "ru"
+  ? (n % 10 === 1 && n % 100 !== 11 ? "one" : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? "few" : "many") : n === 1 ? "one" : "many";
 export function t(locale: LocaleId, key: TranslationKey): string {
   return (locale === "ru" ? ru : en)[key];
 }

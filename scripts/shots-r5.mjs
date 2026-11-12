@@ -407,10 +407,18 @@ try {
       // mock 17 «Скрытые»: «Песочница» has work going on (the chip «1 работает»)
       const gid = (await app.ev(`window.canvasTTY.workspaces.get()`)).workspaces.find((w) => w.title === name).id;
       await session("claude", `hidden-working-${name}`, "hidden-api", elsewhere(3200, 3200), gid); await sleep(2000);
-      await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
-      await app.clickEl(q('[data-ws-action="close"]')); await sleep(900);
-      if (await app.ev(`!!${q("[data-ws-close]")}`)) { await app.clickEl(q("[data-ws-close-hide]")); await sleep(900); }
-      if (await menuOpen()) await app.clickEl(q("[data-workspace-menu]"));
+      const hideActive = async () => {
+        await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
+        await app.clickEl(q('[data-ws-action="close"]')); await sleep(900);
+        if (await app.ev(`!!${q("[data-ws-close]")}`)) { await app.clickEl(q("[data-ws-close-hide]")); await sleep(900); }
+        if (await menuOpen()) await app.clickEl(q("[data-workspace-menu]"));
+      };
+      await hideActive();
+      // R7d (mock 17): a second hidden space with no work (no chip), the rows' buttons side by side
+      const quiet = theme === "sand" ? "Архив идей" : "Архив";
+      await app.clickEl(q("[data-workspace-new]")); await sleep(500);
+      await app.type(q("[data-ws-title]"), quiet); await app.clickEl(q("[data-ws-submit]")); await sleep(1500);
+      await hideActive();
       await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
       await app.clickEl(q('[data-ws-action="hidden"]')); await sleep(700);
       await app.waitFor(`${q("[data-ws-hidden]")} && true`, "the hidden list", 5000);
@@ -418,12 +426,14 @@ try {
       if (await menuOpen()) await app.clickEl(q("[data-workspace-menu]"));
       // «Перенести карточку»: the context menu of a card
       await app.key("Home", "Home", 36); await sleep(700);
+      await app.ev(`window.canvasTTY.terminal.rename(${JSON.stringify(t.id)}, "project-a").then(() => true)`); await sleep(400); // mock 17: «Терминал project-a»
       await app.reveal(`document.querySelector('[data-canvas-layer-id="terminal:${t.id}"]')`); await sleep(500);
       const head = await app.center(`document.querySelector('[data-canvas-layer-id="terminal:${t.id}"] header, [data-canvas-layer-id="terminal:${t.id}"] .terminal-card__header')`);
       await app.click(head.x, head.y, "right"); await sleep(500);
       await app.clickEl(`[...document.querySelectorAll(".canvas-menu [role=menuitem], .canvas-menu button")].find((e) => /Перенести в пространство/.test(e.textContent))`); await sleep(800);
       await app.waitFor(`${q("[data-ws-move]")} && true`, "the move dialog", 5000);
       await shot("ws-move"); await esc(); await sleep(300);
+      await app.ev(`window.canvasTTY.terminal.rename(${JSON.stringify(t.id)}, "~/dev").then(() => true)`);
       // «Браузер открыт в…»: the browser is on the common canvas, the launcher is pressed in another space
       await go(WS.alpha);
       await app.clickEl(`document.querySelector(".launcher-button--browser")`); await sleep(900);
@@ -530,18 +540,26 @@ try {
     });
     await scene("card-resize", async () => {
       await app.key("Home", "Home", 36); await sleep(600);
-      const head = await app.ev(`(() => { const b = document.querySelector('[data-canvas-layer-id="terminal:${world.mock.a.id}"]').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + 14 }; })()`);
+      // R7d (mock 18): a plain terminal card of the mock's size, not one of the card states (no «waiting» strip, no failed neighbour)
+      const plain = await app.ev(`window.canvasTTY.terminal.create({ provider: "terminal", profile: "normal", cwd: ${JSON.stringify(path.join(termDir, "infra"))}, position: ${JSON.stringify({ x: 3600, y: 3600 })} })`);
+      await app.ev(`window.canvasTTY.terminal.setBounds(${JSON.stringify(plain.id)}, ${JSON.stringify({ position: { x: 3600, y: 3600 }, size: { width: 520, height: 300 } })})`);
+      await app.ev(`window.canvasTTY.terminal.rename(${JSON.stringify(plain.id)}, "project-a").then(() => true)`);
+      await sleep(1200);
+      await app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(plain.id)}, ${JSON.stringify("PS1='$ ' PROMPT='$ '; clear; echo '$ npm run dev'\r")})`); await sleep(800);
+      await app.reveal(`document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"]')`); await sleep(600); // on the empty canvas, as in the mock
+      const head = await app.ev(`(() => { const b = document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"]').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + 14 }; })()`);
       await app.click(head.x, head.y); await sleep(400);
-      const r = await app.ev(`(() => { const b = document.querySelector('[data-canvas-layer-id="terminal:${world.mock.a.id}"]').getBoundingClientRect(); return { x: b.right - 2, y: b.top + b.height / 2 }; })()`);
+      const r = await app.ev(`(() => { const b = document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"]').getBoundingClientRect(); return { x: b.right - 2, y: b.top + b.height / 2 }; })()`);
       await app.mouse("mouseMoved", r.x, r.y); await sleep(500);
       await shot("card-resize");
       // the gesture: the corner is held and dragged, the size shows under the card
-      const c = await app.ev(`(() => { const b = document.querySelector('[data-canvas-layer-id="terminal:${world.mock.a.id}"]').getBoundingClientRect(); return { x: b.right - 3, y: b.bottom - 3 }; })()`);
+      const c = await app.center(`document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"] .terminal-card__resize-handle--se')`);
       await app.mouse("mouseMoved", c.x, c.y); await app.mouse("mousePressed", c.x, c.y, "left", 1);
       for (let i = 1; i <= 6; i++) { await app.mouse("mouseMoved", c.x + 6 * i, c.y + 4 * i, "left", 1); await sleep(40); }
       await sleep(400); await shot("card-resize-drag");
       await app.mouse("mouseReleased", c.x + 36, c.y + 24, "left", 0); await sleep(300);
       await app.mouse("mouseMoved", 700, 20);
+      await app.ev(`window.canvasTTY.terminal.dispose(${JSON.stringify(plain.id)}).then(() => true)`); await sleep(500);
     });
 
     // links: repeated pair refused, executor to the left, zoom 0.2

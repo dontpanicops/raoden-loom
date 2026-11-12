@@ -2,7 +2,7 @@
 // Every rule is main's; these views only ask, show main's answer and never move or stop anything without a click.
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppSettings, LocaleId, SessionSnapshot, TerminalStopResult, WorkspaceRecord, WorkspacesState } from "../../../../shared/contracts";
-import { t, type TranslationKey } from "../../lib/i18n";
+import { pluralForm, t, type TranslationKey } from "../../lib/i18n";
 import { UiIcon } from "../../components/UiIcon";
 import { Dialog } from "../../components/Dialog";
 import { outcomeOf, runStatusKey, TERMINAL_STATUSES } from "../orchestration/runModel";
@@ -38,7 +38,7 @@ const tr = (locale: LocaleId, key: string, vars: Record<string, string> = {}): s
   Object.entries(vars).reduce((s, [k, v]) => s.replaceAll(`{${k}}`, v), t(locale, key as TranslationKey) ?? key);
 const tk = (locale: LocaleId, key: string): string => tr(locale, key);
 // «5 карточек»: the cards of a workspace, HOME (always in occupiedIn, the first box) not counted
-const cards = (locale: LocaleId, n: number): string => tr(locale, `wsMoveCards_${locale === "ru" ? (n % 10 === 1 && n % 100 !== 11 ? "one" : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? "few" : "many") : n === 1 ? "one" : "many"}`, { n: String(n) });
+const cards = (locale: LocaleId, n: number): string => tr(locale, `wsMoveCards_${pluralForm(locale, n)}`, { n: String(n) });
 
 export type MovableKind = "terminal" | "region" | "note" | "plugin" | "browser";
 
@@ -243,7 +243,7 @@ function MoveDialog({ controls, orch, locale, layout, item, id, label, onClose }
             </ul>
             <p className="orch-hint">{tk(locale, "wsMoveHistoryStays")}</p>
           </div>
-        ) : <p className="orch-hint" data-ws-move-item>{label}</p>}
+        ) : <p className="orch-hint" data-ws-move-item>{item === "terminal" ? tr(locale, "wsMoveTerminal", { name: label }) : label}</p>}
         {blocked && <div className="orch-hint orch-hint--warn" role="status" data-ws-move-blocked>{t(locale, "orchError_group_active_run")}</div>}
         {targets.length === 0
           ? <p className="orch-hint" data-ws-move-none>{tk(locale, "wsMoveNoTarget")}</p>
@@ -511,13 +511,13 @@ function HiddenDialog({ controls, counts, locale, onClose }: { controls: Workspa
           {hidden.map((w) => (
             <li key={w.id} data-ws-hidden-item={w.id}>
               <span>{workspaceTitle(locale, w)}</span>
-              {(counts[w.id]?.runs ?? 0) + (counts[w.id]?.cli ?? 0) > 0 && <span className="ws-chip" data-ws-hidden-working>{tr(locale, "wsHiddenWorking", { n: String((counts[w.id]?.runs ?? 0) + (counts[w.id]?.cli ?? 0)) })}</span>}
+              {(counts[w.id]?.runs ?? 0) + (counts[w.id]?.cli ?? 0) > 0 && <span className="ws-chip" data-ws-hidden-working>{tr(locale, `wsHiddenWorking_${pluralForm(locale, (counts[w.id]?.runs ?? 0) + (counts[w.id]?.cli ?? 0))}`, { n: String((counts[w.id]?.runs ?? 0) + (counts[w.id]?.cli ?? 0)) })}</span>}
               <button type="button" onClick={() => { controls.switchTo(w.id); onClose(); }}>{tk(locale, "wsShow")}</button>
             </li>
           ))}
         </ul>
         <p className="orch-hint">{tk(locale, "wsHiddenHint")}</p>
-        <div className="orch-form__actions"><button type="button" className="orch-cancel" onClick={onClose}>{tk(locale, "wsHiddenClose")}</button></div>
+        <div className="orch-form__actions ws-hidden__actions"><button type="button" className="orch-cancel" onClick={onClose}>{tk(locale, "wsHiddenClose")}</button></div>
       </div>
     </Dialog>
   );

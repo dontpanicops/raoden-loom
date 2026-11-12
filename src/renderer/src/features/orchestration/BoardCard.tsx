@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { LocaleId, SessionBounds } from "../../../../shared/contracts";
 import type { OrchestrationAgentLink } from "../../../../shared/orchestration";
 import { AUTOPILOT_BUDGET, type AutopilotLimit, type AutopilotStopCode, conflictsOf, placeKey, externalInForce, isCopy, startBase, taskText, mergeMark, parallelOf, type AutopilotBudget, type AutopilotState, type BoardHead, type BoardMerge, type BoardTask, type ImportReport, type InboxRow, type InboxTask, type RunTaskFacts, type TaskColumn, type TaskStatus } from "../../../../shared/taskBoard";
-import { t, type TranslationKey } from "../../lib/i18n";
+import { pluralForm, t, type TranslationKey } from "../../lib/i18n";
 import { Dialog } from "../../components/Dialog";
 import { UiIcon } from "../../components/UiIcon";
 import { ACTIVE_STATUSES, providerName, resetTime } from "./runModel";
@@ -173,7 +173,7 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
           </span>
         </span>
       </header>
-      {view && !readOnly && heads.filter(headHasNews).map((h) => (
+      {view && !readOnly && heads.filter((h) => headHasNews(h) || notMergedOf(h, tasks, board.statuses, view.facts).length > 0).map((h) => (
         <HeadRow key={h.ref} locale={locale} head={h} tasks={tasks} statuses={board.statuses} facts={view.facts} board={board} workspaceId={workspaceId} say={(text) => say(null, text)} failure={failure} openRun={(id) => ui.openRunById(id)} />
       ))}
       {!!view?.inbox?.some((r) => (r.workspaceId ?? workspaceId) === workspaceId) && <div className="board-card__inbox-list" data-wheel-owner="local">
@@ -620,6 +620,15 @@ const TO_AGENT = new Set(["merge_conflict", "merge_checks_failed", "merge_agent_
 // the person's own actions on it. Nothing here is automatic.
 // R7b (mock 08 has no board-result row): the row shows once the board's result has something to say or to do
 const headHasNews = (h: BoardHead): boolean => h.merges.length > 0 || (h.behind ?? 0) > 0 || !!h.otherLine;
+// the tasks «Done» from this head's copy and not merged into it (the «Merge all» row)
+function notMergedOf(head: BoardHead, tasks: BoardTask[], statuses: ReadonlyMap<string, TaskStatus>, facts: readonly RunTaskFacts[]): BoardTask[] {
+  const done = head.merges.filter((m) => m.status === "completed");
+  return tasks.filter((x) => {
+    const st = statuses.get(x.id);
+    const f = facts.find((y) => y.runId === st?.current);
+    return x.project === head.project && st?.done && isCopy(f?.workMode) && f!.board === head.ref && !done.some((m) => m.task.id === x.id);
+  });
+}
 function HeadRow({ locale, head, tasks, statuses, facts, board, workspaceId, say, failure, openRun }: {
   locale: LocaleId; head: BoardHead; tasks: BoardTask[]; statuses: ReadonlyMap<string, TaskStatus>; facts: readonly RunTaskFacts[]; board: Board;
   workspaceId: string; say(text: string): void; failure(r: { ok: boolean; code?: string; message?: string }): string | null; openRun(runId: string): void;
@@ -633,15 +642,11 @@ function HeadRow({ locale, head, tasks, statuses, facts, board, workspaceId, say
   const nameOf = (m: BoardMerge) => (m.source === "head" ? t(locale, "boardHeadFromHead") : m.task.key);
   // C2 (decision 13): the person's commits the head does not have; its update only by the person
   const behind = head.behind ?? 0;
-  const many = locale === "ru" ? (behind % 10 === 1 && behind % 100 !== 11 ? "one" : [2, 3, 4].includes(behind % 10) && ![12, 13, 14].includes(behind % 100) ? "few" : "many") : behind === 1 ? "one" : "many";
+  const many = pluralForm(locale, behind);
   // decision 15: a merge that found nothing new checked nothing — it says nothing of the checks
   const merged = done.filter((m) => m.reason !== "already");
   const checks = merged.length ? (merged.some((m) => m.completion === "no_checks") ? t(locale, "boardHeadNoChecks") : t(locale, "boardHeadChecked")) : null;
-  const notMerged = tasks.filter((x) => {
-    const st = statuses.get(x.id);
-    const f = facts.find((y) => y.runId === st?.current);
-    return x.project === head.project && st?.done && isCopy(f?.workMode) && f!.board === head.ref && !done.some((m) => m.task.id === x.id);
-  });
+  const notMerged = notMergedOf(head, tasks, statuses, facts);
   const going = head.merges.find((m) => m.status === "preparing" || m.status === "running");
   const waits = head.merges.find((m) => m.status === "paused");
   const act = async (action: "branch" | "apply" | "new" | "update") => {
@@ -663,7 +668,7 @@ function HeadRow({ locale, head, tasks, statuses, facts, board, workspaceId, say
   return (
     <div className="board-card__head" data-board-head={head.ref}>
       <div className="board-card__head-line">
-        <strong data-board-head-tasks>{keys.length ? tr(locale, "boardHeadTasks", { keys: keys.join(", ") }) : t(locale, "boardHeadEmpty")}</strong>
+        {head.merges.length > 0 && <strong data-board-head-tasks>{keys.length ? tr(locale, "boardHeadTasks", { keys: keys.join(", ") }) : t(locale, "boardHeadEmpty")}</strong>}
         {checks && <span data-board-head-checks={merged.some((m) => m.completion === "no_checks") ? "none" : "passed"}>{` · ${checks}`}</span>}
         {going?.agent?.pending && going.agent.waits && <span data-board-head-agent-waits={going.agent.waits.kind}>{` · ${agentWaitsText(locale, nameOf(going), going.agent.waits)}`}</span>}
         {going && !going.agent?.pending && <span data-board-head-merging>{` · ${tr(locale, "boardHeadMerging", { key: nameOf(going) })}`}</span>}
