@@ -1086,9 +1086,9 @@
    "zone": "Z4",
    "mock": "17-workspaces",
    "themes": ["sand", "paper", "frost"],
-   "mockCrop": { "x": 56, "y": 48, "w": 420, "h": 240 },
+   "mockCrop": { "x": 46, "y": 38, "w": 440, "h": 260 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-create.png" },
-   "appCrop": { "x": 490, "y": 348, "w": 460, "h": 249 },
+   "appCrop": { "x": 490, "y": 316, "w": 460, "h": 312 },
    "scale": "100%",
    "data": "«Новое пространство»: название, метка",
    "notes": "по коду: папка вместо меток — см. 25-create"
@@ -1148,7 +1148,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 962, "y": 321, "w": 422, "h": 298 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-move.png" },
-   "appCrop": { "x": 490, "y": 303, "w": 460, "h": 339 },
+   "appCrop": { "x": 490, "y": 237, "w": 460, "h": 470 },
    "scale": "100%",
    "data": "«Перенести карточку»: список пространств, «Новое пространство…»",
    "notes": ""
@@ -1186,7 +1186,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 962, "y": 652, "w": 422, "h": 280 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-hidden-list.png" },
-   "appCrop": { "x": 490, "y": 320, "w": 460, "h": 304 },
+   "appCrop": { "x": 490, "y": 380, "w": 460, "h": 184 },
    "scale": "100%",
    "data": "«Скрытые пространства»: «Показать», «1 работает»",
    "notes": ""
@@ -1208,9 +1208,9 @@
    "zone": "Z4",
    "mock": "25-workspaces-more",
    "themes": ["sand", "paper", "frost"],
-   "mockCrop": { "x": 56, "y": 104, "w": 420, "h": 262 },
+   "mockCrop": { "x": 46, "y": 94, "w": 440, "h": 282 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-create.png" },
-   "appCrop": { "x": 490, "y": 348, "w": 460, "h": 249 },
+   "appCrop": { "x": 490, "y": 316, "w": 460, "h": 312 },
    "scale": "100%",
    "data": "папка строкой под названием, метки 5 цветов",
    "notes": "метки — новое в коде (SPEC §11.7)"
@@ -1270,7 +1270,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 1008, "w": 482, "h": 44 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-bar.png" },
-   "appCrop": { "x": 455, "y": 55, "w": 530, "h": 48 },
+   "appCrop": { "x": 410, "y": 50, "w": 620, "h": 56 },
    "scale": "100%",
    "data": "вкладки с метками слева от названия",
    "notes": ""
@@ -1282,10 +1282,10 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 600, "y": 1010, "w": 362, "h": 148 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-hidden-list.png" },
-   "appCrop": { "x": 490, "y": 320, "w": 460, "h": 304 },
+   "appCrop": { "x": 490, "y": 380, "w": 460, "h": 184 },
    "scale": "100%",
    "data": "«Скрытые» с метками",
-   "notes": ""
+   "notes": "R12s: по макету 25 (D-042): без пояснения и кнопки «Закрыть», закрывает ×/Esc"
   },
   {
    "id": "25-move",
@@ -1294,10 +1294,10 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 990, "y": 1010, "w": 396, "h": 268 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-move.png" },
-   "appCrop": { "x": 490, "y": 303, "w": 460, "h": 339 },
+   "appCrop": { "x": 490, "y": 237, "w": 460, "h": 470 },
    "scale": "100%",
    "data": "«Перенести карточку» с метками",
-   "notes": ""
+   "notes": "R12s: «+ Новое пространство…» оставлено (D-041 п. 2, решение владельца); в кадре paper и frost список длиннее и прокручен (остатки сцены)"
   },
   {
    "id": "08-board",
@@ -1880,11 +1880,23 @@
    "zone": "Z7",
    "mock": "15-project-settings",
    "themes": ["sand", "paper", "frost"],
-   "mockCrop": { "x": 174, "y": 555, "w": 1092, "h": 405 },
+   "mockCrop": { "x": 168, "y": 548, "w": 550, "h": 414 },
    "scene": { "script": "shots-r5.mjs", "dpr": 2, "file": "{theme}-project-settings-push.png" },
-   "appCrop": { "x": 170, "y": 150, "w": 1090, "h": 625 },
+   "appCrop": { "x": 168, "y": 146, "w": 546, "h": 526 },
    "scale": "100%",
-   "data": "Push, выгрузка ревью, MCP и окружение",
+   "data": "карточка Push",
+   "notes": "R12e: Push переложен как в макете; F-c: папка и формат выгрузки ревью есть (D-041 п. 1); нет в коде: «Спрашивать перед каждым push», ошибка push options"
+  },
+  {
+   "id": "15-review-export",
+   "zone": "Z7",
+   "mock": "15-project-settings",
+   "themes": ["sand", "paper", "frost"],
+   "mockCrop": { "x": 722, "y": 548, "w": 550, "h": 154 },
+   "scene": { "script": "shots-r5.mjs", "dpr": 2, "file": "{theme}-project-settings-push.png" },
+   "appCrop": { "x": 716, "y": 516, "w": 542, "h": 262 },
+   "scale": "100%",
+   "data": "карточка «Выгрузка ревью»: папка и формат",
    "notes": "R12e: Push переложен как в макете; F-c: папка и формат выгрузки ревью есть (D-041 п. 1); нет в коде: «Спрашивать перед каждым push», ошибка push options"
   },
   {

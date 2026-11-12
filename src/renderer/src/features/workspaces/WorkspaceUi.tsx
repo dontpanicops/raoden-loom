@@ -628,8 +628,6 @@ function HiddenDialog({ controls, counts, locale, onClose }: { controls: Workspa
             </li>
           ))}
         </ul>
-        <p className="orch-hint">{tk(locale, "wsHiddenHint")}</p>
-        <div className="orch-form__actions ws-hidden__actions"><button type="button" className="orch-cancel" onClick={onClose}>{tk(locale, "wsHiddenClose")}</button></div>
       </div>
     </Dialog>
   );
