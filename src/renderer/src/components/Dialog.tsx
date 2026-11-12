@@ -105,14 +105,15 @@ export function Dialog({ label, onClose, children, locale, className = "", backd
       {children}
     </section>
   );
-  // in body, not in the opener's tree: a canvas card is scaled and transformed, and a fixed dialog inside it would shrink with the scene
-  if (anchor) return createPortal(card, document.body);
+  // in the app root (it carries the theme tokens), not in the opener's tree: a canvas card is scaled and transformed, and a fixed dialog inside it would shrink with the scene
+  const host = document.querySelector<HTMLElement>(".app") ?? document.body;
+  if (anchor) return createPortal(card, host);
   return createPortal(
     <div className={`dialog-backdrop ${backdropClassName}`.trim()} role="presentation" data-interactive="true" data-wheel-owner="local" data-canvas-wheel-priority="local" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}>
       {card}
     </div>,
-    document.body,
+    host,
   );
 }

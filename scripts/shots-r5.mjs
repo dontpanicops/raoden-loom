@@ -781,6 +781,7 @@ try {
       if (!(await app.ev(`!!${q("[data-board]")}`))) await app.clickEl(q("[data-board-button]"));
       await app.waitFor(`${q("[data-board]")} && true`, "the board");
       await app.clickEl(q("[data-board-new]")); await app.waitFor(`${q("[data-board-form]")} && true`, "the form"); await sleep(500);
+      console.log("DBG", await app.ev(`(() => { const d = document.querySelector(".dialog-backdrop"); if (!d) return "none"; const r = d.getBoundingClientRect(); const c = getComputedStyle(d); return JSON.stringify({ r: [r.x, r.y, r.width, r.height], parent: d.parentElement.tagName, disp: c.display, op: c.opacity, vis: c.visibility, z: c.zIndex, bg: c.backgroundColor }); })()`));
       await shot("board-newtask");
       await esc();
       await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500);
