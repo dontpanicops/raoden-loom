@@ -216,6 +216,10 @@ try {
       if (fs.existsSync(path.join(cliBin, "claude"))) fs.renameSync(path.join(cliBin, "claude"), path.join(cliBin, "claude.off")); // mock 04: no CLI found («Как установить»)
       await settle({ onboardingDismissed: false, homeLimitProviders: ["codex", "qwen", "kimi", "opencode", "grok"] }); // Claude's limit row reads the real keychain: out, so «no CLI» is whole as in mock 04
       await shot("firstrun");
+      // R12j (gate S7, mock 04): the card at its own width (560, the mock's 100%) needs a wider window; at 1440 it is narrower than 480 and the steps' buttons go under the text
+      await app.call("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false }); await sleep(1500);
+      await shot("firstrun-wide");
+      await laptop(); await sleep(1000);
     });
   }
   await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ homeLimitProviders: ["codex", "claude", "qwen", "kimi", "opencode", "grok"] })}).then(() => true)`);
@@ -343,7 +347,9 @@ try {
 
   for (theme of THEMES) {
     await settle();
-    await scene("home-canvas", async () => { await hideOnboarding(); await app.key("Home", "Home", 36); await sleep(900); await shot("home-canvas"); });
+    // R12j (gate Z1): the site's page follows the frame's theme in the canvas frames too (a light theme had a black page)
+    const siteTheme = async () => { await app.ev(`window.canvasTTY.browser.getState().then((s) => window.canvasTTY.browser.navigate(s.tabs[0].id, ${JSON.stringify(SITE + "?t=" + theme)})).then(() => true)`).catch(() => {}); await sleep(1500); };
+    await scene("home-canvas", async () => { await hideOnboarding(); await siteTheme(); await app.key("Home", "Home", 36); await sleep(900); await shot("home-canvas"); });
 
     // the states of mock 06 (D-020): free, working (selected), waiting for approval, exited, failed; then the summary at zoom < 0.5
     await scene("cards", async () => {
@@ -461,6 +467,14 @@ try {
       await app.click(reg.x, reg.y, "right");
       await app.waitFor(`${q(".canvas-menu")} && true`, "the region's menu", 10_000); await sleep(400);
       await shot("canvas-region-menu"); await esc();
+    });
+    // R12j (gate S7, mock 03): the one toast of the canvas, «Терминал создан»
+    await scene("overlay-toast-created", async () => {
+      await app.ev(`window.dispatchEvent(new CustomEvent("canvastty:toast", { detail: { message: "Терминал создан", kind: "success" } }))`);
+      await sleep(600);
+      await shot("overlay-toast-created");
+      await app.ev(`document.querySelectorAll(".toast button[aria-label], .toast__close").forEach((b) => b.click())`).catch(() => {});
+      await sleep(400);
     });
     await scene("overlay-toast", async () => {
       // the app has no source of «waiting» toasts with an action: the driver hook of App.tsx (inert in a packaged build) shows the three states of mock 10
@@ -731,7 +745,14 @@ try {
       }
       await app.key("Home", "Home", 36); await sleep(800);
       await app.waitFor(`${card(world.leftLead)} && true`, "the pair's cards", 10_000);
-      await app.panBy({ x: 0, y: -300 }); await sleep(600); // HOME out of the frame: the pair alone
+      // R12j (gate S7, mock 19): at 100% (the mock's), the pair alone in the middle of the window: the camera is written to the space and the window reads it again
+      const stp = await canvasState(app), pb = [world.leftLead, world.leftExec].map((id) => stp.agents.find((a) => a.agentId === id).bounds);
+      const px0 = Math.min(...pb.map((b) => b.position.x)), px1 = Math.max(...pb.map((b) => b.position.x + b.size.width));
+      const py0 = Math.min(...pb.map((b) => b.position.y)), py1 = Math.max(...pb.map((b) => b.position.y + b.size.height));
+      const wsId = (await app.ev(`window.canvasTTY.workspaces.get()`)).activeId;
+      await app.ev(`window.canvasTTY.workspaces.setCamera(${JSON.stringify(wsId)}, ${JSON.stringify({ x: Math.round(720 - (px0 + px1) / 2), y: Math.round(480 - (py0 + py1) / 2), zoom: 1 })}).then(() => true)`);
+      await app.call("Page.reload", {}); await sleep(2500); await laptop();
+      await app.waitFor(`${q(".workspace")} && ${card(world.leftLead)} && true`, "the pair at 100%", 30_000); await sleep(800);
       await shot("link-executor-left");
       await app.key("Home", "Home", 36); await sleep(500);
     });
@@ -793,10 +814,17 @@ try {
     await scene("card-focus", async () => {
       await app.key("Home", "Home", 36); await sleep(700);
       await zoom100(card(lead.agentId)); await sleep(600); await shot("card-focus-plain");
-      await app.clickEl(card(lead.agentId, ".agent-card__header")); await sleep(500); await shot("card-focus-selected");
-      // selected + the keyboard focus (Tab twice reaches the card), then the selection is taken off by a click on empty canvas: the focus alone
-      await app.ev(`document.activeElement?.blur()`);
-      const kb = async () => { await app.key("Tab", "Tab", 9); await sleep(300); await app.ev(`${card(lead.agentId, ".agent-card__expand")}.focus()`); await sleep(500); }; // a key, then the focus: it is the keyboard's
+      // R12j (gate Z1, S6): «selected» is the selection by a marquee (Shift-drag on empty canvas), not a click on the header
+      const lr = await app.ev(`(() => { const r = ${card(lead.agentId)}.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; })()`);
+      const mq = (type, x, y, buttons) => app.call("Input.dispatchMouseEvent", { type, x, y, button: type === "mouseMoved" && !buttons ? "none" : "left", buttons, clickCount: 1, modifiers: 8 });
+      const [fx, fy, tx, ty] = [lr.x - 24, lr.y - 24, lr.right - 12, lr.bottom - 12];
+      await mq("mouseMoved", fx, fy, 0); await mq("mousePressed", fx, fy, 1);
+      for (let i = 1; i <= 10; i++) await mq("mouseMoved", fx + ((tx - fx) * i) / 10, fy + ((ty - fy) * i) / 10, 1);
+      await mq("mouseReleased", tx, ty, 0); await mq("mouseMoved", 1000, 800, 0); await sleep(500);
+      await app.ev(`document.activeElement?.blur()`); await sleep(300);
+      await shot("card-focus-selected");
+      // selected + the keyboard focus on the card itself (a key, then the focus: it is the keyboard's), then the selection is taken off by a click on empty canvas: the focus alone
+      const kb = async () => { await app.key("Tab", "Tab", 9); await sleep(300); await app.ev(`${card(lead.agentId)}.focus()`); await sleep(500); };
       await kb(); await shot("card-focus-both");
       await app.click(1000, 760); await sleep(400); await esc(); await app.ev(`document.activeElement?.blur()`); await sleep(300);
       await kb(); await shot("card-focus-tab");
@@ -840,7 +868,11 @@ try {
       const editBtn = `[...document.querySelectorAll(".home-appearance-settings .setting-inline-action")].find((b) => /HOME/.test(b.textContent))`;
       await app.ev(`(() => { ${editBtn}?.scrollIntoView({ block: "center" }); return true; })()`); await sleep(400);
       await app.clickEl(editBtn); await sleep(1200);
+      // R12j (gate S7, mock 18): the draft with the «Media» tile dragged out beyond the border: the bar says why it cannot be saved
+      const mv = await app.ev(`(() => { const s = [...document.querySelectorAll(".home-widget-slot")].find((e) => e.querySelector(".mini-media")); const r = s.querySelector(".home-widget-slot__move").getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+      await app.drag(mv, { x: mv.x + 640, y: mv.y + 30 }, 24); await sleep(700);
       await shot("home-edit");
+      await app.clickEl(q(".home-editor-toolbar button:not(.home-editor-toolbar__done)")); await sleep(500); // the draft is reset: the layout is the default again
       // the editor leaves with «Сохранить» (the layout is unchanged)
       await app.clickEl(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Сохранить" && !b.closest(".settings-panel"))`); await sleep(600);
       if (await app.ev(`!!${q(".settings-backdrop--open")}`)) await app.clickEl(q(".settings-panel__close"));

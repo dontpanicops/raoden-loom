@@ -217,6 +217,11 @@ export function StickyNoteCard({
     onBoundsChange(note.id, liveBounds.current);
   };
 
+  // a sourced note's first line is its title (the header); the body under it does not say it twice
+  const lines = text.split("\n");
+  const sourcedTitle = lines.find((line) => line.trim()) ?? "";
+  const sourcedBody = lines.slice(lines.indexOf(sourcedTitle) + 1).join("\n").replace(/^\n/, "");
+
   return (
     <article
       className={`sticky-note-card ${groupSelected ? "sticky-note-card--selected" : ""} ${note.source ? "sticky-note-card--sourced" : ""}`}
@@ -241,7 +246,7 @@ export function StickyNoteCard({
         onPointerCancel={endDrag}
         onLostPointerCapture={cancelDrag}
       >
-        <span><UiIcon name="sticky-note" size="1.15em" />{(note.source && text.split("\n").find((line) => line.trim())) || t(locale, "stickyNote")}</span>
+        <span><UiIcon name="sticky-note" size="1.15em" />{(note.source && sourcedTitle) || t(locale, "stickyNote")}</span>
         <button
           className="sticky-note-card__close"
           type="button"
@@ -263,11 +268,11 @@ export function StickyNoteCard({
       <textarea
         ref={editor}
         className="sticky-note-card__editor"
-        value={text}
+        value={note.source && sourcedTitle ? sourcedBody : text}
         maxLength={20_000}
         placeholder={t(locale, "stickyNotePlaceholder")}
         aria-label={t(locale, "stickyNote")}
-        onChange={(event) => changeText(event.target.value)}
+        onChange={(event) => changeText(note.source && sourcedTitle ? `${sourcedTitle}\n\n${event.target.value}` : event.target.value)}
         onBlur={() => saveText(text)}
       />
       {note.source && onOpenSource && (

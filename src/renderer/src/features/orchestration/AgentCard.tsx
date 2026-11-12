@@ -32,7 +32,7 @@ interface AgentCardProps {
   message: CardMessage | null;
   linking: "source" | "target" | null; // keyboard/click linking mode
   linked: boolean;
-  offer?: "source" | "ok" | "drop" | "dim" | "dim-over" | null; // while a link is dragged from a port (mock 18): fits / under the pointer / other role or folder / the latter under the pointer
+  offer?: "source" | "ok" | "drop" | "dim" | "dim-over" | "dim-far" | null; // while a link is dragged from a port (mock 18): fits / under the pointer / other role or folder / the latter under the pointer
   hasRun: boolean;
   selected: boolean;
   snapEnabled: boolean;
@@ -106,8 +106,11 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
     <article
       className={`agent-card agent-card--${card.provider} agent-card--${state} ${props.selected ? "agent-card--selected" : ""} ${linking ? `agent-card--linking-${linking}` : ""} ${props.offer ? `agent-card--offer-${props.offer}` : ""}`}
       data-interactive="true"
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: the card is the keyboard's stop of its own: the focus ring lies on it, not on a header button (mock 18)
+      tabIndex={0}
       data-zoomed={zoomedAttr(zoom)}
       data-agent-far={farSummary ? "" : undefined}
+      data-agent-tight={zoom < 0.6 ? "" : undefined}
       data-agent-id={card.agentId}
       data-agent-role={card.role}
       data-canvas-layer-id={`agent:${card.agentId}`}
@@ -187,7 +190,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
           <span className={`agent-card__state agent-card__state--${state}`}><UiIcon name={CARD_STATUS_ICON[agentCardStatus(state)]} size="1.4em" /></span>
         </div>
       )}
-      {(props.offer === "drop" || props.offer === "dim-over") && (
+      {(props.offer === "drop" || props.offer === "dim-over" || props.offer === "dim-far") && (
         <span className="agent-card__offer" aria-hidden="true">{t(locale, props.offer === "drop" ? "orchReleaseToLink" : "orchOtherFolder")}</span>
       )}
       {RESIZE_DIRECTIONS.map((direction) => (

@@ -618,7 +618,7 @@ export function HomeZone({
                 title={t(locale, "dockRemove")}
                 onClick={() => onSetDockProviders(launcherProviders.filter((p) => p !== provider))}
               >
-                <UiIcon name="close" size={12} />
+                <UiIcon name="close" size={16} />
               </button>
             </div>
           ))}

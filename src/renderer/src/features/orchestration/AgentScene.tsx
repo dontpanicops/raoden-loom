@@ -9,6 +9,7 @@ import { t, type TranslationKey } from "../../lib/i18n";
 import { tr } from "./boardModel";
 import { agentLayerId, pastCanvasDragThreshold } from "../workspace/canvasSelectionGesture";
 import { AgentCard } from "./AgentCard";
+import { invZoom } from "../../lib/cardChrome";
 import { chipOnCurve, chipSize } from "./linkChip";
 import { arrowPath, bendFromHandle, linkGeometry, linkPath } from "./linkCurve";
 import { linkTrace } from "./linkTrace";
@@ -39,9 +40,10 @@ const leftMid = (b: SessionBounds): Point => ({ x: b.position.x, y: b.position.y
 const rect = (b: SessionBounds) => ({ x: b.position.x, y: b.position.y, width: b.size.width, height: b.size.height });
 
 // a card that can take the dragged link (an executor of the lead's project folder, not linked to this lead yet) is lit, the rest dim
-function offerOf(card: { agentId: string; role: string; project: string }, from: { agentId: string; role: string; project: string } | undefined, linked: boolean, over: boolean): "ok" | "drop" | "dim" | "dim-over" {
+function offerOf(card: { agentId: string; role: string; project: string }, from: { agentId: string; role: string; project: string } | undefined, linked: boolean, over: boolean): "ok" | "drop" | "dim" | "dim-over" | "dim-far" {
   const fits = card.role === "executor" && from?.role === "lead" && card.project === from.project && !linked;
-  return fits ? (over ? "drop" : "ok") : over ? "dim-over" : "dim";
+  // an executor of another project folder says so on its dimmed card at once (mock 18), not only under the pointer
+  return fits ? (over ? "drop" : "ok") : over ? "dim-over" : card.role === "executor" && from?.role === "lead" && card.project !== from.project ? "dim-far" : "dim";
 }
 
 export function AgentScene(props: AgentSceneProps): React.JSX.Element {
@@ -276,12 +278,12 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
         const label = shown?.permission ? t(locale, "orchLinkNeedsYou") : shown?.newer ? t(locale, "orchReadOnly") : shown ? viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ?? t(locale, `orchStatus_${runStatusKey(shown)}` as TranslationKey) : t(locale, "orchNoRun");
         // on the curve, off the cards (and the bend handle when selected) (Н14, linkChip.ts)
         const g = linkGeometry(rightMid(from), leftMid(to), bendDrag?.linkId === link.linkId ? bendDrag.bend : link.bend);
-        const at = chipOnCurve(g, [...agents.map(({ bounds }) => rect(bounds)), ...(props.regionTitles ?? [])], chipSize(label, (busy ? 0 : 2) + (view ? 2 : 0) + (view?.newer ? 1 : 0) + (link.bend ? 1 : 0) + (liveViews.length > 1 ? 1 : 0)) /* new goal, ×, open run, observe, release, reset, runs: every button counts */, selectedLink === link.linkId, [rect(from), rect(to)]);
+        const at = chipOnCurve(g, [...agents.map(({ bounds }) => rect(bounds)), ...(props.regionTitles ?? [])], chipSize(label, (busy ? 0 : 2) + (view ? 2 : 0) + (view?.newer ? 1 : 0) + (link.bend ? 1 : 0) + (liveViews.length > 1 ? 1 : 0), invZoom(zoom)) /* new goal, ×, open run, observe, release, reset, runs: every button counts; below 100% the chip is in screen px (R12j) */, selectedLink === link.linkId, [rect(from), rect(to)]);
         return (
           <div key={link.linkId} className={`agent-link__chip${view?.permission ? " agent-link__chip--needs-you" : ""}`} data-interactive="true" data-agent-link-id={link.linkId}
             role="group" aria-label={t(locale, "orchLink")}
-            style={{ left: at.x, top: at.y,
-              zIndex: Math.max(props.zIndexOf(agentLayerId(link.fromAgentId)), props.zIndexOf(agentLayerId(link.toAgentId))) }}>
+            style={{ left: at.x, top: at.y, "--iz": invZoom(zoom),
+              zIndex: Math.max(props.zIndexOf(agentLayerId(link.fromAgentId)), props.zIndexOf(agentLayerId(link.toAgentId))) } as React.CSSProperties}>
             <span className="agent-link__state">
               {label}
             </span>

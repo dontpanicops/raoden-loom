@@ -432,6 +432,16 @@ export function BrowserCard({
             <small>{t(locale, `browserTabCount_${pluralForm(locale, browser.tabs.length)}`).replace("{n}", String(browser.tabs.length))}</small>
           </span>
         </span>
+        <button
+          className={`browser-card__downloads ${activeDownloadCount > 0 ? "browser-card__downloads--active" : ""}`}
+          type="button"
+          onClick={() => setPanel((current) => current === "downloads" ? null : "downloads")}
+          title={t(locale, "browserDownloads")}
+          aria-label={`${t(locale, "browserDownloads")}: ${recentDownloads.length}`}
+        >
+          <UiIcon name="download" size={16} />
+          {recentDownloads.length > 0 && <span>{activeDownloadCount || recentDownloads.length}</span>}
+        </button>
         <button className="browser-card__hide" type="button" onClick={onClose} title={t(locale, "hideBrowser")} aria-label={t(locale, "hideBrowser")}>
           <UiIcon name="close" size="1.23em" />
         </button>
@@ -512,16 +522,6 @@ export function BrowserCard({
           />
         </form>
         {showAgentPresence && <AgentBadges agents={browser.agents} locale={locale} />}
-        <button
-          className={`browser-card__downloads ${activeDownloadCount > 0 ? "browser-card__downloads--active" : ""}`}
-          type="button"
-          onClick={() => setPanel((current) => current === "downloads" ? null : "downloads")}
-          title={t(locale, "browserDownloads")}
-          aria-label={`${t(locale, "browserDownloads")}: ${recentDownloads.length}`}
-        >
-          <UiIcon name="download" size={16} />
-          {recentDownloads.length > 0 && <span>{activeDownloadCount || recentDownloads.length}</span>}
-        </button>
       </nav>
 
       <div
