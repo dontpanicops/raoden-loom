@@ -1,4 +1,4 @@
-import { chromeScale } from "../../lib/cardChrome";
+import { invZoom, zoomedAttr } from "../../lib/cardChrome";
 import { useEffect, useRef, useState } from "react";
 import type { LocaleId, Point, SessionBounds, StickyNote, StickyNoteSource } from "../../../../shared/contracts";
 import { UiIcon } from "../../components/UiIcon";
@@ -221,12 +221,13 @@ export function StickyNoteCard({
     <article
       className={`sticky-note-card ${groupSelected ? "sticky-note-card--selected" : ""} ${note.source ? "sticky-note-card--sourced" : ""}`}
       data-interactive="true"
+      data-zoomed={zoomedAttr(zoom)}
       data-sticky-note-id={note.id}
       data-canvas-layer-id={`note:${note.id}`}
       data-wheel-owner="local"
       style={{
         zIndex: stackIndex,
-        "--chrome-k": chromeScale(zoom),
+        "--iz": invZoom(zoom),
         width: size.width,
         height: size.height,
         transform: `translate(${position.x}px, ${position.y}px)`

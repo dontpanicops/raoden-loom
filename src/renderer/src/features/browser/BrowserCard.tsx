@@ -1,4 +1,4 @@
-import { chromeScale } from "../../lib/cardChrome";
+import { invZoom, zoomedAttr } from "../../lib/cardChrome";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   AgentPresenceSnapshot,
@@ -391,6 +391,7 @@ export function BrowserCard({
     <article
       className={`browser-card ${summaryMode ? "browser-card--summary" : ""} ${selected || groupSelected ? "browser-card--selected" : ""}`}
       data-interactive="true"
+      data-zoomed={zoomedAttr(zoom)}
       data-canvas-layer-id="browser"
       data-canvas-widget-id={browserCanvasWidgetId}
       data-canvas-widget-focusable="true"
@@ -410,7 +411,7 @@ export function BrowserCard({
         width: size.width,
         height: size.height,
         zIndex: stackIndex,
-        "--chrome-k": chromeScale(zoom),
+        "--iz": invZoom(zoom),
         transform: `translate(${position.x}px, ${position.y}px)`,
         "--summary-scale": summaryScale,
         "--summary-content-width": `${Math.max(0, (size.width - 48) / summaryScale)}px`

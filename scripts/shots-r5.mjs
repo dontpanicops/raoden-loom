@@ -215,6 +215,9 @@ try {
       await shot("home-mock-dock-hover");
       await app.mouse("mouseMoved", 700, 880);
       await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ homeLauncherProviders: ["codex", "claude", "qwen", "kimi", "opencode", "hermes", "grok", "omp", "pi"], homeLimitProviders: ["codex", "claude", "qwen", "kimi", "opencode", "grok"] })}).then(() => true)`);
+      // R12a (mock 20): nine agents, the second row: «+» and the first candidate until none is left
+      for (let i = 0; i < 6 && await app.ev(`!!${q(".launcher-button--add")}`); i++) { await app.clickEl(q(".launcher-button--add")); await sleep(300); await app.clickEl(q(".launcher-add-menu__item")); await sleep(400); }
+      await app.mouse("mouseMoved", 700, 880); await sleep(800); await shot("home-mock-dock-nine");
       fs.rmSync(path.join(cliBin, "codex"), { force: true });
       for (const id of made) await app.ev(`window.canvasTTY.terminal.dispose(${JSON.stringify(id)}).then(() => true)`);
     });
@@ -310,7 +313,10 @@ try {
       await app.reveal(`document.querySelector('[data-canvas-layer-id="terminal:${world.cards.working.id}"]')`).catch((e) => console.log("[shots-r5] reveal", e.message.slice(0, 120)));
       await app.panBy({ x: 0, y: -40 }).catch(() => {}); await sleep(500);
       await shot("cards-terminal");
-      for (let i = 0; i < 2; i++) { await app.clickEl(`document.querySelectorAll(".canvas-controls button, .zoom-controls button")[1]`).catch(() => {}); await sleep(200); }
+      for (let i = 0; i < 2; i++) {
+        await app.clickEl(`document.querySelectorAll(".canvas-controls button, .zoom-controls button")[1]`).catch(() => {}); await sleep(200);
+        if (i === 0) { await sleep(500); await shot("cards-zoom-mid"); } // R12a (mock 21): the zoom between 100% and the summary
+      }
       await app.panBy({ x: 250, y: 60 }).catch(() => {}); // HOME out of the window: nothing but the six cards under the minimap
       await sleep(600); await shot("cards-summary");
       await app.key("Home", "Home", 36); await sleep(600);

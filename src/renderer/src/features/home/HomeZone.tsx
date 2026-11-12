@@ -305,6 +305,10 @@ export function HomeZone({
   const launcherProviders = resolveHomeLauncherProviders(settings);
   const dockCandidates = AGENT_PROVIDERS.filter((provider) => !launcherProviders.includes(provider));
   const [dockMenuOpen, setDockMenuOpen] = useState(false);
+  const [cliFound, setCliFound] = useState<readonly AgentProviderId[]>([]); // which agents' CLIs main finds, shown in the «Add» list (SPEC 11.1)
+  useEffect(() => {
+    if (dockMenuOpen) window.canvasTTY.providers.available().then(setCliFound).catch(() => setCliFound([]));
+  }, [dockMenuOpen]);
   useEffect(() => {
     if (!dockMenuOpen) return undefined;
     const close = (event: PointerEvent | KeyboardEvent): void => {
@@ -640,7 +644,8 @@ export function HomeZone({
                       role="menuitem"
                       onClick={() => { onSetDockProviders(AGENT_PROVIDERS.filter((p) => p === provider || launcherProviders.includes(p))); setDockMenuOpen(false); }}
                     >
-                      <ProviderIcon provider={provider} size="small" /><span>{PROVIDERS[provider].label}</span>
+                      <ProviderIcon provider={provider} size="small" />
+                      <span className="launcher-add-menu__text"><span>{PROVIDERS[provider].label}</span><small>{t(locale, cliFound.includes(provider) ? "dockCliFound" : "dockCliMissing")}</small></span>
                     </button>
                   ))}
                 </div>

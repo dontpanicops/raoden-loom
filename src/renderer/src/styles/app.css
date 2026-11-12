@@ -228,19 +228,23 @@ button { border: 0; }
 .usage-row .ui-icon--working { animation: spin 1.7s linear infinite; }
 /* R10 (mock 05): the dock is rows of equal, fixed-size tiles (icon above the label); more tiles than a row holds wrap onto a new row and the
    panel grows, none shrinks or scrolls. The panel is as high as its rows, not as its slot; the settings tile beside it is one row high. */
-.launcher-dock { --dock-tile-h: 6.9em; padding: .7em; display: grid; grid-template-columns: repeat(auto-fill, 9.8em); grid-auto-rows: var(--dock-tile-h); justify-content: start; gap: .6em; border: 0; border-radius: 1.4em; background: var(--home-dock); font-size: calc(13px * var(--ui-scale, 1)); overflow: visible; }
+.launcher-dock { --dock-tile-h: 6.9em; padding: .7em; display: grid; grid-template-columns: repeat(auto-fill, 7.6em); grid-auto-rows: var(--dock-tile-h); justify-content: start; gap: .7em; border: 0; border-radius: 1.4em; background: var(--home-dock); font-size: calc(13px * var(--ui-scale, 1)); overflow: visible; }
 .home-widget-slot > .launcher-dock { height: auto; min-height: 8.3em; }
 .home-widget-slot > .launcher-dock, .home-widget-slot > .settings-button { align-self: start; box-sizing: border-box; }
 .home-widget-slot > .settings-button { width: 9.8em; height: 8.3em; font-size: calc(13px * var(--ui-scale, 1)); } /* a dock tile wide (mock 05) */
+.home-widget-slot:has(.launcher-add-menu) { z-index: 4000; } /* the open «Add» list lies over the cards below HOME */
 .launcher-cell { position: relative; display: grid; min-width: 0; }
 .launcher-cell > .launcher-button { width: 100%; height: 100%; }
-.launcher-cell__remove { position: absolute; top: .4em; right: .4em; z-index: 2; width: 1.9em; height: 1.9em; display: grid; place-items: center; border-radius: 50%; color: var(--text-secondary); background: var(--surface-3-solid); opacity: 0; cursor: pointer; transition: opacity .12s ease; }
+.launcher-cell__remove { position: absolute; top: -.8em; right: -.8em; z-index: 2; width: 2.3em; height: 2.3em; display: grid; place-items: center; border-radius: 50%; color: var(--text-secondary); background: var(--surface-3-solid); box-shadow: inset 0 0 0 1px var(--border-strong), var(--elev-2); opacity: 0; cursor: pointer; transition: opacity .12s ease; }
 .launcher-cell:hover .launcher-cell__remove, .launcher-cell__remove:focus-visible { opacity: 1; }
 .launcher-cell__remove:hover { color: var(--text-primary); }
-.launcher-button--add { color: var(--text-muted); background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); }
+.launcher-button--add { color: var(--text-secondary); background: transparent; box-shadow: none; border: 1.5px dashed var(--border-strong); }
+.launcher-button--add[aria-expanded="true"] { border-style: solid; border-color: var(--focus); }
 .launcher-button--add:hover { color: var(--text-primary); background: var(--home-dock-tile); }
-.launcher-add-menu { position: absolute; bottom: calc(100% + .4em); left: 0; z-index: 60; min-width: 16em; padding: .5em; display: flex; flex-direction: column; gap: .2em; border: 1px solid var(--border-strong); border-radius: 1em; color: var(--text-primary); background: var(--surface-3-solid); box-shadow: var(--elev-3); }
+.launcher-add-menu { position: absolute; top: calc(100% + .6em); left: 0; z-index: 60; width: 30em; padding: .5em; display: flex; flex-direction: column; gap: .2em; border: 1px solid var(--border-strong); border-radius: 1em; color: var(--text-primary); background: var(--surface-4-solid); box-shadow: var(--elev-3); }
 .launcher-add-menu__item { display: flex; align-items: center; gap: .8em; padding: .5em .7em; border-radius: .7em; color: inherit; background: transparent; cursor: pointer; font-size: 1.3em; text-align: left; }
+.launcher-add-menu__text { min-width: 0; display: flex; flex-direction: column; gap: .15em; line-height: 1.15; }
+.launcher-add-menu__text small { color: var(--text-secondary); font-size: .72em; }
 .launcher-add-menu__item:hover, .launcher-add-menu__item:focus-visible { background: var(--surface-sunken); }
 .launcher-button, .settings-button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35em; min-width: 0; color: var(--home-dock-tile-text); background: var(--home-dock-tile); cursor: pointer; transition: background .15s ease, filter .15s ease; }
 .launcher-button span:last-child, .settings-button span:last-child { max-width: 100%; overflow: hidden; font-size: 1.3em; text-overflow: ellipsis; white-space: nowrap; }
@@ -419,16 +423,17 @@ button { border: 0; }
 .terminal-card__summary { position: absolute; inset: var(--card-header-height) 0 0; width: 100%; height: calc(100% - var(--card-header-height)); display: none; align-items: center; justify-content: center; overflow: hidden; padding: 0; color: var(--term-fg); background: var(--term-bg); cursor: zoom-in; text-align: left; }
 .terminal-card__summary[data-focus-activation="off"] { cursor: pointer; }
 .terminal-card__summary:hover { background: color-mix(in srgb, var(--term-bg) 92%, var(--term-fg)); }
-.terminal-card__summary-content { width: var(--summary-content-width); max-width: calc(100% - 72px); display: flex; align-items: center; justify-content: center; gap: 22px; transform: scale(var(--summary-scale, 1)); transform-origin: center; }
-.terminal-card__summary-copy { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
-.terminal-card__summary strong { overflow: hidden; font-size: 36px; font-weight: 850; line-height: 1.05; letter-spacing: -.025em; text-overflow: ellipsis; white-space: nowrap; }
-.terminal-card__summary-copy { min-width: 140px; }
-.terminal-card__summary .terminal-card__summary-path { color: var(--term-dim); font-size: 21px; font-weight: 500; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.terminal-card__summary .card-status { align-self: flex-start; padding: 6px 14px; border-radius: 999px; background: color-mix(in srgb, currentColor 14%, transparent); font-size: 21px; line-height: 1; }
+.terminal-card__summary { inset: 0; height: 100%; align-items: flex-start; justify-content: flex-start; padding: calc(8px * var(--iz, 1)); }
+.terminal-card__summary-content { width: var(--summary-content-width); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 6px; transform: scale(var(--summary-scale, 1)); transform-origin: 0 0; } /* screen px: the card's zoom is undone by --summary-scale */
+.terminal-card__summary-name { max-width: 100%; display: flex; align-items: center; gap: 6px; color: var(--term-fg); }
+.terminal-card__summary strong { min-width: 8ch; overflow: hidden; font-size: 14px; font-weight: 600; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.terminal-card__summary .terminal-card__summary-name .provider-icon--small { --provider-icon-art-size: 14px; width: 16px; height: 16px; }
+.terminal-card__summary .terminal-card__summary-path { max-width: 100%; color: var(--term-dim); font-size: 12px; font-weight: 400; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.terminal-card__summary .card-status { padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, currentColor 14%, transparent); font-size: 11px; line-height: 1.2; }
 .terminal-card__summary .card-status > span { font-size: inherit; font-weight: 600; }
-.terminal-card--summary .terminal-card__header { background: var(--term-bg); }
-.terminal-card--summary .terminal-card__header > * { visibility: hidden; } /* below half size the summary is the card; the strip stays as the handle to drag it */
-.terminal-card--summary .terminal-card__surface { visibility: hidden; }
+.terminal-card--summary .terminal-card__header { position: absolute; left: 0; right: 0; top: 0; z-index: 2; height: calc(14px * var(--iz, 1)); background: transparent; } /* only the strip to drag the card by */
+.terminal-card--summary .terminal-card__header > * { visibility: hidden; }
+.terminal-card--summary .terminal-card__status { display: none; }
 .terminal-card--summary .terminal-card__summary { display: flex; }
 .terminal-card__resize-handle { position: absolute; z-index: 20; touch-action: none; }
 .terminal-card__resize-handle--n { top: 0; left: 10px; right: 10px; height: 8px; cursor: ns-resize; }
@@ -2152,8 +2157,21 @@ button { border: 0; }
 .terminal-card__resize-handle:active::after { background: var(--focus); }
 .resize-size-badge { position: fixed; z-index: 9000; padding: .25em .75em; border-radius: 999px; background: var(--surface-4-solid); box-shadow: inset 0 0 0 1px var(--border-strong), var(--elev-2); color: var(--text-primary); font: 600 12px/1.4 var(--font-mono); pointer-events: none; }
 
-/* R12a: the chrome of a canvas card (header, status line; everything sized by --ui-scale) is counter-scaled below 100% zoom, --chrome-k from lib/cardChrome.ts */
-.terminal-card, .browser-card, .sticky-note-card, .plugin-canvas-card { --ui-scale: calc(var(--app-ui-scale, 1) * var(--chrome-k, 1)); }
+/* R12a (SPEC 11.2, mock 21): below 100% zoom the chrome of a card is in screen px, 28 header (mark 14, name 12, path 11, buttons 20) and
+   24 footer (status 11); --iz = 1 / zoom is set by the card, data-zoomed marks it. The body scales with the canvas. */
+[data-zoomed] { --card-header-height: calc(28px * var(--iz)); --card-footer-height: calc(24px * var(--iz)); }
+[data-zoomed] .terminal-card__header, [data-zoomed].browser-card .browser-card__header, [data-zoomed] .sticky-note-card__header, [data-zoomed] .plugin-canvas-card__header, [data-zoomed] .agent-card__header { font-size: calc(12px * var(--iz)); padding-left: calc(8px * var(--iz)); padding-right: calc(4px * var(--iz)); gap: calc(6px * var(--iz)); }
+[data-zoomed] .provider-icon--small { --provider-icon-art-size: calc(14px * var(--iz)); width: calc(16px * var(--iz)); height: calc(16px * var(--iz)); }
+[data-zoomed] .terminal-card__identity strong, [data-zoomed] .agent-card__identity strong { font-size: calc(12px * var(--iz)); min-width: 8ch; }
+[data-zoomed] .terminal-card__cwd, [data-zoomed] .agent-card__identity small { font-size: calc(11px * var(--iz)); }
+[data-zoomed] .terminal-card__actions { gap: calc(4px * var(--iz)); }
+[data-zoomed] .terminal-card__actions button, [data-zoomed] .agent-card__close, [data-zoomed] .agent-card__expand, [data-zoomed] .sticky-note-card__close, [data-zoomed] .browser-card__hide { width: calc(20px * var(--iz)); height: calc(20px * var(--iz)); flex-basis: calc(20px * var(--iz)); border-radius: calc(5px * var(--iz)); }
+[data-zoomed] .terminal-card__status { font-size: calc(11px * var(--iz)); padding: 0 calc(8px * var(--iz)); }
+[data-zoomed] .terminal-card__restart { font-size: calc(11px * var(--iz)); padding: 0 calc(6px * var(--iz)); }
+/* an agent's status leaves the body for a footer of the terminal's format */
+[data-zoomed].agent-card .agent-card__body { padding-bottom: calc(24px * var(--iz) + .4em); }
+[data-zoomed].agent-card .agent-card__status { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; height: calc(24px * var(--iz)); padding: 0 calc(8px * var(--iz)); display: flex; align-items: center; gap: calc(6px * var(--iz)); overflow: hidden; border-top: 1px solid var(--border); border-radius: 0 0 13px 13px; background: var(--surface-2-b); font-size: calc(11px * var(--iz)); white-space: nowrap; }
+[data-zoomed].agent-card .agent-card__time { display: none; }
 .sticky-note-card__editor { font-size: calc(14px * var(--app-ui-scale, 1)); }
 /* R12b: a task card is the title, the status line, one line of substance and the actions; the rest opens under «Details» */
 .board-task__more { display: flex; flex-direction: column; gap: .3em; }

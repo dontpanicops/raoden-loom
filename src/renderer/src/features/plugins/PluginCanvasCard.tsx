@@ -1,4 +1,4 @@
-import { chromeScale } from "../../lib/cardChrome";
+import { invZoom, zoomedAttr } from "../../lib/cardChrome";
 import { useEffect, useRef, useState } from "react";
 import type {
   InstalledPlugin,
@@ -205,6 +205,7 @@ export function PluginCanvasCard({
     <article
       className={`plugin-canvas-card ${summaryMode ? "plugin-canvas-card--summary" : ""} ${groupSelected ? "plugin-canvas-card--selected" : ""}`}
       data-interactive="true"
+      data-zoomed={zoomedAttr(zoom)}
       data-canvas-layer-id={`plugin:${instance.id}`}
       data-canvas-widget-id={pluginCanvasWidgetId(instance.id)}
       data-canvas-widget-focusable="true"
@@ -213,7 +214,7 @@ export function PluginCanvasCard({
         width: size.width,
         height: size.height,
         zIndex: stackIndex,
-        "--chrome-k": chromeScale(zoom),
+        "--iz": invZoom(zoom),
         transform: `translate(${position.x}px, ${position.y}px)`,
         "--summary-scale": summaryScale
       } as React.CSSProperties}

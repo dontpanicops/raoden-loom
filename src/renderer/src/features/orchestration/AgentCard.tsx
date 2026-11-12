@@ -1,3 +1,4 @@
+import { invZoom, zoomedAttr } from "../../lib/cardChrome";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { LocaleId, SessionBounds } from "../../../../shared/contracts";
 import type { OrchestrationActivityEntry, OrchestrationAgentCard } from "../../../../shared/orchestration";
@@ -98,11 +99,12 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
     <article
       className={`agent-card agent-card--${card.provider} agent-card--${state} ${props.selected ? "agent-card--selected" : ""} ${linking ? `agent-card--linking-${linking}` : ""} ${props.offer ? `agent-card--offer-${props.offer}` : ""}`}
       data-interactive="true"
+      data-zoomed={zoomedAttr(zoom)}
       data-agent-id={card.agentId}
       data-agent-role={card.role}
       data-canvas-layer-id={`agent:${card.agentId}`}
       aria-label={`${card.provider === "codex" ? "Codex" : "Claude"} — ${t(locale, card.role === "lead" ? "orchRoleLead" : "orchRoleExecutor")}`}
-      style={{ zIndex: props.stackIndex, width: size.width, height: size.height, transform: `translate(${position.x}px, ${position.y}px)` }}
+      style={{ zIndex: props.stackIndex, width: size.width, height: size.height, transform: `translate(${position.x}px, ${position.y}px)`, "--iz": invZoom(zoom) } as React.CSSProperties}
     >
       <header className="agent-card__header" {...frame.header} ref={header}>
         <span className="agent-card__identity">
