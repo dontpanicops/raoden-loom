@@ -198,10 +198,18 @@ if (ONLY?.split(",").includes("plugins-list")) {
     fs.writeFileSync(path.join(dir, "canvastty.plugin.json"), JSON.stringify({ apiVersion: 1, id, name, version, description: desc, permissions: ["storage"], contributions: [{ id: "main", kind: "canvas-app", title: name, entry: "apps/main.html", defaultSize: { width: 480, height: 320 } }] }));
     reg[id] = { sourceUrl: `https://github.com/example/${id.split(".").pop()}`, enabled, installedAt: Date.now() };
   }
+  // F-b (mock 26): a plugin that does not load — its manifest names a kind this version does not know; main keeps it with loadError
+  const bad = "com.example.jira-sync";
+  fs.mkdirSync(path.join(userData, "plugins", bad), { recursive: true });
+  fs.writeFileSync(path.join(userData, "plugins", bad, "canvastty.plugin.json"), JSON.stringify({ apiVersion: 1, id: bad, name: "Jira Sync", version: "0.9.0", description: "Задачи из Jira", permissions: ["storage"], contributions: [{ id: "main", kind: "panel", title: "Jira", entry: "apps/main.html" }] }));
+  reg[bad] = { sourceUrl: "https://github.com/example/jira-sync", enabled: true, installedAt: Date.now() };
   fs.writeFileSync(path.join(userData, "plugins.json"), JSON.stringify(reg));
 }
+// F-b: «Check for updates» answers from this file in a run (no network): the installed version by default
+const RELEASE_FILE = D("release.json");
+fs.writeFileSync(RELEASE_FILE, JSON.stringify({ tag_name: "v1.5.20", html_url: "https://github.com/dontpanicops/raoden-loom/releases/tag/v1.5.20" }));
 try {
-  app = await launch({ userData, providers, port: PORT, shots: OUT, env: { CANVASTTY_SMOKE_CLI_DIR: cliBin, CANVASTTY_USER_DATA_DIR: userData, CANVASTTY_SMOKE_IMPORT_FILE: BOARD_FILE, CANVASTTY_SMOKE_STOP_DELAY_MS: "4000" } });
+  app = await launch({ userData, providers, port: PORT, shots: OUT, env: { CANVASTTY_SMOKE_CLI_DIR: cliBin, CANVASTTY_USER_DATA_DIR: userData, CANVASTTY_SMOKE_IMPORT_FILE: BOARD_FILE, CANVASTTY_SMOKE_STOP_DELAY_MS: "4000", CANVASTTY_SMOKE_RELEASE_JSON: RELEASE_FILE } });
   await laptop();
   await app.waitFor(`${q(".workspace")} && true`, "window", 30_000);
 
@@ -502,8 +510,10 @@ try {
 
     // settings tabs
     await scene("settings", async () => {
+      // mock 16 «Основные» draws «Проверять обновления» on; the app's default is off (D-041), so the frame turns it on
       await app.clickEl(q(".settings-button"));
       await app.waitFor(`${q(".settings-backdrop--open")} && true`, "settings open", 10_000);
+      await app.clickEl(q('[role="switch"][aria-label="Проверять обновления"]')); await sleep(500);
       for (const tab of ["general", "notifications", "appearance", "agents", "controls", "browser", "plugins", "about"]) {
         try {
           await app.clickEl(q(`#settings-tab-${tab}`)); await sleep(500);
@@ -519,7 +529,22 @@ try {
           }
         } catch (e) { failed.push(`${theme} settings-${tab}: ${String(e.message).slice(0, 120)}`); }
       }
+      await app.clickEl(q("#settings-tab-general")); await sleep(300);
+      await app.clickEl(q('[role="switch"][aria-label="Проверять обновления"]')); await sleep(300); // back to the default (off)
       await app.clickEl(q(".settings-panel__close")); await sleep(500);
+    });
+
+    // F-b: «Check for updates» finds a newer version: «Доступна версия X · Открыть страницу» (the answer comes from RELEASE_FILE)
+    await scene("settings-update", async () => {
+      fs.writeFileSync(RELEASE_FILE, JSON.stringify({ tag_name: "v1.6.0", html_url: "https://github.com/dontpanicops/raoden-loom/releases/tag/v1.6.0" }));
+      await app.clickEl(q(".settings-button"));
+      await app.waitFor(`${q(".settings-backdrop--open")} && true`, "settings open", 10_000);
+      await app.clickEl(q("#settings-tab-about")); await sleep(500);
+      await app.clickEl(q("[data-update-check]"));
+      await app.waitFor(`${q('[data-update-status="available"]')} && true`, "the update line", 10_000);
+      await shot("settings-about-update");
+      await app.clickEl(q(".settings-panel__close")); await sleep(500);
+      fs.writeFileSync(RELEASE_FILE, JSON.stringify({ tag_name: "v1.5.20" }));
     });
 
     await scene("plugins-list", async () => {

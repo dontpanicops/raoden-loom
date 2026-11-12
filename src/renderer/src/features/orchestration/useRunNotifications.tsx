@@ -6,7 +6,7 @@ import type { LocaleId, NotificationSettings } from "../../../../shared/contract
 import { pluralForm, t } from "../../lib/i18n";
 import { UiIcon } from "../../components/UiIcon";
 import { Term } from "../../components/Term";
-import { NOTIFIED_KEY, NOTIFY_UNAVAILABLE_KEY, boardHeadNotes, boardNotes, notifyStep, pruneNotified, splitNotes, type Note } from "./notify";
+import { NOTIFIED_KEY, NOTIFY_UNAVAILABLE_KEY, boardHeadNotes, boardNotes, noteChannel, notifyStep, pruneNotified, splitNotes, type Note } from "./notify";
 import { boardOptsOf, type AutopilotState, type BoardHead, type BoardView } from "../../../../shared/taskBoard";
 import type { RunActivityState, RunState } from "./useOrchestration";
 
@@ -54,18 +54,21 @@ export function useRunNotifications({ locale, prefs, runs, activity, title, spac
     if (badge.current !== count) { badge.current = count; window.canvasTTY.notify.setBadge(count); }
     if (step.bounce) window.canvasTTY.notify.bounce();
     for (const n of step.notes) {
-      if (store.unavailable()) { toBanner(n); continue; }
+      const channel = noteChannel(prefs, store.unavailable());
+      if (channel === "banner") { toBanner(n); continue; }
+      if (channel === null) continue;
       shown.current.set(n.runId, n);
-      void window.canvasTTY.notify.show(n).then((r) => { if (!r.shown) { store.setUnavailable(); toBanner(n); } }, () => toBanner(n));
+      const fallback = (): void => { if (prefs.banner) toBanner(n); };
+      void window.canvasTTY.notify.show(n).then((r) => { if (!r.shown) { store.setUnavailable(); fallback(); } }, fallback);
     }
   }, [accepting, activity, autopilot, boardPlace, boardView, heads, locale, prefs, runs, space, title, toBanner]);
 
   useEffect(() => {
     const offClick = window.canvasTTY.notify.onClick((runId) => openRef.current(runId));
     // macOS refused it (no permission, an ad-hoc signed build): the settings say how to allow them; the banner meanwhile
-    const offFailed = window.canvasTTY.notify.onFailed((runId) => { store.setUnavailable(); const n = shown.current.get(runId); if (n) toBanner(n); });
+    const offFailed = window.canvasTTY.notify.onFailed((runId) => { store.setUnavailable(); const n = shown.current.get(runId); if (n && prefs.banner) toBanner(n); });
     return () => { offClick(); offFailed(); };
-  }, [toBanner]);
+  }, [prefs.banner, toBanner]);
 
   // the driver hook of the screenshots (inert in a packaged build, like the toasts'): a banner row of its own, e.g. a failed run beside a waiting one
   useEffect(() => {

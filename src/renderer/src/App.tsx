@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { resolveHomeLauncherProviders, setHomeLauncherProviderEnabled } from "./lib/providers";
+import { runUpdateCheckIfDue } from "./lib/updateStatus";
 import { useEffectiveTheme } from "./features/settings/useEffectiveTheme";
 import type {
   AgentProviderId,
@@ -134,7 +135,10 @@ const FALLBACK_SETTINGS: AppSettings = {
   browserAgentAccess: true,
   browserShowAgentPresence: true,
   browserRestoreTabs: true,
-  notifications: { waiting: true, completed: true, failed: true, dockBadge: true, bounce: false, board: true, boardHead: false }
+  notifications: { waiting: true, completed: true, failed: true, dockBadge: true, bounce: false, board: true, boardHead: false, banner: true, system: true },
+  commandPaletteShortcut: null,
+  browserDownloadDir: null,
+  checkUpdates: false
 };
 
 const EMPTY_BROWSER_SNAPSHOT: BrowserSnapshot = {
@@ -270,6 +274,14 @@ export function App(): React.JSX.Element {
     window.addEventListener("canvastty:toast", show);
     return () => window.removeEventListener("canvastty:toast", show);
   }, [showToast]);
+
+  // «Check for updates» (off by default): when it is on, at most one request a day while the app runs
+  useEffect(() => {
+    if (!ready || !settings.checkUpdates) return;
+    runUpdateCheckIfDue();
+    const timer = window.setInterval(runUpdateCheckIfDue, 60 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [ready, settings.checkUpdates]);
 
   useEffect(() => {
     browserCanvasRef.current = settings.browserCanvas;

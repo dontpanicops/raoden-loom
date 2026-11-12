@@ -804,7 +804,16 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
       setRadialLauncher(null);
       return;
     }
+    const paletteChord = settings.commandPaletteShortcut;
     const handleShortcut = (event: KeyboardEvent): void => {
+      // a chord the person chose for the palette (Settings → Controls) replaces ⌘K / Ctrl+K
+      if (paletteChord !== null && matchesShortcut(event, paletteChord)) {
+        event.preventDefault();
+        setContextMenu(null);
+        setRegionEditor(null);
+        setCommandPaletteOpen((current) => !current);
+        return;
+      }
       if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
       // ⌘1…⌘9 switch workspaces on macOS only: xterm sends no ⌘ chord to the terminal there, while Ctrl+digit is a
       // control code of the terminal and Ctrl+Alt is AltGr on other systems (workspaces-spec.md §5).
@@ -820,7 +829,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
       }
       // Matched on the physical key: these chords must work on a non-Latin layout, where
       // the K key reports `key: "л"` and `event.key` alone would never match.
-      if (matchesPhysicalOrLayoutKey(event, "KeyK", "k")) {
+      if (paletteChord === null && matchesPhysicalOrLayoutKey(event, "KeyK", "k")) {
         event.preventDefault();
         setContextMenu(null);
         setRegionEditor(null);
@@ -839,7 +848,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     };
     window.addEventListener("keydown", handleShortcut, true);
     return () => window.removeEventListener("keydown", handleShortcut, true);
-  }, [browserViewVisible, homeEditing, launchAt, onOpenSettings, viewportCenterWorldPoint, settings.shortcuts.home, settings.shortcuts.renameWindow, workspace]);
+  }, [browserViewVisible, homeEditing, launchAt, onOpenSettings, viewportCenterWorldPoint, settings.shortcuts.home, settings.shortcuts.renameWindow, settings.commandPaletteShortcut, workspace]);
 
   return (
     <div

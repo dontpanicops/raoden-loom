@@ -163,6 +163,8 @@ export class PluginManager {
   private readonly versionsPath: string;
   private readonly hookRegistryPath: string;
   private readonly plugins = new Map<string, InstalledPlugin>();
+  /** Registered plugins whose package could not be read (shown with the reason, never run). */
+  private readonly broken = new Map<string, InstalledPlugin>();
   private readonly pending = new Map<string, PendingInstall>();
   private readonly storageWrites = new Map<string, Promise<void>>();
   private readonly downloadRepository: DownloadRepository;
@@ -225,6 +227,7 @@ export class PluginManager {
     const persistedRuntimeHooks = await readRuntimeHookRegistry(this.hookRegistryPath);
 
     this.plugins.clear();
+    this.broken.clear();
     for (const [pluginId, record] of Object.entries(registry)) {
       if (!isStoredRecord(record) || !isPluginId(pluginId)) continue;
       try {
@@ -251,6 +254,7 @@ export class PluginManager {
         });
       } catch (error) {
         console.warn(`CanvasTTY plugin ${pluginId} could not be loaded.`, error);
+        this.broken.set(pluginId, brokenPlugin(pluginId, record, error, await readRawIdentity(join(this.pluginRoot, pluginId))));
       }
     }
 
@@ -258,8 +262,13 @@ export class PluginManager {
     return this.list();
   }
 
+  /** The folder the packages are unpacked into (shown to the person by «Open the plugins folder»). */
+  folder(): string {
+    return this.pluginRoot;
+  }
+
   list(): InstalledPlugin[] {
-    return [...this.plugins.values()]
+    return [...this.plugins.values(), ...this.broken.values()]
       .sort((left, right) => left.manifest.name.localeCompare(right.manifest.name))
       .map((plugin) => structuredClone(activePlugin(plugin)));
   }
@@ -482,6 +491,12 @@ export class PluginManager {
   }
 
   async uninstall(pluginId: string): Promise<void> {
+    if (isPluginId(pluginId) && this.broken.delete(pluginId)) {
+      await this.persistRegistry();
+      await rm(join(this.pluginRoot, pluginId), { recursive: true, force: true });
+      await rm(join(this.storageRoot, `${pluginId}.json`), { force: true });
+      return;
+    }
     const plugin = this.requirePlugin(pluginId);
     if (plugin.enabledHooks.length > 0) {
       plugin.enabledHooks = [];
@@ -889,7 +904,7 @@ export class PluginManager {
   private requirePlugin(pluginId: string): InstalledPlugin {
     if (!isPluginId(pluginId)) throw new Error("Plugin identifier is invalid.");
     const plugin = this.plugins.get(pluginId);
-    if (!plugin) throw new Error("Plugin is not installed.");
+    if (!plugin) throw new Error(this.broken.has(pluginId) ? "Plugin could not be loaded." : "Plugin is not installed.");
     return plugin;
   }
 
@@ -922,7 +937,7 @@ export class PluginManager {
   }
 
   private persistRegistry(): Promise<void> {
-    const registry = Object.fromEntries([...this.plugins].map(([id, plugin]) => [id, {
+    const registry = Object.fromEntries([...this.plugins, ...this.broken].map(([id, plugin]) => [id, {
       sourceUrl: plugin.sourceUrl,
       enabled: plugin.enabled,
       installedAt: plugin.installedAt,
@@ -2170,6 +2185,33 @@ function normalizeEnabledHooks(
   const available = new Set((activeManifest(manifest, selectedModules).hooks ?? []).map((hook) => hook.id));
   return value.filter((id): id is string => typeof id === "string" && available.has(id))
     .filter((id, index, values) => values.indexOf(id) === index);
+}
+
+/** The name and version a package that failed validation still states, so its row reads as itself (best effort). */
+async function readRawIdentity(packageRoot: string): Promise<{ name?: string; version?: string }> {
+  try {
+    const found = await firstExistingFile(packageRoot, MANIFEST_CANDIDATES);
+    if (!found) return {};
+    const raw = JSON.parse(await readFile(found, "utf8")) as Record<string, unknown>;
+    const text = (value: unknown): string | undefined => (typeof value === "string" && value.trim() ? value.trim().slice(0, 80) : undefined);
+    return { name: text(raw.name), version: text(raw.version) };
+  } catch {
+    return {};
+  }
+}
+
+/** A registered plugin that did not load: a bare manifest and the reason (first line, short); off, no hooks. */
+function brokenPlugin(pluginId: string, record: StoredPluginRecord, error: unknown, identity: { name?: string; version?: string }): InstalledPlugin {
+  const reason = (error instanceof Error ? error.message : String(error)).split("\n")[0].trim().slice(0, 200);
+  return {
+    manifest: { apiVersion: PLUGIN_API_VERSION, id: pluginId, name: identity.name ?? pluginId, version: identity.version ?? "", description: "", permissions: [], contributions: [] },
+    sourceUrl: record.sourceUrl,
+    enabled: false,
+    installedAt: record.installedAt,
+    selectedModules: record.selectedModules ?? [],
+    enabledHooks: [],
+    loadError: reason || "unknown"
+  };
 }
 
 function activePlugin(plugin: InstalledPlugin): InstalledPlugin {

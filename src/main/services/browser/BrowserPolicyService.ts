@@ -26,7 +26,7 @@ export interface PopupDecision {
 }
 
 export class BrowserPolicyService {
-  readonly downloadRoot: string;
+  downloadRoot: string;
   readonly uploadStagingRoot: string;
   private readonly uploadRoots: string[];
 
@@ -34,6 +34,15 @@ export class BrowserPolicyService {
     this.downloadRoot = resolve(options.downloadRoot);
     this.uploadStagingRoot = resolve(options.uploadStagingRoot ?? resolve(this.downloadRoot, ".upload-staging"));
     this.uploadRoots = (options.uploadRoots ?? []).filter(isAbsolute).map((path) => resolve(path));
+  }
+
+  /** Settings → Browser → Downloads: later downloads go to `root`; files may be sent from it, as from the old one. */
+  setDownloadRoot(root: string): void {
+    const next = resolve(root);
+    const at = this.uploadRoots.indexOf(this.downloadRoot);
+    if (at >= 0) this.uploadRoots[at] = next;
+    else this.uploadRoots.unshift(next);
+    this.downloadRoot = next;
   }
 
   normalizeHumanInput(value: unknown): string {

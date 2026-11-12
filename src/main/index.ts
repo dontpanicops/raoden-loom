@@ -309,6 +309,7 @@ async function initializeServices(): Promise<void> {
       : {})
   });
   await browserService.ready();
+  await browserService.setDownloadFolder(settings.get().browserDownloadDir).catch((error) => console.warn("CanvasTTY could not use the chosen download folder.", error));
   browserService.setCanvasNavigationActive(canvasNavigationInput.active);
 
   if (supportsAgentGatewayPlatform()) {
@@ -462,6 +463,8 @@ async function initializeServices(): Promise<void> {
       agentBrowserBridge?.setEnabled(next.browserAgentAccess);
       void browserService?.setRestoreTabs(next.browserRestoreTabs)
         .catch((error) => console.warn("CanvasTTY could not apply the browser tab restore setting.", error));
+      void browserService?.setDownloadFolder(next.browserDownloadDir)
+        .catch((error) => console.warn("CanvasTTY could not use the chosen download folder.", error));
       browserService?.cancelCanvasNavigationGesture();
       browserService?.setCanvasWheelCaptureMode(next.canvasWheelCaptureMode);
       canvasNavigationInput?.setBindings({

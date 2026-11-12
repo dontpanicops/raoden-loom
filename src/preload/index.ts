@@ -58,6 +58,7 @@ const api: CanvasTTYApi = {
     completeOpenBrowser: (requestId, ok) => ipcRenderer.send(IPC.evenG2BrowserResponse, { requestId, ok })
   },
   appVersion: () => ipcRenderer.invoke(IPC.appVersion),
+  updates: { check: () => ipcRenderer.invoke(IPC.updatesCheck) },
   notify: {
     show: (note) => ipcRenderer.invoke(IPC.notifyShow, note),
     setBadge: (count: number) => ipcRenderer.send(IPC.notifyBadge, count),
@@ -108,6 +109,7 @@ const api: CanvasTTYApi = {
       ipcRenderer.invoke(IPC.pluginsSetHookEnabled, pluginId, hookId, enabled)
     ),
     uninstall: (pluginId: string) => ipcRenderer.invoke(IPC.pluginsUninstall, pluginId),
+    openFolder: () => ipcRenderer.invoke(IPC.pluginsOpenFolder),
     openCanvas: (pluginId: string, contributionId: string, sourceCanvasInstanceId?: string) => (
       ipcRenderer.invoke(IPC.pluginsOpenCanvas, pluginId, contributionId, sourceCanvasInstanceId)
     ),

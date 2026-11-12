@@ -2563,3 +2563,18 @@ html:not([data-kbd]) .terminal-link-dialog :is(button, a):focus-visible { outlin
 .board-task--work .board-task__foot { gap: 2px; }
 .board-task--work .board-task__foot .board-task__actions { gap: 2px; flex-wrap: nowrap; }
 .board-task--work .board-task__foot .board-task__actions > button, .board-task--work .board-task__foot .board-task__toggle { padding-inline: .2em; }
+/* F-b (mocks 16, 26): the quiet bordered button of the settings (.btn-s of components-reference.css, in the panel's em scale) */
+.settings-panel .set-btn, .about-settings__check { min-height: 2.46em; padding: 0 1.1em; display: inline-flex; align-items: center; justify-content: center; gap: .5em; border: 0; border-radius: var(--radius-sm); color: var(--text-primary); background: var(--surface-sunken); box-shadow: var(--edge), inset 0 0 0 1px var(--border-strong); cursor: pointer; font: 500 1em/1 var(--font-ui); white-space: nowrap; }
+.settings-panel .set-btn:disabled, .about-settings__check:disabled { color: var(--text-muted); cursor: default; }
+.settings-panel .set-btn--quiet { color: var(--text-secondary); background: none; box-shadow: none; }
+.setting-path { color: var(--text-secondary); font: 400 .92em/1.4 var(--font-mono); overflow-wrap: anywhere; }
+.setting-group--download-folder .setting-group__control { display: flex; align-items: center; gap: .6em; }
+.about-settings__top { display: flex; align-items: center; justify-content: space-between; gap: 1em; }
+.about-settings__top .about-settings__header { flex: 1; min-width: 0; }
+.update-status { margin: 0; color: var(--text-secondary); font-size: .92em; line-height: 1.45; }
+.update-status--failed { color: var(--danger-fg); }
+.update-status__open { padding: 0; border-bottom: .08em solid currentColor; color: var(--text-primary); background: none; cursor: pointer; font: inherit; font-weight: 500; }
+.installed-plugin--error { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger-fg) 70%, transparent); }
+.installed-plugin__error { margin: .45em 0 0; display: flex; gap: .5em; align-items: flex-start; color: var(--danger-fg); font-size: .92em; line-height: 1.4; overflow-wrap: anywhere; }
+.plugin-settings__empty--box .set-btn { margin-top: .6em; }
+.plugin-folder-row { margin: .9em 0 0; }
