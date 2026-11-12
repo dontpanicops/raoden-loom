@@ -162,7 +162,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
         </div>
       </div>
       {(props.offer === "drop" || props.offer === "dim-over") && (
-        <span className="agent-card__offer" role="status">{t(locale, props.offer === "drop" ? "orchReleaseToLink" : "orchOtherFolder")}</span>
+        <span className="agent-card__offer" aria-hidden="true">{t(locale, props.offer === "drop" ? "orchReleaseToLink" : "orchOtherFolder")}</span>
       )}
       {RESIZE_DIRECTIONS.map((direction) => (
         <div key={direction} className={`terminal-card__resize-handle terminal-card__resize-handle--${direction}`} aria-hidden="true" data-agent-resize={direction}

@@ -38,9 +38,9 @@ const rightMid = (b: SessionBounds): Point => ({ x: b.position.x + b.size.width,
 const leftMid = (b: SessionBounds): Point => ({ x: b.position.x, y: b.position.y + b.size.height / 2 });
 const rect = (b: SessionBounds) => ({ x: b.position.x, y: b.position.y, width: b.size.width, height: b.size.height });
 
-// a card that can take the dragged link (an executor of the lead's project folder) is lit, the rest dim
-function offerOf(card: { role: string; project: string }, from: { project: string } | undefined, over: boolean): "ok" | "drop" | "dim" | "dim-over" {
-  const fits = card.role === "executor" && from !== undefined && card.project === from.project;
+// a card that can take the dragged link (an executor of the lead's project folder, not linked to this lead yet) is lit, the rest dim
+function offerOf(card: { agentId: string; role: string; project: string }, from: { agentId: string; role: string; project: string } | undefined, linked: boolean, over: boolean): "ok" | "drop" | "dim" | "dim-over" {
+  const fits = card.role === "executor" && from?.role === "lead" && card.project === from.project && !linked;
   return fits ? (over ? "drop" : "ok") : over ? "dim-over" : "dim";
 }
 
@@ -206,7 +206,7 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
             ended={view !== null && TERMINAL_STATUSES.includes(view.status)}
             message={ui.messages[card.agentId] ?? null}
             linking={ui.linkingFrom === card.agentId ? "source" : ui.linkingFrom && card.role === "executor" ? "target" : null}
-            offer={preview && card.agentId !== preview.from ? offerOf(card, agents.find((a) => a.card.agentId === preview.from)?.card, dropOver === card.agentId) : null}
+            offer={preview && card.agentId !== preview.from ? offerOf(card, agents.find((a) => a.card.agentId === preview.from)?.card, orch.canvas.links.some((l) => l.fromAgentId === preview.from && l.toAgentId === card.agentId), dropOver === card.agentId) : null}
             linked={link !== undefined}
             hasRun={!!link?.runIds.length}
             selected={props.groupSelected(layerId)}

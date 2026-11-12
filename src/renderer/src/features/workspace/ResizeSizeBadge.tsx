@@ -39,5 +39,5 @@ export function ResizeSizeBadge(): React.JSX.Element | null {
     };
   }, []);
 
-  return badge ? <output className="resize-size-badge" style={{ left: badge.right, top: badge.top, transform: "translateX(-100%)" }}>{badge.text}</output> : null;
+  return badge ? <output className="resize-size-badge" aria-hidden="true" style={{ left: badge.right, top: badge.top, transform: "translateX(-100%)" }}>{badge.text}</output> : null;
 }
