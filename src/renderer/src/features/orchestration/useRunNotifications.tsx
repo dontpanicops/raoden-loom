@@ -98,16 +98,19 @@ export function NotifyBanner({ locale, notes, onOpen, onDismiss }: { locale: Loc
     </div>
   );
   // mock 22: the title in bold, the body in the secondary tone; the whole text is the tooltip (hover and keyboard focus)
-  const line = (n: Note): React.JSX.Element => <><b>{n.title}</b><span className="notify-banner__body"> — {n.body}</span></>;
+  // the system notification's body leads with «Ждёт вас: …» and ends with a full stop; mock 22 has neither: the waiting glyph and the colour say it
+  const lead = `${t(locale, "notifyWaiting")}: `;
+  const bodyOf = (n: Note): string => (n.body.startsWith(lead) ? n.body.slice(lead.length) : n.body).replace(/\.$/, "");
+  const line = (n: Note): React.JSX.Element => <><b>{n.title}</b><span className="notify-banner__body"> — {bodyOf(n)}</span></>;
   // portalled into the app root: the canvas has its own stacking context, and the banner sits in the title bar's free middle
   return createPortal(
     <div className="notify-banner" data-rows={waiting.length > 1 ? 1 + notes.filter((n) => n.signal !== "waiting").length : (waiting.length ? 1 : 0) + notes.filter((n) => n.signal !== "waiting").length} role="status" data-interactive="true" data-notify-banner>
-      {waiting.length === 1 && row(waiting[0].runId, "waiting", line(waiting[0]), () => onOpen(waiting[0].runId), () => onDismiss(waiting[0].runId), waiting[0].runId, `${waiting[0].title} — ${waiting[0].body}`)}
+      {waiting.length === 1 && row(waiting[0].runId, "waiting", line(waiting[0]), () => onOpen(waiting[0].runId), () => onDismiss(waiting[0].runId), waiting[0].runId, `${waiting[0].title} — ${bodyOf(waiting[0])}`)}
       {waiting.length > 1 && row("waiting", "waiting",
         <><b>{fill(t(locale, `orchNotifyWait_${pluralForm(locale, waiting.length)}` as never), { n: String(waiting.length) })}</b>{where}</>,
         () => onOpen(waiting[0].runId),
         () => { for (const n of waiting) onDismiss(n.runId); })}
-      {notes.filter((n) => n.signal !== "waiting").map((n) => row(n.runId, n.signal, line(n), () => onOpen(n.runId), () => onDismiss(n.runId), n.runId, `${n.title} — ${n.body}`))}
+      {notes.filter((n) => n.signal !== "waiting").map((n) => row(n.runId, n.signal, line(n), () => onOpen(n.runId), () => onDismiss(n.runId), n.runId, `${n.title} — ${bodyOf(n)}`))}
     </div>,
     document.querySelector(".app") ?? document.body
   );

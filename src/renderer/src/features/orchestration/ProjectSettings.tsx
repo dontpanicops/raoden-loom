@@ -194,6 +194,8 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
     <form className="orch-form orch-settings" data-orch-settings onSubmit={(e) => { e.preventDefault(); void save(); }}>
       <div className="orch-form__body">
         <div className="orch-settings__grid" data-orch-advanced>
+          {/* R12l (mock 15): two columns of their own, so that a short card does not wait for the tall one beside it */}
+          <div className="orch-settings__stack">
           <Card title={t(locale, "orchSettingsAccess")}>
             {accessSelect("claude")}
             {accessSelect("codex")}
@@ -205,12 +207,6 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
               </label>
             )}
           </Card>
-          {/* journal v2: a role's model is recorded in the goal only there */}
-          {info.optionalChecks && (
-            <Card title={t(locale, "projCardModels")}>
-              <RoleModelsField bare locale={locale} linkId={linkId} value={p.models ?? NO_MODELS} hint={t(locale, "orchModelsSettingsHint")} onChange={(models) => set({ models })} />
-            </Card>
-          )}
           <Card title={t(locale, "projCardPrepare")} hint={t(locale, "projPrepareHint")}>
             <GoalRows text={steps} onText={setSteps} locale={locale} attr="data-orch-settings-steps" mono label={t(locale, "projCardPrepare")}
               placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
@@ -224,12 +220,6 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
             </label>
             {/* R6-C (M6): what preparation would run — one line, the whole list in the tooltip */}
             <p className="orch-hint orch-hint--line" data-orch-needed title={info.facts.needed.join(" · ")}>{info.facts.needed.length ? `${t(locale, "projPrepareWill")} ${info.facts.needed.join(" · ")}` : t(locale, "orchSettingsNothingNeeded")}</p>
-          </Card>
-          <Card title={t(locale, "projCardChecks")} hint={t(locale, "projChecksHint")}>
-            <GoalRows text={checks} onText={setChecks} locale={locale} attr="data-orch-settings-checks" mono label={t(locale, "projCardChecks")}
-              placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
-            <small className="orch-hint">{t(locale, "orchGoalCommandsHint")}</small>
-            {check?.({ checks: goalLines(checks), workMode: p.workMode, access: p.access })}
           </Card>
           {/* F3 (stage-f-external-projects.md §10): the board's tasks in a worktree — the branch name, the remote base; main
               refuses them in another mode (work_mode_not_worktree, remote_base_mode) and reads the remote's address.
@@ -296,7 +286,20 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
               {p.runBase?.remoteUrl && <small className="orch-hint" data-orch-settings-run-base-url>{t(locale, "projRunBaseUrl")}: <code>{p.runBase.remoteUrl}</code></small>}
             </label>
           </Card>
+          </div>
           <div className="orch-settings__stack">
+          {/* journal v2: a role's model is recorded in the goal only there */}
+          {info.optionalChecks && (
+            <Card title={t(locale, "projCardModels")}>
+              <RoleModelsField bare locale={locale} linkId={linkId} value={p.models ?? NO_MODELS} hint={t(locale, "orchModelsSettingsHint")} onChange={(models) => set({ models })} />
+            </Card>
+          )}
+          <Card title={t(locale, "projCardChecks")} hint={t(locale, "projChecksHint")}>
+            <GoalRows text={checks} onText={setChecks} locale={locale} attr="data-orch-settings-checks" mono label={t(locale, "projCardChecks")}
+              placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
+            <small className="orch-hint">{t(locale, "orchGoalCommandsHint")}</small>
+            {check?.({ checks: goalLines(checks), workMode: p.workMode, access: p.access })}
+          </Card>
           {/* F4 (§10, T-9, T-14): the review export of a board task's run, and the runs without MCP */}
           <Card title={t(locale, "projCardReview")} data-orch-settings-f4>
             <label className="orch-check">

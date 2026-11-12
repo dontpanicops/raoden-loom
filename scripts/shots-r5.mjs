@@ -98,7 +98,7 @@ let app;
 let theme = "sand";
 const laptop = () => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 const SCROLL_DIALOG = `(() => { for (const el of document.querySelectorAll(".orch-dialog *")) if (el.scrollHeight > el.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) el.scrollTop = el.scrollHeight; })()`;
-const wanted = (name) => !ONLY || ONLY.split(",").some((x) => name.includes(x)); // --only a,b: several scenes
+const wanted = (name) => !ONLY || ONLY.split(",").some((x) => name.includes(x) || (x === "overlay" && name === "radial")); // R12l: its frame is «overlay-radial», the scene is named «radial» // --only a,b: several scenes
 const shot = async (name) => {
   await sleep(500);
   await measure(name);
@@ -109,6 +109,8 @@ const shot = async (name) => {
   const rect = await app.ev(`(() => { const el = [...document.querySelectorAll(".orch-dialog, .launch-dialog, .canvas-command-palette, .canvas-menu, .notify-banner, .toast-stack, .radial-launcher__disc, .settings-panel--open")].filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden").at(-1); if (!el) return null; const r = el.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round); })()`).catch(() => null);
   if (rect) fs.appendFileSync(path.join(OUT, "rects.txt"), `${theme}-${name} ${rect.join(" ")}\n`);
 };
+// R12l: the menus of mock 10 / 22 stand on an empty canvas (dots only): the scene (HOME, cards) is hidden while the menu is open
+const emptyCanvas = (on) => app.ev(`(() => { document.getElementById("r12l-empty")?.remove(); if (${on}) { const s = document.createElement("style"); s.id = "r12l-empty"; s.textContent = ".workspace__scene { visibility: hidden !important; }"; document.head.append(s); } return true; })()`);
 const esc = async () => { for (let i = 0; i < 3; i++) { await app.key("Escape", "Escape", 27); await sleep(150); } };
 const hideOnboarding = () => app.ev(`(() => { if (!document.getElementById("r5-hide")) { const s = document.createElement("style"); s.id = "r5-hide"; s.textContent = "[data-onboarding] { display: none !important; }"; document.head.append(s); } return true; })()`);
 // R9: computed font sizes of the visible text on the canvas cards, the board and dialogs (MEASURE=1): <out>/fonts-<theme>-<label>.json
@@ -118,7 +120,7 @@ const measure = async (label) => {
     for (const root of document.querySelectorAll("[data-agent-id], [data-board], [data-board-aside], [data-canvas-layer-id], [role=dialog]")) { const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
       for (let n; (n = w.nextNode()); ) { const t = n.textContent.trim(); const e = n.parentElement; if (!t || seen.has(n) || !e) continue; seen.add(n);
         const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); if (!r.width || !r.height || cs.visibility === "hidden" || cs.display === "none" || e.closest(".xterm")) continue;
-        out.push({ px: parseFloat(cs.fontSize), cls: e.tagName.toLowerCase() + (typeof e.className === "string" && e.className.trim() ? "." + e.className.trim().split(/\\s+/).join(".") : ""), text: t.slice(0, 50) }); } }
+        out.push({ px: parseFloat(cs.fontSize), w: cs.fontWeight, cls: e.tagName.toLowerCase() + (typeof e.className === "string" && e.className.trim() ? "." + e.className.trim().split(/\\s+/).join(".") : ""), text: t.slice(0, 50) }); } }
     return out; })()`);
   fs.writeFileSync(path.join(OUT, `fonts-${theme}-${label}.json`), JSON.stringify(rows));
 };
@@ -187,9 +189,10 @@ const pairView = async (...ids) => {
   await app.panBy({ x: 720 - b.cx, y: 470 - b.cy }); await sleep(700);
 };
 
-// «plugins-list» only: installed plugins written where main reads them at start (userData/plugins/<id>, plugins.json);
-// canvas apps only, so that HOME and the dock of the other scenes stay as they are. The update line and the load error need main's help (not seeded).
-if (ONLY?.split(",").includes("plugins-list")) {
+// «plugins-list» (R12l: its own scene at the end of the run, so that the empty list of «settings-plugins» is not spoilt): installed plugins written where
+// main reads them at start (userData/plugins/<id>, plugins.json), then the app is started again; canvas apps only, so that HOME and the dock stay as they are.
+// The update line and the load error need main's help (not seeded). Taken away again by unseedPlugins().
+const seedPlugins = () => {
   const reg = {};
   for (const [id, name, version, desc, enabled] of [["com.example.pomodoro", "Pomodoro", "1.2.0", "Таймер для работы и перерывов", true], ["com.example.agent-guard", "Agent Guard", "0.4.1", "Следит за запросами прав у агентов", false]]) {
     const dir = path.join(userData, "plugins", id);
@@ -199,9 +202,11 @@ if (ONLY?.split(",").includes("plugins-list")) {
     reg[id] = { sourceUrl: `https://github.com/example/${id.split(".").pop()}`, enabled, installedAt: Date.now() };
   }
   fs.writeFileSync(path.join(userData, "plugins.json"), JSON.stringify(reg));
-}
+};
+const unseedPlugins = () => { fs.rmSync(path.join(userData, "plugins"), { recursive: true, force: true }); fs.rmSync(path.join(userData, "plugins.json"), { force: true }); };
+const launchOpts = { userData, providers, port: PORT, shots: OUT, env: { CANVASTTY_SMOKE_CLI_DIR: cliBin, CANVASTTY_USER_DATA_DIR: userData, CANVASTTY_SMOKE_IMPORT_FILE: BOARD_FILE, CANVASTTY_SMOKE_STOP_DELAY_MS: "4000" } };
 try {
-  app = await launch({ userData, providers, port: PORT, shots: OUT, env: { CANVASTTY_SMOKE_CLI_DIR: cliBin, CANVASTTY_USER_DATA_DIR: userData, CANVASTTY_SMOKE_IMPORT_FILE: BOARD_FILE, CANVASTTY_SMOKE_STOP_DELAY_MS: "4000" } });
+  app = await launch(launchOpts);
   await laptop();
   await app.waitFor(`${q(".workspace")} && true`, "window", 30_000);
 
@@ -406,24 +411,26 @@ try {
     await scene("overlay-menu", async () => {
       await app.key("Home", "Home", 36); await sleep(900);
       const spot = await app.freeRect(40, 40);
+      await emptyCanvas(true);
       await app.click(spot.x + 20, spot.y + 20, "right"); await sleep(500);
       await app.waitFor(`${q(".canvas-menu")} && true`, "menu");
       const launch = await app.ev(`(() => { const b = [...document.querySelectorAll(".canvas-menu [role=menuitem]")].find((e) => /Запустить/.test(e.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
       if (launch) { await app.click(launch.x, launch.y); await sleep(600); }
       await shot("overlay-context-menu");
-      await esc();
+      await esc(); await emptyCanvas(false);
     });
     await scene("overlay-menu-agent-sub", async () => {
       // mock 22 «Как в макете»: the submenu of «Агент оркестрации ›» open
       await app.key("Home", "Home", 36); await sleep(900);
       const spot = await app.freeRect(40, 40);
+      await emptyCanvas(true);
       await app.click(spot.x + 20, spot.y + 20, "right"); await sleep(500);
       await app.waitFor(`${q(".canvas-menu")} && true`, "menu");
       const row = await app.ev(`(() => { const b = [...document.querySelectorAll(".canvas-menu [role=menuitem]")].find((e) => /Агент оркестрации/.test(e.textContent)); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
       if (!row) throw new Error("no «Агент оркестрации» row in the menu");
       await app.click(row.x, row.y); await sleep(600);
       await shot("overlay-context-menu-agent-sub");
-      await esc();
+      await esc(); await emptyCanvas(false);
     });
     await scene("overlay-menu-detailed", async () => {
       // «Вид меню: Подробное» (D-037): a row per agent role instead of one «Агент оркестрации»
@@ -432,10 +439,14 @@ try {
       await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
       await app.key("Home", "Home", 36); await sleep(900);
       const spot = await app.freeRect(40, 40);
+      await emptyCanvas(true);
       await app.click(spot.x + 20, spot.y + 20, "right"); await sleep(500);
       await app.waitFor(`${q(".canvas-menu")} && true`, "menu");
+      // mock 22 highlights «Агент Codex»: the keyboard selection goes down three rows (Регион, Заметка, Запустить, Агент Codex)
+      for (let i = 0; i < 3; i++) await app.key("ArrowDown", "ArrowDown", 40);
+      await sleep(300);
       await shot("overlay-context-menu-detailed");
-      await esc();
+      await esc(); await emptyCanvas(false);
       await app.ev(`window.canvasTTY.settings.update({ canvasMenuStyle: "mock" }).then(() => true)`);
     });
     await scene("overlay-palette", async () => {
@@ -484,10 +495,6 @@ try {
         console.log("[shots-r5] banner state", await app.ev(`JSON.stringify({ focus: document.hasFocus(), un: localStorage.getItem("orch.notify.unavailable"), n: localStorage.getItem("orch.notified.v1") })`));
         await app.waitFor(`${q("[data-notify-banner]")} && true`, "the banner", 15_000);
         await shot("overlay-banner");
-        // mock 22 «long text»: the text is cut with «…»; focus on it shows the ring (the tooltip is the app's own (Term), shown on focus)
-        await app.call("Emulation.setFocusEmulationEnabled", { enabled: true }); // R12h: a window in focus shows the ring and the tooltip (the banner is already on screen)
-        await app.ev(`document.querySelector("[data-notify-banner] .notify-banner__item .orch-term")?.focus()`); await sleep(700);
-        await shot("overlay-banner-long");
         // mock 22 «waiting and failed together»: each its own line; the failed one is added by the driver hook (no failing run in the stand)
         await app.ev(`document.activeElement?.blur()`);
         await app.ev(`window.dispatchEvent(new CustomEvent("canvastty:banner", { detail: { runId: "r12e-failed", signal: "failed", title: "Бета · infra", body: "запуск остановлен ошибкой", place: "Бета" } }))`); await sleep(400);
@@ -495,6 +502,13 @@ try {
         // R12h (mock 10 «N запусков ждут»): a second waiting run joins the first: one line for both, the failed one stays
         await app.ev(`window.dispatchEvent(new CustomEvent("canvastty:banner", { detail: { runId: "r12h-wait2", signal: "waiting", title: "Альфа · alpha", body: "агент просит разрешения", place: "Альфа" } }))`); await sleep(500);
         await shot("overlay-banner-many");
+        // mock 22 «long text»: a waiting run with the mock's long title and body alone in the banner: the container cuts the line with «…»; focus on it shows the ring
+        // (the tooltip is the app's own (Term), shown on focus). R12l: the rows above are dismissed first; the text is the mock's own (the scene's run has a short one)
+        await app.ev(`document.querySelectorAll("[data-notify-banner] button[aria-label]").forEach((b) => b.click())`); await sleep(400);
+        await app.call("Emulation.setFocusEmulationEnabled", { enabled: true }); // R12h: a window in focus shows the ring and the tooltip (the banner is already on screen)
+        await app.ev(`window.dispatchEvent(new CustomEvent("canvastty:banner", { detail: { runId: "r12l-long", signal: "waiting", title: "Ревью релиза · billing-service-monorepo", body: "агент просит разрешения на git push origin release/2026-11", place: "" } }))`); await sleep(500);
+        await app.ev(`document.querySelector("[data-notify-banner] .notify-banner__item .orch-term")?.focus()`); await sleep(700);
+        await shot("overlay-banner-long");
       } finally {
         await app.call("Emulation.setFocusEmulationEnabled", { enabled: true });
         await app.ev(`(() => { localStorage.removeItem("orch.notify.unavailable"); document.querySelectorAll("[data-notify-banner] button[aria-label]").forEach((b) => b.click()); return true; })()`);
@@ -520,14 +534,6 @@ try {
           }
         } catch (e) { failed.push(`${theme} settings-${tab}: ${String(e.message).slice(0, 120)}`); }
       }
-      await app.clickEl(q(".settings-panel__close")); await sleep(500);
-    });
-
-    await scene("plugins-list", async () => {
-      await app.clickEl(q(".settings-button"));
-      await app.waitFor(`${q(".settings-backdrop--open")} && true`, "settings open", 10_000);
-      await app.clickEl(q("#settings-tab-plugins")); await sleep(700);
-      await shot("settings-plugins-list");
       await app.clickEl(q(".settings-panel__close")); await sleep(500);
     });
 
@@ -1116,6 +1122,23 @@ try {
       console.log(`[shots-r5] profile restored: ${back}`);
       if (await app.ev(`!!${q("[data-board-menu]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500); }
     });
+  }
+  // R12l: the plugin list — the last scene: the app is started again with two plugins installed, so that nothing before it sees them
+  if (wanted("plugins-list")) {
+    seedPlugins();
+    await app.stop(); app = await launch(launchOpts); await laptop();
+    await app.waitFor(`${q(".workspace")} && true`, "window", 30_000);
+    for (theme of THEMES) {
+      await settle();
+      await scene("plugins-list", async () => {
+        await app.clickEl(q(".settings-button"));
+        await app.waitFor(`${q(".settings-backdrop--open")} && true`, "settings open", 10_000);
+        await app.clickEl(q("#settings-tab-plugins")); await sleep(700);
+        await shot("settings-plugins-list");
+        await app.clickEl(q(".settings-panel__close")); await sleep(500);
+      });
+    }
+    unseedPlugins();
   }
   console.log("[shots-r5] phase done");
 } catch (error) {

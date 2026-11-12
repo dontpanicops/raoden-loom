@@ -980,7 +980,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 1055, "y": 590, "w": 370, "h": 230 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-overlay-toast.png" },
-   "appCrop": { "x": 1000, "y": 680, "w": 440, "h": 210 },
+   "appCrop": { "x": 1055, "y": 650, "w": 370, "h": 230 },
    "scale": "100%",
    "data": "стек тостов: ждёт, упал, завершён",
    "notes": ""
@@ -1823,6 +1823,7 @@
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-settings-agents-end.png" },
    "appCrop": { "x": 430, "y": 175, "w": 790, "h": 200 },
    "scale": "100%",
+   "sameScale": true,
    "data": "«Вид меню холста» под «Быстрый запуск по удержанию ПКМ»",
    "notes": ""
   },
@@ -1883,6 +1884,7 @@
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-settings-general.png" },
    "appCrop": { "x": 200, "y": 100, "w": 1050, "h": 752 },
    "scale": "100%",
+   "sameScale": true,
    "data": "«Основные»",
    "notes": ""
   },
@@ -1895,6 +1897,7 @@
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-settings-controls-capture.png" },
    "appCrop": { "x": 200, "y": 100, "w": 1050, "h": 752 },
    "scale": "100%",
+   "sameScale": true,
    "data": "«Управление»: ввод сочетания",
    "notes": "без захвата — settings-controls, хвост — settings-controls-end"
   },
@@ -1907,6 +1910,7 @@
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-settings-browser.png" },
    "appCrop": { "x": 200, "y": 100, "w": 1050, "h": 752 },
    "scale": "100%",
+   "sameScale": true,
    "data": "«Браузер»: доступ агентов, бейджи, загрузки, активность, данные",
    "notes": ""
   },
@@ -1919,6 +1923,7 @@
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-settings-plugins.png" },
    "appCrop": { "x": 200, "y": 100, "w": 1050, "h": 752 },
    "scale": "100%",
+   "sameScale": true,
    "data": "плагины",
    "notes": "",
    "skip": "заменено макетом 26 (SPEC §11.8)"
@@ -1932,6 +1937,7 @@
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-settings-about.png" },
    "appCrop": { "x": 200, "y": 100, "w": 1050, "h": 752 },
    "scale": "100%",
+   "sameScale": true,
    "data": "«О программе»: версия, вопросы, ссылки",
    "notes": ""
   },
@@ -1944,6 +1950,7 @@
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-settings-notifications.png" },
    "appCrop": { "x": 200, "y": 100, "w": 1050, "h": 752 },
    "scale": "100%",
+   "sameScale": true,
    "data": "«Уведомления»: баннер, системное, бейдж Dock, о чём сообщать",
    "notes": ""
   },
@@ -1956,6 +1963,7 @@
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-settings-plugins-list.png" },
    "appCrop": { "x": 200, "y": 100, "w": 1050, "h": 752 },
    "scale": "100%",
+   "sameScale": true,
    "data": "установленные плагины: обновление, выключенный, ошибка загрузки",
    "notes": "сцена наполняет userData/plugins только при --only plugins-list; строку «Доступно обновление» и ошибку загрузки не снять (loadError — этап функций)"
   },
@@ -1968,6 +1976,7 @@
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-settings-plugins.png" },
    "appCrop": { "x": 200, "y": 100, "w": 1050, "h": 752 },
    "scale": "100%",
+   "sameScale": true,
    "data": "пусто: «Плагины пока не установлены», «Открыть папку плагинов»",
    "notes": "кнопка «Открыть папку плагинов» — новое в коде"
   }

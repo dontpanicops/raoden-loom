@@ -328,6 +328,7 @@ button { border: 0; }
 .canvas-menu__row:hover, .canvas-menu__row:focus-visible, .canvas-menu__row--selected { background: color-mix(in srgb, var(--focus) 22%, transparent); }
 .canvas-menu__row:focus-visible { box-shadow: inset 0 0 0 .12em var(--focus); }
 .canvas-menu__row--indent { padding-left: 1.55em; }
+.canvas-menu__icon .provider-icon { --provider-icon-art-size: .9em; width: 1.2em; height: 1.2em; } /* the mark of an agent row is the size of the neighbours' icons (mock 22) */
 .canvas-menu__icon { width: 1.5em; height: 1.5em; display: grid; place-items: center; flex: 0 0 auto; color: var(--text-secondary); }
 .canvas-menu__grow { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .canvas-menu__row--muted .canvas-menu__grow { color: var(--text-secondary); }
@@ -1713,7 +1714,7 @@ button { border: 0; }
 .notify-banner__item > .ui-icon { flex: none; color: var(--status-waiting); }
 .notify-banner__item--completed, .notify-banner__item--completed_no_checks { box-shadow: inset 0 0 0 1px var(--focus), var(--elev-4); }
 .notify-banner__item--completed > .ui-icon, .notify-banner__item--completed_no_checks > .ui-icon { color: var(--focus); }
-.notify-banner__item--failed { box-shadow: inset 0 0 0 1px var(--status-failed), var(--elev-4); }
+.notify-banner__item--failed { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-failed) 40%, var(--border-strong)), var(--elev-4); } /* mock 22: a faint rim, the glyph carries the colour */
 .notify-banner__item--failed > .ui-icon { color: var(--status-failed); }
 .notify-banner__item > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .notify-banner__item > button { flex: none; font-size: 12px; }
@@ -2440,11 +2441,12 @@ button { border: 0; }
 .app--paper .radial-launcher .radial-launcher__item:not(.radial-launcher__item--active, :hover, :focus-visible), .app--frost .radial-launcher .radial-launcher__item:not(.radial-launcher__item--active, :hover, :focus-visible) { background: var(--surface-sunken); border-color: transparent; }
 .app--paper .radial-launcher .radial-launcher__center, .app--frost .radial-launcher .radial-launcher__center { background: var(--surface-sunken); }
 .toast { background: var(--surface-3-solid); backdrop-filter: none; }
-.toast-stack { gap: 12px; }
+.toast-stack { gap: 10px; align-items: stretch; width: min(360px, calc(100% - 40px)); } /* mock 10: 360 wide, 10 between (components-reference .toast: 12px 12px 12px 14px) */
+.toast { padding: 12px 12px 12px 14px; align-items: flex-start; }
 .toast > .ui-icon { align-self: flex-start; margin-top: 2px; }
 .notify-banner[data-rows="2"], .notify-banner[data-rows="3"] { top: calc(var(--titlebar-height) + 64px); } /* two lines or more stand under the workspace tabs, not over them */
-.notify-banner__text { flex: 1; min-width: 0; overflow: hidden; }
-.notify-banner__text .orch-term--plain { display: block; overflow: hidden; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
+.notify-banner__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 4px; margin: -3px -4px; } /* the container cuts and puts the «…»; the padding keeps the focus ring inside the cut */
+.notify-banner__text .orch-term--plain { display: block; overflow: hidden; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; cursor: default; } /* a span (Term plain), so the «…» and the focus ring both follow the visible width */
 .notify-banner__text .orch-term--plain:hover { background: none; }
 /* settings (mock 11, 15, 16, 22, 26) */
 .theme-choice { padding: .55em .5em .5em; background: var(--surface-sunken); color: var(--text-primary); }
@@ -2479,7 +2481,24 @@ button { border: 0; }
 .canvas-menu__row:focus { background: color-mix(in srgb, var(--focus) 22%, transparent); }
 .canvas-launcher-settings-menu .canvas-menu__row > .canvas-menu__icon { order: 0; background: transparent; }
 .canvas-launcher-settings-menu .canvas-menu__icon .provider-icon { --provider-icon-art-size: 1.05em; width: 1.4em; height: 1.4em; }
-.notify-banner__text .orch-term--plain:focus { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 6px; }
+.notify-banner__text .orch-term--plain:focus { outline: 2px solid var(--focus); outline-offset: 1px; border-radius: 6px; }
+/* R12l (gate Z3 Z4 Z7, second round): weights, stacks and the plugin tab against the mock-ups, by measure (ink per CSS px of the same string, mock / app) */
+.settings-panel__header h2, .settings-panel .setting-group h3, .orch-dialog__title, .orch-dialog--pinned .orch-dialog__title, .agent-launch-dialog .orch-dialog__title, .orch-card2 > h3 { font-weight: 450; }
+.orch-dialog .orch-field > span:first-child, .orch-dialog .orch-field > legend { font-weight: 500; }
+.orch-settings__grid { align-items: start; } /* a card is as tall as its content: the neighbour's height leaves no empty room in it (mock 15) */
+.orch-card2 .orch-term { text-decoration: none; } /* the role captions of the cards carry no dotted line in mock 15; the explanation stays on hover and focus */
+.orch-card2 .orch-term:hover { text-decoration: underline dotted var(--text-primary) 1.5px; text-underline-offset: 3px; }
+.workspace-bar__count { padding: 1px 7px; color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 10%, transparent); font-weight: 600; } /* mock 25: both counters are filled pills */
+.workspace-bar__count--attention { color: var(--status-waiting); background: var(--status-waiting-bg); box-shadow: none; }
+.ui-scale-setting input { accent-color: var(--accent); }
+.settings-panel .plugin-installed-section h3 button.plugin-updates-check { padding: 0; min-height: 0; border-radius: 4px; color: var(--text-primary); background: none; font-size: 13px; font-weight: 500; } /* mock 26: a text link */
+.settings-panel .installed-plugin__header button.installed-plugin__remove { font-size: 13px; }
+.settings-panel .setting-group .plugin-settings__empty--box { min-height: 340px; border: 1px solid var(--border); border-radius: 16px; background: transparent; }
+.plugin-settings__empty--box strong { font-size: 15px; font-weight: 500; }
+.plugin-settings__empty--box span { font-size: 13px; font-weight: 400; }
+.settings-panel .plugin-install-row button, .settings-panel .plugin-showcase-refresh, .plugin-github-signin-secondary { font-size: 13px; font-weight: 500; }
+.settings-panel .plugin-showcase-refresh { color: var(--text-secondary); background: var(--surface-sunken); }
+.settings-panel .plugin-github-unavailable { font-size: 12px; font-weight: 400; }
 .orch-zone--completed { box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-done) 45%, transparent); }
 .app--paper .orch-zone--completed, .app--frost .orch-zone--completed { --zone-bg: color-mix(in srgb, var(--status-done) 7%, var(--surface-4-solid)); }
 
