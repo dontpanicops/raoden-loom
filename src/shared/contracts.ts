@@ -85,6 +85,9 @@ export const UI_SCALE_MAX = 1.25;
 export const UI_SCALE_STEP = 0.05;
 export const DEFAULT_UI_SCALE = 1;
 
+// the canvas right-click menu: as in the mock-up (one orchestration row) or detailed (a row per agent role), D-037
+export type CanvasMenuStyle = "mock" | "detailed";
+
 export interface HomeAccentColors {
   clock: string;
   launcher: string;
@@ -244,6 +247,7 @@ export interface AppSettings {
   homeLimitProviders: LimitProviderId[];
   canvasLauncherItems: CanvasLauncherItemId[];
   radialLauncherEnabled: boolean;
+  canvasMenuStyle: CanvasMenuStyle;
   radialLauncherItems: RadialLauncherItemId[];
   agentLifecycleHooksEnabled: boolean;
   uiScale: number;

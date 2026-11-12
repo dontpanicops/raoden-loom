@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type {
   CanvasLauncherItemId,
+  CanvasMenuStyle,
   LocaleId,
   Point,
   ProviderId
 } from "../../../../shared/contracts";
+import { AppMark } from "../../components/AppMark";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { t } from "../../lib/i18n";
 import { orchestrationAvailableHere, orchestrationEntry } from "../orchestration/runModel";
@@ -29,6 +31,7 @@ interface CanvasContextMenuProps {
   position: Point;
   locale: LocaleId;
   launcherItems: readonly CanvasLauncherItemId[];
+  menuStyle: CanvasMenuStyle;
   currentRegionColor: string | null;
   onCreateRegion(): void;
   onCreateNote(): void;
@@ -51,6 +54,7 @@ export function CanvasContextMenu({
   position,
   locale,
   launcherItems,
+  menuStyle,
   currentRegionColor,
   onCreateRegion,
   onCreateNote,
@@ -68,7 +72,8 @@ export function CanvasContextMenu({
   onClose
 }: CanvasContextMenuProps): React.JSX.Element {
   const menu = useRef<HTMLDivElement>(null);
-  const [launcherOpen, setLauncherOpen] = useState(false);
+  const orchestration = orchestrationEntry(orchestrationAvailableHere());
+  const [submenu, setSubmenu] = useState<"launch" | "agent" | null>(null);
   const [submenuSide, setSubmenuSide] = useState<CanvasSubmenuSide>("right");
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: kind is the trigger: focus the first row when the menu changes
@@ -76,9 +81,9 @@ export function CanvasContextMenu({
     menu.current?.querySelector<HTMLButtonElement>(".canvas-menu__row")?.focus({ preventScroll: true });
   }, [kind]);
 
-  const toggleLauncher = (): void => {
-    if (launcherOpen) {
-      setLauncherOpen(false);
+  const toggleSubmenu = (which: "launch" | "agent"): void => {
+    if (submenu === which) {
+      setSubmenu(null);
       return;
     }
     const root = menu.current;
@@ -92,7 +97,7 @@ export function CanvasContextMenu({
         .55 * fontSize
       ));
     }
-    setLauncherOpen(true);
+    setSubmenu(which);
   };
 
   return (
@@ -125,14 +130,14 @@ export function CanvasContextMenu({
               right={<CanvasMenuChevron />}
               role="menuitem"
               aria-haspopup="menu"
-              aria-expanded={launcherOpen}
-              onClick={toggleLauncher}
+              aria-expanded={submenu === "launch"}
+              onClick={() => toggleSubmenu("launch")}
             >{t(locale, "canvasMenuLaunch")}</CanvasMenuRow>
-            {launcherOpen && (
+            {submenu === "launch" && (
               <div className={`canvas-menu canvas-menu__submenu canvas-menu__submenu--${submenuSide}`} role="menu">
                 {launcherItems.map((provider) => (
                   provider === "terminal" ? (
-                    <CanvasMenuRow icon="terminal" indent role="menuitem" key={provider} onClick={() => onLaunch(provider)}>{PROVIDERS[provider].label}</CanvasMenuRow>
+                    <CanvasMenuRow icon="terminal" indent right={window.canvasTTY.window.isMacOS ? <CanvasMenuKbd>⌘T</CanvasMenuKbd> : undefined} role="menuitem" key={provider} onClick={() => onLaunch(provider)}>{PROVIDERS[provider].label}</CanvasMenuRow>
                   ) : (
                     <CanvasMenuRow indent role="menuitem" key={provider} onClick={() => onLaunch(provider)}>
                       <span className="canvas-menu__provider">
@@ -147,15 +152,37 @@ export function CanvasContextMenu({
               </div>
             )}
           </div>
-          {(["codex", "claude"] as const).map((provider) => {
-            const entry = orchestrationEntry(orchestrationAvailableHere());
-            return (
-              <CanvasMenuRow icon="plus" role="menuitem" key={provider} disabled={entry.disabled} title={entry.hint ? t(locale, entry.hint) : undefined}
-                onClick={() => onCreateOrchestrationAgent(provider)}>
-                {t(locale, provider === "codex" ? "orchAgentCodex" : "orchAgentClaude")}
-              </CanvasMenuRow>
-            );
-          })}
+          {menuStyle === "mock" ? (
+          <div className="canvas-menu__submenu-anchor">
+            <CanvasMenuRow
+              iconNode={<AppMark size={16} />}
+              right={<CanvasMenuChevron />}
+              role="menuitem"
+              aria-haspopup="menu"
+              aria-expanded={submenu === "agent"}
+              disabled={orchestration.disabled}
+              title={orchestration.hint ? t(locale, orchestration.hint) : undefined}
+              onClick={() => toggleSubmenu("agent")}
+            >{t(locale, "ctxOrchestrationAgent")}</CanvasMenuRow>
+            {submenu === "agent" && (
+              <div className={`canvas-menu canvas-menu__submenu canvas-menu__submenu--${submenuSide}`} role="menu">
+                {(["codex", "claude"] as const).map((provider) => (
+                  <CanvasMenuRow indent role="menuitem" key={provider} onClick={() => onCreateOrchestrationAgent(provider)}>
+                    <span className="canvas-menu__provider">
+                      <ProviderIcon provider={provider} size="small" />
+                      {t(locale, provider === "codex" ? "orchAgentCodex" : "orchAgentClaude")}
+                    </span>
+                  </CanvasMenuRow>
+                ))}
+              </div>
+            )}
+          </div>
+          ) : (["codex", "claude"] as const).map((provider) => (
+            <CanvasMenuRow icon="plus" role="menuitem" key={provider} disabled={orchestration.disabled} title={orchestration.hint ? t(locale, orchestration.hint) : undefined}
+              onClick={() => onCreateOrchestrationAgent(provider)}>
+              {t(locale, provider === "codex" ? "orchAgentCodex" : "orchAgentClaude")}
+            </CanvasMenuRow>
+          ))}
           <CanvasMenuRow icon="browser" role="menuitem" onClick={onOpenBrowser}>
             {t(locale, "ctxBrowser")}
           </CanvasMenuRow>

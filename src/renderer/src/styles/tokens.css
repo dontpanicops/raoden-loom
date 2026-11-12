@@ -437,10 +437,12 @@
 
 /* Glass levels (stage R, spec 2): backdrop-filter lives only here, on levels 3-4. Panels join with the class or the same declarations. */
 .surface-3{background:var(--surface-3);backdrop-filter:blur(var(--blur-3)) saturate(170%);box-shadow:inset 0 1px 0 var(--edge-light),inset 0 0 0 1px var(--border),var(--elev-3)}
-.surface-4,.canvas-menu,.radial-launcher__center,.radial-launcher__item,.usage-row__failure-tooltip{background:var(--surface-4);backdrop-filter:blur(var(--blur-4)) saturate(170%);box-shadow:inset 0 1px 0 var(--edge-light),inset 0 0 0 1px var(--border-strong),var(--elev-4)}
+.surface-4,.usage-row__failure-tooltip{background:var(--surface-4);backdrop-filter:blur(var(--blur-4)) saturate(170%);box-shadow:inset 0 1px 0 var(--edge-light),inset 0 0 0 1px var(--border-strong),var(--elev-4)}
+/* menus: level 4 but opaque (R11, D-037): content under a glass menu showed through */
+.canvas-menu,.radial-launcher__center,.radial-launcher__item{background:var(--surface-4-solid);box-shadow:inset 0 1px 0 var(--edge-light),inset 0 0 0 1px var(--border-strong),var(--elev-4)}
 .app--reduce .surface-3{background:var(--surface-3-solid);backdrop-filter:none}
-.app--reduce .surface-4,.app--reduce .canvas-menu,.app--reduce .radial-launcher__center,.app--reduce .radial-launcher__item,.app--reduce .usage-row__failure-tooltip{background:var(--surface-4-solid);backdrop-filter:none}
-@media (prefers-reduced-transparency:reduce){.surface-3{background:var(--surface-3-solid);backdrop-filter:none}.surface-4,.canvas-menu,.radial-launcher__center,.radial-launcher__item,.usage-row__failure-tooltip{background:var(--surface-4-solid);backdrop-filter:none}}
+.app--reduce .surface-4,.app--reduce .usage-row__failure-tooltip{background:var(--surface-4-solid);backdrop-filter:none}
+@media (prefers-reduced-transparency:reduce){.surface-3{background:var(--surface-3-solid);backdrop-filter:none}.surface-4,.usage-row__failure-tooltip{background:var(--surface-4-solid);backdrop-filter:none}}
 
 /* Dark glass over the light canvas backgrounds is denser: text stays at 4.5:1 (contrast-check checks every pair). */
 .app--sand.app--canvas-stone,.app--sand.app--canvas-lilac{--surface-3:rgba(56,53,47,.88);--surface-4:rgba(62,59,52,.92)}

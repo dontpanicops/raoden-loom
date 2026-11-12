@@ -97,6 +97,7 @@ const FALLBACK_SETTINGS: AppSettings = {
   canvasLauncherItems: [...DEFAULT_CANVAS_LAUNCHER_ITEMS],
   radialLauncherItems: [...DEFAULT_RADIAL_LAUNCHER_ITEMS],
   radialLauncherEnabled: false,
+  canvasMenuStyle: "mock",
   agentLifecycleHooksEnabled: true,
   uiScale: DEFAULT_UI_SCALE,
   canvasColor: "theme",

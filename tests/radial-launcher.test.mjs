@@ -93,3 +93,13 @@ test("a custom launcher selection persists through SettingsStore", async () => {
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("canvasMenuStyle defaults to the mock-up, keeps «detailed», ignores junk", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "menu-style-"));
+  const store = new SettingsStore(directory, "en", "darwin");
+  assert.equal((await store.load()).canvasMenuStyle, "mock");
+  await store.update({ canvasMenuStyle: "detailed" });
+  assert.equal((await new SettingsStore(directory, "en", "darwin").load()).canvasMenuStyle, "detailed");
+  await store.update({ canvasMenuStyle: "weird" });
+  assert.equal((await new SettingsStore(directory, "en", "darwin").load()).canvasMenuStyle, "detailed");
+});

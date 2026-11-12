@@ -283,6 +283,19 @@ try {
       await shot("overlay-context-menu");
       await esc();
     });
+    await scene("overlay-menu-detailed", async () => {
+      // «Вид меню: Подробное» (D-037): a row per agent role instead of one «Агент оркестрации»
+      await app.ev(`window.canvasTTY.settings.update({ canvasMenuStyle: "detailed" }).then(() => true)`);
+      await app.call("Page.reload", {}); await sleep(1500); await laptop();
+      await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
+      await app.key("Home", "Home", 36); await sleep(900);
+      const spot = await app.freeRect(40, 40);
+      await app.click(spot.x + 20, spot.y + 20, "right"); await sleep(500);
+      await app.waitFor(`${q(".canvas-menu")} && true`, "menu");
+      await shot("overlay-context-menu-detailed");
+      await esc();
+      await app.ev(`window.canvasTTY.settings.update({ canvasMenuStyle: "mock" }).then(() => true)`);
+    });
     await scene("overlay-palette", async () => {
       await meta("k", "KeyK", 75);
       await app.waitFor(`${q(".canvas-command-palette")} && true`, "palette", 5000);
