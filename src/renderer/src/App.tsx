@@ -1162,7 +1162,8 @@ export function App(): React.JSX.Element {
   const rootStyle = useMemo(
     () => ({
       ...(appearance.homeAccentPreset === "custom" ? customHomeAccentStyle(appearance.homeAccentColors) : {}),
-      "--ui-scale": settings.uiScale
+      "--ui-scale": settings.uiScale,
+      "--app-ui-scale": settings.uiScale
     }) as React.CSSProperties,
     [appearance.homeAccentColors, appearance.homeAccentPreset, settings.uiScale]
   );

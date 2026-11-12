@@ -423,7 +423,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
       : region
   )), [regionMovePreview, settings.canvasRegions]);
   // ponytail: the title's width is estimated (8.5px a character + 26px of padding), not measured; measure the DOM if a long title ever clips the chip
-  const regionTitles = useMemo(() => renderedCanvasRegions.map((r) => ({ x: r.position.x + 14, y: r.position.y + 14, width: Math.min(r.size.width - 28, r.title.length * 8.5 + 26), height: 34 })), [renderedCanvasRegions]);
+  const regionTitles = useMemo(() => renderedCanvasRegions.map((r) => ({ x: r.position.x + 14, y: r.position.y + 12, width: Math.min(r.size.width - 28, r.title.length * 7.5 + 12), height: 28 })), [renderedCanvasRegions]);
   const renderedSessions = useMemo(() => sessions.map((session) => {
     const start = regionMovePreview?.sessionBounds.get(session.id);
     return start && previewDelta ? { ...session, ...translateBounds(start, previewDelta) } : session;
@@ -441,6 +441,8 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     const start = regionMovePreview?.noteBounds.get(note.id);
     return start && previewDelta ? { ...note, ...translateBounds(start, previewDelta) } : note;
   }), [previewDelta, regionMovePreview, settings.stickyNotes]);
+  // what a link chip keeps off: the regions' titles and the notes (a chip never lies on a note, R12a)
+  const chipObstacles = useMemo(() => [...regionTitles, ...renderedStickyNotes.map((note) => ({ x: note.position.x, y: note.position.y, width: note.size.width, height: note.size.height }))], [regionTitles, renderedStickyNotes]);
 
   const renderablePluginIds = useMemo(() => new Set(settings.pluginCanvas.filter((instance) => {
     const plugin = plugins.find((candidate) => candidate.manifest.id === instance.pluginId && candidate.enabled);
@@ -1137,7 +1139,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           ))}
           <AgentScene
             taskOfRun={board.taskOfRun}
-            regionTitles={regionTitles}
+            regionTitles={chipObstacles}
             orch={sceneOrch}
             ui={agentUi}
             locale={settings.locale}

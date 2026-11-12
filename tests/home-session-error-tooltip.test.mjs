@@ -13,7 +13,7 @@ test("Home exposes failed session details from the error mark with a Copy action
   assert.match(source, /className="usage-row__failure-trigger"/);
   assert.match(source, /<UiIcon name="error" size=\{16\} \/>/);
   assert.match(source, /window\.canvasTTY\.clipboard\.writeText\(details\)/);
-  assert.match(source, /<UiIcon name="copy" size=\{16\} \/>/);
+  assert.match(source, /t\(locale, "failureCopy"\)/); // a text button, as in mock 05 (R12a)
 });
 
 test("Home opens failure details from hover or keyboard focus in a top-layer popover", async () => {
@@ -25,7 +25,7 @@ test("Home opens failure details from hover or keyboard focus in a top-layer pop
   assert.match(source, /onFocus=\{openTooltip\}/);
   assert.match(source, /tooltip\.showPopover\(\)/);
   assert.match(styles, /\.usage-row__failure-tooltip \{ position: fixed;/);
-  assert.match(styles, /\.usage-row__failure-tooltip:popover-open \{ display: grid; \}/);
+  assert.match(styles, /\.usage-row__failure-tooltip:popover-open \{ display: block; \}/);
 });
 
 test("failure popover preserves the scroll viewport and no side stripe", async () => {

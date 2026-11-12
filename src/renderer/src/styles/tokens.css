@@ -222,6 +222,7 @@
   --border-strong:rgba(40,30,10,.2);
   --edge-light:rgba(255,255,255,.9);
   --edge-dark:rgba(40,30,10,.06);
+  --tile-foot:transparent;
   --focus:#2A6FE0;
   --accent:#22201C;
   --accent-bg:linear-gradient(180deg,#34312B,#22201C);
@@ -274,6 +275,7 @@
   --border-strong:rgba(20,40,80,.2);
   --edge-light:rgba(255,255,255,.9);
   --edge-dark:rgba(20,40,80,.06);
+  --tile-foot:transparent;
   --focus:#2A6FE0;
   --accent:#2A6FE0;
   --accent-bg:linear-gradient(180deg,#2F72E4,#2A6FE0);

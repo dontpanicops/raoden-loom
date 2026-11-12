@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import { invZoom, zoomedAttr } from "../../lib/cardChrome";
 import { type ITheme, Terminal } from "@xterm/xterm";
 import {
   INITIAL_TERMINAL_COLS,
@@ -125,8 +126,8 @@ export function TerminalCard({
   const [size, setSize] = useState(session.size);
   const [restarting, setRestarting] = useState(false);
   const liveBounds = useRef<SessionBounds>({ position: session.position, size: session.size });
-  const summaryMode = zoom < 0.5;
-  const summaryScale = summaryMode ? Math.min(2.5, Math.max(1, 0.5 / zoom)) : 1;
+  const summaryMode = zoom < 0.4; // SPEC 11.2 / mock 21: the body shows at 45%, the summary at 28%
+  const summaryScale = summaryMode ? 1 / zoom : 1; // the summary is in screen px (SPEC 11.2)
 
   restartAction.current = async () => {
     if (restarting || !sessionExited.current) return;
@@ -446,8 +447,9 @@ export function TerminalCard({
 
   return (
     <article
-      className={`terminal-card terminal-card--${session.provider} ${summaryMode ? "terminal-card--summary" : ""} ${selected || groupSelected ? "terminal-card--selected" : ""} ${session.status === "needs_approval" ? "terminal-card--waiting" : ""}`}
+      className={`terminal-card terminal-card--${session.provider} ${summaryMode ? "terminal-card--summary" : ""} ${selected || groupSelected ? "terminal-card--selected" : ""} ${session.status === "needs_approval" ? "terminal-card--waiting" : ""} ${session.status === "failed" ? "terminal-card--failed" : ""}`}
       data-interactive="true"
+      data-zoomed={zoomedAttr(zoom)}
       data-canvas-layer-id={`terminal:${session.id}`}
       data-canvas-widget-id={terminalCanvasWidgetId(session.id)}
       data-canvas-widget-focusable="true"
@@ -487,9 +489,10 @@ export function TerminalCard({
         width: size.width,
         height: size.height,
         zIndex: stackIndex,
+        "--iz": invZoom(zoom),
         transform: `translate(${position.x}px, ${position.y}px)`,
         "--summary-scale": summaryScale,
-        "--summary-content-width": `${Math.max(0, (size.width - 72) / summaryScale)}px`
+        "--summary-content-width": `${Math.max(0, size.width * zoom - 16)}px`
       } as React.CSSProperties}
     >
       <header
@@ -569,8 +572,11 @@ export function TerminalCard({
         data-focus-activation={focusActivation}
       >
         <div className="terminal-card__summary-content">
-          <ProviderIcon provider={session.provider} size="large" />
-          <div className="terminal-card__summary-copy"><strong>{session.title}</strong><span>{session.closeUnconfirmed && session.exitCode === null ? t(locale, "wsStop_unconfirmed") : sessionStatusLabel(locale, session.status, session.provider)}</span></div>
+          {session.closeUnconfirmed && session.exitCode === null
+            ? <span className="terminal-card__summary-path">{t(locale, "wsStop_unconfirmed")}</span>
+            : <CardStatus kind={sessionCardStatus(session.status)} label={sessionCardLabel(locale, session.status, session.exitCode)} />}
+          <span className="terminal-card__summary-name"><ProviderIcon provider={session.provider} size="small" /><strong>{session.title}</strong></span>
+          <span className="terminal-card__summary-path" title={session.cwd}>{shortPath(session.cwd)}</span>
         </div>
       </button>
       {RESIZE_DIRECTIONS.map((direction) => (
@@ -609,6 +615,12 @@ function readTerminalTheme(element: HTMLElement): ITheme {
     black, red, green, yellow, blue, magenta, cyan, white,
     brightBlack, brightRed, brightGreen, brightYellow, brightBlue, brightMagenta, brightCyan, brightWhite
   };
+}
+
+// …/project-a: the folder alone (the summary has no room for more)
+function shortPath(path: string): string {
+  const name = path.split("/").filter(Boolean).pop();
+  return name ? `…/${name}` : path;
 }
 
 function compactPath(path: string): string {

@@ -1,3 +1,4 @@
+import { invZoom, zoomedAttr } from "../../lib/cardChrome";
 import { useEffect, useRef, useState } from "react";
 import type {
   InstalledPlugin,
@@ -89,8 +90,8 @@ export function PluginCanvasCard({
   const [position, setPosition] = useState(initialBounds.position);
   const [size, setSize] = useState(initialBounds.size);
   const liveBounds = useRef<SessionBounds>(initialBounds);
-  const summaryMode = zoom < 0.5;
-  const summaryScale = summaryMode ? Math.min(2.5, Math.max(1, 0.5 / zoom)) : 1;
+  const summaryMode = zoom < 0.4; // SPEC 11.2 / mock 21: the body shows at 45%, the summary at 28%
+  const summaryScale = summaryMode ? Math.min(2.5, Math.max(1, 0.4 / zoom)) : 1;
 
   useEffect(() => {
     const bounds = constrainPluginResize(
@@ -204,6 +205,7 @@ export function PluginCanvasCard({
     <article
       className={`plugin-canvas-card ${summaryMode ? "plugin-canvas-card--summary" : ""} ${groupSelected ? "plugin-canvas-card--selected" : ""}`}
       data-interactive="true"
+      data-zoomed={zoomedAttr(zoom)}
       data-canvas-layer-id={`plugin:${instance.id}`}
       data-canvas-widget-id={pluginCanvasWidgetId(instance.id)}
       data-canvas-widget-focusable="true"
@@ -212,6 +214,7 @@ export function PluginCanvasCard({
         width: size.width,
         height: size.height,
         zIndex: stackIndex,
+        "--iz": invZoom(zoom),
         transform: `translate(${position.x}px, ${position.y}px)`,
         "--summary-scale": summaryScale
       } as React.CSSProperties}

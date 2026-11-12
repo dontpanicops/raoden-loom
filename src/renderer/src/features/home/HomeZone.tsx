@@ -21,7 +21,7 @@ import {
 } from "../../../../shared/contracts.ts";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { UiIcon } from "../../components/UiIcon";
-import { t } from "../../lib/i18n";
+import { t, type TranslationKey } from "../../lib/i18n";
 import {
   AGENT_PROVIDERS,
   homeLauncherColumnCount,
@@ -113,23 +113,26 @@ const SESSION_ORDER: Record<SessionStatus, number> = { needs_approval: 0, workin
 const HOME_RESIZE_DIRECTIONS: HomeResizeDirection[] = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
 const FAILURE_TOOLTIP_GAP = 6;
 const FAILURE_TOOLTIP_MARGIN = 16;
-const FAILURE_TOOLTIP_MAX_WIDTH = 520;
-const FAILURE_TOOLTIP_MAX_DETAILS_HEIGHT = 260;
-const FAILURE_TOOLTIP_MIN_DETAILS_HEIGHT = 80;
-const FAILURE_TOOLTIP_CHROME_HEIGHT = 22;
+const FAILURE_TOOLTIP_MAX_WIDTH = 380;
+const FAILURE_TOOLTIP_MAX_DETAILS_HEIGHT = 130; // about 7 mono lines (mock 05)
+const FAILURE_TOOLTIP_MIN_DETAILS_HEIGHT = 60;
+const FAILURE_TOOLTIP_CHROME_HEIGHT = 120; // header and note
 
 interface SessionFailureDetailsProps {
   sessionId: string;
+  title: string;
+  exitCode: number | null;
   details: string;
   locale: LocaleId;
 }
 
-function SessionFailureDetails({ sessionId, details, locale }: SessionFailureDetailsProps): React.JSX.Element {
+function SessionFailureDetails({ sessionId, title, exitCode, details, locale }: SessionFailureDetailsProps): React.JSX.Element {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [open, setOpen] = useState(false);
   const tooltipId = `session-failure-${sessionId}`;
+  const tail = details.split("\n").filter((line) => line.trim() !== "").slice(-7).join("\n"); // the full text is what "Copy" takes
 
   const cancelClose = (): void => {
     if (closeTimer.current === null) return;
@@ -244,16 +247,24 @@ function SessionFailureDetails({ sessionId, details, locale }: SessionFailureDet
         onKeyDown={handleEscape}
         onToggle={(event) => setOpen(event.currentTarget.matches(":popover-open"))}
       >
-        <span className="usage-row__failure-details">{details}</span>
-        <button
-          className="usage-row__failure-copy"
-          type="button"
-          onClick={() => window.canvasTTY.clipboard.writeText(details)}
-          title={t(locale, "copyErrorDetails")}
-          aria-label={t(locale, "copyErrorDetails")}
-        >
-          <UiIcon name="copy" size={16} />
-        </button>
+        <div className="usage-row__failure-head">
+          <span className="usage-row__failure-title">
+            <UiIcon name="error" size={14} />
+            <span className="usage-row__failure-name">{title}</span>
+            {exitCode !== null && <span className="usage-row__failure-code">{t(locale, "failureHeadline").replace("{name} ", "").replace("{code}", String(exitCode))}</span>}
+          </span>
+          <button
+            className="usage-row__failure-copy"
+            type="button"
+            onClick={() => window.canvasTTY.clipboard.writeText(details)}
+            title={t(locale, "copyErrorDetails")}
+            aria-label={t(locale, "copyErrorDetails")}
+          >
+            {t(locale, "failureCopy")}
+          </button>
+        </div>
+        <span className="usage-row__failure-details">{tail}</span>
+        <p className="usage-row__failure-note">{t(locale, "failureNote")}</p>
       </div>
     </>
   );
@@ -294,6 +305,10 @@ export function HomeZone({
   const launcherProviders = resolveHomeLauncherProviders(settings);
   const dockCandidates = AGENT_PROVIDERS.filter((provider) => !launcherProviders.includes(provider));
   const [dockMenuOpen, setDockMenuOpen] = useState(false);
+  const [cliFound, setCliFound] = useState<readonly AgentProviderId[]>([]); // which agents' CLIs main finds, shown in the «Add» list (SPEC 11.1)
+  useEffect(() => {
+    if (dockMenuOpen) window.canvasTTY.providers.available().then(setCliFound).catch(() => setCliFound([]));
+  }, [dockMenuOpen]);
   useEffect(() => {
     if (!dockMenuOpen) return undefined;
     const close = (event: PointerEvent | KeyboardEvent): void => {
@@ -539,7 +554,7 @@ export function HomeZone({
                   )}
                 </button>
                 {failureDetails && (
-                  <SessionFailureDetails sessionId={session.id} details={failureDetails} locale={locale} />
+                  <SessionFailureDetails sessionId={session.id} title={session.title} exitCode={session.exitCode} details={failureDetails} locale={locale} />
                 )}
               </div>
             );
@@ -589,7 +604,7 @@ export function HomeZone({
             title={t(locale, "browser")}
             aria-label={t(locale, "browser")}
           >
-            <UiIcon name="browser" size="1.9em" /><span>{t(locale, "browser")}</span>
+            <UiIcon name="browser" size="2.2em" /><span>{t(locale, "browser")}</span>
           </button>
           {launcherProviders.map((provider) => (
             <div className="launcher-cell" key={provider}>
@@ -617,7 +632,7 @@ export function HomeZone({
                 title={t(locale, "dockAdd")}
                 onClick={() => setDockMenuOpen((open) => !open)}
               >
-                <UiIcon name="plus" size="1.9em" /><span>{t(locale, "dockAdd")}</span>
+                <UiIcon name="plus" size="2.2em" /><span>{t(locale, "dockAdd")}</span>
               </button>
               {dockMenuOpen && (
                 <div className="launcher-add-menu" role="menu" data-dock-add-menu>
@@ -629,7 +644,8 @@ export function HomeZone({
                       role="menuitem"
                       onClick={() => { onSetDockProviders(AGENT_PROVIDERS.filter((p) => p === provider || launcherProviders.includes(p))); setDockMenuOpen(false); }}
                     >
-                      <ProviderIcon provider={provider} size="small" /><span>{PROVIDERS[provider].label}</span>
+                      <ProviderIcon provider={provider} size="small" />
+                      <span className="launcher-add-menu__text"><span>{PROVIDERS[provider].label}</span><small>{t(locale, cliFound.includes(provider) ? "dockCliFound" : "dockCliMissing")}</small></span>
                     </button>
                   ))}
                 </div>
@@ -642,7 +658,7 @@ export function HomeZone({
     if (widgetId === "core.settings") {
       return (
         <button className="tile settings-button" type="button" onClick={onOpenSettings} aria-label={t(locale, "settings")}>
-          <UiIcon name="settings" size={22} /><span>{t(locale, "settings")}</span>
+          <UiIcon name="sliders-horizontal" size={28} /><span>{t(locale, "settings")}</span>
         </button>
       );
     }
@@ -677,7 +693,35 @@ export function HomeZone({
     return editing ? <div className="tile plugin-widget plugin-widget--unavailable">{widgetId}</div> : null;
   };
 
+  // the editor names tiles for people, never by their technical id
+  const widgetTitle = (widgetId: string): string => {
+    const core: Record<string, TranslationKey> = {
+      "core.limits": "modelLimits", "core.sessions": "activeSessions", "core.clock": "clock",
+      "core.media": "personalMedia", "core.launcher": "launcher", "core.settings": "settings"
+    };
+    if (core[widgetId]) return t(locale, core[widgetId]);
+    const match = widgetId.match(/^plugin:([^:]+):([^:]+)$/);
+    return plugins.find((plugin) => plugin.manifest.id === match?.[1])?.manifest.name ?? widgetId;
+  };
+
   const homePixels = homeGridPixelSize(draftGridSize);
+  // the panel under the tiles (mock 03/05) hugs the tiles as drawn (a dock that wraps grows, a short tile is shorter than its slot), not the grid
+  const [panel, setPanel] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  useEffect(() => {
+    const zone = homeElement.current;
+    if (!zone) return;
+    const measure = (): void => {
+      const boxes = [...zone.querySelectorAll<HTMLElement>(".home-widget-slot")].map((slot) => ({ left: slot.offsetLeft, top: slot.offsetTop, width: slot.offsetWidth, height: slot.firstElementChild instanceof HTMLElement ? Math.min(slot.offsetHeight, slot.firstElementChild.offsetHeight) : slot.offsetHeight }));
+      if (boxes.length === 0) return setPanel(null);
+      const left = Math.min(...boxes.map((b) => b.left)), top = Math.min(...boxes.map((b) => b.top));
+      const next = { left, top, width: Math.max(...boxes.map((b) => b.left + b.width)) - left, height: Math.max(...boxes.map((b) => b.top + b.height)) - top };
+      setPanel((prev) => prev && prev.left === next.left && prev.top === next.top && prev.width === next.width && prev.height === next.height ? prev : next);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    for (const el of zone.querySelectorAll(".home-widget-slot, .home-widget-slot > *")) observer.observe(el);
+    return () => observer.disconnect();
+  }, [draftLayout, homeElement]);
 
   return (
     <section
@@ -691,6 +735,12 @@ export function HomeZone({
         gridTemplateRows: `repeat(${draftGridSize.rows}, ${HOME_GRID_CELL_HEIGHT}px)`
       }}
     >
+      {!editing && panel && (
+        <>
+          <span className="home-zone__panel" style={{ left: panel.left - 16, top: panel.top - 16, width: panel.width + 32, height: panel.height + 32 }} aria-hidden="true" />
+          <span className="home-zone__label" style={{ left: panel.left - 16, top: panel.top - 16 - 30 }} aria-hidden="true">HOME</span>
+        </>
+      )}
       {editing && (
         <>
           <span className="home-zone__boundary-label">
@@ -736,13 +786,13 @@ export function HomeZone({
                   onPointerMove={moveLayoutPointer}
                   onPointerUp={endLayoutPointer}
                   onPointerCancel={endLayoutPointer}
-                >{placement.widgetId}</button>
+                >{widgetTitle(placement.widgetId)}</button>
                 {HOME_RESIZE_DIRECTIONS.map((direction) => (
                   <button
                     className={`home-widget-slot__resize home-widget-slot__resize--${direction}`}
                     type="button"
                     key={direction}
-                    aria-label={`${t(locale, "resizeHomeWidget")}: ${placement.widgetId}`}
+                    aria-label={`${t(locale, "resizeHomeWidget")}: ${widgetTitle(placement.widgetId)}`}
                     onPointerDown={(event) => startLayoutPointer(event, placement, "resize", direction)}
                     onPointerMove={moveLayoutPointer}
                     onPointerUp={endLayoutPointer}

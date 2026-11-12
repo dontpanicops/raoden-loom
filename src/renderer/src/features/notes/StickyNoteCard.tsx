@@ -1,3 +1,4 @@
+import { invZoom, zoomedAttr } from "../../lib/cardChrome";
 import { useEffect, useRef, useState } from "react";
 import type { LocaleId, Point, SessionBounds, StickyNote, StickyNoteSource } from "../../../../shared/contracts";
 import { UiIcon } from "../../components/UiIcon";
@@ -220,15 +221,17 @@ export function StickyNoteCard({
     <article
       className={`sticky-note-card ${groupSelected ? "sticky-note-card--selected" : ""} ${note.source ? "sticky-note-card--sourced" : ""}`}
       data-interactive="true"
+      data-zoomed={zoomedAttr(zoom)}
       data-sticky-note-id={note.id}
       data-canvas-layer-id={`note:${note.id}`}
       data-wheel-owner="local"
       style={{
         zIndex: stackIndex,
+        "--iz": invZoom(zoom),
         width: size.width,
         height: size.height,
         transform: `translate(${position.x}px, ${position.y}px)`
-      }}
+      } as React.CSSProperties}
     >
       <header
         className="sticky-note-card__header"
@@ -238,7 +241,7 @@ export function StickyNoteCard({
         onPointerCancel={endDrag}
         onLostPointerCapture={cancelDrag}
       >
-        <span><UiIcon name="sticky-note" size="1.15em" />{t(locale, "stickyNote")}</span>
+        <span><UiIcon name="sticky-note" size="1.15em" />{(note.source && text.split("\n").find((line) => line.trim())) || t(locale, "stickyNote")}</span>
         <button
           className="sticky-note-card__close"
           type="button"
@@ -254,8 +257,7 @@ export function StickyNoteCard({
       </header>
       {note.source && (
         <div className="sticky-note-card__source" data-note-source={note.source.doc}>
-          <span>{t(locale, "noteSnapshotOf").replace("{time}", snapshotTime(locale, note.source.at))}</span>
-          {onOpenSource && <button type="button" data-note-open-source onClick={() => onOpenSource(note.source as StickyNoteSource)}>{t(locale, "noteOpenCurrent")}</button>}
+          <span><UiIcon name="info" size="1.1em" />{t(locale, "noteSnapshotOf").replace("{time}", snapshotTime(locale, note.source.at))}</span>
         </div>
       )}
       <textarea
@@ -268,6 +270,11 @@ export function StickyNoteCard({
         onChange={(event) => changeText(event.target.value)}
         onBlur={() => saveText(text)}
       />
+      {note.source && onOpenSource && (
+        <footer className="sticky-note-card__foot">
+          <button type="button" data-note-open-source onClick={() => onOpenSource(note.source as StickyNoteSource)}>{t(locale, "noteOpenCurrent")}</button>
+        </footer>
+      )}
       {RESIZE_DIRECTIONS.map((direction) => (
         <div
           key={direction}

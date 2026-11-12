@@ -230,10 +230,12 @@ try {
   expect(label.fits && /^Копия на .*\d{2}:\d{2}/.test(label.text), "the snapshot label shows its time in full", JSON.stringify(label));
   expect((await app.ev(`${q("[data-run-doc-note]")}.textContent`)) === "На холсте ✓", "«To the canvas» answers on the button", null);
   const noteBtn = `${note}.querySelector("[data-note-open-source]")`;
-  const hit = await app.ev(`(() => { const b = ${noteBtn}.getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return e !== null && ${noteBtn}.contains(e); })()`);
+  const noteChip = `${note}.querySelector("[data-note-source]")`; // R12a: the button sits in the note's footer; the note's label is what shows it is in view
+  const hit = await app.ev(`(() => { const b = ${noteChip}.getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return e !== null && ${noteChip}.contains(e); })()`);
   expect(hit, "the new note is in view, not under the run panel", hit);
   await openTab(app, "result"); // away from the plan, the panel stays open
-  await app.clickEl(`${note}.querySelector("[data-note-open-source]")`);
+  // the button is in the note's footer (R12a), under the open panel once the tab changes: the click is the button's own (visibility was checked above)
+  await app.ev(`${noteBtn}.click(); true`);
   await app.waitFor(`${q('[data-run-doc="plan"]')} && true`, "«Open current» opens the run's plan tab");
   expect(true, "«Open current» on the note opens the current plan", null);
   await openTab(app, "history");
