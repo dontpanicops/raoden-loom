@@ -7,7 +7,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildCheckProfile, checkSelftest } from "./sandbox.ts";
+import { buildCheckProfile, checkEnv, checkSelftest } from "./sandbox.ts";
 import { runShell } from "./shellRun.ts";
 import { commandSha256 } from "./checks.ts";
 import { canonical } from "./journal.ts";
@@ -31,7 +31,7 @@ export interface ShellCheckOptions {
   // A1.1 (journal-v2-format.md §2.6): a lead's proposed command runs in the check profile — `<shell> -c <line>` (the
   // login environment is already in env; the shell's own start files would only be refused their writes), after the
   // profile's self-test, with a temporary folder of its own
-  // outside (F-c, the profile's checksOutside): the profile also allows outside addresses and writes to temporary folders and caches
+  // outside (F-c, the profile's checksOutside): the profile also allows outside addresses; the caches go to the check's temporary folder
   sandbox?: { root: string; realHome?: string; outside?: boolean };
 }
 
@@ -112,7 +112,7 @@ export function startShellCheck(opts: ShellCheckOptions): { checkRunId: string; 
     // ---- the process, under the supervisor (its own process group; stop = INT, TERM, KILL) ----
     const line = c.argv.at(-1) ?? "";
     const run = runShell({
-      shell: c.executable, line, cwd: opts.ws.repo, env: sandboxed ? { ...opts.env, ...SANDBOX_ENV, TMPDIR: sandboxed.tmp } : opts.env, launch: opts.launch,
+      shell: c.executable, line, cwd: opts.ws.repo, env: sandboxed ? checkEnv({ ...opts.env, ...SANDBOX_ENV }, sandboxed.tmp, opts.sandbox?.outside === true) : opts.env, launch: opts.launch,
       ...(sandboxed ? { profile: sandboxed.profilePath } : {}),
       timeoutMs: c.timeoutMs, maxOutputBytes: c.maxOutputBytes, clock
     });

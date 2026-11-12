@@ -72,6 +72,25 @@ test("a folder inside the project is found, a link or a folder not made yet cann
   assert.equal(await insideProject(`${project}-next`, project), false, "a sibling of the same prefix");
 });
 
+test("security review L3: a folder that became a link into the project after the target was read gets nothing; a link elsewhere is written where it leads", async () => {
+  const root = fresh();
+  const project = fs.mkdtempSync(path.join(TMP, "project-"));
+  const away = fs.mkdtempSync(path.join(TMP, "away-"));
+  const dir = path.join(away, "reviews");
+  // the target was read (and checked) while the folder was not there; a link into the project is put in its place
+  const ex = createReviewExporter({ root, source: async () => { fs.symlinkSync(project, dir); return input; }, target: async () => ({ dir, format: "both", project }) });
+  assert.equal(await ex.write(RUN, true), false);
+  assert.deepEqual(ls(project), [], "nothing in the project's tree");
+  // a link to another place outside the project: the files are written there, the link itself stays a link
+  fs.unlinkSync(dir);
+  const elsewhere = fs.mkdtempSync(path.join(TMP, "elsewhere-"));
+  fs.symlinkSync(elsewhere, dir);
+  const ok = createReviewExporter({ root, source: async () => input, target: async () => ({ dir, format: "json", project }) });
+  assert.equal(await ok.write(RUN, true), true);
+  assert.deepEqual(ls(path.join(elsewhere, RUN)), ["review.json"]);
+  assert.equal(fs.lstatSync(dir).isSymbolicLink(), true);
+});
+
 test("the profile: the folder and the format — a relative folder is refused, ~/ is expanded, both is not stored, the flag alone is as before", () => {
   const base = { v: 1, workMode: "worktree", checks: [], prepare: { steps: [], auto: false }, env: { direnv: false }, finish: { commit: true, push: null, qa: null }, grants: [],
     runBase: { remote: "origin", branch: "main", remoteUrl: null }, reviewExport: true };

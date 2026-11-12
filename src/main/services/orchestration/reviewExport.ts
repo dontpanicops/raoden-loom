@@ -93,7 +93,8 @@ export function reviewMarkdown(r: BoardReview): string {
 // F-c (D-041 p. 1): where and in what the review is written. dir null: the application's own folder, as before; a folder of
 // the person's (absolute, outside the project: manager) gets <dir>/<runId>/. format absent: both files, as before the setting
 export type ExportFormat = "markdown" | "json" | "both";
-export interface ExportTarget { dir: string | null; format: ExportFormat }
+// project: the run's source project — a chosen folder is checked against it again where it really is, right before writing
+export interface ExportTarget { dir: string | null; format: ExportFormat; project?: string }
 export const DEFAULT_TARGET: ExportTarget = { dir: null, format: "both" };
 export const exportPaths = (root: string, runId: string, target: ExportTarget = DEFAULT_TARGET) => {
   const dir = target.dir ? join(target.dir, runId) : join(root, "runs", runId, "export");
@@ -138,11 +139,18 @@ export function createReviewExporter(deps: ReviewExporterDeps) {
     const input = await deps.source(runId, manual);
     if (!input) return false;
     const review = buildReview(input);
-    // next to its place, so the rename stays on one volume; a chosen folder is made (0700) and never followed through a link
-    const parent = target.dir ?? runDir;
+    // next to its place, so the rename stays on one volume. A chosen folder is made (0700) and then taken where it really
+    // is (security review L3): a link or a folder put there since the target was read is followed once, here, checked
+    // against the project again, and the files go to that real place — never into the project's tree
+    let parent = target.dir ?? runDir;
+    let final = dir;
     if (target.dir) {
       await mkdir(parent, { recursive: true, mode: 0o700 });
       if (!(await stat(parent).catch(() => null))?.isDirectory()) return false;
+      parent = await realpath(parent);
+      if (target.project && await insideProject(parent, target.project)) return false;
+      final = join(parent, runId);
+      if (await lstat(final).catch(() => null)) return false;
     }
     const tmp = join(parent, `${TMP_PREFIX}${randomUUID()}`);
     await mkdir(tmp, { mode: 0o700 });
@@ -154,8 +162,8 @@ export function createReviewExporter(deps: ReviewExporterDeps) {
         try { await fh.writeFile(text, "utf8"); await fh.sync(); } finally { await fh.close(); }
       }
       await deps.afterTmp?.(runId);
-      if (await lstat(dir).catch(() => null)) return false;
-      await rename(tmp, dir);
+      if (await lstat(final).catch(() => null)) return false;
+      await rename(tmp, final);
       return true;
     } finally {
       await rm(tmp, { recursive: true, force: true }).catch(() => {});

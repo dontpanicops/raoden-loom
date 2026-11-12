@@ -713,7 +713,8 @@ export interface OrchestrationApi {
   // confirmTerminal: the person confirmed the warning of "as in my terminal" (needed to switch a CLI to it; not saved)
   // confirmPush (F4, T-8): the person confirmed the autopilot's push — remote, address and options as shown (needed to
   // turn it on and to change any of them; not saved)
-  saveProfile(linkId: string, profile: OrchestrationProjectProfile & { confirmTerminal?: boolean; confirmPush?: boolean }): Promise<OrchestrationResult<OrchestrationProjectProfile>>;
+  // confirmChecksOutside (F-c): the person confirmed the risk of the network for the lead's checks (needed to turn it on; not saved)
+  saveProfile(linkId: string, profile: OrchestrationProjectProfile & { confirmTerminal?: boolean; confirmPush?: boolean; confirmChecksOutside?: boolean }): Promise<OrchestrationResult<OrchestrationProjectProfile>>;
   // mcpReady: also check that Codex connects this project MCP server (an ephemeral thread, no turn; trusted folders only)
   probe(linkId: string, options?: { mcpReady?: string }): Promise<OrchestrationResult<OrchestrationEnvironmentReport>>;
 }

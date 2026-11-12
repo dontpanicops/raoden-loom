@@ -896,12 +896,17 @@ export class BrowserService {
       this.emit();
     });
     item.once("done", (_doneEvent, state) => {
-      download.receivedBytes = item.getReceivedBytes();
-      download.totalBytes = item.getTotalBytes();
-      download.status = downloadStatus(state);
-      download.completedAt = this.now();
-      this.resolveDownloadWaiters(download);
-      this.emit();
+      // the saved file may be sent (an upload) once it is complete, as the file it is now (security review L5)
+      const receivedBytes = item.getReceivedBytes();
+      const totalBytes = item.getTotalBytes();
+      void (state === "completed" ? this.policy.downloadCompleted(savePath).catch(() => undefined) : Promise.resolve()).then(() => {
+        download.receivedBytes = receivedBytes;
+        download.totalBytes = totalBytes;
+        download.status = downloadStatus(state);
+        download.completedAt = this.now();
+        this.resolveDownloadWaiters(download);
+        this.emit();
+      });
     });
     this.emit();
   }
