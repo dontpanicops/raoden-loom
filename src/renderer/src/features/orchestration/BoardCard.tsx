@@ -133,6 +133,11 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
     el?.querySelector<HTMLElement>(".board-task__title")?.focus();
   };
 
+  // R7b (mock 08): the header's amber chip — the person's turn on the board; the autopilot's own chip says it already when it waits for the person
+  const inReview = tasks.filter((x) => !x.archivedAt && board.statuses.get(x.id)?.column === "review").length;
+  const askedPerm = tasks.some((x) => !x.archivedAt && board.statuses.get(x.id)?.reason === "waits_permission");
+  const youWait = inReview > 0 ? "review" : askedPerm ? "permission" : null;
+  const apSaysSo = !!view?.autopilot && Object.values(view.autopilot).some((a) => a?.on && ["person", "permission", "accept", "merge"].includes(a.waits ?? ""));
   return (
     <article className={`board-card ${props.selected ? "board-card--selected" : ""}`} data-interactive="true" data-board={workspaceId}
       data-canvas-layer-id={`board:${workspaceId}`} aria-label={t(locale, "boardTitle")}
@@ -146,6 +151,7 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
             <ApSegment key={l.linkId} locale={locale} state={view.autopilot?.[l.linkId] ?? null} project={leadOf(l)?.project ?? ""} many={orch.canvas.links.length > 1} asking={apAsking === l.linkId}
               onAsk={() => setApAsking(l.linkId)} onOff={async () => { const f = failure(await board.autopilot(l.linkId, false, language)); if (f) say(null, f); }} />
           ))}
+          {youWait && !apSaysSo && !readOnly && <span className="board-ap"><span className="board-chip board-chip--waiting" data-board-waits-you={youWait}>{t(locale, youWait === "review" ? "boardWaitsYouReview" : "boardWaitsYouPermission")}</span></span>}
           <button type="button" className="board-card__import" ref={importRef} data-board-import disabled={readOnly || !newInputs || importing} aria-busy={importing}
             title={newInputs ? undefined : t(locale, "boardImportCode_unsupported_platform")} onClick={async () => {
               setImporting(true);
@@ -167,7 +173,7 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
           </span>
         </span>
       </header>
-      {view && !readOnly && heads.map((h) => (
+      {view && !readOnly && heads.filter(headHasNews).map((h) => (
         <HeadRow key={h.ref} locale={locale} head={h} tasks={tasks} statuses={board.statuses} facts={view.facts} board={board} workspaceId={workspaceId} say={(text) => say(null, text)} failure={failure} openRun={(id) => ui.openRunById(id)} />
       ))}
       {!!view?.inbox?.some((r) => (r.workspaceId ?? workspaceId) === workspaceId) && <div className="board-card__inbox-list" data-wheel-owner="local">
@@ -612,6 +618,8 @@ const TO_AGENT = new Set(["merge_conflict", "merge_checks_failed", "merge_agent_
 // C1 (stage-c-parallel.md §4.1, §4.3, §6.1): the board's merged head of a project — what is in it and whether its checks
 // passed; the tasks «Done» from it and not in it; a merge that waits for the person, with its copy and its choices; and
 // the person's own actions on it. Nothing here is automatic.
+// R7b (mock 08 has no board-result row): the row shows once the board's result has something to say or to do
+const headHasNews = (h: BoardHead): boolean => h.merges.length > 0 || (h.behind ?? 0) > 0 || !!h.otherLine;
 function HeadRow({ locale, head, tasks, statuses, facts, board, workspaceId, say, failure, openRun }: {
   locale: LocaleId; head: BoardHead; tasks: BoardTask[]; statuses: ReadonlyMap<string, TaskStatus>; facts: readonly RunTaskFacts[]; board: Board;
   workspaceId: string; say(text: string): void; failure(r: { ok: boolean; code?: string; message?: string }): string | null; openRun(runId: string): void;

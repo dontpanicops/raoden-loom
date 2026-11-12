@@ -119,6 +119,12 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
     return { status, time, conditions: conditionsLine(locale, run.view), findings: findingsLine(locale, run.view), cost: costLine(locale, card.role, run.view, orch.activity[runId]?.entries ?? []) };
   };
 
+  // «stage N of M» (mock 06): M is the plan's stage count, known once the plan is loaded
+  const stageOf = (runId: string, n: number): string | null => {
+    const total = Object.keys(orch.stageTitles(runId) ?? {}).length;
+    return total >= n ? tr(locale, "orchAgentStageOf", { n, m: total }) : null;
+  };
+
   return (
     <>
       <svg className="agent-links" width="1" height="1" aria-hidden="true">
@@ -192,6 +198,7 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
             activity={view ? orch.activity[view.runId]?.entries ?? EMPTY : EMPTY}
             pause={view ? viewPauseLabel(locale, view, orch.activity[view.runId]?.entries ?? []) : null}
             statusTime={shown.time}
+            stageOf={view?.stage != null ? stageOf(view.runId, view.stage) : null}
             conditions={shown.conditions}
             findings={shown.findings}
             cost={shown.cost}

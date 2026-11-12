@@ -14,10 +14,16 @@ const THEMES = (arg("themes") ?? "sand,paper").split(",");
 const ONLY = arg("only");
 fs.mkdirSync(OUT, { recursive: true });
 
-const { TMP, D, project } = workspace("cto-r5shots-");
+const { TMP, D, git, project } = workspace("cto-r5shots-");
 const PORT = 9500 + Math.floor(Math.random() * 250);
 const node = project("node-app");
 const other = project("infra-app");
+// R7b: a bare remote «upstream» that takes push options, for the board's push state (a task whose option names a field it has not)
+const bare = D("remote.git");
+git(D(), "init", "-q", "--bare", bare);
+git(bare, "config", "receive.advertisePushOptions", "true");
+git(node, "remote", "add", "upstream", bare);
+git(node, "push", "-q", "upstream", "main:stable");
 const termDir = fs.realpathSync(fs.mkdtempSync("/private/tmp/r5-term-"));
 fs.writeFileSync(path.join(termDir, "README.md"), "demo\n");
 fs.mkdirSync(D("mock-state", ".codex"), { recursive: true });
@@ -87,7 +93,7 @@ const failed = [];
 let app;
 let theme = "sand";
 const laptop = () => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
-const wanted = (name) => !ONLY || name.includes(ONLY);
+const wanted = (name) => !ONLY || ONLY.split(",").some((x) => name.includes(x)); // --only a,b: several scenes
 const shot = async (name) => {
   await sleep(500);
   const z = await app.ev(`(() => { const m = document.querySelector(".workspace__scene")?.style.transform.match(/scale\\(([\\d.]+)\\)/); return m ? Number(m[1]) : null; })()`).catch(() => null);
@@ -98,7 +104,7 @@ const esc = async () => { for (let i = 0; i < 3; i++) { await app.key("Escape", 
 const hideOnboarding = () => app.ev(`(() => { if (!document.getElementById("r5-hide")) { const s = document.createElement("style"); s.id = "r5-hide"; s.textContent = "[data-onboarding] { display: none !important; }"; document.head.append(s); } return true; })()`);
 const WS = { common: "common", alpha: null, beta: null };
 const BETA_SCENES = new Set(["link-executor-left", "link-mode"]);
-const ALPHA_SCENES = new Set(["cards-agents", "goal", "cards-agents-idle", "link-repeat", "link-selected", "zoom-out", "board", "board-waiting", "cards-agents-working"]);
+const ALPHA_SCENES = new Set(["cards-agents", "goal", "cards-agents-idle", "link-repeat", "link-selected", "zoom-out", "board", "board-waiting", "board-push", "cards-agents-working"]);
 // the tab of a space is clicked (the renderer follows its own state); the common canvas is the first tab
 const go = async (id) => {
   const st = await app.ev(`window.canvasTTY.workspaces.get()`);
@@ -638,6 +644,11 @@ try {
       await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500);
       await app.reveal(card(lead.agentId)); await pairView(lead.agentId, exec.agentId); await sleep(500);
       await shot("cards-agents-working");
+      // R7b: the two cards close up (twice the pixels), the pair of the mock's «Агенты оркестрации» row
+      const cr = await app.ev(`(() => { const r = [...document.querySelectorAll("[data-agent-id]")].map((e) => e.getBoundingClientRect());
+        const x = Math.min(...r.map((b) => b.left)) - 12, y = Math.min(...r.map((b) => b.top)) - 12; return { x, y, width: Math.max(...r.map((b) => b.right)) - x + 12, height: Math.max(...r.map((b) => b.bottom)) - y + 12 }; })()`);
+      const cd = await app.call("Page.captureScreenshot", { format: "png", clip: { ...cr, scale: 3 } });
+      fs.writeFileSync(path.join(OUT, `${theme}-cards-agents-working-zoom.png`), Buffer.from(cd.data, "base64"));
     });
     if (!world.boardStates) {
       world.boardStates = true;
@@ -664,6 +675,39 @@ try {
       });
     }
 
+    // R7b (mock 08-board-states): the autopilot's push is on in the profile and a task asks for a field it has not — a red card in «Очередь».
+    // The mock's «Ждёт вашего решения» in «Проверка» needs a run through the final review and the finish confirmation; the fake lead's
+    // script is one per CLI, not per run, so the order of two parallel runs' turns is not fixed (see the D-NNN proposal in the R7b report)
+    await scene("board-push", async () => {
+      await app.key("Home", "Home", 36); await sleep(500);
+      if (!(await app.ev(`!!${q("[data-board]")}`))) await app.clickEl(q("[data-board-button]"));
+      await app.waitFor(`${q("[data-board]")} && true`, "the board");
+      const J = JSON.stringify;
+      const ipc = (call) => app.ev(`window.canvasTTY.orchestration.${call}`);
+      const linkId = await ipc(`canvas().then((r) => r.value.links.find((l) => r.value.agents.find((a) => a.agentId === l.fromAgentId)?.project === ${J(node)}).linkId)`);
+      const p0 = await ipc(`profile(${J(linkId)}).then((r) => r.value.profile)`);
+      const options = ["merge_request.create", "merge_request.title={commitTitle}"];
+      const base = { ...p0, workMode: "worktree", checks: ["true"], prepare: { auto: false, steps: [] }, finish: { ...p0.finish, commit: true },
+        branchTemplate: "{issue}-{ref}", runBase: { remote: "upstream", branch: "stable", remoteUrl: null } };
+      const saved = await ipc(`saveProfile(${J(linkId)}, ${J(base)}).then((r) => r.ok ? r.value : { code: r.code })`);
+      const pushed = await ipc(`saveProfile(${J(linkId)}, ${J({ ...saved, runPush: { enabled: true, remote: "upstream", remoteUrl: null, options, protected: [], confirmedAt: null }, confirmPush: true })}).then((r) => r.ok ? r.value : { code: r.code })`);
+      if (pushed.code) throw new Error(`the push profile: ${pushed.code}`);
+      writeBoard(WS.alpha, [row("P", { title: "Удаление заметок", issue: "ISSUE-1" })]);
+      await app.clickEl(q("[data-board-import]")); await app.waitFor(`${q("[data-board-import-report]")} && true`, "the report");
+      await sleep(600); await app.clickEl(q("[data-board-import-close]")).catch(() => {});
+      await app.waitFor(`${q('[data-board-reason="push_option_field"]')} && true`, "the push option card", 30_000);
+      await app.ev(`document.querySelector('[data-board-reason="push_option_field"]').scrollIntoView({ block: "center" })`);
+      await sleep(1500);
+      const r = await app.ev(`(() => { const els = ["[data-board]", "[data-board-aside]"].map((x) => document.querySelector(x)).filter(Boolean).map((e) => e.getBoundingClientRect());
+        const x = Math.min(...els.map((b) => b.left)), y = Math.min(...els.map((b) => b.top)); return { x, y, width: Math.max(...els.map((b) => b.right)) - x, height: Math.max(...els.map((b) => b.bottom)) - y }; })()`);
+      const d = await app.call("Page.captureScreenshot", { format: "png", clip: { ...r, scale: 2 } });
+      fs.writeFileSync(path.join(OUT, `${theme}-board-push.png`), Buffer.from(d.data, "base64"));
+      console.log(`[shots-r5] clip ${theme}-board-push`);
+      // the profile back as it was (the later scenes run in the copy mode)
+      const back = await ipc(`saveProfile(${J(linkId)}, ${J({ ...p0 })}).then((r) => r.ok ? "ok" : r.code)`);
+      console.log(`[shots-r5] profile restored: ${back}`);
+      await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500);
+    });
   }
   console.log("[shots-r5] phase done");
 } catch (error) {
