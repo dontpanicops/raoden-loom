@@ -105,6 +105,9 @@ const shot = async (name) => {
   const z = await app.ev(`(() => { const m = document.querySelector(".workspace__scene")?.style.transform.match(/scale\\(([\\d.]+)\\)/); return m ? Number(m[1]) : null; })()`).catch(() => null);
   console.log(`[shots-r5] frame ${theme}-${name} zoom ${z}`);
   await app.shot(`${theme}-${name}`);
+  // R12h: where the dialog, menu, banner or toasts stand in the frame (for the inventory's appCrop); one line per frame
+  const rect = await app.ev(`(() => { const el = [...document.querySelectorAll(".orch-dialog, .launch-dialog, .canvas-command-palette, .canvas-menu, .notify-banner, .toast-stack, .radial-launcher__disc, .settings-panel--open")].filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden").at(-1); if (!el) return null; const r = el.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round); })()`).catch(() => null);
+  if (rect) fs.appendFileSync(path.join(OUT, "rects.txt"), `${theme}-${name} ${rect.join(" ")}\n`);
 };
 const esc = async () => { for (let i = 0; i < 3; i++) { await app.key("Escape", "Escape", 27); await sleep(150); } };
 const hideOnboarding = () => app.ev(`(() => { if (!document.getElementById("r5-hide")) { const s = document.createElement("style"); s.id = "r5-hide"; s.textContent = "[data-onboarding] { display: none !important; }"; document.head.append(s); } return true; })()`);
@@ -434,12 +437,16 @@ try {
         await app.waitFor(`${q("[data-notify-banner]")} && true`, "the banner", 15_000);
         await shot("overlay-banner");
         // mock 22 «long text»: the text is cut with «…»; focus on it shows the ring (the tooltip is the app's own (Term), shown on focus)
-        await app.ev(`document.querySelector("[data-notify-banner] .notify-banner__item .orch-term")?.focus()`); await sleep(300);
+        await app.call("Emulation.setFocusEmulationEnabled", { enabled: true }); // R12h: a window in focus shows the ring and the tooltip (the banner is already on screen)
+        await app.ev(`document.querySelector("[data-notify-banner] .notify-banner__item .orch-term")?.focus()`); await sleep(700);
         await shot("overlay-banner-long");
         // mock 22 «waiting and failed together»: each its own line; the failed one is added by the driver hook (no failing run in the stand)
         await app.ev(`document.activeElement?.blur()`);
         await app.ev(`window.dispatchEvent(new CustomEvent("canvastty:banner", { detail: { runId: "r12e-failed", signal: "failed", title: "Бета · infra", body: "запуск остановлен ошибкой", place: "Бета" } }))`); await sleep(400);
         await shot("overlay-banner-two");
+        // R12h (mock 10 «N запусков ждут»): a second waiting run joins the first: one line for both, the failed one stays
+        await app.ev(`window.dispatchEvent(new CustomEvent("canvastty:banner", { detail: { runId: "r12h-wait2", signal: "waiting", title: "Альфа · alpha", body: "агент просит разрешения", place: "Альфа" } }))`); await sleep(500);
+        await shot("overlay-banner-many");
       } finally {
         await app.call("Emulation.setFocusEmulationEnabled", { enabled: true });
         await app.ev(`(() => { localStorage.removeItem("orch.notify.unavailable"); document.querySelectorAll("[data-notify-banner] button[aria-label]").forEach((b) => b.click()); return true; })()`);
@@ -533,7 +540,8 @@ try {
     });
     await scene("ws-dialogs-more", async () => {
       // R12h: a clean state: spaces hidden by earlier scenes or themes come back, so «Скрытые» holds only the two made here (mock 17 shows two)
-      for (const w of (await app.ev(`window.canvasTTY.workspaces.get()`)).workspaces.filter((x) => x.closed)) await app.ev(`window.canvasTTY.workspaces.reopen(${JSON.stringify(w.id)}).then(() => true)`);
+      const stale = (await app.ev(`window.canvasTTY.workspaces.get()`)).workspaces.filter((x) => x.closed).map((x) => x.id);
+      for (const id of stale) await app.ev(`window.canvasTTY.workspaces.reopen(${JSON.stringify(id)}).then(() => true)`);
       await sleep(600);
       // a name that is taken (the error under the field)
       // R12h (mock 17): the RENAME dialog of the active space, a name another space has
@@ -545,7 +553,7 @@ try {
       if (await app.ev(`!!${q(".workspace-bar__menu")}`)) await app.clickEl(q("[data-workspace-menu]"));
       // «Скрытые»: a space is made and hidden through the window, then the list of the hidden is opened
       const menuOpen = () => app.ev(`!!${q(".workspace-bar__menu")}`);
-      const name = theme === "sand" ? "Гамма" : "Дельта";
+      const name = theme === "sand" ? "Гамма" : theme === "paper" ? "Дельта" : "Эпсилон";
       await app.clickEl(q("[data-workspace-new]")); await sleep(500);
       await app.type(q("[data-ws-title]"), name); await app.clickEl(q("[data-ws-submit]")); await sleep(1500);
       // mock 17 «Скрытые»: «Песочница» has work going on (the chip «1 работает»)
@@ -559,7 +567,7 @@ try {
       };
       await hideActive();
       // R7d (mock 17): a second hidden space with no work (no chip), the rows' buttons side by side
-      const quiet = theme === "sand" ? "Архив идей" : "Архив";
+      const quiet = theme === "sand" ? "Архив идей" : theme === "paper" ? "Архив" : "Склад";
       await app.clickEl(q("[data-workspace-new]")); await sleep(500);
       await app.type(q("[data-ws-title]"), quiet); await app.clickEl(q("[data-ws-submit]")); await sleep(1500);
       await hideActive();
@@ -568,6 +576,8 @@ try {
       await app.waitFor(`${q("[data-ws-hidden]")} && true`, "the hidden list", 5000);
       await shot("ws-hidden-list"); await esc(); await sleep(300);
       if (await menuOpen()) await app.clickEl(q("[data-workspace-menu]"));
+      for (const id of stale) await app.ev(`window.canvasTTY.workspaces.close(${JSON.stringify(id)}).then(() => true)`); // the spaces of earlier scenes go back to hidden
+      await sleep(500);
       // «Перенести карточку»: the context menu of a card
       await app.key("Home", "Home", 36); await sleep(700);
       await app.ev(`window.canvasTTY.terminal.rename(${JSON.stringify(t.id)}, "project-a").then(() => true)`); await sleep(400); // mock 17: «Терминал project-a»
@@ -588,7 +598,7 @@ try {
     // mock 17: the confirmation of deleting an empty space, and the window after «Остановить и скрыть»
     await scene("ws-delete", async () => {
       const menuOpen = () => app.ev(`!!${q(".workspace-bar__menu")}`);
-      const name = theme === "sand" ? "Гамма-2" : "Дельта-2";
+      const name = theme === "sand" ? "Гамма-2" : theme === "paper" ? "Дельта-2" : "Эпсилон-2";
       await app.clickEl(q("[data-workspace-new]")); await sleep(500);
       await app.type(q("[data-ws-title]"), name); await app.clickEl(q("[data-ws-submit]")); await sleep(1500);
       await app.clickEl(q("[data-workspace-menu]")); await sleep(400);

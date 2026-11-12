@@ -542,6 +542,16 @@ export function SettingsPanel({
               />
               {sw(t(locale, "quickLauncher"), t(locale, "quickLauncherDescription"), settings.radialLauncherEnabled,
                 (next) => void onChange({ radialLauncherEnabled: next }))}
+              <SettingGroup label={t(locale, "canvasMenuStyle")} description={t(locale, "canvasMenuStyleDescription")} layout="under">
+                <Segmented
+                  value={settings.canvasMenuStyle}
+                  options={([
+                    ["mock", t(locale, "canvasMenuStyleMock")],
+                    ["detailed", t(locale, "canvasMenuStyleDetailed")]
+                  ] as [CanvasMenuStyle, string][])}
+                  onChange={(value) => void onChange({ canvasMenuStyle: value as CanvasMenuStyle })}
+                />
+              </SettingGroup>
               <SettingGroup
                 label={t(locale, "canvasLauncherItems")}
                 description={t(locale, "canvasLauncherItemsDescription")}
@@ -576,16 +586,6 @@ export function SettingsPanel({
                     onClick={() => void onChange({ canvasLauncherItems: [...DEFAULT_CANVAS_LAUNCHER_ITEMS] })}
                   >{t(locale, "resetCanvasLauncher")}</CanvasMenuRow>
                 </div>
-              </SettingGroup>
-              <SettingGroup label={t(locale, "canvasMenuStyle")} description={t(locale, "canvasMenuStyleDescription")} layout="under">
-                <Segmented
-                  value={settings.canvasMenuStyle}
-                  options={([
-                    ["mock", t(locale, "canvasMenuStyleMock")],
-                    ["detailed", t(locale, "canvasMenuStyleDetailed")]
-                  ] as [CanvasMenuStyle, string][])}
-                  onChange={(value) => void onChange({ canvasMenuStyle: value as CanvasMenuStyle })}
-                />
               </SettingGroup>
               {settings.radialLauncherEnabled && (
               <section className="setting-group setting-group--field setting-group--stacked">

@@ -368,7 +368,7 @@ try {
   await app.waitFor(`${q("[data-ws-browser-elsewhere]")} && true`, "browser elsewhere notice");
   // R6-C (mock 17): the title says where the browser is, «Перейти» names the space in its tooltip
   const where = await app.ev(`document.getElementById(document.querySelector("[data-ws-browser-elsewhere]").closest("[role=dialog]").getAttribute("aria-labelledby")).textContent + " | " + ${q("[data-ws-browser-go]")}.title`);
-  expect(where.split(" | ").every((x) => x.includes("Общий холст")), "W10: B says where the browser is", where);
+  expect(where.split(" | ").every((x) => /Общ(ий|ем) холст/.test(x)), "W10: B says where the browser is", where);
   await app.shot("06-browser-elsewhere-1280");
   await app.clickEl(q("[data-ws-browser-bring]"));
   await app.waitFor(`${q('[data-canvas-layer-id="browser"]')} && true`, "browser card in B");
@@ -393,7 +393,7 @@ try {
     await app.waitFor(`${q("[data-ws-close]")} && true`, "close dialog");
   };
   await closeDialog();
-  expect(await app.ev(`document.querySelectorAll("[data-ws-close-item]").length === 2`), "W9: the dialog lists the run and the terminal", await text(q("[data-ws-close]")));
+  expect(await app.ev(`/1 запуск и 1 терминал/.test(document.querySelector("[data-ws-close] .ws-close__text")?.textContent ?? "")`), "W9: the dialog counts the run and the terminal (the list shows after «Остановить всё и скрыть…»)", await text(q("[data-ws-close]")));
   await app.clickEl(q("[data-ws-close-cancel]"));
   await app.waitFor(`!${q("[data-ws-close]")}`, "R1: the close dialog is gone");
   expect(await app.ev(`document.activeElement === ${q("[data-workspace-menu]")}`), "R1: focus returns to the opener after a dialog with autoFocus", await app.ev("document.activeElement?.outerHTML.slice(0, 120)"));

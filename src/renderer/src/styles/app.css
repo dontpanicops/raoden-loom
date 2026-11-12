@@ -2352,3 +2352,7 @@ button { border: 0; }
 .plugin-card__title small { color: var(--text-secondary); font-size: .9em; font-weight: 400; }
 .plugin-settings__empty--box { background: transparent; border: 1px dashed var(--border-strong); opacity: 1; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.canvas-menu__row:focus { background: color-mix(in srgb, var(--focus) 22%, transparent); }
+.canvas-launcher-settings-menu .canvas-menu__row > .canvas-menu__icon { order: 0; background: transparent; }
+.canvas-launcher-settings-menu .canvas-menu__icon .provider-icon { --provider-icon-art-size: 1.05em; width: 1.4em; height: 1.4em; }
+.notify-banner__text .orch-term--plain:focus { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 6px; }

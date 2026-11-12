@@ -905,8 +905,8 @@
    "mock": "10-overlays",
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 515, "y": 640, "w": 530, "h": 55 },
-   "scene": { "script": "shots-r5.mjs", "file": "{theme}-overlay-banner.png" },
-   "appCrop": { "x": 440, "y": 100, "w": 560, "h": 70 },
+   "scene": { "script": "shots-r5.mjs", "file": "{theme}-overlay-banner-many.png" },
+   "appCrop": { "x": 430, "y": 100, "w": 580, "h": 56 },
    "scale": "100%",
    "data": "баннер «N запуска ждут вас»",
    "notes": "в сцене ждёт один запуск — вид из 22-banner-one"
@@ -930,7 +930,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 130, "w": 420, "h": 332 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-launch-card-claude.png" },
-   "appCrop": { "x": 300, "y": 490, "w": 440, "h": 400 },
+   "appCrop": { "x": 228, "y": 484, "w": 440, "h": 365 },
    "scale": "100%",
    "data": "карточка запуска Claude: папка, недавние, профиль, «Запустить»",
    "notes": ""
@@ -942,7 +942,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 508, "y": 130, "w": 420, "h": 410 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-launch-card-yolo.png" },
-   "appCrop": { "x": 300, "y": 490, "w": 440, "h": 410 },
+   "appCrop": { "x": 228, "y": 422, "w": 440, "h": 476 },
    "scale": "100%",
    "data": "YOLO: предупреждение и галочка",
    "notes": "сведения о риске важнее макета (D-022)"
@@ -954,7 +954,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 960, "y": 130, "w": 420, "h": 252 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-launch-card-missing.png" },
-   "appCrop": { "x": 390, "y": 490, "w": 430, "h": 210 },
+   "appCrop": { "x": 300, "y": 484, "w": 440, "h": 280 },
    "scale": "100%",
    "data": "CLI не найден: «Как установить», «Проверить снова», «Убрать из дока»",
    "notes": ""
@@ -990,7 +990,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 518, "w": 560, "h": 44 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-overlay-banner.png" },
-   "appCrop": { "x": 440, "y": 100, "w": 560, "h": 70 },
+   "appCrop": { "x": 430, "y": 0, "w": 580, "h": 52 },
    "scale": "100%",
    "data": "баннер одного ждущего: заголовок, тело, «Показать», «×»",
    "notes": ""
@@ -1002,7 +1002,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 612, "w": 560, "h": 120 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-overlay-banner-long.png" },
-   "appCrop": { "x": 440, "y": 0, "w": 560, "h": 120 },
+   "appCrop": { "x": 430, "y": 0, "w": 580, "h": 170 },
    "scale": "100%",
    "data": "длинный текст баннера: «…» и подсказка при наведении",
    "notes": "подсказка при наведении — родная (title), в кадр не попадает; кадр с фокусом на тексте"
@@ -1014,7 +1014,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 776, "w": 560, "h": 90 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-overlay-banner-two.png" },
-   "appCrop": { "x": 440, "y": 2, "w": 560, "h": 92 },
+   "appCrop": { "x": 430, "y": 100, "w": 580, "h": 106 },
    "scale": "100%",
    "data": "ждущий и упавший — две строки",
    "notes": "упавшую строку добавляет хук драйвера canvastty:banner (в стенде нет упавшего запуска); ждущая — настоящий запуск"
@@ -1026,7 +1026,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 48, "w": 420, "h": 240 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-create.png" },
-   "appCrop": { "x": 500, "y": 300, "w": 450, "h": 360 },
+   "appCrop": { "x": 490, "y": 348, "w": 460, "h": 249 },
    "scale": "100%",
    "data": "«Новое пространство»: название, метка",
    "notes": "по коду: папка вместо меток — см. 25-create"
@@ -1038,7 +1038,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 509, "y": 48, "w": 421, "h": 240 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-name-taken.png" },
-   "appCrop": { "x": 500, "y": 280, "w": 450, "h": 390 },
+   "appCrop": { "x": 490, "y": 336, "w": 460, "h": 272 },
    "scale": "100%",
    "data": "ошибка «Пространство уже есть»",
    "notes": "в сцене ошибка в диалоге создания, в макете — переименования"
@@ -1050,7 +1050,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 962, "y": 48, "w": 422, "h": 240 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-hide.png" },
-   "appCrop": { "x": 500, "y": 290, "w": 450, "h": 370 },
+   "appCrop": { "x": 490, "y": 357, "w": 460, "h": 229 },
    "scale": "100%",
    "data": "«Скрыть …?»: что продолжит работать, «Остановить всё и скрыть»",
    "notes": ""
@@ -1062,7 +1062,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 321, "w": 420, "h": 298 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-stop-hide.png" },
-   "appCrop": { "x": 500, "y": 340, "w": 440, "h": 266 },
+   "appCrop": { "x": 490, "y": 331, "w": 460, "h": 282 },
    "scale": "100%",
    "data": "«Остановить всё и скрыть»: ход остановки по пунктам",
    "notes": "остановка терминала задержана на 4 с (CANVASTTY_SMOKE_STOP_DELAY_MS, только изолированный запуск); в стенде один пункт, в макете три"
@@ -1074,7 +1074,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 509, "y": 321, "w": 421, "h": 298 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-delete-empty.png" },
-   "appCrop": { "x": 500, "y": 315, "w": 450, "h": 318 },
+   "appCrop": { "x": 490, "y": 341, "w": 460, "h": 263 },
    "scale": "100%",
    "data": "«Удалить …?» для пустого пространства",
    "notes": ""
@@ -1086,7 +1086,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 962, "y": 321, "w": 422, "h": 298 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-move.png" },
-   "appCrop": { "x": 500, "y": 300, "w": 450, "h": 345 },
+   "appCrop": { "x": 490, "y": 303, "w": 460, "h": 339 },
    "scale": "100%",
    "data": "«Перенести карточку»: список пространств, «Новое пространство…»",
    "notes": ""
@@ -1098,7 +1098,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 652, "w": 420, "h": 280 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-history.png" },
-   "appCrop": { "x": 500, "y": 400, "w": 450, "h": 140 },
+   "appCrop": { "x": 490, "y": 363, "w": 460, "h": 217 },
    "scale": "100%",
    "data": "история",
    "notes": "",
@@ -1111,7 +1111,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 509, "y": 652, "w": 421, "h": 280 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-arrange.png" },
-   "appCrop": { "x": 500, "y": 70, "w": 450, "h": 830 },
+   "appCrop": { "x": 490, "y": 58, "w": 460, "h": 828 },
    "scale": "100%",
    "data": "упорядочить",
    "notes": "",
@@ -1124,7 +1124,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 962, "y": 652, "w": 422, "h": 280 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-hidden-list.png" },
-   "appCrop": { "x": 500, "y": 325, "w": 450, "h": 300 },
+   "appCrop": { "x": 490, "y": 320, "w": 460, "h": 304 },
    "scale": "100%",
    "data": "«Скрытые пространства»: «Показать», «1 работает»",
    "notes": ""
@@ -1136,7 +1136,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 964, "w": 420, "h": 168 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-browser-elsewhere.png" },
-   "appCrop": { "x": 500, "y": 360, "w": 450, "h": 225 },
+   "appCrop": { "x": 450, "y": 360, "w": 540, "h": 224 },
    "scale": "100%",
    "data": "«Браузер открыт в …»: перейти или перенести",
    "notes": ""
@@ -1148,7 +1148,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 104, "w": 420, "h": 262 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-create.png" },
-   "appCrop": { "x": 500, "y": 300, "w": 450, "h": 360 },
+   "appCrop": { "x": 490, "y": 348, "w": 460, "h": 249 },
    "scale": "100%",
    "data": "папка строкой под названием, метки 5 цветов",
    "notes": "метки — новое в коде (SPEC §11.7)"
@@ -1160,7 +1160,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 500, "y": 104, "w": 420, "h": 262 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-rename.png" },
-   "appCrop": { "x": 500, "y": 290, "w": 450, "h": 365 },
+   "appCrop": { "x": 490, "y": 348, "w": 460, "h": 249 },
    "scale": "100%",
    "data": "«Переименовать»: папка строкой, метка",
    "notes": ""
@@ -1172,7 +1172,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 56, "y": 505, "w": 420, "h": 264 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-history.png" },
-   "appCrop": { "x": 500, "y": 400, "w": 450, "h": 140 },
+   "appCrop": { "x": 490, "y": 363, "w": 460, "h": 217 },
    "scale": "100%",
    "data": "«История запусков»: строки проект, id, статус, «Открыть запуск» / «Итог»",
    "notes": ""
@@ -1184,7 +1184,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 500, "y": 505, "w": 442, "h": 447 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-arrange.png" },
-   "appCrop": { "x": 500, "y": 70, "w": 450, "h": 830 },
+   "appCrop": { "x": 490, "y": 58, "w": 460, "h": 828 },
    "scale": "100%",
    "data": "«Разложить по пространствам…»: папки, «Куда», флажки",
    "notes": ""
@@ -1208,7 +1208,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 600, "y": 1010, "w": 362, "h": 148 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-hidden-list.png" },
-   "appCrop": { "x": 500, "y": 325, "w": 450, "h": 300 },
+   "appCrop": { "x": 490, "y": 320, "w": 460, "h": 304 },
    "scale": "100%",
    "data": "«Скрытые» с метками",
    "notes": ""
@@ -1220,7 +1220,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 990, "y": 1010, "w": 396, "h": 268 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-ws-move.png" },
-   "appCrop": { "x": 500, "y": 300, "w": 450, "h": 345 },
+   "appCrop": { "x": 490, "y": 303, "w": 460, "h": 339 },
    "scale": "100%",
    "data": "«Перенести карточку» с метками",
    "notes": ""
@@ -1747,7 +1747,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 940, "y": 104, "w": 444, "h": 222 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-settings-agents-end.png" },
-   "appCrop": { "x": 200, "y": 100, "w": 1050, "h": 752 },
+   "appCrop": { "x": 430, "y": 175, "w": 790, "h": 200 },
    "scale": "100%",
    "data": "«Вид меню холста» под «Быстрый запуск по удержанию ПКМ»",
    "notes": ""
@@ -1771,7 +1771,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 174, "y": 142, "w": 1092, "h": 186 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-project-settings.png" },
-   "appCrop": { "x": 175, "y": 165, "w": 1090, "h": 430 },
+   "appCrop": { "x": 170, "y": 165, "w": 1090, "h": 340 },
    "scale": "100%",
    "data": "права агентов и модели ролей",
    "notes": ""
@@ -1783,7 +1783,7 @@
    "themes": ["sand", "paper", "frost"],
    "mockCrop": { "x": 174, "y": 344, "w": 1092, "h": 194 },
    "scene": { "script": "shots-r5.mjs", "file": "{theme}-project-settings.png" },
-   "appCrop": { "x": 175, "y": 595, "w": 1090, "h": 240 },
+   "appCrop": { "x": 170, "y": 508, "w": 1090, "h": 310 },
    "scale": "100%",
    "data": "команды подготовки и проверки по умолчанию",
    "notes": ""
