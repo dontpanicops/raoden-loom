@@ -325,7 +325,7 @@ button { border: 0; }
 .canvas-menu, .canvas-region-editor, .canvas-command-palette { font-size: calc(13px * var(--ui-scale, 1)); }
 .canvas-menu { position: absolute; z-index: 700; min-width: 19em; padding: .45em; border: 0; border-radius: 1.1em; outline: 0; color: var(--text-primary); pointer-events: auto; } /* level 4: tokens.css */
 .canvas-menu__row { width: 100%; min-height: 2.3em; padding: 0 .75em; display: flex; align-items: center; gap: .75em; border-radius: .55em; outline: 0; color: var(--text-primary); background: transparent; cursor: pointer; font-weight: 400; text-align: left; white-space: nowrap; }
-.canvas-menu__row:hover, .canvas-menu__row:focus-visible, .canvas-menu__row--selected { background: color-mix(in srgb, var(--focus) 22%, transparent); }
+.canvas-menu__row:hover, .canvas-menu__row:focus-visible, .canvas-menu__row--selected, .canvas-menu__row[aria-expanded="true"] { background: color-mix(in srgb, var(--focus) 22%, transparent); }
 .canvas-menu__row:focus-visible { box-shadow: inset 0 0 0 .12em var(--focus); }
 .canvas-menu__row--indent { padding-left: 1.55em; }
 .canvas-menu__icon .provider-icon { --provider-icon-art-size: .9em; width: 1.2em; height: 1.2em; } /* the mark of an agent row is the size of the neighbours' icons (mock 22) */
@@ -2806,3 +2806,23 @@ html:not([data-kbd]) .workspace-bar__tab:focus-visible, html:not([data-kbd]) .wo
 
 /* R12r (mock 05): the failed session's popover has the ⚠ before its title (an inline span had no width before) */
 .usage-row__failure-title > .ui-icon { display: inline-block; margin-right: .45em; vertical-align: -.12em; }
+
+/* R12u (gates Z3-Z8): view fixes measured against components-reference.css */
+/* a parent row stays lit while its submenu is open */
+.canvas-menu__row[aria-expanded="true"] { background: color-mix(in srgb, var(--focus) 22%, transparent); }
+/* the goal dialog's bottom: the buttons never wrap, the status line gives way */
+.orch-form__actions button { white-space: nowrap; flex: 0 0 auto; }
+.orch-dialog .orch-form__why { flex: 1 1 0; min-width: 0; }
+/* .inp: 32 px, radius 6, strong ring */
+.orch-field select, .orch-panel select, .orch-dialog select { min-height: var(--control-h-m); height: var(--control-h-m); border-radius: 6px; box-shadow: inset 0 1px 2px rgba(0,0,0,.18), inset 0 0 0 1px var(--border-strong); }
+/* .btn-p glint */
+.orch-panel button.orch-primary, .orch-form button.orch-primary { box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 1px 2px rgba(0,0,0,.3); }
+/* .btn-sm in toasts and banners, toast radius --radius-md */
+.toast { border-radius: var(--radius-md); }
+.toast__action { height: 24px; padding: 0 9px; border-radius: 6px; display: inline-flex; align-items: center; font-size: 12px; }
+.notify-banner__show { border-radius: 6px; }
+/* .ib close cross */
+.launch-dialog__close { width: 28px; height: 28px; border-radius: 6px; }
+/* .ws tab radius 10, .ib palette radius 6 */
+.workspace-bar__tab { border-radius: 10px; }
+.titlebar__palette { border-radius: 6px; }
