@@ -229,7 +229,7 @@ try {
   fs.writeFileSync(HOLD, "");
   await startGoal(app, linkId, { workMode: "copy" });
   runB = await lastRun();
-  await app.waitFor(`${card(exec.agentId, ".agent-card__state")}?.textContent === "Работает"`, "B executor working", 60_000);
+  await app.waitFor(`${card(exec.agentId, ".agent-card__state")}?.textContent?.startsWith("Работает")`, "B executor working", 60_000);
   await clickAction(app, "Пауза после хода");
   await statusIs(app, "pausing", "B pausing");
   expect(JSON.stringify(await panelActions(app)).includes("Не останавливаться"), "B: while pausing, Keep running and Stop are offered", await panelActions(app));
@@ -251,7 +251,7 @@ try {
   notes.runBStepReason = (await panelStatus(app)).reason;
   fs.writeFileSync(HOLD, "");
   await clickAction(app, "Продолжить");
-  await app.waitFor(`${card(exec.agentId, ".agent-card__state")}?.textContent === "Работает"`, "B round 2 executor working", 60_000);
+  await app.waitFor(`${card(exec.agentId, ".agent-card__state")}?.textContent?.startsWith("Работает")`, "B round 2 executor working", 60_000);
   const opsResumed = ops(runB).map((o) => o.op);
   expect(JSON.stringify(opsResumed) === JSON.stringify(["plan", "execute", "check", "review", "execute"]), "B: Resume continues: review (fix), executor round 2", opsResumed);
   const callsAtStop = calls();
@@ -275,7 +275,7 @@ try {
   fs.writeFileSync(HOLD, "");
   await startGoal(app, linkId, { workMode: "copy" });
   runC = await lastRun();
-  await app.waitFor(`${card(exec.agentId, ".agent-card__state")}?.textContent === "Работает"`, "C executor working", 60_000);
+  await app.waitFor(`${card(exec.agentId, ".agent-card__state")}?.textContent?.startsWith("Работает")`, "C executor working", 60_000);
   await until(() => tree(app.child.pid).some((p) => p.command.includes(D("claude-mock"))) || null, "C CLI process", 20_000);
   const historyC = journal(runC).length;
   const canvasBefore = await canvasState(app);
