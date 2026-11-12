@@ -218,3 +218,12 @@ test("the self-test catches a profile that is not the one asked for: the network
   assert.deepEqual(c.failed.map((f) => f.name).sort(), ["deny.write-home-cache", "deny.write-shared-tmp", "deny.write-user-tmpdir"]);
   drop(fx);
 });
+
+test("outside: the wider secret names and a password inside a URL value are not passed; PATH and the like are", async () => {
+  const { checkEnv } = await import("../src/main/services/orchestration/sandbox.ts");
+  const got = checkEnv({ PATH: "/usr/bin", HOME: "/h", LANG: "C", NPM_CONFIG_REGISTRY: "https://registry.npmjs.org/",
+    DB_PASS: "p", SENTRY_DSN: "d", GH_PAT: "x", HTTP_AUTH: "a", SESSION_ID: "s", MY_COOKIE: "c",
+    DATABASE_URL: "postgres://u:hunter2@db/x" }, "/t", true);
+  for (const k of ["PATH", "HOME", "LANG", "NPM_CONFIG_REGISTRY"]) assert.ok(k in got, k);
+  for (const k of ["DB_PASS", "SENTRY_DSN", "GH_PAT", "HTTP_AUTH", "SESSION_ID", "MY_COOKIE", "DATABASE_URL"]) assert.equal(k in got, false, k);
+});

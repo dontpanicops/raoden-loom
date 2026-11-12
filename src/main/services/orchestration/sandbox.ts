@@ -437,13 +437,15 @@ export interface CheckSandboxPaths {
 // are pointed at a cache inside the check's temporary folder instead.
 export const CACHE_ENV = ["npm_config_cache", "XDG_CACHE_HOME", "PIP_CACHE_DIR", "UV_CACHE_DIR", "GOCACHE", "YARN_CACHE_FOLDER", "npm_config_store_dir", "PLAYWRIGHT_BROWSERS_PATH"];
 // review M1: with the network open, what the check can read it can send — the environment's secrets are not passed
-const SECRET_ENV = /TOKEN|SECRET|KEY|PASSWORD|CREDENTIAL/i;
+const SECRET_ENV = /TOKEN|SECRET|KEY|PASS|PWD|AUTH|CREDENTIAL|COOKIE|SESSION|DSN|(?:^|_)PAT(?:$|_)/i;
+// a value with a password in a URL (scheme://user:secret@host), whatever the variable is called
+const SECRET_VALUE = /:\/\/[^/\s:@]+:[^/\s@]+@/;
 
 // The environment of a sandboxed check: its own TMPDIR; with outside, the caches inside it and no secret-looking variable
 export function checkEnv(env: Readonly<Record<string, string>>, tmp: string, outside = false): Record<string, string> {
   if (!outside) return { ...env, TMPDIR: tmp };
   const cache = join(tmp, "cache");
-  const kept = Object.fromEntries(Object.entries(env).filter(([k]) => !SECRET_ENV.test(k)));
+  const kept = Object.fromEntries(Object.entries(env).filter(([k, v]) => !SECRET_ENV.test(k) && !SECRET_VALUE.test(v)));
   return { ...kept, TMPDIR: tmp, ...Object.fromEntries(CACHE_ENV.map((k) => [k, cache])) };
 }
 
