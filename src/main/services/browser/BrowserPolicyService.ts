@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { basename, isAbsolute, relative, resolve } from "node:path";
-import { chmod, mkdir, open, realpath, rm, stat, unlink } from "node:fs/promises";
+import { chmod, lstat, mkdir, open, realpath, rm, stat, unlink } from "node:fs/promises";
 import { BrowserKernelError } from "./BrowserErrors.ts";
 
 export const DEFAULT_BROWSER_URL = "https://duckduckgo.com/";
@@ -29,7 +29,10 @@ export class BrowserPolicyService {
   downloadRoot: string;
   readonly uploadStagingRoot: string;
   private readonly uploadRoots: string[];
-  private readonly downloaded = new Set<string>();
+  // security review L5: the paths the browser was told to save to (no upload right yet), and the files it did save —
+  // by their real path and identity, so a file put in their place since (a link, another file) is not sent
+  private readonly pending = new Set<string>();
+  private readonly downloaded = new Map<string, { dev: number; ino: number }>();
 
   constructor(options: BrowserPolicyOptions) {
     this.downloadRoot = resolve(options.downloadRoot);
@@ -101,8 +104,17 @@ export class BrowserPolicyService {
     if (!isInside(this.downloadRoot, target)) {
       throw new BrowserKernelError("PATH_DENIED", "Download path escaped the managed directory.");
     }
-    this.downloaded.add(target);
+    this.pending.add(target);
     return target;
+  }
+
+  // The download is complete: the regular file (not a link) at the path given by resolveDownloadPath may be sent from now
+  // on, while it stays that very file
+  async downloadCompleted(path: string): Promise<void> {
+    if (!this.pending.delete(path)) return;
+    const st = await lstat(path).catch(() => null);
+    if (!st?.isFile()) return;
+    this.downloaded.set(await realpath(path), { dev: st.dev, ino: st.ino });
   }
 
   async validateUploadPaths(
@@ -121,8 +133,7 @@ export class BrowserPolicyService {
       }
     }));
     const allowedRoots = roots.filter((path): path is string => Boolean(path));
-    const savedFiles = new Set((await Promise.all([...this.downloaded].map((path) => realpath(path).catch(() => null)))).filter((path): path is string => Boolean(path)));
-    if (allowedRoots.length === 0 && savedFiles.size === 0) {
+    if (allowedRoots.length === 0 && this.downloaded.size === 0) {
       throw new BrowserKernelError("PATH_DENIED", "No upload directory is authorized for this browser actor.");
     }
 
@@ -139,14 +150,20 @@ export class BrowserPolicyService {
       } catch {
         throw new BrowserKernelError("PATH_DENIED", "Upload file does not exist.");
       }
-      if (!savedFiles.has(canonical) && !allowedRoots.some((root) => isInside(root, canonical))) {
-        throw new BrowserKernelError("PATH_DENIED", "Upload file is outside authorized directories.");
+      // outside the roots: only the very file the browser saved — the path given is not a link, same device and inode
+      const viaRoot = allowedRoots.some((root) => isInside(root, canonical));
+      const saved = viaRoot ? undefined : this.downloaded.get(canonical);
+      if (!viaRoot) {
+        const own = await lstat(candidate).catch(() => null);
+        if (!saved || !own?.isFile() || own.dev !== saved.dev || own.ino !== saved.ino) {
+          throw new BrowserKernelError("PATH_DENIED", "Upload file is outside authorized directories.");
+        }
       }
       const metadata = await stat(canonical);
       if (!metadata.isFile() || metadata.size > MAX_UPLOAD_FILE_BYTES) {
         throw new BrowserKernelError("PAYLOAD_TOO_LARGE", "Upload file is invalid or exceeds 100 MB.");
       }
-      paths.push(await this.stageUploadFile(canonical));
+      paths.push(await this.stageUploadFile(canonical, saved));
     }
     return paths;
   }
@@ -155,7 +172,7 @@ export class BrowserPolicyService {
     await rm(this.uploadStagingRoot, { recursive: true, force: true });
   }
 
-  private async stageUploadFile(canonical: string): Promise<string> {
+  private async stageUploadFile(canonical: string, expected?: { dev: number; ino: number }): Promise<string> {
     const targetDirectory = resolve(this.uploadStagingRoot, randomUUID());
     const target = resolve(targetDirectory, sanitizeFilename(basename(canonical)));
     if (!isInside(this.uploadStagingRoot, target)) {
@@ -168,6 +185,9 @@ export class BrowserPolicyService {
       await mkdir(targetDirectory, { recursive: false, mode: 0o700 });
       source = await open(canonical, constants.O_RDONLY | constants.O_NOFOLLOW);
       const before = await source.stat();
+      if (expected && (before.dev !== expected.dev || before.ino !== expected.ino)) {
+        throw new BrowserKernelError("PATH_DENIED", "Upload file changed while it was staged.");
+      }
       if (!before.isFile() || before.size > MAX_UPLOAD_FILE_BYTES) {
         throw new BrowserKernelError("PAYLOAD_TOO_LARGE", "Upload file is invalid or exceeds 100 MB.");
       }

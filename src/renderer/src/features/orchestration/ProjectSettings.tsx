@@ -123,6 +123,9 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
   // "As in my terminal" newly chosen for a CLI: saved only with its warning confirmed (main checks it again)
   const [confirmTerminal, setConfirmTerminal] = useState(false);
   const toTerminal = (["claude", "codex"] as const).some((k) => p.access[k] === "terminal" && !(info.saved && info.profile.access[k] === "terminal"));
+  // F-c: the network for the lead's checks, newly turned on: saved only with its risk confirmed (main checks it again)
+  const [confirmOutside, setConfirmOutside] = useState(false);
+  const toOutside = p.checksOutside === true && !(info.saved && info.profile.checksOutside === true);
   // F4 (T-8): the autopilot's push — turned on, or its remote or options changed: saved only confirmed (main checks it
   // again, the address included); the options and the protected branches one per line
   const [pushOptions, setPushOptions] = useState((info.profile.runPush?.options ?? []).join("\n"));
@@ -163,6 +166,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
     if (p.finish.push && !p.finish.push.branch.trim()) return t(locale, "orchSettingsErrBranch");
     if ((parts > 0 || p.finish.push) && !p.finish.commit) return t(locale, "orchSettingsErrNeedsCommit");
     if (toTerminal && !confirmTerminal) return t(locale, "orchError_terminal_not_confirmed");
+    if (toOutside && !confirmOutside) return t(locale, "orchError_checks_outside_not_confirmed");
     if (reviewDirBad) return t(locale, "projReviewDirRelative");
     if (pushAsks && pushUrl === null) return t(locale, "projRunPushUrlUnread");
     if (pushAsks && !confirmPush) return t(locale, "orchError_push_not_confirmed");
@@ -180,7 +184,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
     };
     setBusy(true);
     setError(null);
-    const { outcome, value } = await outcomeOf(() => api().saveProfile(linkId, { ...profile, ...(toTerminal ? { confirmTerminal } : {}), ...(pushAsks ? { confirmPush } : {}) }));
+    const { outcome, value } = await outcomeOf(() => api().saveProfile(linkId, { ...profile, ...(toTerminal ? { confirmTerminal } : {}), ...(toOutside ? { confirmChecksOutside: confirmOutside } : {}), ...(pushAsks ? { confirmPush } : {}) }));
     setBusy(false);
     if (outcome.kind === "accepted" && value) onSaved(value);
     else setError(outcomeText(locale, outcome) ?? t(locale, "orchError_generic"));
@@ -326,6 +330,12 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
               <span>{t(locale, "projChecksOutside")}</span>
             </label>
             <small className={`orch-hint${p.checksOutside ? " orch-hint--warn" : ""}`} data-orch-checks-outside-risk>{t(locale, "projChecksOutsideRisk")}</small>
+            {toOutside && (
+              <label className="orch-check" data-orch-checks-outside-confirm>
+                <input type="checkbox" checked={confirmOutside} onChange={(e) => setConfirmOutside(e.target.checked)} />
+                <span>{t(locale, "projChecksOutsideConfirm")}</span>
+              </label>
+            )}
             {check?.({ checks: goalLines(checks), workMode: p.workMode, access: p.access })}
           </Card>
           {/* F4 (§10, T-9, T-14): the review export of a board task's run, and the runs without MCP */}

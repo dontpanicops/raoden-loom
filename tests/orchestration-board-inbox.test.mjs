@@ -500,10 +500,23 @@ test("F-c «Open file» under a report: the file by its name and hash only, neve
   fs.writeFileSync(file, tasksFile([row("T1")]));
   const opened = [];
   let answer = "";
+  // the system's «open» reads the file it is given later than main hashed it: what it reads is recorded at the call
   const invoke = ipc(m, { send() {}, pickImportFile: async () => file }, async (p) => { opened.push(p); return answer; });
   const r = (await invoke(IPC.orchestrationBoardImportFile)).value;
   assert.deepEqual(await invoke(IPC.orchestrationBoardImportOpen, r.file, r.sha256), { ok: true, value: null });
-  assert.deepEqual(opened, [file]);
+  // security review L2: not the file itself (it could change between the hash and the opening) — a copy of the hashed
+  // bytes in a private folder of the application, which a change of the source does not reach
+  const copy = path.join(root, "import-open", `${r.sha256}.json`);
+  assert.deepEqual(opened, [copy]);
+  assert.equal(createHash("sha256").update(fs.readFileSync(copy)).digest("hex"), r.sha256);
+  assert.equal(fs.statSync(path.dirname(copy)).mode & 0o777, 0o700);
+  assert.equal(fs.statSync(copy).mode & 0o777, 0o600);
+  fs.writeFileSync(file, "changed after the opening");
+  assert.equal(createHash("sha256").update(fs.readFileSync(copy)).digest("hex"), r.sha256);
+  fs.writeFileSync(file, tasksFile([row("T1")]));
+  // opened again: the copy is made again from the bytes hashed now
+  assert.deepEqual(await invoke(IPC.orchestrationBoardImportOpen, r.file, r.sha256), { ok: true, value: null });
+  opened.length = 0;
   // the system cannot open it: said, not swallowed
   answer = "no application";
   assert.equal((await invoke(IPC.orchestrationBoardImportOpen, r.file, r.sha256)).code, "open_failed");
@@ -523,5 +536,5 @@ test("F-c «Open file» under a report: the file by its name and hash only, neve
   fs.writeFileSync(inboxFile, tasksFile([row("T9")]));
   const sha = createHash("sha256").update(fs.readFileSync(inboxFile)).digest("hex");
   assert.deepEqual(await invoke(IPC.orchestrationBoardImportOpen, "from-inbox.json", sha), { ok: true, value: null });
-  assert.deepEqual(opened, [inboxFile]);
+  assert.deepEqual(opened, [path.join(root, "import-open", `${sha}.json`)]);
 });

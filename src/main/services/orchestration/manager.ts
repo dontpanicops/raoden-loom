@@ -4,7 +4,7 @@
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { accessSync, constants as fsConstants, readFileSync, realpathSync, statSync } from "node:fs";
-import { mkdir, open, readdir, readFile, realpath, stat, unlink } from "node:fs/promises";
+import { chmod, mkdir, open, readdir, readFile, realpath, stat, unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { promisify } from "node:util";
 import type {
@@ -572,8 +572,9 @@ export function createRunManager(deps: RunManagerDeps) {
     const to = (await createdGoal(runId))?.exportTo;
     const format = to?.format === "markdown" || to?.format === "json" ? to.format : "both";
     if (typeof to?.dir !== "string" || !to.dir) return { dir: null, format };
-    if (await insideProject(to.dir, (await readWorkspacePlace(deps.root, runId)).source)) refuse("export_folder_in_project", "the review's folder is inside the project");
-    return { dir: to.dir, format };
+    const project = (await readWorkspacePlace(deps.root, runId)).source;
+    if (await insideProject(to.dir, project)) refuse("export_folder_in_project", "the review's folder is inside the project");
+    return { dir: to.dir, format, project };
   }
   async function reviewSource(runId: string, manual = false): Promise<ReviewInput | null> {
     if (!isUuid(runId)) return null;
@@ -1736,15 +1737,23 @@ export function createRunManager(deps: RunManagerDeps) {
     }),
     // F-c (D-041 p. 4): the source file of an import report — the path is main's (the file the person picked, else inbox/ or
     // inbox/done/ by the report's name); the window names the file and its hash, never a path. Only a regular file
-    // (no symbolic link) whose bytes still hash as the report says is handed to the system
-    boardImportOpen: (file: string, sha: string, open: (path: string) => Promise<string>) => result(async (): Promise<null> => {
+    // (no symbolic link) whose bytes still hash as the report says is handed to the system — as a copy of exactly those
+    // bytes (security review L2: the file itself could change between the hash and the opening), <root>/import-open/<sha>.json
+    boardImportOpen: (file: string, sha: string, openPath: (path: string) => Promise<string>) => result(async (): Promise<null> => {
       newInputOk();
       notOpen();
       const candidates = [importSources.get(sha), ...(inboxNameOk(file) ? [join(deps.root, "inbox", file), join(deps.root, "inbox", "done", file)] : [])].filter((x): x is string => !!x);
       for (const path of candidates) {
         const read = await readImportFile(path, basename(path)).catch(() => null);
         if (!read || "report" in read || sha256(read.bytes) !== sha) continue;
-        const error = await open(path);
+        const dir = join(deps.root, "import-open");
+        await mkdir(dir, { recursive: true, mode: 0o700 });
+        await chmod(dir, 0o700);
+        const copy = join(dir, `${sha}.json`);
+        await unlink(copy).catch(() => {});
+        const fh = await open(copy, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW, 0o600);
+        try { await fh.writeFile(read.bytes); } finally { await fh.close(); }
+        const error = await openPath(copy);
         if (error) refuse("open_failed", error);
         return null;
       }
@@ -2073,6 +2082,11 @@ export function createRunManager(deps: RunManagerDeps) {
       const toTerminal = (["claude", "codex"] as const).filter((k) => p.access[k] === "terminal" && saved?.access[k] !== "terminal");
       if (toTerminal.length && (input as { confirmTerminal?: unknown }).confirmTerminal !== true) {
         refuse("terminal_not_confirmed", `"as in my terminal" for ${toTerminal.join(", ")} needs the warning confirmed`);
+      }
+      // F-c (security review L1): the network for the lead's checks lets them send what they read — switched on only
+      // with its risk confirmed; already on stays as it is
+      if (p.checksOutside && !saved?.checksOutside && (input as { confirmChecksOutside?: unknown }).confirmChecksOutside !== true) {
+        refuse("checks_outside_not_confirmed", "the network for the lead's checks needs its risk confirmed");
       }
       const before = saved?.grants ?? [];
       const keep = new Set(p.grants.map((g) => g.id));

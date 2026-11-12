@@ -1315,7 +1315,7 @@ function completedAllowed(state: RunState, completion: { kind: CompletionKind })
 // the goal's commands, the proposal, the decision and the completion's kind and checks). A violation: corrupt with
 // phase "texts". ponytail: finish.intent params against the confirmation and the A2–A4 rules come with their records.
 export interface V2Texts {
-  goal: { commands?: unknown; mode?: unknown; criteria?: unknown };
+  goal: { commands?: unknown; mode?: unknown; criteria?: unknown; checksOutside?: unknown };
   proposal: { checks: { id: string; command: string }[] } | null;
   decision: { checks: { id: string; command: string; origin: string }[] } | null;
   // A2 (§2.7): the texts of o.plans in their order, the lead's review answers (turn.finished.report) by turn, and the
@@ -1344,6 +1344,9 @@ export function textsConflict(state: RunState, t: V2Texts): string | null {
   if (d) {
     if (!t.decision || !t.proposal || !numbered(t.decision.checks, d.count)) return "the decision's lines do not match its record";
     if (d.by === "autopilot" && t.goal.mode !== undefined && t.goal.mode !== "autopilot") return "an autopilot decision in step mode";
+    // F-c (security review M2): "denied" says the lead's lines run in the profile; whether that profile reaches the
+    // network is the goal's checksOutside — the autopilot never accepts such lines (cycle.ts autoAccepts)
+    if (d.by === "autopilot" && t.goal.checksOutside === true && d.count > 0) return "an autopilot decision on checks that may reach the network";
     const proposed = t.proposal.checks.map((c) => c.command);
     if (d.decision === "accept" && t.decision.checks.some((c, i) => c.command !== proposed[i])) return "an acceptance that is not the proposal";
     if (t.decision.checks.some((c) => c.origin !== (proposed.includes(c.command) ? "lead" : "person"))) return "an origin against the rule";

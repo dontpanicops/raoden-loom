@@ -296,6 +296,23 @@ const PUSH_PROFILE = (over = {}) => PROFILE({ checks: ["test -f keep.txt"], bran
 
 // ---------------- the manager ----------------
 
+test("saveProfile (F-c, security review L1): the network for the lead's checks is turned on only with its risk confirmed; already on stays on; not saved", OPTS, async () => {
+  const { dir } = project();
+  const m = manager(scripts());
+  const linkId = await linkOn(m, dir);
+  assert.equal((await m.saveProfile(linkId, PROFILE({ checksOutside: true }))).code, "checks_outside_not_confirmed");
+  assert.equal((await m.saveProfile(linkId, PROFILE({ checksOutside: true, confirmChecksOutside: "yes" }))).code, "checks_outside_not_confirmed");
+  assert.equal((await createProfileStore(m.root).get(dir))?.checksOutside, undefined, "nothing saved");
+  const on = await m.saveProfile(linkId, PROFILE({ checksOutside: true, confirmChecksOutside: true }));
+  assert.ok(on.ok, JSON.stringify(on));
+  assert.equal(on.value.checksOutside, true);
+  assert.equal("confirmChecksOutside" in (await createProfileStore(m.root).get(dir)), false, "not saved");
+  assert.ok((await m.saveProfile(linkId, PROFILE({ checksOutside: true }))).ok, "already on: no confirmation");
+  assert.ok((await m.saveProfile(linkId, PROFILE())).ok, "off: no confirmation");
+  assert.equal((await m.saveProfile(linkId, PROFILE({ checksOutside: true }))).code, "checks_outside_not_confirmed", "on again after off: asked again");
+  await m.shutdown();
+});
+
 test("saveProfile: runPush's address read by get-url --all and --push --all (insteadOf expanded; a pushurl elsewhere — remote_url_unreadable); confirmPush to turn it on and to change remote or options; the same values and addGrant keep confirmedAt", OPTS, async () => {
   const { dir, bare } = project();
   const m = manager(scripts());

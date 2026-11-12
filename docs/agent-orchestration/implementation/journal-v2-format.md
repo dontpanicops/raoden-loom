@@ -286,6 +286,10 @@ orch.turn(plan) → turn.intent(lead) → turn.finished(report: план + пр�
 выполняется в профиле проверок лида, пока человек не заменил её своей строкой (`checks.amended`). Остальные — команды человека и
 команды цели — как в A1: login-shell пользователя без песочницы (`NO_SANDBOX_SHA256`). main пишет
 `sandboxNetwork: "denied"`, когда этот профиль есть (macOS, `sandbox-exec`); иначе `"open"`, и решает человек, как в A1.
+`"denied"` значит «строки лида идут в профиле», а не «сеть закрыта»: есть ли у профиля сеть, говорит `goal.checksOutside`
+в `run.created` (F-c, D-041 п. 3). Запись не меняется — 1.5.20 знает только `"denied"`/`"open"`. Второй этап чтения:
+`checks.decided(by: "autopilot")` с `count > 0` при `goal.checksOutside: true` → `replay_conflict` (phase `texts`).
+Представление запуска сеть проверок по `sandboxNetwork` не показывает.
 
 **Профиль** (`sandbox.ts` `buildCheckProfile`; параметры — рабочая папка запуска и временный каталог проверки):
 - запись: только рабочая папка запуска (копия, worktree или папка проекта — по режиму) и свой временный каталог
