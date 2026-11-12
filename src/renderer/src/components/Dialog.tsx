@@ -1,5 +1,6 @@
 // The one modal dialog (stage R1.3): level 4, focus trap, Esc, focus back to the opener, a pinned footer by the caller.
 import { useEffect, useId, useLayoutEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { LocaleId } from "../../../shared/contracts";
 import { FOCUSABLE, trapTarget } from "../lib/focusTrap";
 import { t } from "../lib/i18n";
@@ -104,12 +105,15 @@ export function Dialog({ label, onClose, children, locale, className = "", backd
       {children}
     </section>
   );
-  if (anchor) return card;
-  return (
+  // in the app root (it carries the theme tokens), not in the opener's tree: a canvas card is scaled and transformed, and a fixed dialog inside it would shrink with the scene
+  const host = document.querySelector<HTMLElement>(".app") ?? document.body;
+  if (anchor) return createPortal(card, host);
+  return createPortal(
     <div className={`dialog-backdrop ${backdropClassName}`.trim()} role="presentation" data-interactive="true" data-wheel-owner="local" data-canvas-wheel-priority="local" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}>
       {card}
-    </div>
+    </div>,
+    host,
   );
 }

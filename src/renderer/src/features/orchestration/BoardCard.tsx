@@ -263,8 +263,6 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                       </div>
                       {task.external && <div className="board-task__line board-task__hint board-task__chip" data-board-external={external ? (st.done ? "done" : "waits") : "runs"}
                         title={task.externalDone?.note ?? undefined}>{external ? t(locale, "boardExternal") : t(locale, "boardReason_external_has_runs")}{external && task.externalDone?.note ? ` · ${task.externalDone.note}` : ""}</div>}
-                      {facts && <div className="board-task__line board-task__facts" data-board-facts title={facts}>{facts}</div>}
-                      {asks > ASKS_HINT_OVER && <div className="board-task__line board-task__hint" data-board-asks-hint>{t(locale, "boardAsksHint")}</div>}
                       {st.depsNote && <div className="board-task__line board-task__hint" data-board-deps-note={st.depsNote}>{t(locale, `boardDepsNote_${st.depsNote}`)}</div>}
                       {parent && <div className="board-task__line" data-board-part-of={parent.key}>
                         <button type="button" className="board-task__link" onClick={() => goTo(parent.key)}>{tr(locale, "boardPartOf", { key: parent.key })}</button>
@@ -280,10 +278,6 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                         {tr(locale, "boardQueued", { busy: queued.busy, limit: queued.limit })}</div>}
                       {queued?.failed && <div className="board-task__line board-task__hint" data-board-queued-failed={queued.failed}>
                         {tr(locale, "boardQueuedFailed", { reason: tr(locale, `orchError_${queued.failed}`) || queued.failed })}</div>}
-                      {overlaps.map((o) => {
-                        const text = tr(locale, o.kind === "now" ? "boardOverlapNow" : "boardOverlapMaybe", { key: o.key, files: o.files.slice(0, 5).join(", ") + (o.files.length > 5 ? " …" : "") });
-                        return <div key={`${o.kind}:${o.key}`} className="board-task__line board-task__hint" data-board-overlap={o.kind} data-board-overlap-with={o.key} title={o.files.join(", ")}>{text}</div>;
-                      })}
                       {over === task.id && queued && (
                         <div className="board-task__confirm" role="alertdialog" aria-label={t(locale, "boardQueuedOver")} data-board-over-confirm>
                           <p>{tr(locale, "boardQueuedOverWhy", { busy: queued.busy, limit: queued.limit, key: task.key })}</p>
@@ -298,7 +292,16 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                           <button type="button" onClick={() => setMerging(null)}>{t(locale, "orchCancel")}</button>
                         </div>
                       )}
-                      {run && <div className="board-task__line" data-board-executor title={cost ?? undefined}>{tr(locale, "boardExecutor", { who: "Claude" })}{cost ? ` · ${cost}` : ""}</div>}
+                      {(facts || asks > ASKS_HINT_OVER || overlaps.length > 0 || run) && <details className="board-task__more" data-board-more>
+                        <summary>{t(locale, "boardMore")}</summary>
+                        {facts && <div className="board-task__line board-task__facts" data-board-facts title={facts}>{facts}</div>}
+                        {asks > ASKS_HINT_OVER && <div className="board-task__line board-task__hint" data-board-asks-hint>{t(locale, "boardAsksHint")}</div>}
+                        {overlaps.map((o) => {
+                          const text = tr(locale, o.kind === "now" ? "boardOverlapNow" : "boardOverlapMaybe", { key: o.key, files: o.files.slice(0, 5).join(", ") + (o.files.length > 5 ? " …" : "") });
+                          return <div key={`${o.kind}:${o.key}`} className="board-task__line board-task__hint" data-board-overlap={o.kind} data-board-overlap-with={o.key} title={o.files.join(", ")}>{text}</div>;
+                        })}
+                        {run && <div className="board-task__line" data-board-executor title={cost ?? undefined}>{tr(locale, "boardExecutor", { who: "Claude" })}{cost ? ` · ${cost}` : ""}</div>}
+                      </details>}
                       {message?.taskId === task.id && <div className="board-task__message" role="alert">{message.text}</div>}
                       {accepting === task.id && (
                         <div className="board-task__confirm" role="alertdialog" aria-label={t(locale, "boardAccept")} data-board-accept-confirm>
@@ -401,7 +404,7 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                 <strong>{t(locale, "boardImportAside")}</strong>
                 <button type="button" className="board-aside__close" data-board-import-close aria-label={t(locale, "orchClose")} onClick={closeReport}><UiIcon name="close" size="1.15em" /></button>
               </div>
-              <ImportReportView locale={locale} report={report} tasks={view?.inbox?.find((r) => r.file === report.file)?.tasks ?? []} />
+              <ImportReportView locale={locale} report={report} tasks={view?.inbox?.find((r) => r.file === report.file)?.tasks ?? []} board={tasks} />
             </aside>
           )}
           {apAsking && view && orch.canvas.links.some((l) => l.linkId === apAsking) && (
@@ -742,7 +745,9 @@ function importText(locale: LocaleId, code: string, detail = "", rowRef: string 
     path: tasks.find((x) => x.ref === ref)?.project ?? "" });
 }
 // «Import tasks» and «Import»: what was created, updated, left unchanged and refused (a code and its words)
-function ImportReportView({ locale, report, tasks }: { locale: LocaleId; report: ImportReport; tasks: InboxTask[] }): React.JSX.Element {
+function ImportReportView({ locale, report, tasks, board }: { locale: LocaleId; report: ImportReport; tasks: InboxTask[]; board: BoardTask[] }): React.JSX.Element {
+  // a name beside the key: the board task by its key, else the file's row by its ref
+  const name = (ref: string, key?: string): string => { const n = (key && board.find((x) => x.key === key)?.title) || tasks.find((x) => x.ref === ref)?.title; return n ? ` ${n}` : ""; };
   const none = report.created.length + report.updated.length + report.unchanged.length + report.refused.length === 0;
   return (
     <div className="board-import" data-board-import-report={report.status} data-wheel-owner="local">
@@ -753,9 +758,9 @@ function ImportReportView({ locale, report, tasks }: { locale: LocaleId; report:
         {report.refused.length > 0 && <p className="board-import__warn"><UiIcon name="error" size="1.15em" />{tr(locale, "boardImportRefusedN", { n: report.refused.length })}</p>}
       </div>
       <ul className="board-import__list">
-        {report.created.map((x) => <li key={`c${x.ref}`} data-board-import-created={x.ref}>+ {x.ref} → {x.key}</li>)}
-        {report.updated.map((x) => <li key={`u${x.ref}`} data-board-import-updated={x.ref}>~ {x.ref} → {x.key}</li>)}
-        {report.unchanged.map((ref) => <li key={`n${ref}`} data-board-import-unchanged={ref}>= {ref}</li>)}
+        {report.created.map((x) => <li key={`c${x.ref}`} data-board-import-created={x.ref}>+ {x.ref} → {x.key}{name(x.ref, x.key)}</li>)}
+        {report.updated.map((x) => <li key={`u${x.ref}`} data-board-import-updated={x.ref}>~ {x.ref} → {x.key}{name(x.ref, x.key)}</li>)}
+        {report.unchanged.map((ref) => <li key={`n${ref}`} data-board-import-unchanged={ref}>= {ref}{name(ref)}</li>)}
         {report.refused.map((x) => <li key={`r${x.ref}|${x.code}|${x.detail}`} className="board-import__warn" data-board-import-refused={x.code} title={x.detail}>
           × {x.ref ? `${x.ref}: ` : ""}{importText(locale, x.code, x.detail, x.ref, tasks)}</li>)}
       </ul>

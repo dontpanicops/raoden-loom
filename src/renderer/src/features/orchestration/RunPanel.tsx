@@ -388,6 +388,8 @@ function foldedStarts(list: readonly OrchestrationActivityEntry[]): Set<number> 
     if (e.kind === "tool_started") open.set(key, e.id);
     else if (e.kind === "tool_finished" && open.has(key)) { out.add(open.get(key)!); open.delete(key); }
   }
+  // an MCP stop at the tail of the feed is already said in the action zone: only «Turn finished: CLI error» stays in the feed
+  list.slice(-3).forEach((e) => { if (e.kind === "error" && (e.detail?.mcp === "mcp_present" || e.detail?.mcp === "mcp_unchecked")) out.add(e.id); });
   return out;
 }
 
@@ -470,7 +472,8 @@ function ActivityList({ locale, entries, gaps, filter, emptyText, silence }: {
           const rows = g.items.filter((e) => !folded.has(e.id)).map((e) => { const report = structured(e); return (
           <div key={e.id} className={`orch-feed__item orch-feed__item--${e.detail?.accessMismatch === true ? "warning" : e.kind}${isServiceEntry(e) ? " orch-feed__item--service" : ""}`} data-activity-kind={e.kind} data-activity-id={e.id}>
             <time>{time(locale, e.ts)}</time>
-            <span className={`orch-feed__text${MONO_KINDS.has(e.kind) ? " orch-feed__text--mono" : ""}`}>{report ? t(locale, "orchFeedReport") : feedLine(locale, e, entries)}</span>
+            {/* a structured answer is its own summary line below: the same words are not said twice */}
+            {!report && <span className={`orch-feed__text${MONO_KINDS.has(e.kind) ? " orch-feed__text--mono" : ""}`}>{feedLine(locale, e, entries)}</span>}
             {report && <details open data-orch-structured><summary>{t(locale, "orchFeedReport")}</summary><ReportView locale={locale} parts={report} /></details>}
             {typeof e.detail?.output === "string" && e.detail.output && (
               <details><summary>{t(locale, "orchFeedOutput")}</summary><pre>{e.detail.output}</pre></details>

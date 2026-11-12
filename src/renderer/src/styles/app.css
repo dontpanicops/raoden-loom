@@ -1285,7 +1285,8 @@ button { border: 0; }
 .orch-dialog .orch-form button.orch-primary { background: var(--accent-bg); color: var(--accent-text); }
 .orch-dialog .orch-form button.orch-primary:disabled { opacity: .45; }
 .orch-form__why { margin-right: auto; align-self: center; }
-.orch-term { all: unset; position: relative; text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
+.orch-term, .orch-panel .orch-term, .orch-form .orch-term, .agent-card__body .orch-term, .agent-link__chip .orch-term, .board-card .orch-term { all: unset; position: relative; text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
+.orch-form .orch-term:active:not(:disabled) { transform: none; filter: none; }
 .orch-term:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 .orch-term:focus-visible::after { content: attr(data-hint); position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; width: max-content; max-width: 320px; padding: 6px 8px; border-radius: 6px; background: var(--surface-3-solid); color: var(--text); font-size: 12px; font-weight: 400; line-height: 1.35; white-space: normal; text-decoration: none; box-shadow: 0 4px 12px rgb(0 0 0 / 0.25); }
 .orch-dialog:has(.orch-form__actions) { background: var(--surface-4-solid); } /* R4: the pinned bottom and the body are one tone (frost: glass over the scrim was tinted, the bottom was white) */
@@ -1300,7 +1301,7 @@ button { border: 0; }
 .orch-dialog .orch-form :is(code, kbd) { overflow-wrap: anywhere; }
 .orch-field { min-width: 0; display: flex; flex-direction: column; gap: 6px; border: 0; padding: 0; margin: 0; }
 .orch-field > span:first-child, .orch-field legend { font-size: 13px; font-weight: 600; opacity: .85; }
-.orch-field input, .orch-field textarea, .orch-panel textarea, .orch-panel input, .orch-panel select { width: 100%; padding: 9px 11px; border: 0; border-radius: 10px; color: var(--text-primary); background: var(--surface-sunken); font: inherit; }
+.orch-field input, .orch-rows input, .orch-field textarea, .orch-panel textarea, .orch-panel input, .orch-panel select { width: 100%; padding: 9px 11px; border: 0; border-radius: 10px; color: var(--text-primary); background: var(--surface-sunken); font: inherit; }
 .orch-field--check { flex-direction: row; align-items: center; }
 .orch-field--check input { width: auto; }
 .orch-field--static strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); }
@@ -1363,6 +1364,12 @@ button { border: 0; }
 .orch-zone--calm { box-shadow: 0 0 0 1px var(--border-strong); }
 .orch-zone--failed, .orch-zone--halted, .orch-zone--needs_setup { box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-failed) 55%, transparent); }
 .orch-zone--failed .orch-zone__label, .orch-zone--halted .orch-zone__label, .orch-zone--needs_setup .orch-zone__label { color: var(--danger-fg); }
+/* the zone is filled with the status tone as in mock 07 (sand, paper and frost alike) */
+.orch-zone--failed, .orch-zone--halted, .orch-zone--needs_setup { --zone-bg: color-mix(in srgb, var(--status-failed) 9%, var(--surface-sunken)); }
+.orch-zone--completed { --zone-bg: color-mix(in srgb, var(--status-done) 9%, var(--surface-sunken)); }
+.app--paper .orch-zone--failed, .app--paper .orch-zone--halted, .app--paper .orch-zone--needs_setup { --zone-bg: color-mix(in srgb, var(--status-failed) 8%, var(--surface-sunken)); }
+.app--paper .orch-zone--completed { --zone-bg: color-mix(in srgb, var(--status-done) 8%, var(--surface-sunken)); }
+.app--paper .orch-zone--waiting { --zone-bg: color-mix(in srgb, var(--status-waiting) 10%, var(--surface-sunken)); }
 .orch-zone--completed { box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-done) 55%, transparent); }
 .orch-zone--completed .orch-zone__label { color: var(--status-done); }
 .orch-zone--flash { box-shadow: 0 0 0 3px var(--focus); }
@@ -1451,7 +1458,7 @@ button { border: 0; }
 .orch-diffs summary { cursor: pointer; opacity: .8; }
 .orch-diffs ul { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
 .orch-workmode label { align-items: flex-start; }
-.orch-tabs { flex: 0 0 auto; margin: 10px 12px 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.orch-tabs { flex: 0 0 auto; margin: 10px 12px 6px; display: flex; flex-wrap: wrap; gap: 4px; }
 .orch-panel .orch-tabs button { padding: .35em .7em; background: transparent; box-shadow: inset 0 0 0 1px var(--focus); color: inherit; }
 .orch-panel .orch-tabs button.orch-tabs__on { color: var(--text-primary); background: var(--surface-2-b); }
 /* R3a: the three tabs and the work modes are a segment (the redesign's .seg-wrap); the role filter keeps its pills */
@@ -1511,7 +1518,7 @@ button { border: 0; }
 .orch-changes__status--added { color: var(--status-working); }
 .orch-changes__status--deleted { color: var(--danger-fg); }
 .orch-changes__diff, .orch-take pre { max-height: 300px; margin: 4px 0; padding: 8px; overflow: auto; border-radius: 8px; background: var(--surface-sunken); white-space: pre; font: 11px/1.45 var(--font-mono); }
-.orch-take { padding: 10px; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--focus); }
+.orch-take { padding: 10px; border-radius: 10px; }
 .orch-take h4 { margin: 0 0 4px; font-size: 10px; letter-spacing: .11em; text-transform: uppercase; opacity: .62; }
 .orch-take p { margin: 0; }
 .orch-panel .agent-card__observe, .agent-card__body button.agent-card__observe { background: var(--status-done); color: var(--on-status); }
@@ -1723,7 +1730,7 @@ button { border: 0; }
 
 /* B2: the task board on the canvas (stage-b-board.md §6) — a card like the agents', four columns inside */
 .board-card { --card-header-height: calc(var(--card-header-h) * var(--ui-scale, 1)); position: absolute; left: 0; top: 0; display: flex; flex-direction: column; overflow: visible; border: 1px solid color-mix(in srgb, var(--surface-2) 70%, transparent); border-radius: 14px; color: var(--text-primary); background: var(--surface-2); box-shadow: var(--edge), var(--elev-2); font-size: calc(13px * var(--ui-scale, 1)); }
-.board-card:focus-within, .board-card--selected { box-shadow: var(--edge), 0 0 0 2px var(--focus), var(--elev-3); }
+.board-card--selected { box-shadow: var(--edge), 0 0 0 2px var(--focus), var(--elev-3); }
 .board-card__header { height: var(--card-header-height); flex: 0 0 auto; padding: 0 .5em 0 .9em; display: flex; align-items: center; gap: .8em; border-radius: 13px 13px 0 0; background: var(--surface-2-b); cursor: move; touch-action: none; }
 .board-card__header strong { font-weight: 850; }
 .board-card__readonly { padding: .2em .6em; border-radius: 99px; color: var(--status-waiting); background: var(--status-waiting-bg); font-size: .86em; font-weight: 800; }
@@ -1897,8 +1904,8 @@ button { border: 0; }
 .orch-dialog--pinned .orch-form { flex: 1 1 auto; min-height: 0; gap: 0; }
 .orch-dialog--pinned .orch-form__body { flex: 1 1 auto; min-height: 0; padding: 20px 24px; display: flex; flex-direction: column; gap: 22px; overflow-y: auto; overscroll-behavior: contain; }
 .orch-dialog--pinned .orch-form__actions { position: static; flex: 0 0 auto; margin: 0; padding: 14px 24px; align-items: center; background: transparent; box-shadow: inset 0 1px 0 var(--border); }
-.orch-dialog--pinned .orch-form__cancel { order: -2; }
-.orch-dialog--pinned .orch-form__why { order: -1; margin-right: auto; margin-left: 10px; }
+.orch-dialog--pinned .orch-form__cancel { order: -2; margin-right: auto; }
+.orch-dialog--pinned .orch-form__why { order: -1; margin: 0 4px 0 10px; text-align: right; }
 .orch-form__check { display: contents; }
 .orch-dialog--pinned .orch-form__actions button:not(.orch-primary) { background: var(--surface-sunken); box-shadow: inset 0 0 0 1px var(--border-strong); }
 .orch-dialog--pinned .orch-form__actions button.orch-cancel { background: transparent; box-shadow: none; }
@@ -1930,7 +1937,7 @@ button { border: 0; }
 .orch-ready__mark { display: inline-flex; align-items: center; justify-content: center; }
 .orch-dialog--pinned .orch-advanced > summary { color: var(--text-secondary); cursor: pointer; }
 .orch-dialog--pinned .orch-advanced { padding-top: 2px; }
-.orch-settings__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30em), 1fr)); gap: 16px; }
+.orch-settings__grid { align-items: start; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30em), 1fr)); gap: 16px; }
 .orch-settings__stack { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .orch-settings__stack > .orch-card2 { flex: 1 1 auto; }
 .orch-card2 { min-width: 0; margin: 0; padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; border-radius: 14px; background: color-mix(in srgb, var(--text-primary) 4%, transparent); box-shadow: inset 0 0 0 1px var(--border); }
@@ -1945,9 +1952,9 @@ button { border: 0; }
 .orch-access__row { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
 .orch-access__name { color: var(--text-secondary); }
 .orch-form button:active:not(:disabled) { transform: translateY(1px); filter: brightness(.93); }
-.orch-field input:not([type="checkbox"], [type="radio"]), .orch-field select, .orch-panel input:not([type="checkbox"], [type="radio"]), .orch-panel select { min-height: var(--control-h-m); padding: 0 10px; border-radius: var(--radius-sm); background: var(--surface-sunken); box-shadow: inset 0 1px 2px var(--edge-dark), inset 0 0 0 1px var(--border-strong); }
+.orch-field input:not([type="checkbox"], [type="radio"]), .orch-rows input, .orch-field select, .orch-panel input:not([type="checkbox"], [type="radio"]), .orch-panel select { min-height: var(--control-h-m); padding: 0 10px; border-radius: var(--radius-sm); background: var(--surface-sunken); box-shadow: inset 0 1px 2px var(--edge-dark), inset 0 0 0 1px var(--border-strong); }
 .orch-field textarea, .orch-panel textarea { padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-sunken); box-shadow: inset 0 1px 2px var(--edge-dark), inset 0 0 0 1px var(--border-strong); line-height: 1.5; }
-.orch-field input::placeholder, .orch-field textarea::placeholder, .orch-panel textarea::placeholder { color: var(--text-muted); }
+.orch-field input::placeholder, .orch-rows input::placeholder, .orch-field textarea::placeholder, .orch-panel textarea::placeholder { color: var(--text-muted); }
 .orch-field :is(input, select, textarea):focus-visible, .orch-panel :is(input, select, textarea):focus-visible { outline: 0; box-shadow: inset 0 0 0 1px var(--focus), 0 0 0 3px color-mix(in srgb, var(--focus) 30%, transparent); }
 .orch-dialog :is(button, a, summary):focus-visible, .orch-panel :is(button, a, summary):focus-visible { outline: var(--focus-ring-w) solid var(--focus); outline-offset: var(--focus-ring-offset); }
 :is(.orch-dialog, .orch-panel) :is(input[type="checkbox"], input[type="radio"]) { appearance: none; -webkit-appearance: none; flex: 0 0 auto; width: 16px; height: 16px; margin: 0; padding: 0; background: var(--surface-sunken); box-shadow: inset 0 0 0 1.5px var(--border-strong); }
@@ -2062,7 +2069,7 @@ button { border: 0; }
 .orch-rows { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .orch-rows .orch-rows__row { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .orch-rows .orch-rows__row input { flex: 1 1 auto; min-width: 0; }
-.orch-field .orch-rows .orch-rows__mono { font-family: var(--font-mono); font-size: 13px; }
+.orch-rows .orch-rows__mono { font-family: var(--font-mono); font-size: 13px; }
 .orch-rows button.orch-rows__x, .orch-rows button.orch-rows__add { flex: 0 0 auto; border: 0; background: transparent; box-shadow: none; color: var(--text-secondary); font: inherit; cursor: pointer; border-radius: var(--radius-sm); }
 .orch-rows button.orch-rows__x { min-width: var(--control-h-m); min-height: var(--control-h-m); font-size: 16px; line-height: 1; }
 .orch-rows button.orch-rows__add { align-self: flex-start; min-height: var(--control-h-m); padding: 0 8px; }
@@ -2148,3 +2155,29 @@ button { border: 0; }
 /* R12a: the chrome of a canvas card (header, status line; everything sized by --ui-scale) is counter-scaled below 100% zoom, --chrome-k from lib/cardChrome.ts */
 .terminal-card, .browser-card, .sticky-note-card, .plugin-canvas-card { --ui-scale: calc(var(--app-ui-scale, 1) * var(--chrome-k, 1)); }
 .sticky-note-card__editor { font-size: calc(14px * var(--app-ui-scale, 1)); }
+/* R12b: a task card is the title, the status line, one line of substance and the actions; the rest opens under «Details» */
+.board-task__more { display: flex; flex-direction: column; gap: .3em; }
+.board-task__more > summary { width: max-content; color: var(--text-secondary); font-size: .85em; cursor: pointer; list-style: none; }
+.board-task__more > summary::-webkit-details-marker { display: none; }
+.board-task__more > summary::before { content: "▸ "; }
+.board-task__more[open] > summary::before { content: "▾ "; }
+.board-task__more > summary:hover { color: var(--text-primary); }
+/* the secondary actions show over the card's corner on hover or focus: they no longer keep an empty row in the card */
+.board-task { position: relative; }
+.board-task__actions:not(:has(.orch-primary)) { position: absolute; right: .5em; bottom: .4em; margin: 0; }
+.board-task__actions:not(:has(.orch-primary)) > button { background: var(--surface-2); }
+[data-board-form] input[type="number"], .board-card input[type="number"] { appearance: textfield; }
+/* requirement rows (mock 09): the cross sits inside the field at its right edge; command rows keep it outside */
+.orch-rows--inset .orch-rows__row { position: relative; }
+.orch-rows--inset .orch-rows__row input { padding-right: calc(var(--control-h-m) - 4px); }
+.orch-rows--inset button.orch-rows__x { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); min-width: calc(var(--control-h-m) - 4px); min-height: calc(var(--control-h-m) - 4px); }
+.orch-rows--inset .orch-form button.orch-rows__x:active:not(:disabled) { transform: translateY(-50%); filter: none; }
+.orch-limits__more { grid-column: 1 / -1; }
+.orch-limits__more > summary { width: max-content; color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+.orch-limits__rare { margin-top: 6px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+/* mock 15: a role's name on the left, its model select on the right, in one row */
+.orch-card2 .orch-models [data-orch-model] { display: flex; flex-flow: row wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.orch-card2 .orch-models [data-orch-model] > span { flex: 1 1 auto; }
+.orch-card2 .orch-models [data-orch-model] > select { flex: 0 0 58%; width: auto; min-width: 0; }
+.orch-card2 .orch-models [data-orch-model] > input { flex: 1 1 100%; }
+.orch-dialog--pinned .orch-form__actions > .orch-cancel { margin-right: auto; }
