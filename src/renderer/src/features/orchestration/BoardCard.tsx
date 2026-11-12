@@ -3,7 +3,7 @@
 // as the agent cards (runStatus); the board only sends what the person asked for — main checks every rule.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { LocaleId, SessionBounds } from "../../../../shared/contracts";
-import type { OrchestrationAgentLink } from "../../../../shared/orchestration";
+import type { OrchestrationAgentLink, OrchestrationProfileInfo } from "../../../../shared/orchestration";
 import { AUTOPILOT_BUDGET, type AutopilotLimit, type AutopilotStopCode, conflictsOf, placeKey, externalInForce, isCopy, startBase, taskText, mergeMark, parallelOf, type AutopilotBudget, type AutopilotState, type BoardHead, type BoardMerge, type BoardTask, type ImportReport, type InboxRow, type InboxTask, type RunTaskFacts, type TaskColumn, type TaskStatus } from "../../../../shared/taskBoard";
 import { pluralForm, t, type TranslationKey } from "../../lib/i18n";
 import { Dialog } from "../../components/Dialog";
@@ -442,11 +442,15 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                 <strong>{t(locale, "boardImportAside")}</strong>
               </div>
               <ImportReportView locale={locale} report={report} tasks={view?.inbox?.find((r) => r.file === report.file)?.tasks ?? []} board={tasks} />
-              <div className="board-aside__foot"><button type="button" data-board-import-close onClick={closeReport}>{t(locale, "orchClose")}</button></div>
+              <div className="board-aside__foot">
+                {report.sha256 !== EMPTY_SHA && (
+                  <button type="button" data-board-import-open onClick={async () => { const f = failure(await board.importOpen(report.file, report.sha256)); if (f) say(null, f); }}>{t(locale, "boardImportOpenFile")}</button>)}
+                <button type="button" data-board-import-close onClick={closeReport}>{t(locale, "orchClose")}</button>
+              </div>
             </aside>
           )}
           {apAsking && view && orch.canvas.links.some((l) => l.linkId === apAsking) && (
-            <ApForm locale={locale} state={view.autopilot?.[apAsking] ?? null}
+            <ApForm locale={locale} linkId={apAsking} state={view.autopilot?.[apAsking] ?? null}
               onCancel={() => { setApAsking(null); document.querySelector<HTMLElement>(`[data-board="${workspaceId}"] [data-board-autopilot-start]`)?.focus(); }}
               onBudget={async (b) => { const f = failure(await board.budget(apAsking, b)); if (f) say(null, f); }}
               onStart={async () => { setApAsking(null); const f = failure(await board.autopilot(apAsking, true, language)); if (f) say(null, f); }} />
@@ -590,9 +594,35 @@ function ApRibbon({ locale, state, project, many }: { locale: LocaleId; state: A
   );
 }
 
-function ApForm({ locale, state, onCancel, onBudget, onStart }: {
-  locale: LocaleId; state: AutopilotState | null; onCancel(): void; onBudget(b: AutopilotBudget): Promise<void>; onStart(): Promise<void>;
+function ApForm({ locale, linkId, state, onCancel, onBudget, onStart }: {
+  locale: LocaleId; linkId: string; state: AutopilotState | null; onCancel(): void; onBudget(b: AutopilotBudget): Promise<void>; onStart(): Promise<void>;
 }): React.JSX.Element {
+  // F-c (D-041 p. 8, mock-up 08): «The autopilot pushes finished tasks» — the project's runPush.enabled, the same setting as in the
+  // project settings; turning it on is confirmed with the remote, its address and the options as they are (main asks again)
+  const [info, setInfo] = useState<OrchestrationProfileInfo | null>(null);
+  const [push, setPush] = useState(false);
+  const [pushOk, setPushOk] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void window.canvasTTY.orchestration.profile(linkId).then((r) => { if (live && r.ok) { setInfo(r.value); setPush(!!r.value.profile.runPush?.enabled); } }).catch(() => {});
+    return () => { live = false; };
+  }, [linkId]);
+  const prof = info?.profile;
+  const eligible = !!prof && info?.saved === true && prof.workMode === "worktree" && prof.finish.commit;
+  const rp = prof?.runPush;
+  const remote = rp?.remote ?? info?.facts.remotes[0]?.name ?? "origin";
+  const pushUrl = info?.facts.remotes.find((r) => r.name === remote)?.pushUrl ?? null;
+  const wasOn = !!rp?.enabled;
+  const turnsOn = push && !wasOn;
+  const savePush = async (): Promise<boolean> => {
+    if (!prof || push === wasOn) return true;
+    if (turnsOn && (!pushOk || pushUrl === null)) { setPushError(t(locale, "orchError_push_not_confirmed")); return false; }
+    const r = await window.canvasTTY.orchestration.saveProfile(linkId, { ...prof, runPush: { remoteUrl: null, options: [], protected: [], confirmedAt: null, ...rp, remote, enabled: push }, ...(turnsOn ? { confirmPush: true } : {}) });
+    if (r.ok) return true;
+    setPushError(tr(locale, `orchError_${r.code}`) || r.message || String(r.code));
+    return false;
+  };
   const budget = state?.budget ?? AUTOPILOT_BUDGET;
   const [runs, setRuns] = useState(String(budget.runs));
   const [minutes, setMinutes] = useState(String(budget.minutes));
@@ -620,8 +650,20 @@ function ApForm({ locale, state, onCancel, onBudget, onStart }: {
           <fieldset className="board-seg board-seg--wide" aria-label={t(locale, "boardApConflictsHint")} data-board-budget-conflicts={conflicts}>
             {(["agent", "person"] as const).map((c) => <button key={c} type="button" aria-pressed={conflicts === c} className={conflicts === c ? "board-seg__on" : undefined} data-board-budget-conflicts-to={c} onClick={() => setConflicts(c)}>{t(locale, c === "agent" ? "boardApConflictsAgent" : "boardApConflictsPerson")}</button>)}
           </fieldset></div>
+        <label className="board-ap-form__push orch-check" data-board-autopilot-push-row title={eligible ? undefined : t(locale, "boardApPushNeeds")}>
+          <input type="checkbox" checked={push} disabled={!eligible} data-board-autopilot-push onChange={(e) => { setPush(e.target.checked); setPushOk(false); setPushError(null); }} />
+          <span>{t(locale, "boardApPush")}</span>
+        </label>
+        {!eligible && info && <small className="orch-hint" data-board-autopilot-push-needs>{t(locale, "boardApPushNeeds")}</small>}
+        {turnsOn && (
+          <label className="orch-check" data-board-autopilot-push-confirm>
+            <input type="checkbox" checked={pushOk} disabled={pushUrl === null} onChange={(e) => setPushOk(e.target.checked)} />
+            <span>{t(locale, "projRunPushConfirm").replace("{remote}", () => remote).replace("{url}", () => pushUrl ?? t(locale, "projRunPushUrlUnread")).replace("{options}", () => (rp?.options ?? []).join(" ") || "—")}</span>
+          </label>
+        )}
+        {pushError && <small className="dialog-error" role="alert" data-board-autopilot-push-error>{pushError}</small>}
         <div className="board-ap-form__actions">
-          <button type="button" className="orch-primary" data-board-autopilot-yes disabled={!valid} onClick={async () => { if (changed) await onBudget({ runs: +runs, minutes: +minutes, parallel, conflicts }); await onStart(); }}>{t(locale, "boardApToggle")}</button>
+          <button type="button" className="orch-primary" data-board-autopilot-yes disabled={!valid || (turnsOn && !pushOk)} onClick={async () => { if (!(await savePush())) return; if (changed) await onBudget({ runs: +runs, minutes: +minutes, parallel, conflicts }); await onStart(); }}>{t(locale, "boardApToggle")}</button>
           <button type="button" onClick={onCancel}>{t(locale, "cancel")}</button>
         </div>
       </div>
@@ -631,6 +673,8 @@ function ApForm({ locale, state, onCancel, onBudget, onStart }: {
 
 // R4c: the tone of a chip — the person and a provider's limit wait (amber), a run works (green), a failure of a run or a start is red
 const WAIT_TONE: Record<string, "waiting" | "working" | "neutral"> = { person: "waiting", provider_limit: "waiting", run: "working", permission: "waiting", accept: "waiting", merge: "waiting", external: "neutral" };
+// the hash of no bytes: a refusal that read nothing (a symbolic link, not a file) has no file to open
+const EMPTY_SHA = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 const STOP_FAILED: ReadonlySet<AutopilotStopCode> = new Set(["run_failed", "run_unreadable", "take_failed", "start_failed", "merge_failed", "resume_failed", "decomposition_failed", "base_fetch_failed", "base_remote_mismatch"]);
 
 // C4 (stage-c4-limits.md §5): what the autopilot waits for at a provider's limit

@@ -94,6 +94,9 @@ export interface GoalInput {
   // F4 (T-14): the run's roles without MCP — Claude with --strict-mcp-config and its init checked, Codex's servers listed
   // before each turn; set by main from the profile's runMcp: false (never from the window: parseGoal)
   noMcp?: true;
+  // F-c (D-041 p. 3): main's alone, from the profile's checksOutside (never from the window: parseGoal)
+  checksOutside?: true;
+  exportTo?: { dir?: string; format?: "markdown" | "json" | "both" }; // F-c (D-041 p. 1): main's alone, with export
   // C3, journal v2 rules in a resolution run's journal: the merge run it resolves for (stage-c3-conflicts.md §3)
   resolution?: { mergeRunId: string; taskId: string; key: string; base: string };
   // E1, journal v2 rules in a decomposition run's journal: the parent task it splits (stage-e-decomposition.md §3.1)
@@ -187,7 +190,8 @@ export interface RunView {
   refused?: { checkId: string; command: string } | null;
   // A4: what the person decides on this pause, about the state shown (journal-v2-format.md §2.9)
   decisions?: OrchestrationDecisions | null;
-  export?: { json: string; md: string } | null; // F4 (T-9): the review export's paths (exportView)
+  export?: { json: string | null; md: string | null } | null; // F4 (T-9); F-c: a file the format leaves out is null
+  exportable?: true; // F-c: «Export the review» by hand is possible: the review export's paths (exportView)
 }
 
 // Facts from the journal (and the goal), never from an agent's own report.
@@ -243,12 +247,16 @@ export function runView(st: RunState, halted = false, active: RunView["active"] 
 
 // F4 (T-9): where the review export of a run asked for one is (§5.6): its paths once the run completed with a commit; null
 // when it completed with nothing to commit or did not complete; absent when the goal asked for none
-export function exportView(root: string, st: RunState, goal: Pick<Goal, "export">): { export?: { json: string; md: string } | null } {
-  if (!goal.export) return {};
+// F-c: the paths are those of the goal's folder and format (a file the format leaves out is null); exportable: a completed board
+// task's run with a commit can be exported by hand («Export the review»), also when its goal asked for no automatic export
+export function exportView(root: string, st: RunState, goal: Pick<Goal, "export" | "exportTo" | "task" | "base">): { export?: { json: string | null; md: string | null } | null; exportable?: true } {
   const c = st.orch.finish.filter((f) => f.step === "commit").at(-1);
-  if (st.status !== "completed" || c?.status !== "done" || !c.commit) return { export: null };
-  const { json, md } = exportPaths(root, st.runId);
-  return { export: { json, md } };
+  const committed = st.status === "completed" && c?.status === "done" && !!c.commit;
+  const exportable = committed && !!goal.task && !!goal.base ? { exportable: true as const } : {};
+  if (!goal.export) return exportable;
+  if (!committed) return { export: null };
+  const { json, md } = exportPaths(root, st.runId, { dir: goal.exportTo?.dir ?? null, format: goal.exportTo?.format ?? "both" });
+  return { export: { json, md }, ...exportable };
 }
 
 export class OrchestrationError extends Error {
@@ -559,6 +567,8 @@ function checkGoal(input: GoalInput, registryOf: (commands: string[] | null) => 
     || !v2 || input.workMode !== "worktree")) bad("branch: a branch name, journal v2 and a worktree only");
   if (input.export !== undefined && (input.export !== true || !v2 || input.workMode !== "worktree" || !task)) bad("export: true, journal v2, a worktree and a board task only");
   if (input.noMcp !== undefined && input.noMcp !== true) bad("noMcp: true or absent");
+  if (input.checksOutside !== undefined && (input.checksOutside !== true || !v2)) bad("checksOutside: true and journal v2 only");
+  const exportTo = input.exportTo === undefined ? undefined : checkExportTo(input.exportTo, input.export === true, bad);
   const resolution = input.resolution === undefined ? undefined : checkResolution(input, v2, bad);
   const decomposition = input.decomposition === undefined ? undefined : checkDecomposition(input, v2, bad);
   if (resolution && decomposition) bad("resolution and decomposition exclude each other");
@@ -584,8 +594,18 @@ function checkGoal(input: GoalInput, registryOf: (commands: string[] | null) => 
     ...(input.access ? { access: { claude: input.access.claude, codex: input.access.codex } } : {}),
     ...(models ? { models } : {}), ...(input.language ? { language: input.language } : {}), ...(task ? { task } : {}),
     ...(base ? { base } : {}), ...(input.branch !== undefined ? { branch: input.branch } : {}), ...(resolution ? { resolution } : {}), ...(decomposition ? { decomposition } : {}),
-    ...(input.export ? { export: true as const } : {}), ...(input.noMcp ? { noMcp: true as const } : {})
+    ...(input.export ? { export: true as const } : {}), ...(input.noMcp ? { noMcp: true as const } : {}),
+    ...(input.checksOutside ? { checksOutside: true as const } : {}), ...(exportTo ? { exportTo } : {})
   };
+}
+
+// F-c (D-041 p. 1): the review's folder and format a goal with export carries (main's, from the profile)
+function checkExportTo(v: unknown, exporting: boolean, bad: (m: string) => never): { dir?: string; format?: "markdown" | "json" | "both" } {
+  const o = v as Record<string, unknown> | null;
+  if (!exporting || !o || typeof o !== "object" || Array.isArray(o) || Object.keys(o).some((k) => k !== "dir" && k !== "format")) bad("exportTo: { dir?, format? } with export only");
+  if (o!.dir !== undefined && (typeof o!.dir !== "string" || !o!.dir.startsWith("/") || o!.dir.length > 1000 || /[\u0000-\u001f\u007f]/.test(o!.dir))) bad("exportTo.dir: an absolute path");
+  if (o!.format !== undefined && o!.format !== "markdown" && o!.format !== "json" && o!.format !== "both") bad("exportTo.format: markdown, json or both");
+  return { ...(o!.dir !== undefined ? { dir: o!.dir as string } : {}), ...(o!.format !== undefined ? { format: o!.format as "markdown" | "json" | "both" } : {}) };
 }
 
 // E1 (stage-e-decomposition.md §3.1): a decomposition run — journal v2's rules, a separate copy from `base`, no check
@@ -1731,7 +1751,7 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
           ws, command: resolveCheck(registry, action.checkId), env: shell.env, writer, launch: deps.checks.launch, state: state(), clock,
           // a lead's line of a denied run runs in the profile whatever this opening's leadSandbox says (review S1-2): with
           // no Seatbelt the self-test fails and nothing runs
-          ...(goal.sandboxed?.includes(action.checkId) ? { sandbox: { root, realHome: leadSandbox ? leadSandbox.realHome : undefined } } : {})
+          ...(goal.sandboxed?.includes(action.checkId) ? { sandbox: { root, realHome: leadSandbox ? leadSandbox.realHome : undefined, ...(goal.checksOutside ? { outside: true as const } : {}) } } : {})
         })
         : startProjectCheck({
           ws, registry, id: action.checkId, deps: deps.checks.deps!, writer,

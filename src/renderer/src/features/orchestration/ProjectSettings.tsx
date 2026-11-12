@@ -10,8 +10,9 @@ import type {
   OrchestrationProjectProfile
 } from "../../../../shared/orchestration";
 import { t, type TranslationKey } from "../../lib/i18n";
-import { goalLines, outcomeOf, probeText } from "./runModel";
-import { GoalRows } from "./OrchestrationDialogs";
+import { UiIcon } from "../../components/UiIcon";
+import { envRows, goalLines, outcomeOf, probeText } from "./runModel";
+import { clockText, GoalRows } from "./OrchestrationDialogs";
 import { Termed } from "./RunPanel";
 import { NO_MODELS, RoleModelsField } from "./RoleModels";
 import { outcomeText } from "./useOrchestration";
@@ -29,9 +30,9 @@ function parseSteps(text: string): OrchestrationProjectProfile["prepare"]["steps
 
 export function EnvironmentCheck({ locale, linkId }: { locale: LocaleId; linkId: string }): React.JSX.Element {
   const [state, setState] = useState<{ kind: "idle" } | { kind: "busy" } | { kind: "error"; text: string } | { kind: "done"; report: OrchestrationEnvironmentReport }>({ kind: "idle" });
-  const run = async (): Promise<void> => {
+  const run = async (mcpReady?: string): Promise<void> => {
     setState({ kind: "busy" });
-    const { outcome, value } = await outcomeOf(() => api().probe(linkId));
+    const { outcome, value } = await outcomeOf(() => api().probe(linkId, mcpReady ? { mcpReady } : undefined));
     if (outcome.kind === "accepted" && value) setState({ kind: "done", report: value });
     else setState({ kind: "error", text: outcomeText(locale, outcome) ?? t(locale, "orchError_generic") });
   };
@@ -39,9 +40,24 @@ export function EnvironmentCheck({ locale, linkId }: { locale: LocaleId; linkId:
     <fieldset className="orch-field orch-env-check" data-orch-env-check={state.kind}>
       <legend>{t(locale, "orchEnvTitle")}</legend>
       <p className="orch-hint">{t(locale, "orchEnvProbeHint")}</p>
-      <button type="button" disabled={state.kind === "busy"} onClick={() => void run()}>{t(locale, state.kind === "busy" ? "orchEnvProbing" : "orchEnvProbe")}</button>
+      {/* F-c (D-041 p. 2, mock-up 15): what was checked and its result, a row each — the report's facts only */}
+      {state.kind === "done" && (
+        <ul className="orch-checklist" data-orch-checklist>
+          {envRows(state.report).map((row) => (
+            <li key={row.id} className={`orch-checklist__row orch-checklist__row--${row.level}`} data-env-row={row.id} data-env-level={row.level}>
+              <span className="orch-checklist__mark" aria-hidden="true"><UiIcon name={row.level === "ok" ? "status-done" : "status-failed"} size="1.2em" /></span>
+              <span className="orch-checklist__text">{tr(locale, row.key).replace(/\{(\w+)\}/g, (_, k: string) => String(row.params[k] ?? ""))}</span>
+              {row.unchecked?.length ? <button type="button" disabled={state.kind !== "done"} data-env-check-mcp={row.unchecked[0]} onClick={() => void run(row.unchecked![0])}>{t(locale, "orchEnvRow_check")}</button> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      <button type="button" disabled={state.kind === "busy"} onClick={() => void run()}>{t(locale, state.kind === "busy" ? "orchEnvProbing" : state.kind === "done" ? "orchEnvProbeAgain" : "orchEnvProbe")}</button>
+      {state.kind === "done" && <small className="orch-hint" data-env-checked-at>{t(locale, "orchReadyCheckedAt").replace("{time}", clockText(locale, Date.parse(state.report.checkedAt) || Date.now()))}</small>}
       {state.kind === "error" && <p className="dialog-error" role="alert">{state.text}</p>}
       {state.kind === "done" && (
+        <details className="orch-env-details" data-orch-env-details>
+        <summary>{t(locale, "orchEnvDetails")}</summary>
         <div className="orch-env" data-orch-env-report>
           <p>{t(locale, "orchEnvShell")}: <code>{state.report.shell.shell ?? "?"}</code> · PATH {state.report.shell.pathEntries} · {tr(locale, `orchDirenv_${state.report.shell.direnv}`)}</p>
           {state.report.providers.map((p) => (
@@ -77,6 +93,7 @@ export function EnvironmentCheck({ locale, linkId }: { locale: LocaleId; linkId:
           ))}
           <p className="orch-hint">{t(locale, "orchEnvParityNote")}</p>
         </div>
+        </details>
       )}
     </fieldset>
   );
@@ -118,6 +135,9 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
     if (b && !pushProtected.split("\n").map((x) => x.trim()).includes(b)) setPushProtected((cur) => (cur.trim() ? `${cur.trim()}\n${b}` : b));
   };
   const lines = (text: string) => text.split("\n").map((x) => x.trim()).filter(Boolean);
+  const reviewFormat = p.reviewExportFormat ?? "both";
+  // a relative folder would put the files into the project's tree: refused here and by main
+  const reviewDirBad = !!p.reviewExportDir?.trim() && !/^(~(\/|$)|\/)/.test(p.reviewExportDir.trim());
   const savedPush = info.saved ? info.profile.runPush : undefined;
   // the address main reads and saves (insteadOf, pushurl), not the raw remote.<name>.url; null: not read
   const pushUrl = p.runPush ? info.facts.remotes.find((r) => r.name === p.runPush!.remote)?.pushUrl ?? null : null;
@@ -143,6 +163,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
     if (p.finish.push && !p.finish.push.branch.trim()) return t(locale, "orchSettingsErrBranch");
     if ((parts > 0 || p.finish.push) && !p.finish.commit) return t(locale, "orchSettingsErrNeedsCommit");
     if (toTerminal && !confirmTerminal) return t(locale, "orchError_terminal_not_confirmed");
+    if (reviewDirBad) return t(locale, "projReviewDirRelative");
     if (pushAsks && pushUrl === null) return t(locale, "projRunPushUrlUnread");
     if (pushAsks && !confirmPush) return t(locale, "orchError_push_not_confirmed");
     return null;
@@ -298,6 +319,13 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
             <GoalRows text={checks} onText={setChecks} locale={locale} attr="data-orch-settings-checks" mono label={t(locale, "projCardChecks")}
               placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
             <small className="orch-hint">{t(locale, "orchGoalCommandsHint")}</small>
+            {/* F-c (D-041 p. 3, mock-up 15): off by default; the risk is said beside the box, always (D-025) */}
+            <label className="orch-check" data-orch-settings-checks-outside-row>
+              <input type="checkbox" checked={p.checksOutside === true} data-orch-settings-checks-outside
+                onChange={(e) => set({ checksOutside: e.target.checked ? true : undefined })} />
+              <span>{t(locale, "projChecksOutside")}</span>
+            </label>
+            <small className={`orch-hint${p.checksOutside ? " orch-hint--warn" : ""}`} data-orch-checks-outside-risk>{t(locale, "projChecksOutsideRisk")}</small>
             {check?.({ checks: goalLines(checks), workMode: p.workMode, access: p.access })}
           </Card>
           {/* F4 (§10, T-9, T-14): the review export of a board task's run, and the runs without MCP */}
@@ -308,6 +336,24 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
               <span>{t(locale, "projReviewExport")}</span>
             </label>
             <small className="orch-hint">{t(locale, "projReviewExportHint")}</small>
+            {/* F-c (D-041 p. 1, mock-up 15): the folder and the format of the review; apply to new runs */}
+            <label className="orch-field orch-field--line">
+              <span>{t(locale, "projReviewDir")}</span>
+              <input value={p.reviewExportDir ?? ""} spellCheck={false} placeholder={t(locale, "projReviewDirPlaceholder")} data-orch-settings-review-dir disabled={p.reviewExport !== true}
+                onChange={(e) => setP((cur) => { const { reviewExportDir: _was, ...rest } = cur; return e.target.value ? { ...rest, reviewExportDir: e.target.value } : rest; })} />
+            </label>
+            {reviewDirBad && <small className="dialog-error" role="alert" data-orch-review-dir-error>{t(locale, "projReviewDirRelative")}</small>}
+            <div className="orch-field orch-field--line">
+              <span>{t(locale, "projReviewFormat")}</span>
+              {/* biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box */}
+              <div className="orch-seg2" role="group" aria-label={t(locale, "projReviewFormat")} data-orch-settings-review-format={reviewFormat}>
+                {(["markdown", "json", "both"] as const).map((f) => (
+                  <button key={f} type="button" disabled={p.reviewExport !== true} aria-pressed={reviewFormat === f} className={reviewFormat === f ? "orch-seg2__on" : undefined} data-orch-settings-review-format-to={f}
+                    onClick={() => set({ reviewExportFormat: f === "both" ? undefined : f })}>{t(locale, `projReviewFormat_${f}`)}</button>
+                ))}
+              </div>
+            </div>
+            <small className="orch-hint">{t(locale, "projReviewDirHint")}</small>
           </Card>
           <Card title={t(locale, "projCardMcp")}>
             <label className="orch-check orch-check--switch">

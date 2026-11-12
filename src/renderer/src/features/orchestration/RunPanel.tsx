@@ -473,8 +473,9 @@ function ActivityList({ locale, entries, gaps, filter, emptyText, silence }: {
           <div key={e.id} className={`orch-feed__item orch-feed__item--${e.detail?.accessMismatch === true ? "warning" : e.kind}${isServiceEntry(e) ? " orch-feed__item--service" : ""}`} data-activity-kind={e.kind} data-activity-id={e.id}>
             <time>{time(locale, e.ts)}</time>
             {/* a structured answer is its own summary line below: the same words are not said twice */}
-            {!report && <span className={`orch-feed__text${MONO_KINDS.has(e.kind) ? " orch-feed__text--mono" : ""}`}>{feedLine(locale, e, entries)}</span>}
-            {report && <details open data-orch-structured><summary>{t(locale, "orchFeedReport")}</summary><ReportView locale={locale} parts={report} /></details>}
+            {!report && <span className={`orch-feed__text${MONO_KINDS.has(e.kind) ? " orch-feed__text--mono" : ""}`}>{feedLine(locale, e, entries)}{typeof e.detail?.added === "number" && (
+              <span className="orch-feed__delta" data-orch-delta>{" "}<b className="orch-feed__plus">+{e.detail.added}</b>{typeof e.detail.removed === "number" && <>{" "}<b className="orch-feed__minus">−{e.detail.removed}</b></>}</span>)}</span>}
+            {report &&<details open data-orch-structured><summary>{t(locale, "orchFeedReport")}</summary><ReportView locale={locale} parts={report} /></details>}
             {typeof e.detail?.output === "string" && e.detail.output && (
               <details><summary>{t(locale, "orchFeedOutput")}</summary><pre>{e.detail.output}</pre></details>
             )}
@@ -886,7 +887,8 @@ const fill = (s: string, vars: Record<string, string | number>): string => Objec
 // D-018: the summary as the mock-ups 13 and 17 draw it — the plates of what the run ended with (stages, checks, the review),
 // then the blocks: result facts, plan, decisions on findings, the people / time (the panel's `middle`), the result. Only what the
 // journal has: a block with nothing to say is not drawn.
-function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onOpen, middle, alerts, list }: {
+function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onOpen, middle, alerts, list, exported }: {
+  exported?: ExportedReview | null; // F-c: what «Export the review» wrote or why not
   orch: Orchestration; runId: string; view: OrchestrationRunView; records: readonly OrchestrationHistoryRecord[];
   locale: LocaleId; incomplete: boolean; facts: ResultFacts;
   onOpen(section: "plan" | "result"): void; middle?: React.ReactNode; alerts?: React.ReactNode;
@@ -931,7 +933,7 @@ function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onO
   const hasFindings = !!progress?.findings && (progress.findings.items.length > 0 || progress.findings.disputed.length > 0);
   const legacyRemarks = !progress?.findings && !!(m.finalFindings || current?.findings);
   const hasReport = !!(m.stages?.some((s) => s.report) || m.lastReport);
-  const hasExport = view.export !== undefined && !(view.export === null && view.status !== "completed");
+  const hasExport = (view.export !== undefined && !(view.export === null && view.status !== "completed")) || !!exported;
   // D-027: under «Проверки» — the checks that did not pass, with their class and the reason the journal kept
   const failedChecks = useMemo(() => {
     const runCheck = new Map<string, string>();
@@ -1055,7 +1057,7 @@ function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onO
         <Section id="result" title={t(locale, "orchSumResult")}>
           {hasReport && <dl className="orch-kv"><Row label={t(locale, "orchSumExecReport")}>
             <button type="button" className="orch-textual" data-orch-open-doc="result" onClick={() => onOpen("result")}>{t(locale, "orchSumOpen")}</button></Row></dl>}
-          <ReviewExport locale={locale} view={view} />
+          <ReviewExport locale={locale} view={view} exported={exported ?? null} />
         </Section>
       )}
     </div>
@@ -1064,16 +1066,22 @@ function RunSummary({ orch, runId, view, records, locale, incomplete, facts, onO
 
 // F4 (T-9, §10): the review export of a completed board task's run — its paths with «Copy the path», or why there is
 // none (the run completed with nothing to commit); nothing when the run was not asked for one
-function ReviewExport({ locale, view }: { locale: LocaleId; view: OrchestrationRunView }): React.JSX.Element | null {
+// F-c (D-041 p. 1): the result of the person's «Export the review» — the files, or the refusal in words
+export type ExportedReview = { runId: string; json: string | null; md: string | null; written: boolean } | { runId: string; error: string };
+function ReviewExport({ locale, view, exported }: { locale: LocaleId; view: OrchestrationRunView; exported: ExportedReview | null }): React.JSX.Element | null {
   const [copied, copy] = useCopy();
   const [which, setWhich] = useState<string | null>(null);
-  if (view.export === undefined || (view.export === null && view.status !== "completed")) return null;
+  const mine = exported && exported.runId === view.runId ? exported : null;
+  const files = mine && "error" in mine ? null : mine ?? view.export ?? null;
+  if (!mine && (view.export === undefined || (view.export === null && view.status !== "completed"))) return null;
   return (
-    <div data-orch-export={view.export ? "paths" : "none"}>
+    <div data-orch-export={files ? "paths" : "none"}>
       <h4>{t(locale, "orchExportPaths")}</h4>
-      {view.export ? (
+      {mine && "error" in mine && <p className="dialog-error" role="alert" data-orch-export-error>{mine.error}</p>}
+      {mine && !("error" in mine) && <p className="orch-hint" data-orch-export-done={mine.written ? "written" : "there"}>{t(locale, mine.written ? "orchExportWritten" : "orchExportThere")}</p>}
+      {files ? (
         <ul>
-          {[view.export.json, view.export.md].map((path) => (
+          {[files.json, files.md].filter((path): path is string => !!path).map((path) => (
             <li key={path} data-orch-export-path={path}>
               <code>{path}</code>{" "}
               <button type="button" data-orch-export-copy={path} onClick={() => { setWhich(path); void copy(path); }}>
@@ -1555,6 +1563,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
   const [take, setTake] = useState<OrchestrationTake | null>(null);
   // the take panel of the run it was opened for; asked again on each revision (the run may have gone on)
   const [takeOpen, setTakeOpen] = useState<string | null>(null);
+  const [exported, setExported] = useState<ExportedReview | null>(null); // F-c (D-041 p. 1): the person's «Export the review»
   const revision = view?.revision ?? 0;
   useEffect(() => {
     if (!takeable || !runId || revision < 0) { setTake(null); return; }
@@ -1729,6 +1738,15 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
       case "project_settings": return onProjectSettings?.();
       case "new_goal": return onNewGoal?.();
       case "take": return void (runId && setTakeOpen(runId));
+      case "export_review": {
+        if (!runId) return;
+        const id = runId;
+        void window.canvasTTY.orchestration.reviewExport(id).then((r) => {
+          setExported(r.ok ? { runId: id, ...r.value } : { runId: id, error: tr(locale, `orchError_${r.code}`) || r.message || String(r.code) });
+          onView({ tab: "summary" });
+        }).catch(() => setExported({ runId: id, error: t(locale, "orchTransportError") }));
+        return;
+      }
       case "copy_id": case "copy_journal":
         copiedWhich.current = b.action;
         return void copy(b.action === "copy_id" ? (runId ?? "") : records.map((r) => JSON.stringify(r)).join("\n"));
@@ -1969,7 +1987,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
               {!zoneWho && active && <p className="orch-summary__who" data-orch-working>{who}</p>}
               {!records.length
                 ? journal?.status !== "error" && <p className="orch-hint">{t(locale, "orchLoading")}</p>
-                : <RunSummary orch={orch} runId={runId} view={view} records={records} locale={locale} facts={facts} middle={middle} alerts={alerts} onOpen={openSection}
+                : <RunSummary orch={orch} runId={runId} view={view} records={records} locale={locale} facts={facts} middle={middle} alerts={alerts} exported={exported} onOpen={openSection}
                   incomplete={journal?.status !== "ready"} />}
               {opened.plan && (
                 <Sect id="plan" title={tr(locale, "orchTab_plan")} open lazy onToggle={(o) => toggleSection("plan", o)} elRef={sectionEl("plan")}>

@@ -87,6 +87,8 @@ export function createOrchestrationClient(ipc: OrchestrationIpc, platform: strin
     boardImportFile: () => ipc.invoke(IPC.orchestrationBoardImportFile),
     boardInboxImport: (file, sha256) => ipc.invoke(IPC.orchestrationBoardInboxImport, file, sha256),
     boardInboxReject: (file) => ipc.invoke(IPC.orchestrationBoardInboxReject, file),
+    boardImportOpen: (file, sha256) => ipc.invoke(IPC.orchestrationBoardImportOpen, file, sha256),
+    reviewExport: (runId) => ipc.invoke(IPC.orchestrationReviewExport, runId),
     onBoardChange(listener) { boardChange.add(listener); return () => { boardChange.delete(listener); }; },
     readiness: (input) => ipc.invoke(IPC.orchestrationReadiness, input),
     profile: (linkId, capabilities) => ipc.invoke(IPC.orchestrationProfileGet, linkId, capabilities === true),

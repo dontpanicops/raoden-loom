@@ -481,7 +481,12 @@ export function registerOrchestrationIpc(handleMain: Handle, manager: RunManager
     if (typeof sha256 !== "string" || !SHA256.test(sha256)) bad("sha256 must be 64 lowercase hex digits");
     return [str(file, "file", 260), sha256] as [string, string];
   }, manager.boardInboxImport));
-  handleMain(IPC.orchestrationBoardInboxReject, (_e, file: unknown) => checked(() => [str(file, "file", 260)] as [string], manager.boardInboxReject));
+  handleMain(IPC.orchestrationReviewExport, (_e, runId: unknown) => checked(() => [uuid(runId, "runId")] as [string], manager.exportReview));
+  handleMain(IPC.orchestrationBoardImportOpen, (_e, file: unknown, sha256: unknown) => checked(() => {
+    if (typeof sha256 !== "string" || !SHA256.test(sha256)) bad("sha256 must be 64 lowercase hex digits");
+    return [str(file, "file", 260), sha256] as [string, string];
+  }, (file: string, sha: string) => manager.boardImportOpen(file, sha, async (p) => (openPath ? openPath(p) : "no shell"))));
+  handleMain(IPC.orchestrationBoardInboxReject,(_e, file: unknown) => checked(() => [str(file, "file", 260)] as [string], manager.boardInboxReject));
   if (win) manager.onBoardChange((e) => win.send(IPC.orchestrationBoardEvent, e));
   handleMain(IPC.orchestrationBoardQueue, (_e, action: unknown, taskId: unknown) => checked(() => {
     if (action !== "run" && action !== "cancel") bad("action must be run or cancel");
