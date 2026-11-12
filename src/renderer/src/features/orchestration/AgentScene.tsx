@@ -29,6 +29,7 @@ interface AgentSceneProps {
   groupSelected(layerId: string): boolean;
   withNudge(layerId: string, bounds: SessionBounds): SessionBounds;
   snapTargetsFor(layerId: string): SessionBounds[];
+  regionTitles?: readonly { x: number; y: number; width: number; height: number }[]; // where the regions' titles sit: a link chip keeps off them
   taskOfRun?(runId: string): { key: string; title: string } | null; // B2: «T-4 · title» on a card at work
 }
 
@@ -37,11 +38,18 @@ const rightMid = (b: SessionBounds): Point => ({ x: b.position.x + b.size.width,
 const leftMid = (b: SessionBounds): Point => ({ x: b.position.x, y: b.position.y + b.size.height / 2 });
 const rect = (b: SessionBounds) => ({ x: b.position.x, y: b.position.y, width: b.size.width, height: b.size.height });
 
+// a card that can take the dragged link (an executor of the lead's project folder, not linked to this lead yet) is lit, the rest dim
+function offerOf(card: { agentId: string; role: string; project: string }, from: { agentId: string; role: string; project: string } | undefined, linked: boolean, over: boolean): "ok" | "drop" | "dim" | "dim-over" {
+  const fits = card.role === "executor" && from?.role === "lead" && card.project === from.project && !linked;
+  return fits ? (over ? "drop" : "ok") : over ? "dim-over" : "dim";
+}
+
 export function AgentScene(props: AgentSceneProps): React.JSX.Element {
   const { orch, ui, locale, zoom } = props;
   const entry = orchestrationEntry(orchestrationAvailableHere());
   const portDrag = useRef<{ from: string; pointerId: number; start: Point; moved: boolean } | null>(null);
   const [preview, setPreview] = useState<{ from: string; to: Point } | null>(null);
+  const [dropOver, setDropOver] = useState<string | null>(null); // the card under the pointer while a link is dragged
   const [selectedLink, setSelectedLink] = useState<string | null>(null); // the link whose bend handle shows
   const [bendDrag, setBendDrag] = useState<{ linkId: string; bend: LinkBend | null } | null>(null); // local until pointerup
   const bendRef = useRef<{ pointerId: number; bend: LinkBend | null } | null>(null);
@@ -109,6 +117,12 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
       ? `${t(locale, "orchNow_lastEvent").replace("{time}", new Date(status.lastEventAt).toLocaleTimeString(locale))} · ${duration(locale, now - Date.parse(status.lastEventAt))}`
       : null);
     return { status, time, conditions: conditionsLine(locale, run.view), findings: findingsLine(locale, run.view), cost: costLine(locale, card.role, run.view, orch.activity[runId]?.entries ?? []) };
+  };
+
+  // «stage N of M» (mock 06): M is the plan's stage count, known once the plan is loaded
+  const stageOf = (runId: string, n: number): string | null => {
+    const total = Object.keys(orch.stageTitles(runId) ?? {}).length;
+    return total >= n ? tr(locale, "orchAgentStageOf", { n, m: total }) : null;
   };
 
   return (
@@ -184,6 +198,7 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
             activity={view ? orch.activity[view.runId]?.entries ?? EMPTY : EMPTY}
             pause={view ? viewPauseLabel(locale, view, orch.activity[view.runId]?.entries ?? []) : null}
             statusTime={shown.time}
+            stageOf={view?.stage != null ? stageOf(view.runId, view.stage) : null}
             conditions={shown.conditions}
             findings={shown.findings}
             cost={shown.cost}
@@ -191,6 +206,7 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
             ended={view !== null && TERMINAL_STATUSES.includes(view.status)}
             message={ui.messages[card.agentId] ?? null}
             linking={ui.linkingFrom === card.agentId ? "source" : ui.linkingFrom && card.role === "executor" ? "target" : null}
+            offer={preview ? card.agentId === preview.from ? "source" : offerOf(card, agents.find((a) => a.card.agentId === preview.from)?.card, orch.canvas.links.some((l) => l.fromAgentId === preview.from && l.toAgentId === card.agentId), dropOver === card.agentId) : null}
             linked={link !== undefined}
             hasRun={!!link?.runIds.length}
             selected={props.groupSelected(layerId)}
@@ -220,6 +236,7 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
               if (!d.moved) linkTrace("port.moved", { pointerId: event.pointerId, x: event.clientX, y: event.clientY });
               d.moved = true;
               setPreview({ from: d.from, to: props.worldPoint(event.clientX, event.clientY) });
+              setDropOver(document.elementsFromPoint(event.clientX, event.clientY).map((el) => el.closest<HTMLElement>("[data-agent-id]")).find((el) => el !== null)?.dataset.agentId ?? null);
             }}
             onPortUp={(event) => {
               const d = portDrag.current;
@@ -228,6 +245,7 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
               event.stopPropagation();
               portDrag.current = null;
               setPreview(null);
+              setDropOver(null);
               // cancelled, or the capture lost without a release (another pointer event took it): the gesture ends here
               if (event.type !== "pointerup") return;
               if (!d.moved) {
@@ -258,7 +276,7 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
         const label = shown?.permission ? t(locale, "orchLinkNeedsYou") : shown?.newer ? t(locale, "orchReadOnly") : shown ? viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ?? t(locale, `orchStatus_${runStatusKey(shown)}` as TranslationKey) : t(locale, "orchNoRun");
         // on the curve, off the cards (and the bend handle when selected) (Н14, linkChip.ts)
         const g = linkGeometry(rightMid(from), leftMid(to), bendDrag?.linkId === link.linkId ? bendDrag.bend : link.bend);
-        const at = chipOnCurve(g, agents.map(({ bounds }) => rect(bounds)), chipSize(label, (busy ? 0 : 2) + (view ? 2 : 0) + (view?.newer ? 1 : 0) + (link.bend ? 1 : 0) + (liveViews.length > 1 ? 1 : 0)) /* new goal, ×, open run, observe, release, reset, runs: every button counts */, selectedLink === link.linkId, [rect(from), rect(to)]);
+        const at = chipOnCurve(g, [...agents.map(({ bounds }) => rect(bounds)), ...(props.regionTitles ?? [])], chipSize(label, (busy ? 0 : 2) + (view ? 2 : 0) + (view?.newer ? 1 : 0) + (link.bend ? 1 : 0) + (liveViews.length > 1 ? 1 : 0)) /* new goal, ×, open run, observe, release, reset, runs: every button counts */, selectedLink === link.linkId, [rect(from), rect(to)]);
         return (
           <div key={link.linkId} className={`agent-link__chip${view?.permission ? " agent-link__chip--needs-you" : ""}`} data-interactive="true" data-agent-link-id={link.linkId}
             role="group" aria-label={t(locale, "orchLink")}

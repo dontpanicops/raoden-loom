@@ -30,6 +30,7 @@ interface AgentCardProps {
   message: CardMessage | null;
   linking: "source" | "target" | null; // keyboard/click linking mode
   linked: boolean;
+  offer?: "source" | "ok" | "drop" | "dim" | "dim-over" | null; // while a link is dragged from a port (mock 18): fits / under the pointer / other role or folder / the latter under the pointer
   hasRun: boolean;
   selected: boolean;
   snapEnabled: boolean;
@@ -45,6 +46,7 @@ interface AgentCardProps {
   onOpenRun(agentId: string): void;
   onObserve(agentId: string): void;
   onSummary(agentId: string): void;
+  stageOf?: string | null; // «stage 1 of 2», after the state of a working card (mock 06)
   pause?: string | null; // a paused run's short form ("Waiting for you: …"), the link chip's words (runModel viewPauseLabel)
 }
 
@@ -88,11 +90,12 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
     return () => el?.removeEventListener("dblclick", onDouble);
   }, []);
   const doing = status && MOVING.includes(status.state) ? status.doing : null;
+  const stateText = props.pause && (state === "paused" || state === "needs_you") ? props.pause : `${t(locale, STATE_KEY[state])}${state === "working" && props.stageOf ? ` · ${props.stageOf}` : ""}`;
   const extra = status ? status.wait ?? status.now : null;
 
   return (
     <article
-      className={`agent-card agent-card--${card.provider} agent-card--${state} ${props.selected ? "agent-card--selected" : ""} ${linking ? `agent-card--linking-${linking}` : ""}`}
+      className={`agent-card agent-card--${card.provider} agent-card--${state} ${props.selected ? "agent-card--selected" : ""} ${linking ? `agent-card--linking-${linking}` : ""} ${props.offer ? `agent-card--offer-${props.offer}` : ""}`}
       data-interactive="true"
       data-agent-id={card.agentId}
       data-agent-role={card.role}
@@ -122,10 +125,10 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
         {/* every line is one line: a long one ends with "…" and says all of it in its tooltip (1.5.13) */}
         <div className="agent-card__status" role="status">
           <span className={`agent-card__state agent-card__state--${state}`} data-agent-pause={props.pause && (state === "paused" || state === "needs_you") ? "yes" : undefined}
-            title={props.pause && (state === "paused" || state === "needs_you") ? props.pause : t(locale, STATE_KEY[state])}>
+            title={compact && props.statusTime ? `${stateText} · ${props.statusTime}` : stateText}>
             <UiIcon name={CARD_STATUS_ICON[agentCardStatus(state)]} size="1.1em" />
-            <span>{props.pause && (state === "paused" || state === "needs_you") ? props.pause : t(locale, STATE_KEY[state])}</span></span>
-          {props.statusTime && <span className="agent-card__time" data-agent-time title={props.statusTime}>{props.statusTime}</span>}
+            <span>{stateText}</span></span>
+          {props.statusTime && !compact && <span className="agent-card__time" data-agent-time title={props.statusTime}>{props.statusTime}</span>}
         </div>
         <div className="agent-card__project" title={card.project}><small>{withoutHome(card.project)}</small></div>
         {/* the status already names a held state (paused, ended, waiting for you); the sentence adds what moves */}
@@ -158,6 +161,9 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
           )}
         </div>
       </div>
+      {(props.offer === "drop" || props.offer === "dim-over") && (
+        <span className="agent-card__offer" aria-hidden="true">{t(locale, props.offer === "drop" ? "orchReleaseToLink" : "orchOtherFolder")}</span>
+      )}
       {RESIZE_DIRECTIONS.map((direction) => (
         <div key={direction} className={`terminal-card__resize-handle terminal-card__resize-handle--${direction}`} aria-hidden="true" data-agent-resize={direction}
           {...frame.handle(direction)} />

@@ -2,7 +2,8 @@
 // What to tell is notify.ts; here it reaches macOS (main shows it) or, where macOS shows nothing, a banner in the window.
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LocaleId, NotificationSettings } from "../../../../shared/contracts";
-import { t } from "../../lib/i18n";
+import { pluralForm, t } from "../../lib/i18n";
+import { UiIcon } from "../../components/UiIcon";
 import { NOTIFIED_KEY, NOTIFY_UNAVAILABLE_KEY, boardHeadNotes, boardNotes, notifyStep, pruneNotified, splitNotes, type Note } from "./notify";
 import { boardOptsOf, type AutopilotState, type BoardHead, type BoardView } from "../../../../shared/taskBoard";
 import type { RunActivityState, RunState } from "./useOrchestration";
@@ -19,9 +20,9 @@ const store = {
 const NO_AUTOPILOT: Record<string, AutopilotState> = {};
 const NO_HEADS: BoardHead[] = [];
 const projectName = (project: string): string => project.split("/").filter(Boolean).at(-1) ?? "Raoden Loom";
-export function useRunNotifications({ locale, prefs, runs, activity, title, open, accepting = 0, autopilot = NO_AUTOPILOT, boardPlace = () => "", heads = NO_HEADS, board: boardView = null }: {
+export function useRunNotifications({ locale, prefs, runs, activity, title, space = () => "", open, accepting = 0, autopilot = NO_AUTOPILOT, boardPlace = () => "", heads = NO_HEADS, board: boardView = null }: {
   locale: LocaleId; prefs: NotificationSettings; runs: Record<string, RunState>; activity: Record<string, RunActivityState>;
-  title(runId: string): string; open(runId: string): void;
+  title(runId: string): string; space?(runId: string): string; open(runId: string): void; // space: the workspace's name where there are several ("" — none)
   accepting?: number; // the board's tasks waiting for «Accept the result» (counted on the badge)
   autopilot?: Record<string, AutopilotState>; boardPlace?(linkId: string): string; // B4: the board's autopilot of each link
   heads?: BoardHead[]; // C4: the board's merged heads (their merges waiting for the person, the head moving)
@@ -38,7 +39,7 @@ export function useRunNotifications({ locale, prefs, runs, activity, title, open
   useEffect(() => {
     notified.current ??= store.read();
     const splitRuns = new Set((boardView?.facts ?? []).filter((f) => f.decompositionOf).map((f) => f.runId));
-    const list = Object.entries(runs).filter(([runId]) => !splitRuns.has(runId)).map(([runId, r]) => ({ runId, view: r.view, place: title(runId), entries: activity[runId]?.entries ?? [] }));
+    const list = Object.entries(runs).filter(([runId]) => !splitRuns.has(runId)).map(([runId, r]) => ({ runId, view: r.view, place: title(runId), space: space(runId), entries: activity[runId]?.entries ?? [] }));
     const focused = document.hasFocus() && !document.hidden;
     const step = notifyStep(locale, list, notified.current, prefs, focused, true, accepting);
     const board = boardNotes(locale, autopilot, step.notified, prefs, focused, boardPlace);
@@ -55,7 +56,7 @@ export function useRunNotifications({ locale, prefs, runs, activity, title, open
       shown.current.set(n.runId, n);
       void window.canvasTTY.notify.show(n).then((r) => { if (!r.shown) { store.setUnavailable(); toBanner(n); } }, () => toBanner(n));
     }
-  }, [accepting, activity, autopilot, boardPlace, boardView, heads, locale, prefs, runs, title, toBanner]);
+  }, [accepting, activity, autopilot, boardPlace, boardView, heads, locale, prefs, runs, space, title, toBanner]);
 
   useEffect(() => {
     const offClick = window.canvasTTY.notify.onClick((runId) => openRef.current(runId));
@@ -68,17 +69,31 @@ export function useRunNotifications({ locale, prefs, runs, activity, title, open
   return { banner, dismiss, openNote: useCallback((runId: string) => { dismiss(runId); openRef.current(runId); }, [dismiss]) };
 }
 
+const fill = (text: string, vars: Record<string, string>): string => Object.entries(vars).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, v), text);
+
+// Mock 10: the runs waiting for the person are one line at the top of the canvas («2 runs wait for you in Beta and Alpha»,
+// «Show» opens the first one, the rest stay counted in the line); a run that failed or ended keeps its own line.
 export function NotifyBanner({ locale, notes, onOpen, onDismiss }: { locale: LocaleId; notes: Note[]; onOpen(runId: string): void; onDismiss(runId: string): void }): React.JSX.Element | null {
   if (!notes.length) return null;
+  const waiting = notes.filter((n) => n.signal === "waiting");
+  const places = [...new Set(waiting.map((n) => n.place ?? "").filter(Boolean))];
+  const where = places.length ? ` ${fill(t(locale, `orchNotifyIn_${pluralForm(locale, places.length)}` as never), { places: new Intl.ListFormat(locale, { style: "long", type: "conjunction" }).format(places) })}` : "";
+  const row = (key: string, signal: string, text: React.ReactNode, onShow: () => void, onClose: () => void, run?: string): React.JSX.Element => (
+    <div key={key} className={`notify-banner__item notify-banner__item--${signal}`} data-notify-run={run}>
+      <UiIcon name="bell" size={16} />
+      <span>{text}</span>
+      <button type="button" className="notify-banner__show" onClick={onShow}>{t(locale, "orchNotifyBannerOpen")}</button>
+      <button type="button" className="notify-banner__close" aria-label={t(locale, "orchNotifyBannerClose")} onClick={onClose}>×</button>
+    </div>
+  );
   return (
     <div className="notify-banner" role="status" data-interactive="true" data-notify-banner>
-      {notes.map((n) => (
-        <div key={n.runId} className={`notify-banner__item notify-banner__item--${n.signal}`} data-notify-run={n.runId}>
-          <span><b>{n.title}</b> {n.body}</span>
-          <button type="button" onClick={() => onOpen(n.runId)}>{t(locale, "orchNotifyBannerOpen")}</button>
-          <button type="button" aria-label={t(locale, "orchNotifyBannerClose")} onClick={() => onDismiss(n.runId)}>×</button>
-        </div>
-      ))}
+      {waiting.length === 1 && row(waiting[0].runId, "waiting", <><b>{waiting[0].title}</b> {waiting[0].body}</>, () => onOpen(waiting[0].runId), () => onDismiss(waiting[0].runId), waiting[0].runId)}
+      {waiting.length > 1 && row("waiting", "waiting",
+        <><b>{fill(t(locale, `orchNotifyWait_${pluralForm(locale, waiting.length)}` as never), { n: String(waiting.length) })}</b>{where}</>,
+        () => onOpen(waiting[0].runId),
+        () => { for (const n of waiting) onDismiss(n.runId); })}
+      {notes.filter((n) => n.signal !== "waiting").map((n) => row(n.runId, n.signal, <><b>{n.title}</b> {n.body}</>, () => onOpen(n.runId), () => onDismiss(n.runId), n.runId))}
     </div>
   );
 }

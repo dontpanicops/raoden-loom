@@ -9,7 +9,7 @@ import { ProviderIcon } from "../../components/ProviderIcon";
 import { UiIcon } from "../../components/UiIcon";
 import { t } from "../../lib/i18n";
 import { PROVIDERS } from "../../lib/providers";
-import { radialItemAtPointer, radialItemOffset } from "./radialLauncher";
+import { radialItemAtPointer, radialItemOffset, radialLauncherRadius, RADIAL_LAUNCHER_ITEM } from "./radialLauncher";
 
 interface RadialLauncherProps {
   anchor: Point;
@@ -105,6 +105,11 @@ export function RadialLauncher({
       data-interactive="true"
       onContextMenu={(event) => event.preventDefault()}
     >
+      <div
+        className="radial-launcher__disc"
+        aria-hidden="true"
+        style={{ "--radial-disc": `${(radialLauncherRadius(items.length) + RADIAL_LAUNCHER_ITEM / 2 + 12) * 2}px` } as React.CSSProperties}
+      />
       <div className="radial-launcher__center" aria-hidden="true">
         <span>{t(locale, "releaseToLaunch")}</span>
       </div>
@@ -115,7 +120,7 @@ export function RadialLauncher({
           <button
             key={item}
             className={`radial-launcher__item ${active ? "radial-launcher__item--active" : ""}`}
-            style={{ transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))` }}
+            style={{ transform: `translate(calc(-50% + ${offset.x}px * var(--ui-scale, 1)), calc(-50% + ${offset.y}px * var(--ui-scale, 1)))` }}
             type="button"
             role="menuitem"
             aria-current={active ? "true" : undefined}

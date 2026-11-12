@@ -1,9 +1,13 @@
 import type { Point, RadialLauncherItemId } from "../../../../shared/contracts";
 
-export const RADIAL_LAUNCHER_RADIUS = 126;
+// Mock 10-overlays: 60px items on a ring of radius 75 for 6; more items widen the ring so neighbours keep a 6px gap
+export const RADIAL_LAUNCHER_ITEM = 60;
+export function radialLauncherRadius(count: number): number {
+  return count < 3 ? 75 : Math.max(75, Math.ceil((RADIAL_LAUNCHER_ITEM + 6) / (2 * Math.sin(Math.PI / count))));
+}
 export const RADIAL_LAUNCHER_DEAD_ZONE = 28;
 
-export function radialItemOffset(index: number, count: number, radius = RADIAL_LAUNCHER_RADIUS): Point {
+export function radialItemOffset(index: number, count: number, radius = radialLauncherRadius(count)): Point {
   if (count <= 0) return { x: 0, y: 0 };
   const angle = -Math.PI / 2 + index * (Math.PI * 2 / count);
   return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };

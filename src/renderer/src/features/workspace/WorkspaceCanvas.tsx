@@ -32,6 +32,7 @@ import { StickyNoteCard } from "../notes/StickyNoteCard";
 import { stickyNoteAtPoint } from "../notes/stickyNoteBounds";
 import { noteText, snapshotText } from "../orchestration/runDocs";
 import { AgentScene } from "../orchestration/AgentScene";
+import { ResizeSizeBadge } from "./ResizeSizeBadge";
 import { BOARD_SIZE, BoardCard } from "../orchestration/BoardCard";
 import { useBoard } from "../orchestration/useBoard";
 import { OrchestrationOverlays } from "../orchestration/OrchestrationDialogs";
@@ -295,7 +296,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     if (runId) openRunInWorkspace(runId);
   }, [board.view, lastOfLink, openRunInWorkspace, workspace.activeId]);
   const autopilotPlace = useCallback((linkId: string) => { const runId = lastOfLink(linkId); return runId ? noteTitle(runId) : "Raoden Loom"; }, [lastOfLink, noteTitle]);
-  const notes = useRunNotifications({ locale: settings.locale, prefs: settings.notifications, runs: orch.runs, activity: orch.activity, title: noteTitle, open: openNote, accepting,
+  const notes = useRunNotifications({ locale: settings.locale, prefs: settings.notifications, runs: orch.runs, activity: orch.activity, title: noteTitle, space: (runId) => (manyWorkspaces ? placeName(ownerOfRun(runId)) : ""), open: openNote, accepting,
     autopilot: board.view?.autopilot, boardPlace: autopilotPlace, heads: board.view?.heads, board: board.view });
   // B2: «Board» shows the task board on a workspace's canvas, or brings it forward (C4: a board note too, in its workspace)
   showBoardRef.current = (target: string): void => {
@@ -420,6 +421,8 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
       ? { ...region, ...copyBounds(regionMovePreview.currentBounds) }
       : region
   )), [regionMovePreview, settings.canvasRegions]);
+  // ponytail: the title's width is estimated (8.5px a character + 26px of padding), not measured; measure the DOM if a long title ever clips the chip
+  const regionTitles = useMemo(() => renderedCanvasRegions.map((r) => ({ x: r.position.x + 14, y: r.position.y + 14, width: Math.min(r.size.width - 28, r.title.length * 8.5 + 26), height: 34 })), [renderedCanvasRegions]);
   const renderedSessions = useMemo(() => sessions.map((session) => {
     const start = regionMovePreview?.sessionBounds.get(session.id);
     return start && previewDelta ? { ...session, ...translateBounds(start, previewDelta) } : session;
@@ -1128,6 +1131,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           ))}
           <AgentScene
             taskOfRun={board.taskOfRun}
+            regionTitles={regionTitles}
             orch={sceneOrch}
             ui={agentUi}
             locale={settings.locale}
@@ -1335,7 +1339,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
 
       <OrchestrationOverlays taskOfRun={board.taskOfRun} orch={orch} ui={agentUi} locale={settings.locale} defaultProject={settings.lastDirectory} folderBusy={folderBusy} onNoteFromText={noteFromText} />
       <NotifyBanner locale={settings.locale} notes={notes.banner} onOpen={notes.openNote} onDismiss={notes.dismiss} />
-      <WorkspaceDialogs dialog={wsDialog} controls={workspace} orch={orch} layout={workspaceLayout} locale={settings.locale}
+      <WorkspaceDialogs dialog={wsDialog} controls={workspace} counts={counts} orch={orch} layout={workspaceLayout} locale={settings.locale}
         onClose={() => setWsDialog(null)} onOpenRun={(runId) => openRunInWorkspace(runId)} />
       <BrowserElsewhereDialog controls={workspace} locale={settings.locale} />
 
@@ -1348,6 +1352,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           <WorkspaceBar controls={workspace} counts={counts} locale={settings.locale} onDialog={openWsDialog}
             board={{ shown: !!boardPlace, toggle: () => showBoardRef.current(workspace.activeId) }} />
         </div>
+        <ResizeSizeBadge />
         {CANVAS_OVERLAY_PLACEMENTS.map((placement) => (
           <div className={`canvas-overlay-slot canvas-overlay-slot--${placement}`} key={placement}>
             {settings.minimapPlacement === placement && (

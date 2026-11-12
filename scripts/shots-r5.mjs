@@ -14,10 +14,16 @@ const THEMES = (arg("themes") ?? "sand,paper").split(",");
 const ONLY = arg("only");
 fs.mkdirSync(OUT, { recursive: true });
 
-const { TMP, D, project } = workspace("cto-r5shots-");
+const { TMP, D, git, project } = workspace("cto-r5shots-");
 const PORT = 9500 + Math.floor(Math.random() * 250);
 const node = project("node-app");
 const other = project("infra-app");
+// R7b: a bare remote «upstream» that takes push options, for the board's push state (a task whose option names a field it has not)
+const bare = D("remote.git");
+git(D(), "init", "-q", "--bare", bare);
+git(bare, "config", "receive.advertisePushOptions", "true");
+git(node, "remote", "add", "upstream", bare);
+git(node, "push", "-q", "upstream", "main:stable");
 const termDir = fs.realpathSync(fs.mkdtempSync("/private/tmp/r5-term-"));
 fs.writeFileSync(path.join(termDir, "README.md"), "demo\n");
 fs.mkdirSync(D("mock-state", ".codex"), { recursive: true });
@@ -87,7 +93,7 @@ const failed = [];
 let app;
 let theme = "sand";
 const laptop = () => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
-const wanted = (name) => !ONLY || name.includes(ONLY);
+const wanted = (name) => !ONLY || ONLY.split(",").some((x) => name.includes(x)); // --only a,b: several scenes
 const shot = async (name) => {
   await sleep(500);
   const z = await app.ev(`(() => { const m = document.querySelector(".workspace__scene")?.style.transform.match(/scale\\(([\\d.]+)\\)/); return m ? Number(m[1]) : null; })()`).catch(() => null);
@@ -98,7 +104,7 @@ const esc = async () => { for (let i = 0; i < 3; i++) { await app.key("Escape", 
 const hideOnboarding = () => app.ev(`(() => { if (!document.getElementById("r5-hide")) { const s = document.createElement("style"); s.id = "r5-hide"; s.textContent = "[data-onboarding] { display: none !important; }"; document.head.append(s); } return true; })()`);
 const WS = { common: "common", alpha: null, beta: null };
 const BETA_SCENES = new Set(["link-executor-left", "link-mode"]);
-const ALPHA_SCENES = new Set(["cards-agents", "goal", "cards-agents-idle", "link-repeat", "link-selected", "zoom-out", "board", "board-waiting", "cards-agents-working"]);
+const ALPHA_SCENES = new Set(["cards-agents", "goal", "cards-agents-idle", "link-repeat", "link-selected", "zoom-out", "board", "board-waiting", "board-push", "cards-agents-working"]);
 // the tab of a space is clicked (the renderer follows its own state); the common canvas is the first tab
 const go = async (id) => {
   const st = await app.ev(`window.canvasTTY.workspaces.get()`);
@@ -398,10 +404,21 @@ try {
       const name = theme === "sand" ? "Гамма" : "Дельта";
       await app.clickEl(q("[data-workspace-new]")); await sleep(500);
       await app.type(q("[data-ws-title]"), name); await app.clickEl(q("[data-ws-submit]")); await sleep(1500);
-      await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
-      await app.clickEl(q('[data-ws-action="close"]')); await sleep(900);
-      if (await app.ev(`!!${q("[data-ws-close]")}`)) { await app.clickEl(q("[data-ws-close-hide]")); await sleep(900); }
-      if (await menuOpen()) await app.clickEl(q("[data-workspace-menu]"));
+      // mock 17 «Скрытые»: «Песочница» has work going on (the chip «1 работает»)
+      const gid = (await app.ev(`window.canvasTTY.workspaces.get()`)).workspaces.find((w) => w.title === name).id;
+      await session("claude", `hidden-working-${name}`, "hidden-api", elsewhere(3200, 3200), gid); await sleep(2000);
+      const hideActive = async () => {
+        await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
+        await app.clickEl(q('[data-ws-action="close"]')); await sleep(900);
+        if (await app.ev(`!!${q("[data-ws-close]")}`)) { await app.clickEl(q("[data-ws-close-hide]")); await sleep(900); }
+        if (await menuOpen()) await app.clickEl(q("[data-workspace-menu]"));
+      };
+      await hideActive();
+      // R7d (mock 17): a second hidden space with no work (no chip), the rows' buttons side by side
+      const quiet = theme === "sand" ? "Архив идей" : "Архив";
+      await app.clickEl(q("[data-workspace-new]")); await sleep(500);
+      await app.type(q("[data-ws-title]"), quiet); await app.clickEl(q("[data-ws-submit]")); await sleep(1500);
+      await hideActive();
       await app.clickEl(q("[data-workspace-menu]")); await sleep(400);
       await app.clickEl(q('[data-ws-action="hidden"]')); await sleep(700);
       await app.waitFor(`${q("[data-ws-hidden]")} && true`, "the hidden list", 5000);
@@ -409,12 +426,14 @@ try {
       if (await menuOpen()) await app.clickEl(q("[data-workspace-menu]"));
       // «Перенести карточку»: the context menu of a card
       await app.key("Home", "Home", 36); await sleep(700);
+      await app.ev(`window.canvasTTY.terminal.rename(${JSON.stringify(t.id)}, "project-a").then(() => true)`); await sleep(400); // mock 17: «Терминал project-a»
       await app.reveal(`document.querySelector('[data-canvas-layer-id="terminal:${t.id}"]')`); await sleep(500);
       const head = await app.center(`document.querySelector('[data-canvas-layer-id="terminal:${t.id}"] header, [data-canvas-layer-id="terminal:${t.id}"] .terminal-card__header')`);
       await app.click(head.x, head.y, "right"); await sleep(500);
       await app.clickEl(`[...document.querySelectorAll(".canvas-menu [role=menuitem], .canvas-menu button")].find((e) => /Перенести в пространство/.test(e.textContent))`); await sleep(800);
       await app.waitFor(`${q("[data-ws-move]")} && true`, "the move dialog", 5000);
       await shot("ws-move"); await esc(); await sleep(300);
+      await app.ev(`window.canvasTTY.terminal.rename(${JSON.stringify(t.id)}, "~/dev").then(() => true)`);
       // «Браузер открыт в…»: the browser is on the common canvas, the launcher is pressed in another space
       await go(WS.alpha);
       await app.clickEl(`document.querySelector(".launcher-button--browser")`); await sleep(900);
@@ -456,8 +475,8 @@ try {
         world.leftLead = l.agentId; world.leftExec = e.agentId; await link(l.agentId, e.agentId);
         // a lone lead: a free executor of its folder (lit) and one of another folder (dim, with the reason), for the linking mode
         const m = await mkAgent("codex", other, B(1000, 330, 201, 149), WS.beta);
-        await mkAgent("claude", other, B(1230, 450, 201, 149), WS.beta); await mkAgent("claude", projB, B(1000, 560, 201, 149), WS.beta);
-        world.modeLead = m.agentId;
+        const fit = await mkAgent("claude", other, B(1230, 450, 201, 149), WS.beta), far = await mkAgent("claude", projB, B(1000, 560, 201, 149), WS.beta);
+        world.modeLead = m.agentId; world.modeFit = fit.agentId; world.modeFar = far.agentId;
         await app.call("Page.reload", {}); await sleep(2500); await laptop();
         await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
       }
@@ -471,8 +490,12 @@ try {
       const from = await app.center(card(world.modeLead, ".agent-card__port"));
       await app.mouse("mouseMoved", from.x, from.y); await app.mouse("mousePressed", from.x, from.y, "left", 1);
       for (let i = 1; i <= 8; i++) { await app.mouse("mouseMoved", from.x + 18 * i, from.y + 10 * i, "left", 1); await sleep(40); }
-      await sleep(400); await shot("link-mode");
-      await app.mouse("mouseReleased", from.x + 144, from.y + 80, "left", 0); await sleep(300); await esc();
+      // over a free executor of the lead's folder: lit, "release to link"; the one of another folder dims, with the reason
+      const fit = await app.center(card(world.modeFit, ".agent-card__body")), far = await app.center(card(world.modeFar, ".agent-card__body"));
+      await app.mouse("mouseMoved", fit.x, fit.y, "left", 1); await sleep(500); await shot("link-mode");
+      await app.mouse("mouseMoved", far.x, far.y, "left", 1); await sleep(500); await shot("link-mode-far");
+      await app.mouse("mouseMoved", 700, 560, "left", 1); await sleep(200);
+      await app.mouse("mouseReleased", 700, 560, "left", 0); await sleep(300); await esc();
     });
     await scene("zoom-waiting", async () => {
       await app.key("Home", "Home", 36); await sleep(600);
@@ -517,12 +540,26 @@ try {
     });
     await scene("card-resize", async () => {
       await app.key("Home", "Home", 36); await sleep(600);
-      const head = await app.ev(`(() => { const b = document.querySelector('[data-canvas-layer-id="terminal:${world.mock.a.id}"]').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + 14 }; })()`);
+      // R7d (mock 18): a plain terminal card of the mock's size, not one of the card states (no «waiting» strip, no failed neighbour)
+      const plain = await app.ev(`window.canvasTTY.terminal.create({ provider: "terminal", profile: "normal", cwd: ${JSON.stringify(path.join(termDir, "infra"))}, position: ${JSON.stringify({ x: 3600, y: 3600 })} })`);
+      await app.ev(`window.canvasTTY.terminal.setBounds(${JSON.stringify(plain.id)}, ${JSON.stringify({ position: { x: 3600, y: 3600 }, size: { width: 520, height: 300 } })})`);
+      await app.ev(`window.canvasTTY.terminal.rename(${JSON.stringify(plain.id)}, "project-a").then(() => true)`);
+      await sleep(1200);
+      await app.ev(`window.canvasTTY.terminal.input(${JSON.stringify(plain.id)}, ${JSON.stringify("PS1='$ ' PROMPT='$ '; clear; echo '$ npm run dev'\r")})`); await sleep(800);
+      await app.reveal(`document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"]')`); await sleep(600); // on the empty canvas, as in the mock
+      const head = await app.ev(`(() => { const b = document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"]').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + 14 }; })()`);
       await app.click(head.x, head.y); await sleep(400);
-      const r = await app.ev(`(() => { const b = document.querySelector('[data-canvas-layer-id="terminal:${world.mock.a.id}"]').getBoundingClientRect(); return { x: b.right - 2, y: b.top + b.height / 2 }; })()`);
+      const r = await app.ev(`(() => { const b = document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"]').getBoundingClientRect(); return { x: b.right - 2, y: b.top + b.height / 2 }; })()`);
       await app.mouse("mouseMoved", r.x, r.y); await sleep(500);
       await shot("card-resize");
+      // the gesture: the corner is held and dragged, the size shows under the card
+      const c = await app.center(`document.querySelector('[data-canvas-layer-id="terminal:${plain.id}"] .terminal-card__resize-handle--se')`);
+      await app.mouse("mouseMoved", c.x, c.y); await app.mouse("mousePressed", c.x, c.y, "left", 1);
+      for (let i = 1; i <= 6; i++) { await app.mouse("mouseMoved", c.x + 6 * i, c.y + 4 * i, "left", 1); await sleep(40); }
+      await sleep(400); await shot("card-resize-drag");
+      await app.mouse("mouseReleased", c.x + 36, c.y + 24, "left", 0); await sleep(300);
       await app.mouse("mouseMoved", 700, 20);
+      await app.ev(`window.canvasTTY.terminal.dispose(${JSON.stringify(plain.id)}).then(() => true)`); await sleep(500);
     });
 
     // links: repeated pair refused, executor to the left, zoom 0.2
@@ -569,7 +606,10 @@ try {
       await app.call("Page.reload", {}); await sleep(1500); await laptop();
       await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
       await app.key("Home", "Home", 36); await sleep(900);
-      const spot = await app.freeRect(40, 40);
+      // zoomed out, so a ring of the menu's size has free canvas around it
+      for (let i = 0; i < 2; i++) { await app.clickEl(`document.querySelectorAll(".canvas-controls button, .zoom-controls button")[1]`).catch(() => {}); await sleep(200); }
+      await sleep(500);
+      const spot = await app.freeRect(300, 300);
       await app.mouse("mouseMoved", spot.x + 150, spot.y + 150);
       await app.mouse("mousePressed", spot.x + 150, spot.y + 150, "right", 2); await sleep(700);
       await app.mouse("mouseMoved", spot.x + 150, spot.y + 100, "right", 2); await sleep(400);
@@ -622,6 +662,11 @@ try {
       await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500);
       await app.reveal(card(lead.agentId)); await pairView(lead.agentId, exec.agentId); await sleep(500);
       await shot("cards-agents-working");
+      // R7b: the two cards close up (twice the pixels), the pair of the mock's «Агенты оркестрации» row
+      const cr = await app.ev(`(() => { const r = [...document.querySelectorAll("[data-agent-id]")].map((e) => e.getBoundingClientRect());
+        const x = Math.min(...r.map((b) => b.left)) - 12, y = Math.min(...r.map((b) => b.top)) - 12; return { x, y, width: Math.max(...r.map((b) => b.right)) - x + 12, height: Math.max(...r.map((b) => b.bottom)) - y + 12 }; })()`);
+      const cd = await app.call("Page.captureScreenshot", { format: "png", clip: { ...cr, scale: 3 } });
+      fs.writeFileSync(path.join(OUT, `${theme}-cards-agents-working-zoom.png`), Buffer.from(cd.data, "base64"));
     });
     if (!world.boardStates) {
       world.boardStates = true;
@@ -648,6 +693,39 @@ try {
       });
     }
 
+    // R7b (mock 08-board-states): the autopilot's push is on in the profile and a task asks for a field it has not — a red card in «Очередь».
+    // The mock's «Ждёт вашего решения» in «Проверка» needs a run through the final review and the finish confirmation; the fake lead's
+    // script is one per CLI, not per run, so the order of two parallel runs' turns is not fixed (see the D-NNN proposal in the R7b report)
+    await scene("board-push", async () => {
+      await app.key("Home", "Home", 36); await sleep(500);
+      if (!(await app.ev(`!!${q("[data-board]")}`))) await app.clickEl(q("[data-board-button]"));
+      await app.waitFor(`${q("[data-board]")} && true`, "the board");
+      const J = JSON.stringify;
+      const ipc = (call) => app.ev(`window.canvasTTY.orchestration.${call}`);
+      const linkId = await ipc(`canvas().then((r) => r.value.links.find((l) => r.value.agents.find((a) => a.agentId === l.fromAgentId)?.project === ${J(node)}).linkId)`);
+      const p0 = await ipc(`profile(${J(linkId)}).then((r) => r.value.profile)`);
+      const options = ["merge_request.create", "merge_request.title={commitTitle}"];
+      const base = { ...p0, workMode: "worktree", checks: ["true"], prepare: { auto: false, steps: [] }, finish: { ...p0.finish, commit: true },
+        branchTemplate: "{issue}-{ref}", runBase: { remote: "upstream", branch: "stable", remoteUrl: null } };
+      const saved = await ipc(`saveProfile(${J(linkId)}, ${J(base)}).then((r) => r.ok ? r.value : { code: r.code })`);
+      const pushed = await ipc(`saveProfile(${J(linkId)}, ${J({ ...saved, runPush: { enabled: true, remote: "upstream", remoteUrl: null, options, protected: [], confirmedAt: null }, confirmPush: true })}).then((r) => r.ok ? r.value : { code: r.code })`);
+      if (pushed.code) throw new Error(`the push profile: ${pushed.code}`);
+      writeBoard(WS.alpha, [row("P", { title: "Удаление заметок", issue: "ISSUE-1" })]);
+      await app.clickEl(q("[data-board-import]")); await app.waitFor(`${q("[data-board-import-report]")} && true`, "the report");
+      await sleep(600); await app.clickEl(q("[data-board-import-close]")).catch(() => {});
+      await app.waitFor(`${q('[data-board-reason="push_option_field"]')} && true`, "the push option card", 30_000);
+      await app.ev(`document.querySelector('[data-board-reason="push_option_field"]').scrollIntoView({ block: "center" })`);
+      await sleep(1500);
+      const r = await app.ev(`(() => { const els = ["[data-board]", "[data-board-aside]"].map((x) => document.querySelector(x)).filter(Boolean).map((e) => e.getBoundingClientRect());
+        const x = Math.min(...els.map((b) => b.left)), y = Math.min(...els.map((b) => b.top)); return { x, y, width: Math.max(...els.map((b) => b.right)) - x, height: Math.max(...els.map((b) => b.bottom)) - y }; })()`);
+      const d = await app.call("Page.captureScreenshot", { format: "png", clip: { ...r, scale: 2 } });
+      fs.writeFileSync(path.join(OUT, `${theme}-board-push.png`), Buffer.from(d.data, "base64"));
+      console.log(`[shots-r5] clip ${theme}-board-push`);
+      // the profile back as it was (the later scenes run in the copy mode)
+      const back = await ipc(`saveProfile(${J(linkId)}, ${J({ ...p0 })}).then((r) => r.ok ? "ok" : r.code)`);
+      console.log(`[shots-r5] profile restored: ${back}`);
+      await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500);
+    });
   }
   console.log("[shots-r5] phase done");
 } catch (error) {
