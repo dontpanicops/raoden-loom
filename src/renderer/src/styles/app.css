@@ -2156,7 +2156,6 @@ button { border: 0; }
 .ws-dialog .orch-form__actions button[data-ws-browser-go] { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ws-dialog [data-ws-browser-elsewhere] .orch-form__actions { flex-wrap: nowrap; }
 .orch-dialog .ws-list[data-ws-hidden] li > button { flex: 0 0 auto; border: 1px solid var(--border-strong); background: var(--surface-sunken); }
-.orch-dialog .orch-form__actions.ws-hidden__actions { box-shadow: inset 0 1px 0 var(--border); }
 
 /* Card resize (mock 18): eight square markers on the selected card while the pointer is over it, and the size badge during the drag */
 .terminal-card__resize-handle::after { content: ""; position: absolute; width: 12px; height: 12px; box-sizing: border-box; border: 1.5px solid var(--focus); border-radius: 4px; background: var(--surface-3-solid); opacity: 0; pointer-events: none; }
