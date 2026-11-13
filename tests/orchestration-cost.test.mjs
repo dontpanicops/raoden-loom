@@ -63,7 +63,7 @@ test("the limit pause shows each limit's current value and what is used of it; t
   ]);
 });
 
-test("notification settings: the Dock badge hint, in Russian and English", () => {
-  assert.equal(t("ru", "notifyBadgeHint"), "Если число не появляется на иконке — включите «Значки на иконке приложения» в Системных настройках → Уведомления → Raoden Loom.");
-  assert.match(t("en", "notifyBadgeHint"), /Badge application icon.*System Settings → Notifications → Raoden Loom/);
+test("notification settings: the help in one line (D-043), in Russian and English", () => {
+  assert.equal(t("ru", "notifyHelp"), "Нет уведомлений или числа на иконке: включите их в Системных настройках → Уведомления → Raoden Loom.");
+  assert.match(t("en", "notifyHelp"), /number on the icon.*System Settings → Notifications → Raoden Loom/);
 });

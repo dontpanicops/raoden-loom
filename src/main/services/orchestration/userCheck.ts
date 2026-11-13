@@ -7,7 +7,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildCheckProfile, checkSelftest } from "./sandbox.ts";
+import { buildCheckProfile, checkEnv, checkSelftest } from "./sandbox.ts";
 import { runShell } from "./shellRun.ts";
 import { commandSha256 } from "./checks.ts";
 import { canonical } from "./journal.ts";
@@ -31,7 +31,8 @@ export interface ShellCheckOptions {
   // A1.1 (journal-v2-format.md §2.6): a lead's proposed command runs in the check profile — `<shell> -c <line>` (the
   // login environment is already in env; the shell's own start files would only be refused their writes), after the
   // profile's self-test, with a temporary folder of its own
-  sandbox?: { root: string; realHome?: string };
+  // outside (F-c, the profile's checksOutside): the profile also allows outside addresses; the caches go to the check's temporary folder
+  sandbox?: { root: string; realHome?: string; outside?: boolean };
 }
 
 export type ShellCheckResult = CheckResult & { deps: null; executableSha256: string };
@@ -89,10 +90,10 @@ export function startShellCheck(opts: ShellCheckOptions): { checkRunId: string; 
       try {
         // short: a Unix socket path in it must stay under 104 bytes
         tmp = await mkdtemp(join(tmpdir(), "canvastty-check-"));
-        const profile = buildCheckProfile({ work: opts.ws.repo, tmp, root: opts.sandbox.root, realHome: opts.sandbox.realHome });
+        const profile = buildCheckProfile({ work: opts.ws.repo, tmp, root: opts.sandbox.root, realHome: opts.sandbox.realHome, ...(opts.sandbox.outside ? { outside: true } : {}) });
         const profilePath = join(tmp, ".canvastty-profile.sb");
         await writeFile(profilePath, profile.text, { mode: 0o400 });
-        const st = await checkSelftest({ profilePath, work: opts.ws.repo, tmp, root: opts.sandbox.root, realHome: opts.sandbox.realHome, launch: opts.launch });
+        const st = await checkSelftest({ profilePath, work: opts.ws.repo, tmp, root: opts.sandbox.root, realHome: opts.sandbox.realHome, ...(opts.sandbox.outside ? { outside: true } : {}), launch: opts.launch });
         if (!st.passed) throw new Error(`the sandbox self-test failed: ${st.failed.map((f) => `${f.name} (${f.detail})`).join("; ")}`);
         sandboxed = { tmp, profilePath, sha256: profile.sha256 };
       } catch (e) {
@@ -111,7 +112,7 @@ export function startShellCheck(opts: ShellCheckOptions): { checkRunId: string; 
     // ---- the process, under the supervisor (its own process group; stop = INT, TERM, KILL) ----
     const line = c.argv.at(-1) ?? "";
     const run = runShell({
-      shell: c.executable, line, cwd: opts.ws.repo, env: sandboxed ? { ...opts.env, ...SANDBOX_ENV, TMPDIR: sandboxed.tmp } : opts.env, launch: opts.launch,
+      shell: c.executable, line, cwd: opts.ws.repo, env: sandboxed ? checkEnv({ ...opts.env, ...SANDBOX_ENV }, sandboxed.tmp, opts.sandbox?.outside === true) : opts.env, launch: opts.launch,
       ...(sandboxed ? { profile: sandboxed.profilePath } : {}),
       timeoutMs: c.timeoutMs, maxOutputBytes: c.maxOutputBytes, clock
     });

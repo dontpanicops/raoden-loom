@@ -57,7 +57,7 @@ export function parseCanvasLayerId(layerId: string): CanvasLayerRef | null {
  * The resize handle class is shared by all four cards. `textarea` is required: the
  * sticky-note editor is one, and a drag anchor there would break text selection.
  */
-export const CANVAS_CARD_CONTROL_SELECTOR = "button, input, textarea, .terminal-card__resize-handle";
+export const CANVAS_CARD_CONTROL_SELECTOR = "button:not(.orch-term), input, textarea, .terminal-card__resize-handle";
 
 /** Viewport-local marquee rectangle, ready for absolute positioning. */
 export interface CanvasMarqueeRect {

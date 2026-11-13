@@ -32,7 +32,7 @@ const fallback = {
   sessionRowColorMode: "status",
   homeLauncherProviders: ["codex", "claude", "qwen", "kimi", "opencode", "hermes", "grok", "omp", "pi"],
   homeLimitProviders: ["codex", "claude", "qwen", "kimi", "opencode", "grok"],
-  canvasLauncherItems: ["codex", "claude", "qwen", "opencode", "terminal"],
+  canvasLauncherItems: ["terminal", "codex", "claude", "qwen", "opencode"],
   radialLauncherItems: ["codex", "claude", "qwen", "opencode", "note", "terminal", "browser", "settings"],
   radialLauncherEnabled: false,
   canvasMenuStyle: "mock",
@@ -175,6 +175,12 @@ test("terminal restore remains opt-in and canvas regions are bounded and normali
     size: { width: 360, height: 3_000 }
   }]);
   assert.equal(normalizeSettings({ restoreTerminalSessions: "yes" }, fallback).restoreTerminalSessions, false);
+});
+
+test("a region without a picked colour keeps \"theme\"; a hex keeps its own colour (D-043)", () => {
+  const base = { title: "T", position: { x: 0, y: 0 }, size: { width: 500, height: 400 } };
+  const normalized = normalizeSettings({ canvasRegions: [{ ...base, id: "a", color: "theme" }, { ...base, id: "b", color: "#b8cf99" }, { ...base, id: "c", color: "red" }] }, fallback);
+  assert.deepEqual(normalized.canvasRegions.map((r) => r.color), ["theme", "#B8CF99"]);
 });
 
 test("colored regions and notes use independent exit persistence gates", async () => {
@@ -808,7 +814,8 @@ test("preserves plugin canvas bounds down to the manifest minimum floor", () => 
 
 test("normalizes resizable Home boundaries within generous safety limits", () => {
   assert.deepEqual(normalizeHomeGridSize({ columns: 24, rows: 20 }), { columns: 24, rows: 20 });
-  assert.deepEqual(normalizeHomeGridSize({ columns: 2, rows: 80 }), { columns: 12, rows: 36 });
+  assert.deepEqual(normalizeHomeGridSize({ columns: 2, rows: 80 }), { columns: 11, rows: 36 });
+  assert.deepEqual(normalizeHomeGridSize({ columns: 12, rows: 8 }), { columns: 12, rows: 8 }); // a saved 12 x 8 stays
   assert.deepEqual(normalizeHomeGridSize({ columns: "wide", rows: 20 }), { columns: 16, rows: 12 });
 });
 
@@ -940,9 +947,9 @@ test("drops overlapping Home placements and always preserves a Settings entry po
 
 // UX audit PR 3: the notification switches — defaults for an older file, each switch kept on its own, garbage ignored.
 test("notification settings: defaults when missing, each switch normalized on its own", () => {
-  assert.deepEqual(normalizeSettings({}, fallback).notifications, { waiting: true, completed: true, failed: true, dockBadge: true, bounce: false, board: true, boardHead: false });
+  assert.deepEqual(normalizeSettings({}, fallback).notifications, { waiting: true, completed: true, failed: true, dockBadge: true, bounce: false, board: true, boardHead: false, banner: true, system: true });
   assert.deepEqual(normalizeSettings({ notifications: { waiting: false, bounce: true, failed: "no", dockBadge: null } }, fallback).notifications,
-    { waiting: false, completed: true, failed: true, dockBadge: true, bounce: true, board: true, boardHead: false });
+    { waiting: false, completed: true, failed: true, dockBadge: true, bounce: true, board: true, boardHead: false, banner: true, system: true });
   assert.deepEqual(normalizeSettings({ notifications: [false] }, fallback).notifications.waiting, true);
 });
 

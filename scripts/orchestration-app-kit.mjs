@@ -197,9 +197,25 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
       // drag on empty canvas, the run panel is scrolled with the wheel), then elementFromPoint must land inside it.
       async clickEl(selector) {
         step(`click ${selector.slice(0, 200)}`);
-        await app.reveal(selector);
-        const c = await app.center(selector);
-        const hit = await app.ev(`(() => { const el = ${selector}; const h = document.elementFromPoint(${c.x}, ${c.y}); return !!el && !!h && (el === h || el.contains(h)); })()`);
+        // a button that shows on its host's hover (the link chip's run row, R12r): the host is brought into view and the pointer rests on it
+        // first, as a person's would; then the button itself
+        const anchor = `(() => { const el = ${selector}; const h = el?.closest("[data-hover-host]"); return h && h !== el ? h.querySelector("[data-hover-anchor]") ?? h : null; })()`;
+        const hosted = await app.ev(`!!${anchor}`);
+        if (hosted) {
+          await app.reveal(anchor);
+          const a = await app.center(anchor);
+          await app.mouse("mouseMoved", a.x, a.y); await sleep(60);
+        }
+        // a hosted button is hit only while the pointer rests on its host: reveal() would pan the canvas by a drag (the pointer leaves, the row hides again)
+        // a control above may have just changed the layout (a line appears under a ticked option): the target is revealed again once if it moved under the pinned foot
+        let c; let hit = false;
+        for (let attempt = 0; attempt < 3 && !hit; attempt++) {
+          if (!hosted) await app.reveal(selector);
+          if (attempt) await sleep(150);
+          c = await app.center(selector);
+          hit = await app.ev(`(() => { const el = ${selector}; const h = document.elementFromPoint(${c.x}, ${c.y}); return !!el && !!h && (el === h || el.contains(h)); })()`);
+          if (hosted) break;
+        }
         if (!hit) throw new Error(`not clickable (covered or outside the window): ${selector}`);
         await app.click(c.x, c.y);
       },
@@ -398,12 +414,16 @@ export async function createAgent(app, label, projectDir) {
   // «Как в макете» (default): one «Агент оркестрации» row opens a submenu with the lead and the executor.
   // «Подробное»: a row per role right in the menu (D-037). Both ways are taken, whichever the menu shows.
   const parent = byText(".canvas-menu [role=menuitem]", "Агент оркестрации");
-  await app.waitFor(`(${parent} || ${byText(".canvas-menu [role=menuitem]", label)}) && true`, `menu item ${label}`);
+  // the row is «Агент Codex» / «Codex» with the role as a hint at the right (ctxAgentCodex, ctxRoleLead): matched by the provider and the role word
+  const provider = label.match(/Codex|Claude/)?.[0] ?? label;
+  const role = /лид/.test(label) ? "лид" : /исполнитель/.test(label) ? "исполнитель" : "";
+  const row = (sel) => `[...document.querySelectorAll(${JSON.stringify(sel)})].find((el) => new RegExp("^(Агент )?${provider}\\s*${role}$").test(el.textContent.trim()))`;
+  await app.waitFor(`(${parent} || ${row(".canvas-menu [role=menuitem]")}) && true`, `menu item ${label}`);
   if (await app.ev(`!!(${parent})`)) {
     await app.clickEl(parent);
-    await app.waitFor(`${byText(".canvas-menu__submenu [role=menuitem]", label)} && true`, `submenu item ${label}`);
-    await app.clickEl(byText(".canvas-menu__submenu [role=menuitem]", label));
-  } else await app.clickEl(byText(".canvas-menu [role=menuitem]", label));
+    await app.waitFor(`${row(".canvas-menu__submenu [role=menuitem]")} && true`, `submenu item ${label}`);
+    await app.clickEl(row(".canvas-menu__submenu [role=menuitem]"));
+  } else await app.clickEl(row(".canvas-menu [role=menuitem]"));
   await app.waitFor(`${q(".orch-dialog input")} && true`, "agent dialog");
   await app.type(q(".orch-dialog input"), projectDir);
   await app.clickEl(q(".orch-dialog button[type=submit]"));

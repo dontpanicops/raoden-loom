@@ -65,6 +65,10 @@ const hold = (p, on) => (on ? fs.writeFileSync(HOLD[p], "") : fs.rmSync(HOLD[p],
 
 // ---------- an older installation: one canvas, every kind of card, no workspaces.json ----------
 const USER_DATA = D("user-data");
+// the folder of a new workspace is chosen with the card's «Изменить…»; the system dialog is answered from this file (main, isolated run)
+const PICK_USER_DATA = USER_DATA;
+const PICK_FILE = D("pick-dir");
+const pickFolder = (folder) => { fs.writeFileSync(PICK_FILE, folder); };
 fs.mkdirSync(path.join(USER_DATA, "orchestration"), { recursive: true });
 const OLD_LEAD = randomUUID(), OLD_EXEC = randomUUID(), OLD_LINK = randomUUID();
 fs.writeFileSync(path.join(USER_DATA, "settings.json"), JSON.stringify({
@@ -129,7 +133,7 @@ const pidOf = async (id, mark) => {
 };
 
 try {
-  app = await launch({ userData: USER_DATA, providers, port: PORT, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh" } });
+  app = await launch({ userData: USER_DATA, providers, port: PORT, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh", CANVASTTY_USER_DATA_DIR: PICK_USER_DATA, CANVASTTY_SMOKE_PICK_DIR_FILE: PICK_FILE } });
   await size(1280, 800);
   await pageReady();
 
@@ -153,7 +157,7 @@ try {
   const create = async (name, folder) => {
     await app.clickEl(q("[data-workspace-new]"));
     await app.waitFor(`${q("[data-ws-form]")} && true`, "new workspace dialog");
-    await app.type(q("[data-ws-root]"), folder);
+    pickFolder(folder); await app.clickEl(q("[data-ws-pick]")); await app.waitFor(`${q("code[data-ws-root]")} && ${q("code[data-ws-root]")}.textContent === ${JSON.stringify(folder)}`, "the chosen folder");
     await app.type(q("[data-ws-title]"), name);
     await app.clickEl(q("[data-ws-submit]"));
     await app.waitFor(`!${q("[data-ws-form]")}`, "dialog closed");
@@ -166,7 +170,7 @@ try {
   const B = await create("Бета", projectB);
   // the same folder again: the dialog names the workspace that has it
   await app.clickEl(q("[data-workspace-new]"));
-  await app.type(q("[data-ws-root]"), projectA);
+  pickFolder(projectA); await app.clickEl(q("[data-ws-pick]")); await app.waitFor(`${q("code[data-ws-root]")} && ${q("code[data-ws-root]")}.textContent === ${JSON.stringify(projectA)}`, "the chosen folder");
   await app.waitFor(`${q("[data-ws-twin]")} && true`, "twin warning");
   expect(await app.ev(`${q("[data-ws-submit]")}.disabled`), "a second workspace for the same folder needs a choice", null);
   await app.clickEl(q("[data-ws-open-twin]"));
@@ -364,7 +368,7 @@ try {
   await app.waitFor(`${q("[data-ws-browser-elsewhere]")} && true`, "browser elsewhere notice");
   // R6-C (mock 17): the title says where the browser is, «Перейти» names the space in its tooltip
   const where = await app.ev(`document.getElementById(document.querySelector("[data-ws-browser-elsewhere]").closest("[role=dialog]").getAttribute("aria-labelledby")).textContent + " | " + ${q("[data-ws-browser-go]")}.title`);
-  expect(where.split(" | ").every((x) => x.includes("Общий холст")), "W10: B says where the browser is", where);
+  expect(where.split(" | ").every((x) => /Общ(ий|ем) холст/.test(x)), "W10: B says where the browser is", where);
   await app.shot("06-browser-elsewhere-1280");
   await app.clickEl(q("[data-ws-browser-bring]"));
   await app.waitFor(`${q('[data-canvas-layer-id="browser"]')} && true`, "browser card in B");
@@ -389,7 +393,7 @@ try {
     await app.waitFor(`${q("[data-ws-close]")} && true`, "close dialog");
   };
   await closeDialog();
-  expect(await app.ev(`document.querySelectorAll("[data-ws-close-item]").length === 2`), "W9: the dialog lists the run and the terminal", await text(q("[data-ws-close]")));
+  expect(await app.ev(`/1 запуск и 1 терминал/.test(document.querySelector("[data-ws-close] .ws-close__text")?.textContent ?? "")`), "W9: the dialog counts the run and the terminal (the list shows after «Остановить всё и скрыть…»)", await text(q("[data-ws-close]")));
   await app.clickEl(q("[data-ws-close-cancel]"));
   await app.waitFor(`!${q("[data-ws-close]")}`, "R1: the close dialog is gone");
   expect(await app.ev(`document.activeElement === ${q("[data-workspace-menu]")}`), "R1: focus returns to the opener after a dialog with autoFocus", await app.ev("document.activeElement?.outerHTML.slice(0, 120)"));
@@ -420,7 +424,7 @@ try {
   await reload();
   expect((await state()).activeId === B && near(await cameraNow(), camB2), "after a reload: the same workspace and camera", { now: await cameraNow(), camB2 });
   await app.quit();
-  app = await launch({ userData: USER_DATA, providers, port: PORT + 1, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh" } });
+  app = await launch({ userData: USER_DATA, providers, port: PORT + 1, shots: SHOTS, env: { HOME: D("home"), SHELL: "/bin/sh", CANVASTTY_USER_DATA_DIR: PICK_USER_DATA, CANVASTTY_SMOKE_PICK_DIR_FILE: PICK_FILE } });
   await size(1280, 800);
   await pageReady();
   s1 = await state();
@@ -440,11 +444,72 @@ try {
   await app.shot("08-history-after-restart-1280");
   await app.key("Escape", "Escape", 27);
 
+  // ---------- F-a (D-041, SPEC 11.7): labels, «New workspace…» in the move dialog, ⌘↵ in the palette ----------
+  const termsNow = () => app.ev("window.canvasTTY.terminal.list()");
+  await switchTo(A);
+  await app.clickEl(q("[data-workspace-menu]"));
+  await app.clickEl(q('[data-ws-action="settings"]'));
+  await app.waitFor(`${q("[data-ws-form]")} && ${q("[data-ws-label-pick]")} && true`, "F-a: the settings dialog with the label row");
+  expect(await app.ev(`${q('[data-ws-label-pick="0"]')}.getAttribute("aria-checked") === "true" && document.querySelectorAll("[data-ws-label-pick]").length === 6`), "F-a: five colours and «no label», none chosen yet", null);
+  await app.shot("09-label-form-1280");
+  await app.clickEl(q('[data-ws-label-pick="3"]'));
+  await app.clickEl(q("[data-ws-submit]"));
+  await app.waitFor(`!${q("[data-ws-form]")}`, "F-a: saved");
+  expect((await state()).workspaces.find((w) => w.id === A).label === 3, "F-a: the label is stored in main", null);
+  const dot = await app.ev(`(() => { const el = ${tab(A)}.querySelector("[data-ws-label]"); if (!el) return null; const r = el.getBoundingClientRect(); const s = getComputedStyle(el); const name = ${tab(A)}.querySelector(".workspace-bar__name").getBoundingClientRect(); return { w: r.width, h: r.height, radius: s.borderTopLeftRadius, bg: s.backgroundColor, left: r.right <= name.left + 1 }; })()`);
+  expect(dot && dot.w === 8 && dot.h === 8 && dot.radius === "2.5px" && dot.bg !== "rgba(0, 0, 0, 0)" && dot.left, "F-a: an 8px square left of the name in the tab", dot);
+  expect(await app.ev(`!${tab("common")}.querySelector("[data-ws-label]")`), "F-a: the common canvas has no label", null);
+  // «New workspace…» in «Move card»: the form, then the card goes there and the view stays
+  const termF = await api(`window.canvasTTY.terminal.create({ provider: "terminal", profile: "normal", cwd: ${JSON.stringify(projectA)}, position: { x: 1500, y: 1300 } })`);
+  await app.waitFor(`${q(`[data-canvas-layer-id="terminal:${termF.id}"] .xterm-rows`)} && true`, "F-a: terminal drawn");
+  await moveMenu(`[data-canvas-layer-id="terminal:${termF.id}"]`, ".terminal-card__header");
+  expect(await app.ev(`!!${q("[data-ws-move-new]")}`), "F-a: the new-workspace row is in the list", null);
+  await app.shot("10-move-new-row-1280");
+  await app.clickEl(q("[data-ws-move-new]"));
+  await app.waitFor(`${q("[data-ws-form]")} && true`, "F-a: the create form from the move dialog");
+  await app.type(q("[data-ws-title]"), "Гамма");
+  await app.clickEl(q('[data-ws-label-pick="4"]'));
+  await app.clickEl(q("[data-ws-submit]"));
+  await app.waitFor(`!${q("[data-ws-form]")} && !${q("[data-ws-move]")}`, "F-a: created and moved");
+  const sg = await state();
+  const G = sg.workspaces.find((w) => w.title === "Гамма");
+  expect(G?.label === 4 && sg.activeId === A, "F-a: Gamma has its label and the view stays in A", sg);
+  expect((await termsNow()).find((s) => s.id === termF.id)?.workspaceId === G?.id, "F-a: the card is in the new workspace", null);
+  // the palette: ⌘↵ on a terminal row opens it in a new workspace named after it
+  const termH = await api(`window.canvasTTY.terminal.create({ provider: "terminal", profile: "normal", cwd: ${JSON.stringify(projectA)}, position: { x: 1500, y: 1700 } })`);
+  await api(`window.canvasTTY.terminal.rename(${JSON.stringify(termH.id)}, "Фокус-Т")`);
+  await app.waitFor(`${q(`[data-canvas-layer-id="terminal:${termH.id}"] .xterm-rows`)} && true`, "F-a: terminal H drawn");
+  await chord("k", "KeyK", 75);
+  await app.type(q(".canvas-command-palette__search input"), "Фокус-Т");
+  await app.waitFor(`${q("[data-palette-new-ws]")} && ${q("[data-palette-new-ws]")}.getAttribute("aria-disabled") === "false"`, "F-a: the footer hint, enabled on a terminal row");
+  expect(/⌘↵/.test(await text(q("[data-palette-new-ws]"))), "F-a: the footer says ⌘↵", await text(q("[data-palette-new-ws]")));
+  await app.shot("11-palette-new-ws-1280");
+  await chord("Enter", "Enter", 13);
+  await app.waitFor(`!${q(".canvas-command-palette")}`, "F-a: palette closed");
+  await app.waitFor(`document.querySelector("[data-workspace-tab][aria-selected=true]")?.textContent.includes("Фокус-Т")`, "F-a: the new workspace is shown");
+  const sh = await state();
+  const H = sh.workspaces.find((w) => w.title === "Фокус-Т");
+  expect(H && sh.activeId === H.id && (await termsNow()).find((s) => s.id === termH.id)?.workspaceId === H.id, "F-a: ⌘↵ moved the terminal into a new workspace and showed it", sh);
+  expect(await app.ev(`!!${q(`[data-canvas-layer-id="terminal:${termH.id}"]`)}`), "F-a: the terminal card is drawn there", null);
+  // ⌘↵ on an action row does nothing
+  await chord("k", "KeyK", 75);
+  await app.type(q(".canvas-command-palette__search input"), "HOME");
+  await app.waitFor(`${q("[data-palette-new-ws]")}?.getAttribute("aria-disabled") === "true"`, "F-a: the hint is dim on an action row");
+  const count = (await state()).workspaces.length;
+  await chord("Enter", "Enter", 13);
+  await sleep(300);
+  expect((await state()).workspaces.length === count, "F-a: ⌘↵ on an action row creates nothing", null);
+  await app.key("Escape", "Escape", 27);
+  await app.waitFor(`!${q(".canvas-command-palette")}`, "F-a: palette closed again");
+  await switchTo(A);
+
   // ---------- the removal rules seen from the UI ----------
   await app.clickEl(q("[data-workspace-menu]"));
   await app.clickEl(q('[data-ws-action="remove"]'));
-  await app.waitFor(`${q("[data-ws-message]")} && true`, "removal refused");
-  expect((await text(q("[data-ws-message]"))).length > 0 && (await state()).workspaces.some((w) => w.id === A), "a workspace with cards and history is not removed", await text(q("[data-ws-message]")));
+  await app.waitFor(`${q("[data-ws-delete]")} && true`, "the delete confirmation");
+  await app.clickEl(q("[data-ws-delete-go]"));
+  await app.waitFor(`${q("[data-ws-delete] .dialog-error")} && true`, "removal refused");
+  expect((await text(q("[data-ws-delete] .dialog-error"))).length > 0 && (await state()).workspaces.some((w) => w.id === A), "a workspace with cards and history is not removed", await text(q("[data-ws-delete] .dialog-error")));
 } catch (error) {
   failures.push(`error: ${error?.stack ?? error}`);
   try { await app?.shot("failure"); } catch {}

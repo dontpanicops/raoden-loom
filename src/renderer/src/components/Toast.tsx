@@ -8,7 +8,7 @@ interface ToastProps {
   onDismiss(id: number): void;
 }
 
-const ICON: Record<ToastItem["kind"], UiIconName> = { success: "done", info: "info", error: "error", waiting: "bell" };
+const ICON: Record<ToastItem["kind"], UiIconName> = { success: "status-done", info: "info", error: "status-failed", waiting: "bell" };
 
 function ToastCard({ toast, closeLabel, onDismiss }: { toast: ToastItem; closeLabel: string; onDismiss(id: number): void }): React.JSX.Element {
   useEffect(() => {
@@ -19,16 +19,17 @@ function ToastCard({ toast, closeLabel, onDismiss }: { toast: ToastItem; closeLa
   }, [toast.id, toast.kind, onDismiss]);
 
   const urgent = toast.kind === "error" || toast.kind === "waiting";
+  const compact = toast.kind === "success" && !toast.title && !toast.action; // mock 03: «Терминал создан» is one line without «×»; it goes away by itself
   return (
-    <div className={`toast toast--${toast.kind} surface-3`} role={urgent ? "alert" : "status"}>
-      <UiIcon name={ICON[toast.kind]} size={16} />
+    <div className={`toast toast--${toast.kind} ${compact ? "toast--compact" : ""} surface-3`} role={urgent ? "alert" : "status"}>
+      <UiIcon name={ICON[toast.kind]} size={20} />
       <span className="toast__body">
         {toast.title && <strong className="toast__title">{toast.title}</strong>}
         <span className="toast__message">{toast.message}</span>
       </span>
       {toast.action ? (
         <button type="button" className="toast__action" onClick={() => { toast.action?.run(); onDismiss(toast.id); }}>{toast.action.label}</button>
-      ) : (
+      ) : compact ? null : (
         <button type="button" className="toast__close" aria-label={closeLabel} onClick={() => onDismiss(toast.id)}><UiIcon name="close" size={14} /></button>
       )}
     </div>

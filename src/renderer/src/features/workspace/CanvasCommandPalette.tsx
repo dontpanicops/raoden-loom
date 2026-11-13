@@ -36,6 +36,8 @@ interface CanvasCommandPaletteProps {
   // Project workspaces: one command per open workspace, in the switcher's order (⌘1…⌘9 on macOS).
   workspaces?: readonly { id: string; title: string }[];
   onSwitchWorkspace?(id: string): void;
+  // Cmd+Enter on a terminal row (mock 10): the card goes to a new workspace named after it. Absent: the hint is not shown.
+  onOpenInNewWorkspace?(session: SessionSnapshot): void;
   onClose(): void;
 }
 
@@ -48,6 +50,7 @@ type CommandItem = {
   icon?: UiIconName;
   provider?: ProviderId;
   status?: SessionSnapshot["status"];
+  session?: SessionSnapshot;
   shortcut?: string;
   disabledHint?: string; // shown, not run (orchestration where it is unavailable)
   run(): void;
@@ -76,6 +79,7 @@ export function CanvasCommandPalette({
   onShowGettingStarted,
   workspaces = [],
   onSwitchWorkspace,
+  onOpenInNewWorkspace,
   onClose
 }: CanvasCommandPaletteProps): React.JSX.Element {
   const input = useRef<HTMLInputElement>(null);
@@ -90,6 +94,7 @@ export function CanvasCommandPalette({
       searchDetail: PROVIDERS[session.provider].label,
       provider: session.provider,
       status: session.status,
+      session,
       run: () => onFocusSession(session)
     })),
     ...workspaces.map((w, i) => ({
@@ -108,7 +113,7 @@ export function CanvasCommandPalette({
       kind: "action",
       label: t(locale, "canvasMenuCreateRegion"),
       searchDetail: t(locale, "canvasMenuActions"),
-      icon: "maximize",
+      icon: "region",
       run: onCreateRegion
     },
     {
@@ -175,7 +180,7 @@ export function CanvasCommandPalette({
       kind: "action",
       label: t(locale, "settings"),
       searchDetail: t(locale, "canvasMenuActions"),
-      icon: "settings",
+      icon: "sliders-horizontal",
       shortcut: window.canvasTTY.window.isMacOS ? "⌘," : "Ctrl+,",
       run: onOpenSettings
     }
@@ -184,7 +189,8 @@ export function CanvasCommandPalette({
     const normalized = query.trim().toLocaleLowerCase(locale);
     // the arrow keys walk the rows in the order they are shown: waiting, sessions, actions
     const rank = { waiting: 0, sessions: 1, actions: 2 } as const;
-    const shown = [...commands].sort((a, b) => rank[a.group] - rank[b.group]);
+    const first = (c: CommandItem): number => (c.id === "launch:terminal" ? 0 : c.id === "go:home" ? 1 : c.id === "open:getting-started" ? 2 : 3); // mock 10: the three actions of its «Actions»
+    const shown = [...commands].sort((a, b) => rank[a.group] - rank[b.group] || (a.group === "actions" ? first(a) - first(b) : 0));
     if (!normalized) return shown;
     return shown.filter((command) => (
       `${command.label} ${command.searchDetail}`.toLocaleLowerCase(locale).includes(normalized)
@@ -223,17 +229,22 @@ export function CanvasCommandPalette({
         <CanvasMenuRow
           {...sharedProps}
           indent
-          right={waiting
-            ? <CanvasMenuKbd>↵</CanvasMenuKbd>
-            : chip && <span className={`canvas-palette__chip canvas-palette__chip--${chip.tone}`}>{t(locale, chip.label)}</span>}
+          right={waiting ? <CanvasMenuKbd>↵</CanvasMenuKbd> : undefined}
           key={command.id}
         >
           <span className="canvas-menu__provider">
             <ProviderIcon provider={command.provider} size="small" />
             {command.label}
             {waiting && <span className="canvas-palette__detail">{PROVIDERS[command.provider].label} · {t(locale, "statusNeedsApproval")}</span>}
+            {chip && <span className={`canvas-palette__chip canvas-palette__chip--${chip.tone}`}>{t(locale, chip.label)}</span>}
           </span>
         </CanvasMenuRow>
+      );
+    }
+
+    if (command.id === "launch:terminal") {
+      return (
+        <CanvasMenuRow {...sharedProps} icon="prompt" muted right={window.canvasTTY.window.isMacOS ? <CanvasMenuKbd>⌘T</CanvasMenuKbd> : undefined} key={command.id}>{command.label}</CanvasMenuRow>
       );
     }
 
@@ -294,7 +305,10 @@ export function CanvasCommandPalette({
             setSelected((current) => filtered.length === 0 ? 0 : (current - 1 + filtered.length) % filtered.length);
           } else if (event.key === "Enter") {
             event.preventDefault();
-            run(filtered[selectedIndex]);
+            const row = filtered[selectedIndex];
+            if ((event.metaKey || event.ctrlKey) && onOpenInNewWorkspace) {
+              if (row?.session) { onOpenInNewWorkspace(row.session); onClose(); }
+            } else run(row);
           }
         }}
       >
@@ -336,6 +350,7 @@ export function CanvasCommandPalette({
         <footer className="canvas-command-palette__footer">
           <span>{t(locale, "paletteFooterChoose")}</span>
           <span>{t(locale, "paletteFooterOpen")}</span>
+          {onOpenInNewWorkspace && <span data-palette-new-ws aria-disabled={!filtered[selectedIndex]?.session}>{t(locale, "paletteFooterNewWorkspace")}</span>}
         </footer>
       </section>
     </div>

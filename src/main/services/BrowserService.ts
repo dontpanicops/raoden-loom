@@ -123,6 +123,7 @@ export class BrowserService {
   private readonly downloadWaiters = new Set<DownloadWaiter>();
   private readonly observedOwners = new WeakSet<BrowserWindow>();
   private readonly presenceTimer: NodeJS.Timeout;
+  private readonly defaultDownloadRoot: string;
   private browserSession: Session | null = null;
   private browserPagePreloadId: string | null = null;
   private activeTabId: string | null = null;
@@ -151,7 +152,8 @@ export class BrowserService {
     this.now = options.now ?? Date.now;
     this.canvasNavigationInput = options.canvasNavigationInput ?? null;
     const userDataPath = options.userDataPath ?? app.getPath("userData");
-    const downloadRoot = join(options.downloadRoot ?? join(app.getPath("downloads"), "CanvasTTY"), randomUUID());
+    const downloadRoot = join(options.downloadRoot ?? join(app.getPath("downloads"), "Raoden Loom"), randomUUID());
+    this.defaultDownloadRoot = downloadRoot;
     this.restoreTabsEnabled = options.restoreTabs ?? true;
     this.store = new BrowserStore(userDataPath);
     this.policy = new BrowserPolicyService({
@@ -310,6 +312,17 @@ export class BrowserService {
 
   beginRendererWheelSequence(input: unknown): void {
     this.canvasGestures.beginRendererSequence(input);
+  }
+
+  /** Settings → Browser → Downloads: a folder the person chose, or null for the app's own one. */
+  async setDownloadFolder(folder: string | null): Promise<void> {
+    this.policy.setDownloadRoot(folder ?? this.defaultDownloadRoot);
+    await mkdir(this.policy.downloadRoot, { recursive: true });
+  }
+
+  /** Where downloads go now (shown in Settings). */
+  downloadFolder(): string {
+    return this.policy.downloadRoot;
   }
 
   async setRestoreTabs(enabled: boolean): Promise<void> {
@@ -883,12 +896,17 @@ export class BrowserService {
       this.emit();
     });
     item.once("done", (_doneEvent, state) => {
-      download.receivedBytes = item.getReceivedBytes();
-      download.totalBytes = item.getTotalBytes();
-      download.status = downloadStatus(state);
-      download.completedAt = this.now();
-      this.resolveDownloadWaiters(download);
-      this.emit();
+      // the saved file may be sent (an upload) once it is complete, as the file it is now (security review L5)
+      const receivedBytes = item.getReceivedBytes();
+      const totalBytes = item.getTotalBytes();
+      void (state === "completed" ? this.policy.downloadCompleted(savePath).catch(() => undefined) : Promise.resolve()).then(() => {
+        download.receivedBytes = receivedBytes;
+        download.totalBytes = totalBytes;
+        download.status = downloadStatus(state);
+        download.completedAt = this.now();
+        this.resolveDownloadWaiters(download);
+        this.emit();
+      });
     });
     this.emit();
   }

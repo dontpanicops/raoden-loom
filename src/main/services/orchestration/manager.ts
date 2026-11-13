@@ -4,7 +4,7 @@
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { accessSync, constants as fsConstants, readFileSync, realpathSync, statSync } from "node:fs";
-import { mkdir, open, readdir, readFile, realpath, stat, unlink } from "node:fs/promises";
+import { chmod, mkdir, open, readdir, readFile, realpath, stat, unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { promisify } from "node:util";
 import type {
@@ -47,7 +47,7 @@ import type { JournalRecord, RunState, TextRef } from "./journal.ts";
 import { conditionsView, createOrchestrationService, decidedGoal, exportView, findingsView, loadConditions, possiblyStale, progressOf, runView, shownCheckKeys } from "./orchestrationService.ts";
 import type { CommandOutcome, GoalInput, RunCommand, RunHandle } from "./orchestrationService.ts";
 import { readRun, readText } from "./store.ts";
-import { createReviewExporter, type ReviewInput } from "./reviewExport.ts";
+import { createReviewExporter, exportPaths, insideProject, type ExportTarget, type ReviewInput } from "./reviewExport.ts";
 import type { RunReadResult } from "./store.ts";
 import type { SupervisorLaunch } from "./types.ts";
 import { BOARD_REF, applyToProject, branchCommit, branchNameOk, diffTreeNames, diffTreePath, openWorkspace, readTaken, readTreeFile, readWorkspacePlace, snapshotCopyTree, takeToBranch, writeTaken } from "./workspace.ts";
@@ -215,8 +215,8 @@ export function createRunManager(deps: RunManagerDeps) {
   const activityLog = createActivityLog(deps.root); // reads nothing until asked
   const profiles = createProfileStore(deps.root); // reads nothing until asked
   // F4 (T-9, §8): the review export of a completed board task's run, outside the project's tree — once per run
-  const exporter = createReviewExporter({ root: deps.root, source: (runId) => reviewSource(runId), ...(deps.afterExportTmp ? { afterTmp: deps.afterExportTmp } : {}) });
-  const writeReviewExport = (runId: string): Promise<boolean> => exporter.write(runId);
+  const exporter = createReviewExporter({ root: deps.root, source: (runId, manual) => reviewSource(runId, manual), target: (runId) => reviewTarget(runId), ...(deps.afterExportTmp ? { afterTmp: deps.afterExportTmp } : {}) });
+  const writeReviewExport = (runId: string, manual = false): Promise<boolean> => exporter.write(runId, manual);
   // F3 (T-13a): the options of the places of these tasks from their projects' saved profiles — every reading of the
   // statuses in main takes them, as the window and the autopilot do (principle 8)
   async function optsOf(tasks: readonly Pick<BoardTask, "workspaceId" | "project">[]): Promise<BoardOpts & { remoteBase: Set<string>; issueRequired: Set<string>; pushFields: Map<string, readonly PushField[]> }> {
@@ -406,6 +406,7 @@ export function createRunManager(deps: RunManagerDeps) {
       return { rt, svc: createOrchestrationService({
         root, gitPath: deps.gitPath(), agents: rt.agents, stopGraceMs: deps.stopGraceMs, journalV2: deps.journalV2 === true,
         activity: (runId) => createRunActivity(activityLog, runId),
+        askPush: async () => (await profiles.get(source))?.askPush !== false,
         // Saved "for this project" decisions: this project's profile only.
         grants: {
           list: async () => (await profiles.get(source))?.grants ?? [],
@@ -566,15 +567,26 @@ export function createRunManager(deps: RunManagerDeps) {
 
   // F4 (T-9, §8): what the review export of a run is made of — each field from the source §8 names; null: no export is
   // due (not completed, its goal asks for none, nothing was committed). Reads only: the journal, the board, git's tree
-  async function reviewSource(runId: string): Promise<ReviewInput | null> {
+  // F-c (D-041 p. 1): the folder and format frozen in the run's goal; a folder inside the project is refused (a file in the
+  // project's tree could end up in a commit): the export is not written and the person is told by the button
+  async function reviewTarget(runId: string): Promise<ExportTarget> {
+    const to = (await createdGoal(runId))?.exportTo;
+    const format = to?.format === "markdown" || to?.format === "json" ? to.format : "both";
+    if (typeof to?.dir !== "string" || !to.dir) return { dir: null, format };
+    const project = (await readWorkspacePlace(deps.root, runId)).source;
+    if (await insideProject(to.dir, project)) refuse("export_folder_in_project", "the review's folder is inside the project");
+    return { dir: to.dir, format, project };
+  }
+  async function reviewSource(runId: string, manual = false): Promise<ReviewInput | null> {
     if (!isUuid(runId)) return null;
-    if ((await createdGoal(runId))?.export !== true) return null; // cheap: the first record's goal, before the whole journal
+    const asked = (await createdGoal(runId))?.export === true;
+    if (!asked && !manual) return null; // cheap: the first record's goal, before the whole journal
     const read = await readRun(deps.root, runId).catch(() => null);
     const st = read && !newerIntegrity(read.integrity.status) ? read.state : null;
     if (st?.status !== "completed") return null;
     const text = async <T>(ref: TextRef): Promise<T> => JSON.parse((await readText(deps.root, runId, ref)).toString("utf8")) as T;
     const goal = await text<Goal>(st.goal);
-    if (goal.export !== true || !goal.task || !goal.base) return null;
+    if ((goal.export !== true && !manual) || !goal.task || !goal.base) return null;
     const commit = st.orch.finish.filter((f) => f.step === "commit").at(-1);
     if (commit?.status !== "done" || !commit.commit) return null; // «nothing to commit»: no export
     const place = await readWorkspacePlace(deps.root, runId);
@@ -810,7 +822,7 @@ export function createRunManager(deps: RunManagerDeps) {
   async function resolveGoal(source: string, runId: string, g: OrchestrationGoalInput & { branch?: string }, rt: NativeRuntime | null, t?: BoardTask,
     push: NonNullable<GoalInput["finish"]>["push"] | null = null): Promise<GoalInput & { prepareAuto?: boolean }> {
     // export and noMcp (F4, T-9, T-14) are main's alone: whatever a caller passed is dropped, the profile decides
-    const { mode, finish, models: over, accessOverride: _override, export: _export, noMcp: _noMcp, ...given } = g as typeof g & { export?: unknown; noMcp?: unknown };
+    const { mode, finish, models: over, accessOverride: _override, export: _export, noMcp: _noMcp, checksOutside: _outside, exportTo: _exportTo, askPush: _ask, ...given } = g as typeof g & { export?: unknown; noMcp?: unknown; checksOutside?: unknown; exportTo?: unknown; askPush?: unknown };
     const saved = await profiles.get(source);
     const chosen = roleModels(saved, over);
     const models = Object.fromEntries(Object.entries(chosen).filter(([, m]) => m !== null)) as Partial<Record<keyof OrchestrationRoleModels, string>>;
@@ -822,7 +834,7 @@ export function createRunManager(deps: RunManagerDeps) {
       if (item.level === "blocker") refuse("model_unavailable", `Codex: model ${String(item.facts?.model)} is not available to your account. Choose another model in the project settings`);
     }
     // F4 (T-14): the profile's runMcp: false — every run of the project without MCP
-    const rest: Omit<GoalInput, "mode" | "finish"> = { ...given, ...(Object.keys(models).length ? { models } : {}), ...(saved?.runMcp === false ? { noMcp: true as const } : {}) };
+    const rest: Omit<GoalInput, "mode" | "finish"> = { ...given, ...(Object.keys(models).length ? { models } : {}), ...(saved?.runMcp === false ? { noMcp: true as const } : {}), ...(saved?.checksOutside && deps.journalV2 ? { checksOutside: true as const } : {}) };
     if (!mode) {
       if (finish) refuse("invalid_goal", "actions after success need a run mode");
       await refuseUnsafeTestDb(source, rest.workMode, rt);
@@ -856,13 +868,18 @@ export function createRunManager(deps: RunManagerDeps) {
       access,
       // F4 (T-9): a board task's worktree run with a commit, in a profile that exports the review (it needs runBase and
       // the commit: validateProfile)
-      ...(profile.reviewExport && g.task && workMode === "worktree" && (finish?.commit || finish?.push || push) ? { export: true as const } : {}),
+      ...(profile.reviewExport && g.task && workMode === "worktree" && (finish?.commit || finish?.push || push) ? {
+        export: true as const,
+        ...(profile.reviewExportDir || profile.reviewExportFormat ? { exportTo: { ...(profile.reviewExportDir ? { dir: profile.reviewExportDir } : {}), ...(profile.reviewExportFormat ? { format: profile.reviewExportFormat } : {}) } } : {})
+      } : {}),
       ...(any ? {
         finish: {
           commit: finish!.commit || finish!.push || push ? { message: commitMessage(g.text, runId, t?.commitTitle) } : null,
           push: push ?? (finish!.push ? profile.finish.push : null),
           qa: finish!.qa ? profile.finish.qa : null
-        }
+        },
+        // D-043: «Спрашивать перед каждым push» (on unless the profile says false) — the push waits for the person
+        ...((push || finish!.push) && profile.askPush !== false && deps.journalV2 ? { askPush: true as const } : {})
       } : {})
     };
   }
@@ -1001,7 +1018,7 @@ export function createRunManager(deps: RunManagerDeps) {
   // has state the journal does not (the active turn, a permission request), so it is read each time.
   const goalMeta = new Map<string, { taskId: string | null; taskKey: string | null; createdAt: number; goalWorkMode: OrchestrationWorkMode | null; board: string | null; decompositionOf?: string }>();
   const factsCache = new Map<string, { stamp: string; facts: RunTaskFacts }>();
-  type CreatedGoal = { task?: { id?: unknown; key?: unknown }; createdAt?: unknown; workMode?: unknown; base?: { branch?: unknown }; decomposition?: { taskId?: unknown }; export?: unknown };
+  type CreatedGoal = { task?: { id?: unknown; key?: unknown }; createdAt?: unknown; workMode?: unknown; base?: { branch?: unknown }; decomposition?: { taskId?: unknown }; export?: unknown; exportTo?: { dir?: unknown; format?: unknown } };
   // the goal of the journal's first record (run.created) alone — the rest of the journal is not read
   async function createdGoal(runId: string): Promise<CreatedGoal | null> {
     const fh = await open(join(deps.root, "runs", runId, "journal.jsonl"), "r").catch(() => null);
@@ -1146,6 +1163,7 @@ export function createRunManager(deps: RunManagerDeps) {
   const boardListeners = new Set<(e: { kind: "inbox" }) => void>();
   const inbox = createInbox({ dir: join(deps.root, "inbox"), check: (file, bytes) => importFile(file, bytes, null), apply: applyImport,
     changed: () => { for (const l of boardListeners) { try { l({ kind: "inbox" }); } catch { /* its own */ } } } });
+  const importSources = new Map<string, string>(); // F-c: sha256 of a file the person picked -> its path, for «Open file»
   const inboxName = (file: unknown): string => (typeof file === "string" && inboxNameOk(file) ? file : refuse("invalid_argument", "a file of inbox/ by its name"));
   async function boardView(): Promise<BoardView> {
     const r = await board.read();
@@ -1716,7 +1734,33 @@ export function createRunManager(deps: RunManagerDeps) {
       if (!path) return null;
       const name = basename(path).slice(0, 255);
       const read = await readImportFile(path, name);
-      return "report" in read ? read.report : importFile(name, read.bytes, "any");
+      const report = "report" in read ? read.report : await importFile(name, read.bytes, "any");
+      if (/^[0-9a-f]{64}$/.test(report.sha256)) importSources.set(report.sha256, path); // F-c (D-041 p. 4): «Open file» of the report
+      return report;
+    }),
+    // F-c (D-041 p. 4): the source file of an import report — the path is main's (the file the person picked, else inbox/ or
+    // inbox/done/ by the report's name); the window names the file and its hash, never a path. Only a regular file
+    // (no symbolic link) whose bytes still hash as the report says is handed to the system — as a copy of exactly those
+    // bytes (security review L2: the file itself could change between the hash and the opening), <root>/import-open/<sha>.json
+    boardImportOpen: (file: string, sha: string, openPath: (path: string) => Promise<string>) => result(async (): Promise<null> => {
+      newInputOk();
+      notOpen();
+      const candidates = [importSources.get(sha), ...(inboxNameOk(file) ? [join(deps.root, "inbox", file), join(deps.root, "inbox", "done", file)] : [])].filter((x): x is string => !!x);
+      for (const path of candidates) {
+        const read = await readImportFile(path, basename(path)).catch(() => null);
+        if (!read || "report" in read || sha256(read.bytes) !== sha) continue;
+        const dir = join(deps.root, "import-open");
+        await mkdir(dir, { recursive: true, mode: 0o700 });
+        await chmod(dir, 0o700);
+        const copy = join(dir, `${sha}.json`);
+        await unlink(copy).catch(() => {});
+        const fh = await open(copy, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW, 0o600);
+        try { await fh.writeFile(read.bytes); } finally { await fh.close(); }
+        const error = await openPath(copy);
+        if (error) refuse("open_failed", error);
+        return null;
+      }
+      return refuse("import_file_gone", "the file of this report is no longer where it was read");
     }),
     // T-2: inbox/ — its folders and its poll (the application's start; tests call it), the person's decision on a file
     inboxStart: () => result(async () => { newInputOk(); notOpen(); await inbox.start(); return null; }),
@@ -1724,6 +1768,17 @@ export function createRunManager(deps: RunManagerDeps) {
     // yet gets it (a crash between «completed» and the files); returns the runs written now
     reviewExports: () => result(async () => { newInputOk(); notOpen(); return exporter.catchUp(); }),
     writeReviewExport: (runId: string) => result(() => { newInputOk(); return writeReviewExport(runIdOk(runId)); }), // tests and diagnostics
+    // F-c (D-041 p. 1): «Export the review» by hand — a completed board task's run with a commit; the files of the goal's folder
+    // and format, never over a review that is there. Returns the paths (null: nothing was written — there already, or not due)
+    exportReview: (runId: string) => result(async (): Promise<{ json: string | null; md: string | null; written: boolean }> => {
+      newInputOk();
+      notOpen();
+      const id = runIdOk(runId);
+      const written = await writeReviewExport(id, true);
+      const target = await reviewTarget(id);
+      const { json, md } = exportPaths(deps.root, id, target);
+      return { json, md, written };
+    }),
     inboxScan: () => inbox.scan(), // tests: one poll now
     boardInboxImport: (file: string, sha: string) => result(() => { newInputOk(); notOpen(); return inbox.import(inboxName(file), sha); }),
     boardInboxReject: (file: string) => result(() => { newInputOk(); notOpen(); return inbox.reject(inboxName(file)); }),
@@ -2031,6 +2086,15 @@ export function createRunManager(deps: RunManagerDeps) {
       if (toTerminal.length && (input as { confirmTerminal?: unknown }).confirmTerminal !== true) {
         refuse("terminal_not_confirmed", `"as in my terminal" for ${toTerminal.join(", ")} needs the warning confirmed`);
       }
+      // F-c (security review L1): the network for the lead's checks lets them send what they read — switched on only
+      // with its risk confirmed; already on stays as it is
+      if (p.checksOutside && !saved?.checksOutside && (input as { confirmChecksOutside?: unknown }).confirmChecksOutside !== true) {
+        refuse("checks_outside_not_confirmed", "the network for the lead's checks needs its risk confirmed");
+      }
+      // D-043: pushes without asking — turned off only with its consequence confirmed; already off stays as it is
+      if (p.askPush === false && saved?.askPush !== false && (input as { confirmAskPushOff?: unknown }).confirmAskPushOff !== true) {
+        refuse("ask_push_off_not_confirmed", "pushing without asking needs its consequence confirmed");
+      }
       const before = saved?.grants ?? [];
       const keep = new Set(p.grants.map((g) => g.id));
       let push = p.finish.push;
@@ -2057,6 +2121,8 @@ export function createRunManager(deps: RunManagerDeps) {
         if (asks && (input as { confirmPush?: unknown }).confirmPush !== true) refuse("push_not_confirmed", `the autopilot's push to ${runPush.remote} (${remoteUrl}) needs your confirmation`);
         runPush = { ...runPush, remoteUrl, confirmedAt: asks ? new Date().toISOString() : was?.confirmedAt ?? null };
       }
+      // F-c (D-041 p. 1): the review's folder is never inside the project
+      if (p.reviewExportDir && await insideProject(p.reviewExportDir, project)) refuse("export_folder_in_project", "the review's folder is inside the project: choose one outside it");
       runtimes.delete(`folder:${project}`);
       runtimes.delete(`worktree:${project}`);
       return profiles.save(project, { ...p, grants: before.filter((g) => keep.has(g.id)), finish: { ...p.finish, push }, ...(runBase ? { runBase } : {}), ...(runPush ? { runPush } : {}) });

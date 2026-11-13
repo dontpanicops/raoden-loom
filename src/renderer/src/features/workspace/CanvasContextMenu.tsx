@@ -16,7 +16,6 @@ import {
   CanvasMenuDivider,
   CanvasMenuIcon,
   CanvasMenuKbd,
-  CanvasMenuLabel,
   CanvasMenuRow
 } from "../../components/CanvasMenuPrimitives";
 import {
@@ -24,7 +23,7 @@ import {
   type CanvasContextMenuKind,
   type CanvasSubmenuSide
 } from "./canvasContextRouting";
-import { CANVAS_REGION_COLORS } from "./canvasRegions";
+import { CANVAS_REGION_MENU_COLORS } from "./canvasRegions";
 
 interface CanvasContextMenuProps {
   kind: CanvasContextMenuKind;
@@ -73,8 +72,16 @@ export function CanvasContextMenu({
 }: CanvasContextMenuProps): React.JSX.Element {
   const menu = useRef<HTMLDivElement>(null);
   const orchestration = orchestrationEntry(orchestrationAvailableHere());
+  // mock 22: the role of the agent, in the secondary tone at the right
+  const roleHint = (provider: "codex" | "claude"): React.JSX.Element => <span className="canvas-menu__kbd canvas-menu__role">{t(locale, provider === "codex" ? "ctxRoleLead" : "ctxRoleExecutor")}</span>;
   const [submenu, setSubmenu] = useState<"launch" | "agent" | null>(null);
   const [submenuSide, setSubmenuSide] = useState<CanvasSubmenuSide>("right");
+
+  // an opened submenu takes the focus on its first row (mock 10: the first item lit)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: submenu is the trigger
+  useEffect(() => {
+    if (submenu) menu.current?.querySelector<HTMLButtonElement>(".canvas-menu__submenu .canvas-menu__row")?.focus({ preventScroll: true });
+  }, [submenu]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: kind is the trigger: focus the first row when the menu changes
   useEffect(() => {
@@ -104,6 +111,7 @@ export function CanvasContextMenu({
     <div
       ref={menu}
       className="canvas-menu"
+      data-menu-kind={kind}
       data-interactive="true"
       role="menu"
       aria-label={t(locale, "canvasContextMenu")}
@@ -122,11 +130,11 @@ export function CanvasContextMenu({
     >
       {kind === "empty" && (
         <>
-          <CanvasMenuRow icon="maximize" role="menuitem" onClick={onCreateRegion}>{t(locale, "ctxRegion")}</CanvasMenuRow>
+          <CanvasMenuRow icon="region" role="menuitem" onClick={onCreateRegion}>{t(locale, "ctxRegion")}</CanvasMenuRow>
           <CanvasMenuRow icon="sticky-note" role="menuitem" onClick={onCreateNote}>{t(locale, "ctxNote")}</CanvasMenuRow>
           <div className="canvas-menu__submenu-anchor">
             <CanvasMenuRow
-              icon="terminal"
+              icon="prompt"
               right={<CanvasMenuChevron />}
               role="menuitem"
               aria-haspopup="menu"
@@ -137,7 +145,7 @@ export function CanvasContextMenu({
               <div className={`canvas-menu canvas-menu__submenu canvas-menu__submenu--${submenuSide}`} role="menu">
                 {launcherItems.map((provider) => (
                   provider === "terminal" ? (
-                    <CanvasMenuRow icon="terminal" indent right={window.canvasTTY.window.isMacOS ? <CanvasMenuKbd>⌘T</CanvasMenuKbd> : undefined} role="menuitem" key={provider} onClick={() => onLaunch(provider)}>{PROVIDERS[provider].label}</CanvasMenuRow>
+                    <CanvasMenuRow icon="prompt" indent right={window.canvasTTY.window.isMacOS ? <CanvasMenuKbd>⌘T</CanvasMenuKbd> : undefined} role="menuitem" key={provider} onClick={() => onLaunch(provider)}>{PROVIDERS[provider].label}</CanvasMenuRow>
                   ) : (
                     <CanvasMenuRow indent role="menuitem" key={provider} onClick={() => onLaunch(provider)}>
                       <span className="canvas-menu__provider">
@@ -167,10 +175,10 @@ export function CanvasContextMenu({
             {submenu === "agent" && (
               <div className={`canvas-menu canvas-menu__submenu canvas-menu__submenu--${submenuSide}`} role="menu">
                 {(["codex", "claude"] as const).map((provider) => (
-                  <CanvasMenuRow indent role="menuitem" key={provider} onClick={() => onCreateOrchestrationAgent(provider)}>
+                  <CanvasMenuRow indent role="menuitem" key={provider} right={roleHint(provider)} onClick={() => onCreateOrchestrationAgent(provider)}>
                     <span className="canvas-menu__provider">
                       <ProviderIcon provider={provider} size="small" />
-                      {t(locale, provider === "codex" ? "orchAgentCodex" : "orchAgentClaude")}
+                      {PROVIDERS[provider].label}
                     </span>
                   </CanvasMenuRow>
                 ))}
@@ -178,9 +186,9 @@ export function CanvasContextMenu({
             )}
           </div>
           ) : (["codex", "claude"] as const).map((provider) => (
-            <CanvasMenuRow icon="plus" role="menuitem" key={provider} disabled={orchestration.disabled} title={orchestration.hint ? t(locale, orchestration.hint) : undefined}
+            <CanvasMenuRow iconNode={<ProviderIcon provider={provider} size="small" />} role="menuitem" key={provider} right={roleHint(provider)} disabled={orchestration.disabled} title={orchestration.hint ? t(locale, orchestration.hint) : undefined}
               onClick={() => onCreateOrchestrationAgent(provider)}>
-              {t(locale, provider === "codex" ? "orchAgentCodex" : "orchAgentClaude")}
+              {t(locale, provider === "codex" ? "ctxAgentCodex" : "ctxAgentClaude")}
             </CanvasMenuRow>
           ))}
           <CanvasMenuRow icon="browser" role="menuitem" onClick={onOpenBrowser}>
@@ -188,7 +196,7 @@ export function CanvasContextMenu({
           </CanvasMenuRow>
           <CanvasMenuDivider />
           <CanvasMenuRow
-            icon="settings"
+            icon="sliders-horizontal"
             muted
             right={<CanvasMenuKbd>{window.canvasTTY.window.isMacOS ? "⌘," : "Ctrl+,"}</CanvasMenuKbd>}
             role="menuitem"
@@ -201,26 +209,27 @@ export function CanvasContextMenu({
         <>
           <CanvasMenuRow
             icon="pencil"
-            right={<CanvasMenuKbd>R</CanvasMenuKbd>}
             role="menuitem"
             onClick={onRenameRegion}
           >{t(locale, "canvasMenuRenameRegion")}</CanvasMenuRow>
-          <div className="canvas-menu__row canvas-menu__palette-row" role="group" aria-label={t(locale, "canvasRegionColor")}>
+          <div className="canvas-menu__row canvas-menu__color-title" aria-hidden="true">
             <CanvasMenuIcon icon="palette" />
-            <div className="canvas-menu__swatches">
-              {CANVAS_REGION_COLORS.map((color) => (
-                <button
-                  className={`canvas-menu__swatch ${color === currentRegionColor ? "canvas-menu__swatch--selected" : ""}`}
-                  type="button"
-                  role="menuitemradio"
-                  key={color}
-                  style={{ background: color }}
-                  aria-label={`${t(locale, "canvasRegionColor")} ${color}`}
-                  aria-checked={color === currentRegionColor}
-                  onClick={() => onChangeRegionColor(color)}
-                />
-              ))}
-            </div>
+            <span className="canvas-menu__grow">{t(locale, "canvasMenuColor")}</span>
+          </div>
+          <div className="canvas-menu__swatches" role="group" aria-label={t(locale, "canvasRegionColor")}>
+            {/* mock 18: five colors; the region's own color stays among them when it is one of the rest */}
+            {[...CANVAS_REGION_MENU_COLORS, ...(currentRegionColor && !CANVAS_REGION_MENU_COLORS.some((c) => c === currentRegionColor) ? [currentRegionColor] : [])].map((color) => (
+              <button
+                className={`canvas-menu__swatch ${color === currentRegionColor ? "canvas-menu__swatch--selected" : ""}`}
+                type="button"
+                role="menuitemradio"
+                key={color}
+                style={{ background: color }}
+                aria-label={`${t(locale, "canvasRegionColor")} ${color}`}
+                aria-checked={color === currentRegionColor}
+                onClick={() => onChangeRegionColor(color)}
+              />
+            ))}
           </div>
           <CanvasMenuRow icon="sticky-note" role="menuitem" onClick={onCreateNote}>
             {t(locale, "canvasMenuNoteInRegion")}
@@ -229,10 +238,10 @@ export function CanvasContextMenu({
             {t(locale, "wsMoveToWorkspace")}
           </CanvasMenuRow>
           <CanvasMenuDivider />
-          <CanvasMenuRow icon="trash" danger role="menuitem" onClick={onDeleteRegion}>
+          <CanvasMenuRow indent danger role="menuitem" onClick={onDeleteRegion}>
             {t(locale, "canvasMenuDeleteRegion")}
           </CanvasMenuRow>
-          <CanvasMenuLabel>{t(locale, "canvasMenuRegionContentsStay")}</CanvasMenuLabel>
+          <div className="canvas-menu__note">{t(locale, "canvasMenuRegionContentsStay")}</div>
         </>
       )}
 

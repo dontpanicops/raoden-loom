@@ -1315,7 +1315,7 @@ function completedAllowed(state: RunState, completion: { kind: CompletionKind })
 // the goal's commands, the proposal, the decision and the completion's kind and checks). A violation: corrupt with
 // phase "texts". ponytail: finish.intent params against the confirmation and the A2–A4 rules come with their records.
 export interface V2Texts {
-  goal: { commands?: unknown; mode?: unknown; criteria?: unknown };
+  goal: { commands?: unknown; mode?: unknown; criteria?: unknown; checksOutside?: unknown; askPush?: unknown };
   proposal: { checks: { id: string; command: string }[] } | null;
   decision: { checks: { id: string; command: string; origin: string }[] } | null;
   // A2 (§2.7): the texts of o.plans in their order, the lead's review answers (turn.finished.report) by turn, and the
@@ -1344,6 +1344,9 @@ export function textsConflict(state: RunState, t: V2Texts): string | null {
   if (d) {
     if (!t.decision || !t.proposal || !numbered(t.decision.checks, d.count)) return "the decision's lines do not match its record";
     if (d.by === "autopilot" && t.goal.mode !== undefined && t.goal.mode !== "autopilot") return "an autopilot decision in step mode";
+    // F-c (security review M2): "denied" says the lead's lines run in the profile; whether that profile reaches the
+    // network is the goal's checksOutside — the autopilot never accepts such lines (cycle.ts autoAccepts)
+    if (d.by === "autopilot" && t.goal.checksOutside === true && d.count > 0) return "an autopilot decision on checks that may reach the network";
     const proposed = t.proposal.checks.map((c) => c.command);
     if (d.decision === "accept" && t.decision.checks.some((c, i) => c.command !== proposed[i])) return "an acceptance that is not the proposal";
     if (t.decision.checks.some((c) => c.origin !== (proposed.includes(c.command) ? "lead" : "person"))) return "an origin against the rule";
@@ -1362,12 +1365,14 @@ export function textsConflict(state: RunState, t: V2Texts): string | null {
     const f = replayFindings(state, { plans: t.plans, reports: t.reports ?? {}, applied: t.applied, choices: t.choices ?? {} });
     if (f.problem) return f.problem;
   }
-  // A4 (§2.3): push and QA of a run without checks deliver what the person confirmed — the same tree and commit
+  // A4 (§2.3): push and QA of a run without checks deliver what the person confirmed — the same tree and commit; so does
+  // the push of a goal that asks before each push (D-043: finishParams has every push of such a goal, store.ts)
+  if (t.goal.askPush === true && o.finish.some((f) => f.step === "push" && !Object.hasOwn(t.finishParams ?? {}, f.intentId))) return "a push of a goal that asks before each push without its params";
   for (const [intentId, params] of Object.entries(t.finishParams ?? {})) {
     const f = o.finish.find((x) => x.intentId === intentId)!;
     const commitSeq = Math.max(-1, ...o.finish.filter((x) => x.step === "commit" && x.status === "done" && (x.resultSeq ?? -1) < f.seq).map((x) => x.resultSeq ?? -1));
     const ok = o.confirmations.some((c) => c.seq > commitSeq && c.seq < f.seq && c[f.step as "push" | "qa"] === "confirm" && c.tree === params.tree && c.commit === params.commit);
-    if (!ok) return `${f.step} of a run without checks delivers another tree or commit than the person confirmed`;
+    if (!ok) return `${f.step} delivers another tree or commit than the person confirmed`;
   }
   if (state.completion && state.kind !== "decomposition") {
     const n = d ? d.count : own?.length ?? 0;

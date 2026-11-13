@@ -296,6 +296,23 @@ const PUSH_PROFILE = (over = {}) => PROFILE({ checks: ["test -f keep.txt"], bran
 
 // ---------------- the manager ----------------
 
+test("saveProfile (F-c, security review L1): the network for the lead's checks is turned on only with its risk confirmed; already on stays on; not saved", OPTS, async () => {
+  const { dir } = project();
+  const m = manager(scripts());
+  const linkId = await linkOn(m, dir);
+  assert.equal((await m.saveProfile(linkId, PROFILE({ checksOutside: true }))).code, "checks_outside_not_confirmed");
+  assert.equal((await m.saveProfile(linkId, PROFILE({ checksOutside: true, confirmChecksOutside: "yes" }))).code, "checks_outside_not_confirmed");
+  assert.equal((await createProfileStore(m.root).get(dir))?.checksOutside, undefined, "nothing saved");
+  const on = await m.saveProfile(linkId, PROFILE({ checksOutside: true, confirmChecksOutside: true }));
+  assert.ok(on.ok, JSON.stringify(on));
+  assert.equal(on.value.checksOutside, true);
+  assert.equal("confirmChecksOutside" in (await createProfileStore(m.root).get(dir)), false, "not saved");
+  assert.ok((await m.saveProfile(linkId, PROFILE({ checksOutside: true }))).ok, "already on: no confirmation");
+  assert.ok((await m.saveProfile(linkId, PROFILE())).ok, "off: no confirmation");
+  assert.equal((await m.saveProfile(linkId, PROFILE({ checksOutside: true }))).code, "checks_outside_not_confirmed", "on again after off: asked again");
+  await m.shutdown();
+});
+
 test("saveProfile: runPush's address read by get-url --all and --push --all (insteadOf expanded; a pushurl elsewhere — remote_url_unreadable); confirmPush to turn it on and to change remote or options; the same values and addGrant keep confirmedAt", OPTS, async () => {
   const { dir, bare } = project();
   const m = manager(scripts());
@@ -363,7 +380,7 @@ test("the autopilot pushes the run's branch with the profile's options: the remo
   const sh = ledgerShell();
   const m = manager(scripts(turns("x.txt")), { root, shell: sh.path });
   const linkId = await linkOn(m, dir);
-  assert.ok((await m.saveProfile(linkId, { ...PUSH_PROFILE(), confirmPush: true })).ok);
+  assert.ok((await m.saveProfile(linkId, { ...PUSH_PROFILE(), confirmPush: true, askPush: false, confirmAskPushOff: true })).ok); // D-043: pushed without asking
   // the card and the person's start
   const v0 = (await m.board()).value;
   assert.deepEqual(v0.pushFields, { [placeKey({ workspaceId: WS, project: dir })]: ["commitTitle"] });
@@ -403,7 +420,7 @@ test("protected: a template's name in runPush.protected (any case) is refused at
   const sh = ledgerShell();
   let m = manager(scripts(turns("y.txt")), { root, shell: sh.path });
   const linkId = await linkOn(m, dir);
-  assert.ok((await m.saveProfile(linkId, { ...PUSH_PROFILE({ runPush: RUN_PUSH({ protected: ["release-t1"] }) }), confirmPush: true })).ok);
+  assert.ok((await m.saveProfile(linkId, { ...PUSH_PROFILE({ runPush: RUN_PUSH({ protected: ["release-t1"] }) }), confirmPush: true, askPush: false, confirmAskPushOff: true })).ok); // D-043: pushed without asking
   g(dir, "fetch", "-q", "upstream");
   const refused = await m.create({ requestId: randomUUID(), source: dir, goal: autoGoal(rel, remoteRef(dir)) });
   assert.equal(refused.code, "protected_branch");
@@ -437,7 +454,7 @@ test("after an unknown outcome of the push only ls-remote runs: pushed once, con
   const sh = ledgerShell();
   const m = manager(scripts(turns("x.txt")), { root, shell: sh.path });
   const linkId = await linkOn(m, dir);
-  assert.ok((await m.saveProfile(linkId, { ...PUSH_PROFILE(), confirmPush: true })).ok);
+  assert.ok((await m.saveProfile(linkId, { ...PUSH_PROFILE(), confirmPush: true, askPush: false, confirmAskPushOff: true })).ok); // D-043: pushed without asking
   sh.set("lsfail");
   assert.equal((await m.boardBudget(linkId, { ...AUTOPILOT_BUDGET, parallel: 1 })).ok, true);
   assert.ok((await m.boardAutopilot(linkId, true, "ru")).ok);
@@ -539,7 +556,7 @@ test("the autopilot's start refuses a push the profile never confirmed (the file
   boardFile(root, [t1]);
   const m = manager(scripts(turns("x.txt")), { root });
   const linkId = await linkOn(m, dir);
-  assert.ok((await m.saveProfile(linkId, { ...PUSH_PROFILE({ runPush: RUN_PUSH({ options: ["x.t={commitTitle}{commitTitle}{commitTitle}{commitTitle}{commitTitle}"] }) }), confirmPush: true })).ok);
+  assert.ok((await m.saveProfile(linkId, { ...PUSH_PROFILE({ runPush: RUN_PUSH({ options: ["x.t={commitTitle}{commitTitle}{commitTitle}{commitTitle}{commitTitle}"] }) }), confirmPush: true, askPush: false, confirmAskPushOff: true })).ok); // D-043: pushed without asking
   g(dir, "fetch", "-q", "upstream");
   assert.equal((await m.boardBudget(linkId, { ...AUTOPILOT_BUDGET, parallel: 1 })).ok, true);
   const start = async () => {
@@ -552,5 +569,48 @@ test("the autopilot's start refuses a push the profile never confirmed (the file
   const was = await store.get(dir);
   assert.ok(await store.save(dir, { ...was, runPush: { ...was.runPush, options: ["merge_request.create"], confirmedAt: null } }));
   assert.deepEqual(await start(), ["start_failed", "push_not_confirmed"]);
+  await m.shutdown();
+});
+
+test("saveProfile (D-043): «ask before each push» is on unless false; turned off only with its consequence confirmed; already off stays off; not saved", OPTS, async () => {
+  const { dir } = project();
+  const m = manager(scripts());
+  const linkId = await linkOn(m, dir);
+  assert.ok((await m.saveProfile(linkId, PROFILE())).ok);
+  assert.equal((await createProfileStore(m.root).get(dir))?.askPush, undefined, "on: nothing written");
+  assert.equal((await m.saveProfile(linkId, PROFILE({ askPush: false }))).code, "ask_push_off_not_confirmed");
+  assert.equal((await m.saveProfile(linkId, PROFILE({ askPush: false, confirmAskPushOff: "yes" }))).code, "ask_push_off_not_confirmed");
+  assert.equal((await createProfileStore(m.root).get(dir))?.askPush, undefined, "nothing saved");
+  const off = await m.saveProfile(linkId, PROFILE({ askPush: false, confirmAskPushOff: true }));
+  assert.ok(off.ok, JSON.stringify(off));
+  assert.equal(off.value.askPush, false);
+  assert.equal("confirmAskPushOff" in (await createProfileStore(m.root).get(dir)), false, "not saved");
+  assert.ok((await m.saveProfile(linkId, PROFILE({ askPush: false }))).ok, "already off: no confirmation");
+  assert.ok((await m.saveProfile(linkId, PROFILE())).ok, "on again: no confirmation");
+  assert.equal((await m.saveProfile(linkId, PROFILE({ askPush: false }))).code, "ask_push_off_not_confirmed", "off again after on: asked again");
+  await m.shutdown();
+});
+
+test("D-043: the autopilot's run with runPush and the default profile (askPush absent) gets goal.askPush and waits at awaiting_finish_confirmation, nothing pushed", OPTS, async () => {
+  const { dir, bare } = project();
+  const t1 = task({ project: dir, ref: "T1", issue: "ISSUE-1", commitTitle: TITLE, text: "write x", criteria: ["x.txt says done"] });
+  const root = path.join(TMP, `root-${++n}`);
+  boardFile(root, [t1]);
+  const m = manager(scripts(turns("x.txt")), { root, shell: ledgerShell().path });
+  const linkId = await linkOn(m, dir);
+  assert.ok((await m.saveProfile(linkId, { ...PUSH_PROFILE(), confirmPush: true })).ok); // askPush absent: on
+  assert.equal((await m.boardBudget(linkId, { ...AUTOPILOT_BUDGET, parallel: 1 })).ok, true);
+  assert.ok((await m.boardAutopilot(linkId, true, "ru")).ok);
+  const view = await until(async () => {
+    const id = (await m.board()).value.facts[0]?.runId;
+    const v = id && (await m.get(id)).value.view;
+    return v && v.status === "paused" ? v : null;
+  }, "the push confirmation", 240_000);
+  const runId = view.runId;
+  assert.equal(goalOf(root, runId).askPush, true, "main put goal.askPush in");
+  assert.deepEqual([view.status, view.reason], ["paused", "awaiting_finish_confirmation"], JSON.stringify(view));
+  assert.equal(view.confirm.ask, true);
+  assert.equal(remoteHead(bare, "ISSUE-1-T1"), null, "nothing pushed without the person");
+  assert.ok((await m.boardAutopilot(linkId, false, "ru")).ok);
   await m.shutdown();
 });

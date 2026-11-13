@@ -425,7 +425,36 @@ export interface CheckSandboxPaths {
   tmp: string; // a temporary folder of this check run — read/write, its TMPDIR
   root: string; // the orchestration data — denied, except `work` when the copy lives there
   realHome?: string; // the home the credential deny list is relative to; os.homedir() by default
+  // F-c (D-041 p. 3): the profile's checksOutside — also any outside address (TCP, DNS); writes stay where they were
+  // (the tools' caches go to the check's own temporary folder: checkEnv) and more of the home is closed to reading.
+  // Off by default; nothing else of the profile changes
+  outside?: boolean;
 }
+
+// F-c, security review H1: with checksOutside a check reaches the network, but it still writes nowhere but its work
+// folder and its own temporary folder — a shared cache (~/.npm/_npx, ~/.cache, ~/Library/Caches) or a shared temporary
+// folder is run later outside the sandbox (npx, shell prompts, updaters, another check's profile). The package tools
+// are pointed at a cache inside the check's temporary folder instead.
+export const CACHE_ENV = ["npm_config_cache", "XDG_CACHE_HOME", "PIP_CACHE_DIR", "UV_CACHE_DIR", "GOCACHE", "YARN_CACHE_FOLDER", "npm_config_store_dir", "PLAYWRIGHT_BROWSERS_PATH"];
+// review M1: with the network open, what the check can read it can send — the environment's secrets are not passed
+const SECRET_ENV = /TOKEN|SECRET|KEY|PASS|PWD|AUTH|CREDENTIAL|COOKIE|SESSION|DSN|(?:^|_)PAT(?:$|_)/i;
+// a value with any userinfo in a URL (scheme://user:secret@host, scheme://token@host), whatever the variable is called
+const SECRET_VALUE = /[a-z][a-z0-9+.-]*:\/\/[^/\s@]+@/i;
+
+// The environment of a sandboxed check: its own TMPDIR; with outside, the caches inside it and no secret-looking variable
+export function checkEnv(env: Readonly<Record<string, string>>, tmp: string, outside = false): Record<string, string> {
+  if (!outside) return { ...env, TMPDIR: tmp };
+  const cache = join(tmp, "cache");
+  const kept = Object.fromEntries(Object.entries(env).filter(([k, v]) => !SECRET_ENV.test(k) && !SECRET_VALUE.test(v)));
+  return { ...kept, TMPDIR: tmp, ...Object.fromEntries(CACHE_ENV.map((k) => [k, cache])) };
+}
+
+// review M1: with outside, more of the home is closed to reading (what is read could be sent): shell histories, the
+// credential files of common tools, the browsers' profiles, cookies, mail and messages
+const OUTSIDE_READ_DIRS = [".config/gcloud", ".azure", ".terraform.d", ".cargo/credentials", ".zsh_sessions", ".bash_sessions",
+  "Library/Application Support/Google", "Library/Application Support/Firefox", "Library/Application Support/BraveSoftware",
+  "Library/Application Support/Microsoft Edge", "Library/Cookies", "Library/Mail", "Library/Messages"];
+const OUTSIDE_READ_FILES = [".git-credentials", ".pypirc", ".cargo/credentials.toml"];
 
 // Only in this profile (the project-check profile keeps its list): stores of local VMs and containers whose keys log
 // into a machine on this host — reachable on localhost (review S1-5).
@@ -442,6 +471,16 @@ export function buildCheckProfile(paths: CheckSandboxPaths): { text: string; sha
   const clash = [home, ...dirs].find((d) => within(d, work) || (d !== home && within(work, d)));
   if (clash) throw new Error(`the work folder ${work} covers ${clash}`);
   const creds = [...dirs.map((d) => subpath(d)), ...CRED_FILES.map((f) => `(literal ${sbString(join(home, f))})`)];
+  // F-c (review M1): stands before the allows of the work folder and the check's temporary folder (the last matching
+  // rule wins), which a home path can never cover (clash above)
+  if (paths.outside === true && /["\\]/.test(home)) throw new Error(`the home folder cannot be written in a profile: ${home}`);
+  const outside = paths.outside === true
+    ? `; checksOutside (profile setting, off by default): the network is open, so more of the home is closed to reading.
+(deny file-read* file-write*
+  (regex #"^${home.replace(/[\^$.*+?()[\]{}|/]/g, "\\$&")}/\\.[^/]*_history$")
+  ${[...OUTSIDE_READ_DIRS.map((d) => subpath(join(home, d))), ...OUTSIDE_READ_FILES.map((f) => `(literal ${sbString(join(home, f))})`)].join("\n  ")})
+`
+    : "";
   const text = `(version 1)
 ; CanvasTTY: a check command the lead proposed — journal-v2-format.md §2.6 (owner's decision A1.1 Q2).
 ; Seatbelt keeps the LAST matching rule, so every broad deny stands before the narrow allows that carve out of it.
@@ -455,7 +494,7 @@ export function buildCheckProfile(paths: CheckSandboxPaths): { text: string; sha
 ; Known credential stores of the user: defence in depth, not a confidentiality guarantee.
 (deny file-read* file-write*
   ${creds.join("\n  ")})
-; Orchestration data: journals, texts, other runs.
+${outside}; Orchestration data: journals, texts, other runs.
 (deny file-read* file-write* ${subpath(root)})
 ; Written: the work folder of the run and this check's temporary folder, nothing else.
 (allow file-read* file-write* ${subpath(work)} ${subpath(tmp)})
@@ -469,7 +508,10 @@ export function buildCheckProfile(paths: CheckSandboxPaths): { text: string; sha
 (allow network-outbound (remote ip "localhost:*"))
 (allow network-bind network-inbound (local unix-socket ${subpath(work)}) (local unix-socket ${subpath(tmp)}))
 (allow network-outbound (remote unix-socket ${subpath(work)}) (remote unix-socket ${subpath(tmp)}))
-`;
+${paths.outside === true ? `; checksOutside: outside addresses (TCP, UDP) and the system's name lookup; no listening beyond localhost, no other Unix sockets.
+(allow network-outbound (remote ip "*:*"))
+(allow network-outbound (literal "/private/var/run/mDNSResponder"))
+` : ""}`;
   return { text, sha256: createHash("sha256").update(text, "utf8").digest("hex") };
 }
 
@@ -479,13 +521,19 @@ export function buildCheckProfile(paths: CheckSandboxPaths): { text: string; sha
 // not is removed at once). Failure: the check does not run.
 const CHECK_SELFTEST = String.raw`
 const fs = require("node:fs"), net = require("node:net");
-const [work, tmp, home, root, ext, port] = JSON.parse(process.argv[1]);
+const [work, tmp, home, root, ext, port, outside, userTmp] = JSON.parse(process.argv[1]);
 const id = ".canvastty-selftest-" + process.pid;
 const out = {};
 const sync = (name, f) => { try { f(); out[name] = "ok"; } catch (e) { out[name] = e.code || String(e.message); } };
-sync("allow.write-work", () => { fs.writeFileSync(work + "/" + id, "x"); fs.unlinkSync(work + "/" + id); });
-sync("allow.write-tmp", () => { fs.writeFileSync(tmp + "/" + id, "x"); fs.unlinkSync(tmp + "/" + id); });
-sync("deny.write-home", () => { fs.writeFileSync(home + "/" + id, "x"); fs.unlinkSync(home + "/" + id); });
+const write = (name, dir) => sync(name, () => { fs.writeFileSync(dir + "/" + id, "x"); fs.unlinkSync(dir + "/" + id); });
+write("allow.write-work", work);
+write("allow.write-tmp", tmp);
+write("deny.write-home", home);
+// review H1: a cache of the home or the person's temporary folder is run later outside the sandbox
+// (the first that exists: a refusal in a missing folder would be ENOENT, not the sandbox's)
+write("deny.write-home-cache", ["/Library/Caches", "/.cache", "/.npm"].map((d) => home + d).find((d) => fs.existsSync(d)) ?? home);
+write("deny.write-user-tmpdir", userTmp);
+write("deny.write-shared-tmp", "/private/tmp");
 sync("deny.read-secrets", () => fs.readdirSync(home + "/Library/Keychains"));
 sync("deny.read-root", () => fs.readdirSync(root));
 // .git itself when the folder has none: recursive mkdir creates it first, and that is refused as well; a worktree's
@@ -497,12 +545,12 @@ const tcp = (host, p) => new Promise((res) => { const c = net.connect(p, host); 
   c.on("connect", () => { clearTimeout(t); c.destroy(); res("ok"); }); c.on("error", (e) => { clearTimeout(t); res(e.code || "error"); }); });
 (async () => {
   out["allow.tcp-localhost"] = await tcp("127.0.0.1", port);
-  out["deny.tcp-external"] = await tcp(ext.host, ext.port);
+  out[(outside ? "allow" : "deny") + ".tcp-external"] = await tcp(ext.host, ext.port);
   process.stdout.write(JSON.stringify(out) + "\n");
 })();
 `;
 
-export async function checkSelftest(opts: { profilePath: string; work: string; tmp: string; root: string; realHome?: string; launch: SupervisorLaunch }): Promise<SelftestResult> {
+export async function checkSelftest(opts: { profilePath: string; work: string; tmp: string; root: string; realHome?: string; outside?: boolean; launch: SupervisorLaunch }): Promise<SelftestResult> {
   const bail = (name: string, detail: string): SelftestResult => ({ passed: false, checks: 0, failed: [{ name, detail }] });
   if (!sandboxSupport().supported) return bail("sandbox.support", `${SANDBOX_EXEC} is not available on ${process.platform}`);
   const home = canonical(opts.realHome ?? homedir(), "realHome");
@@ -514,7 +562,7 @@ export async function checkSelftest(opts: { profilePath: string; work: string; t
     // an outside address: Seatbelt's "localhost" covers every address of this host (its LAN address too), so only a
     // foreign one proves the refusal; the sandbox refuses it before any route, internet or not (EPERM)
     const ext = { host: "1.1.1.1", port: 443 };
-    const child = spawn(SANDBOX_EXEC, ["-f", opts.profilePath, "--", opts.launch.command, "-e", CHECK_SELFTEST, JSON.stringify([opts.work, opts.tmp, home, opts.root, ext, port])], {
+    const child = spawn(SANDBOX_EXEC, ["-f", opts.profilePath, "--", opts.launch.command, "-e", CHECK_SELFTEST, JSON.stringify([opts.work, opts.tmp, home, opts.root, ext, port, opts.outside === true, canonical(tmpdir(), "tmpdir")])], {
       cwd: opts.work, env: { ELECTRON_RUN_AS_NODE: "1", PATH: "/usr/bin:/bin", HOME: home, TMPDIR: opts.tmp, LANG: "C" }, stdio: ["ignore", "pipe", "pipe"]
     });
     let text = "";
@@ -526,8 +574,10 @@ export async function checkSelftest(opts: { profilePath: string; work: string; t
     clearTimeout(timer);
     let got: Record<string, string>;
     try { got = JSON.parse(text.trim().split("\n").at(-1) ?? ""); } catch { return bail("sandbox.selftest", `no result (exit ${code}): ${err.slice(0, 400)}`); }
-    const want = ["allow.write-work", "allow.write-tmp", "allow.tcp-localhost", "deny.write-home", "deny.read-secrets", "deny.read-root", "deny.write-git", "deny.tcp-external"];
-    const failed = want.filter((n) => got[n] !== (n.startsWith("allow.") ? "ok" : "EPERM"))
+    const want = ["allow.write-work", "allow.write-tmp", "allow.tcp-localhost", "deny.write-home", "deny.write-home-cache", "deny.write-user-tmpdir",
+      "deny.write-shared-tmp", "deny.read-secrets", "deny.read-root", "deny.write-git", opts.outside === true ? "allow.tcp-external" : "deny.tcp-external"];
+    // allow.tcp-external: anything but the sandbox's refusal (no internet is a refusal of the network, not of the profile)
+    const failed = want.filter((n) => (n === "allow.tcp-external" ? got[n] === "EPERM" || got[n] === undefined : got[n] !== (n.startsWith("allow.") ? "ok" : "EPERM")))
       .map((n) => ({ name: n, detail: got[n] === undefined ? "not run" : n.startsWith("allow.") ? `refused: ${got[n]}` : `not refused by the sandbox: ${got[n]}` }));
     return { passed: failed.length === 0, checks: want.length, failed };
   } catch (error) {

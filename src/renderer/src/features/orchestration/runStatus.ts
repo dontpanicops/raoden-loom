@@ -106,13 +106,19 @@ export function currentAction(locale: LocaleId, entries: readonly OrchestrationA
   return null;
 }
 
+// an MCP tool's raw name `mcp__github__create_pr` the way a person says it: `github.create_pr`
+export const humanTool = (tool: string): string => tool.replace(/^mcp__(.+?)__(.+)$/, "$1.$2");
+export const isMcpTool = (tool: string): boolean => /^mcp__.+?__.+/.test(tool);
+
 export function permissionReason(locale: LocaleId, p: OrchestrationPermissionRequest): string {
-  return p.kind === "tool" ? tr(locale, "orchWait_perm_tool", { tool: short(p.tool, 40) }) : tr(locale, `orchWait_perm_${p.kind}`);
+  return p.kind === "tool" ? tr(locale, "orchWait_perm_tool", { tool: short(humanTool(p.tool), 40) }) : tr(locale, `orchWait_perm_${p.kind}`);
 }
 
 // Why a paused, stopped or failed run is where it is: the one classification of runModel (viewCause), in words.
 const reasonText = (locale: LocaleId, view: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[]): string | null => {
   const cause = viewCause(view, entries);
+  // D-043: the push waits because the project asks before each push (checks may have passed), not for lack of checks
+  if (cause?.kind === "reason" && cause.reason === "awaiting_finish_confirmation" && view.confirm?.ask === true) return t(locale, "orchReason_awaiting_push_confirmation");
   return cause ? causeText(locale, cause) : null;
 };
 
@@ -139,7 +145,7 @@ function heldState(locale: LocaleId, view: OrchestrationRunView, entries: readon
     // the one short form of the pause ("Waiting for you: …" / "Paused: …") and its why (runModel PAUSES)
     const label = viewPauseLabel(locale, view, entries);
     const cause = viewCause(view, entries);
-    if (label && cause) return { state: PAUSES[view.reason ?? ""]?.you === false ? "paused" : "waiting_user", doing: label, wait: pauseWhy(locale, cause, undefined, view.proposal?.checks.length === 0) };
+    if (label && cause) return { state: PAUSES[view.reason ?? ""]?.you === false ? "paused" : "waiting_user", doing: label, wait: pauseWhy(locale, cause, undefined, view.proposal?.checks.length === 0 || view.confirm?.ask === true) };
     const user = runHeadline(view).headline !== "paused";
     return { state: user ? "waiting_user" : "paused", doing: t(locale, `orchHeadline_${headlineKey(view, entries)}` as TranslationKey), wait: reasonText(locale, view, entries) };
   }

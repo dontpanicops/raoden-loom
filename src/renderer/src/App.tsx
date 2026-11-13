@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { resolveHomeLauncherProviders, setHomeLauncherProviderEnabled } from "./lib/providers";
+import { runUpdateCheckIfDue } from "./lib/updateStatus";
 import { useEffectiveTheme } from "./features/settings/useEffectiveTheme";
 import type {
   AgentProviderId,
@@ -27,6 +28,7 @@ import type {
   SessionSnapshot,
   StickyNote,
   WindowState,
+  WorkspaceLabel,
   WorkspaceRecord,
   WorkspacesState
 } from "../../shared/contracts";
@@ -134,7 +136,10 @@ const FALLBACK_SETTINGS: AppSettings = {
   browserAgentAccess: true,
   browserShowAgentPresence: true,
   browserRestoreTabs: true,
-  notifications: { waiting: true, completed: true, failed: true, dockBadge: true, bounce: false, board: true, boardHead: false }
+  notifications: { waiting: true, completed: true, failed: true, dockBadge: true, bounce: false, board: true, boardHead: false, banner: true, system: true },
+  commandPaletteShortcut: null,
+  browserDownloadDir: null,
+  checkUpdates: false
 };
 
 const EMPTY_BROWSER_SNAPSHOT: BrowserSnapshot = {
@@ -270,6 +275,14 @@ export function App(): React.JSX.Element {
     window.addEventListener("canvastty:toast", show);
     return () => window.removeEventListener("canvastty:toast", show);
   }, [showToast]);
+
+  // «Check for updates» (off by default): when it is on, at most one request a day while the app runs
+  useEffect(() => {
+    if (!ready || !settings.checkUpdates) return;
+    runUpdateCheckIfDue();
+    const timer = window.setInterval(runUpdateCheckIfDue, 60 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [ready, settings.checkUpdates]);
 
   useEffect(() => {
     browserCanvasRef.current = settings.browserCanvas;
@@ -1162,7 +1175,8 @@ export function App(): React.JSX.Element {
   const rootStyle = useMemo(
     () => ({
       ...(appearance.homeAccentPreset === "custom" ? customHomeAccentStyle(appearance.homeAccentColors) : {}),
-      "--ui-scale": settings.uiScale
+      "--ui-scale": settings.uiScale,
+      "--app-ui-scale": settings.uiScale
     }) as React.CSSProperties,
     [appearance.homeAccentColors, appearance.homeAccentPreset, settings.uiScale]
   );
@@ -1225,14 +1239,14 @@ export function App(): React.JSX.Element {
       isHomeCamera.current = false;
       setCamera(focusCamera(bounds.position, bounds.size));
     },
-    create: async (title: string, root: string | null, activate?: boolean) => {
-      const r = await window.canvasTTY.workspaces.create({ title, root, ...(activate === false ? { activate: false } : {}) }).catch(() => null);
+    create: async (title: string, root: string | null, activate?: boolean, label?: WorkspaceLabel | null) => {
+      const r = await window.canvasTTY.workspaces.create({ title, root, ...(label ? { label } : {}), ...(activate === false ? { activate: false } : {}) }).catch(() => null);
       if (!r) return t(settingsRef.current.locale, "wsActionFailed");
       if (!r.ok) return workspaceError(r);
       adoptWorkspaces(r.value);
       return null;
     },
-    update: async (id: string, patch: { title?: string; root?: string | null }) => {
+    update: async (id: string, patch: { title?: string; root?: string | null; label?: WorkspaceLabel | null }) => {
       const r = await window.canvasTTY.workspaces.update(id, patch).catch(() => null);
       if (!r) return t(settingsRef.current.locale, "wsActionFailed");
       if (!r.ok) return workspaceError(r);
@@ -1272,6 +1286,26 @@ export function App(): React.JSX.Element {
       if (activeIdRef.current !== target) return; // switched away meanwhile: the camera shown is left alone
       setBrowserSelected(true);
       changeCamera(focusCamera(moved.position, moved.size), target);
+    },
+    // Palette ⌘↵ (mock 10, D-041): the selected terminal's card moves into a new workspace named after it and is shown there;
+    // the process is not restarted.
+    openInNewWorkspace: async (id: string) => {
+      const session = sessions.find((s) => s.id === id);
+      if (!session) return t(settingsRef.current.locale, "wsActionFailed");
+      const before = new Set(workspacesRef.current.workspaces.map((w) => w.id));
+      const r = await window.canvasTTY.workspaces.create({ title: session.title || "Terminal", root: null, activate: false }).catch(() => null);
+      if (!r) return t(settingsRef.current.locale, "wsActionFailed");
+      if (!r.ok) return workspaceError(r);
+      const record = r.value.workspaces.find((w) => !before.has(w.id));
+      adoptWorkspaces(r.value);
+      if (!record) return t(settingsRef.current.locale, "wsActionFailed");
+      const error = await moveItem("terminal", id, record.id);
+      if (error) return error;
+      switchWorkspace(record.id, record);
+      setActiveSessionId(id);
+      isHomeCamera.current = false;
+      setCamera(focusCamera(session.position, session.size));
+      return null;
     },
     disposeSession: (id: string) => window.canvasTTY.terminal.dispose(id),
     stopSession: (id: string) => window.canvasTTY.terminal.stop(id),
@@ -1321,6 +1355,7 @@ export function App(): React.JSX.Element {
           onHomeLayoutChange={changeHomeLayout}
           onHomeGridSizeChange={changeHomeGridSize}
           onFinishHomeEdit={() => void finishHomeEditor()}
+          onCancelHomeEdit={() => setHomeEditDraft(null)}
           onResetHomeLayout={resetHomeLayout}
           onPluginError={showToast}
           onPluginCanvasBoundsChange={changePluginCanvasBounds}

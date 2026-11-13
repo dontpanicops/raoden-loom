@@ -62,9 +62,22 @@ export interface OrchestrationProjectProfile {
   // F4 (T-9, §8): the review export (board-review/v1) of a completed board task's run, outside the project's tree.
   // Needs runBase and finish.commit; worktree only. Absent: none
   reviewExport?: true;
+  // F-c (D-041 p. 1, mock-up 15): where the review goes and in what. The folder is the person's own, absolute and outside the
+  // project (a relative one is refused: a file in the project's tree could end up in a commit); absent: the application's
+  // folder. The format: absent means both files, as the flag alone always wrote. They apply to new runs (frozen in the goal)
+  reviewExportDir?: string;
+  reviewExportFormat?: "markdown" | "json" | "both";
   // F4 (T-14, §7.5): false — the roles run without MCP: Claude with --strict-mcp-config (its init must name no server),
   // Codex's servers listed before each turn (none may be named). Absent: as in the CLI
   runMcp?: false;
+  // F-c (D-041 p. 3): the checks the lead proposed (they run in the check profile, journal v2) may use the network and
+  // write to the temporary folders and the tools' caches outside the work folder. Absent: not allowed, as before. When
+  // set, the autopilot never accepts the lead's check commands itself: the person decides
+  checksOutside?: true;
+  // D-043 (mock-up 15): «Спрашивать перед каждым push». Absent: on — every push of a run (the dialog's and the autopilot's)
+  // waits for the person's confirmation of the tree and commit; false: a run with checks pushes after they pass, as before
+  // (turned off only confirmed, confirmAskPushOff). 1.5.20 drops the field
+  askPush?: false;
 }
 export interface OrchestrationRunPush { enabled: boolean; remote: string; remoteUrl: string | null; options: string[]; protected: string[]; confirmedAt: string | null }
 export interface OrchestrationAccessOption { mode: string; mapping: string }
@@ -291,7 +304,8 @@ export interface OrchestrationRunView {
   proposal?: { checks: { id: string; command: string; why: string; source: string[] }[]; none: string | null } | null;
   // journal v2, on the pause awaiting_finish_confirmation: the tree and commit the decision is about (finish.confirm's
   // payload) and the steps the goal asked for
-  confirm?: { tree: string | null; commit: string | null; push: boolean; qa: boolean } | null;
+  // ask (D-043): asked by the project's «Спрашивать перед каждым push» (the run has checks)
+  confirm?: { tree: string | null; commit: string | null; push: boolean; qa: boolean; ask?: true; pushTo?: string } | null; // pushTo: «remote/branch» the push goes to
   // A1.1, on the pause check_needs_permissions: the lead's check the sandbox refused; check.amend is about it
   refused?: { checkId: string; command: string } | null;
   // A4: on a pause where the person decides (awaiting_person_decision, coverage_lost, or one a finding may be decided on)
@@ -301,7 +315,8 @@ export interface OrchestrationRunView {
   proposalWaits?: boolean;
   // F4 (T-9, §5.6): the review export of a completed board task's run — its absolute paths (outside the project's tree);
   // null: no export (the run did not complete, or it had nothing to commit); absent: the run was not asked for one
-  export?: { json: string; md: string } | null;
+  export?: { json: string | null; md: string | null } | null; // F-c: a file the chosen format leaves out is null
+  exportable?: true; // F-c (D-041 p. 1): a completed board task run with a commit — «Export the review» by hand is possible
   // A run whose journal a newer version of the application wrote (acceptance-review-spec.md §2.2): shown read-only
   // (status paused, reason newer_version), never opened or changed here. chain: the hash chain of what was read.
   // compatible: its journal declares minReaderVersion this build reads, so the view is its whole state (status and
@@ -685,6 +700,12 @@ export interface OrchestrationApi {
   boardImportFile(): Promise<OrchestrationResult<ImportReport | null>>;
   boardInboxImport(file: string, sha256: string): Promise<OrchestrationResult<ImportReport>>;
   boardInboxReject(file: string): Promise<OrchestrationResult<null>>;
+  // F-c (D-041 p. 4): «Open file» under an import report: main finds the source file (the one picked, or inbox/) by the
+  // report's name and hash, checks the hash still holds and hands it to the system; the window never names a path
+  boardImportOpen(file: string, sha256: string): Promise<OrchestrationResult<null>>;
+  // F-c (D-041 p. 1): «Export the review» of a completed board task's run with a commit: the files of the goal's folder and format
+  // (a file the format leaves out is null); written: false — a review was there already, it is never written over
+  reviewExport(runId: string): Promise<OrchestrationResult<{ json: string | null; md: string | null; written: boolean }>>;
   onBoardChange(listener: (e: { kind: "inbox" }) => void): () => void;
   // The same checks the start makes, without starting anything (no model, no run).
   // full: «Проверить сейчас» — also the preparation and the commands on the source (a temporary work folder), within timeoutMs
@@ -697,7 +718,9 @@ export interface OrchestrationApi {
   // confirmTerminal: the person confirmed the warning of "as in my terminal" (needed to switch a CLI to it; not saved)
   // confirmPush (F4, T-8): the person confirmed the autopilot's push — remote, address and options as shown (needed to
   // turn it on and to change any of them; not saved)
-  saveProfile(linkId: string, profile: OrchestrationProjectProfile & { confirmTerminal?: boolean; confirmPush?: boolean }): Promise<OrchestrationResult<OrchestrationProjectProfile>>;
+  // confirmChecksOutside (F-c): the person confirmed the risk of the network for the lead's checks (needed to turn it on; not saved)
+  // confirmAskPushOff (D-043): the person confirmed that pushes go without asking (needed to turn «ask» off; not saved)
+  saveProfile(linkId: string, profile: OrchestrationProjectProfile & { confirmTerminal?: boolean; confirmPush?: boolean; confirmChecksOutside?: boolean; confirmAskPushOff?: boolean }): Promise<OrchestrationResult<OrchestrationProjectProfile>>;
   // mcpReady: also check that Codex connects this project MCP server (an ephemeral thread, no turn; trusted folders only)
   probe(linkId: string, options?: { mcpReady?: string }): Promise<OrchestrationResult<OrchestrationEnvironmentReport>>;
 }

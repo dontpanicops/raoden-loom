@@ -14,7 +14,7 @@ test("settings.json keeps the same set of keys (the UI redo does not touch the f
     const keys = Object.keys(await new SettingsStore(dir, "en").load()).sort();
     assert.deepEqual(keys, KEYS);
     const notifications = Object.keys((await new SettingsStore(dir, "en").load()).notifications).sort();
-    assert.deepEqual(notifications, ["board", "boardHead", "bounce", "completed", "dockBadge", "failed", "waiting"]);
+    assert.deepEqual(notifications, ["banner", "board", "boardHead", "bounce", "completed", "dockBadge", "failed", "system", "waiting"]);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -63,4 +63,4 @@ test("Even G2 stays in «Controls» as a collapsible block at the end (D-012)", 
   assert.ok(controls.indexOf("settings-fold") > controls.indexOf("canvasWheelDirection"));
 });
 
-const KEYS = ["acknowledgedDangerousProfiles","agentLifecycleHooksEnabled","browserAgentAccess","browserCanvas","browserRestoreTabs","browserShowAgentPresence","canvasColor","canvasControlsPlacement","canvasLauncherItems","canvasMenuStyle","canvasNavigationOverride","canvasRegions","canvasWheelCaptureMode","canvasWheelOverride","edgePan","edgePanSpeed","focusActivation","followSystem","homeAccentColors","homeAccentPreset","homeGridSize","homeLauncherProviders","homeLayout","homeLimitProviders","hoverFocus","hoverFocusSpeed","invertCanvasWheel","invertTerminalWheel","lastDirectory","locale","mediaFit","mediaPath","minimapInteractionMode","minimapPlacement","notifications","onboardingDismissed","palette","pattern","persistCanvasRegions","persistStickyNotes","pluginCanvas","radialLauncherEnabled","radialLauncherItems","reduceTransparency","restoreTerminalSessions","sessionRowColorMode","shortcutHintsPlacement","shortcuts","showShortcutHints","snapToGrid","stickyNotes","uiScale","useScrollWheelToZoom","zoomSensitivity"];
+const KEYS = ["acknowledgedDangerousProfiles","agentLifecycleHooksEnabled","browserAgentAccess","browserCanvas","browserDownloadDir","browserRestoreTabs","browserShowAgentPresence","canvasColor","canvasControlsPlacement","canvasLauncherItems","canvasMenuStyle","canvasNavigationOverride","canvasRegions","canvasWheelCaptureMode","canvasWheelOverride","checkUpdates","commandPaletteShortcut","edgePan","edgePanSpeed","focusActivation","followSystem","homeAccentColors","homeAccentPreset","homeGridSize","homeLauncherProviders","homeLayout","homeLimitProviders","hoverFocus","hoverFocusSpeed","invertCanvasWheel","invertTerminalWheel","lastDirectory","locale","mediaFit","mediaPath","minimapInteractionMode","minimapPlacement","notifications","onboardingDismissed","palette","pattern","persistCanvasRegions","persistStickyNotes","pluginCanvas","radialLauncherEnabled","radialLauncherItems","reduceTransparency","restoreTerminalSessions","sessionRowColorMode","shortcutHintsPlacement","shortcuts","showShortcutHints","snapToGrid","stickyNotes","uiScale","useScrollWheelToZoom","zoomSensitivity"];

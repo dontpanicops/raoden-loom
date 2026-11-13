@@ -297,6 +297,10 @@ try {
     invalid: "push_option_invalid", unknown: "push_option_invalid", needsBase: "push_needs_base", needsCommit: "push_needs_commit", copy: "work_mode_not_worktree", project: "work_mode_not_worktree" }), s2);
   ok("f4.s2 the profile after the refusals is the confirmed one", J((await ipc(`profile(${J(linkId)}).then((r) => r.value.profile.runPush)`))) === J(base.runPush));
 
+  // D-043: «Спрашивать перед каждым push» is on by default; off only confirmed — the cycles below push without asking
+  ok("D-043 «ask before each push» off without the confirmation — refused", (await saveProfile({ askPush: false })).code === "ask_push_off_not_confirmed");
+  base = await saveProfile({ askPush: false }, { confirmAskPushOff: true });
+  ok("D-043 «ask before each push» off, confirmed", base.askPush === false, base);
   // ---------- f4.s3: the cycle and the push ----------
   await importFile([row("P1", { issue: "ISSUE-1", commitTitle: "feat: \"первая\" задача $HOME" }), row("P2", { issue: "ISSUE-1" })]);
   const p2 = await taskOf("P2");

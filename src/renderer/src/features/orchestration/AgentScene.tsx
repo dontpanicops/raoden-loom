@@ -4,17 +4,18 @@
 import { useEffect, useRef, useState } from "react";
 import type { LinkBend } from "../../../../shared/linkBend";
 import type { LocaleId, Point, SessionBounds } from "../../../../shared/contracts";
-import type { OrchestrationAgentCard, OrchestrationAgentLink } from "../../../../shared/orchestration";
-import { t, type TranslationKey } from "../../lib/i18n";
+import type { OrchestrationActivityEntry, OrchestrationAgentCard, OrchestrationAgentLink, OrchestrationRunView } from "../../../../shared/orchestration";
+import { pluralForm, t, type TranslationKey } from "../../lib/i18n";
 import { tr } from "./boardModel";
 import { agentLayerId, pastCanvasDragThreshold } from "../workspace/canvasSelectionGesture";
 import { AgentCard } from "./AgentCard";
+import { invZoom } from "../../lib/cardChrome";
 import { chipOnCurve, chipSize } from "./linkChip";
 import { arrowPath, bendFromHandle, linkGeometry, linkPath } from "./linkCurve";
 import { linkTrace } from "./linkTrace";
 import { ACTIVE_STATUSES, activeRole, liveRuns, shownRunId, agentState, cardRole, orchestrationAvailableHere, orchestrationEntry, participantState, runStatusKey, viewPauseLabel, PAUSES, TERMINAL_STATUSES, type AgentState } from "./runModel";
 import { ReleaseNewerLink } from "./RunPanel";
-import { conditionsLine, costLine, duration, findingsLine, roleStatus, type StatusLine } from "./runStatus";
+import { conditionsLine, costLine, duration, findingsLine, isMcpTool, roleStatus, type StatusLine } from "./runStatus";
 import type { AgentCanvasUi } from "./useAgentCanvasUi";
 import type { Orchestration } from "./useOrchestration";
 
@@ -39,9 +40,10 @@ const leftMid = (b: SessionBounds): Point => ({ x: b.position.x, y: b.position.y
 const rect = (b: SessionBounds) => ({ x: b.position.x, y: b.position.y, width: b.size.width, height: b.size.height });
 
 // a card that can take the dragged link (an executor of the lead's project folder, not linked to this lead yet) is lit, the rest dim
-function offerOf(card: { agentId: string; role: string; project: string }, from: { agentId: string; role: string; project: string } | undefined, linked: boolean, over: boolean): "ok" | "drop" | "dim" | "dim-over" {
+function offerOf(card: { agentId: string; role: string; project: string }, from: { agentId: string; role: string; project: string } | undefined, linked: boolean, over: boolean): "ok" | "drop" | "dim" | "dim-over" | "dim-far" {
   const fits = card.role === "executor" && from?.role === "lead" && card.project === from.project && !linked;
-  return fits ? (over ? "drop" : "ok") : over ? "dim-over" : "dim";
+  // an executor of another project folder says so on its dimmed card at once (mock 18), not only under the pointer
+  return fits ? (over ? "drop" : "ok") : over ? "dim-over" : card.role === "executor" && from?.role === "lead" && card.project !== from.project ? "dim-far" : "dim";
 }
 
 export function AgentScene(props: AgentSceneProps): React.JSX.Element {
@@ -117,6 +119,15 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
       ? `${t(locale, "orchNow_lastEvent").replace("{time}", new Date(status.lastEventAt).toLocaleTimeString(locale))} · ${duration(locale, now - Date.parse(status.lastEventAt))}`
       : null);
     return { status, time, conditions: conditionsLine(locale, run.view), findings: findingsLine(locale, run.view), cost: costLine(locale, card.role, run.view, orch.activity[runId]?.entries ?? []) };
+  };
+
+  // a failed run on a card (mock 06): the stage it fell on; the CLI's exit code and the run's turn count only when the activity recorded the exit of this card's own CLI
+  const failureOf = (card: OrchestrationAgentCard, v: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[]): { stage: string | null; line: string | null } => {
+    const exit = [...entries].reverse().find((e) => e.kind === "process_exited" && typeof e.detail?.code === "number" && e.detail.code !== 0 && e.provider === card.provider);
+    return {
+      stage: v.stage != null ? tr(locale, "orchAgentFailedAtStage", { n: v.stage }) : null,
+      line: exit ? tr(locale, "orchAgentFailedExit", { code: String(exit.detail?.code) }) : null
+    };
   };
 
   // «stage N of M» (mock 06): M is the plan's stage count, known once the plan is loaded
@@ -199,6 +210,8 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
             pause={view ? viewPauseLabel(locale, view, orch.activity[view.runId]?.entries ?? []) : null}
             statusTime={shown.time}
             stageOf={view?.stage != null ? stageOf(view.runId, view.stage) : null}
+            failure={view?.status === "failed" ? failureOf(card, view, orch.activity[view.runId]?.entries ?? []) : null}
+            awaitsPermission={!!view?.permission}
             conditions={shown.conditions}
             findings={shown.findings}
             cost={shown.cost}
@@ -262,6 +275,15 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
           />
         );
       })}
+      {Object.entries(ui.messages).map(([fromId, m]) => {
+        const a = m.pairWith ? boundsOf.get(fromId) : undefined, b = m.pairWith ? boundsOf.get(m.pairWith) : undefined;
+        if (!a || !b) return null;
+        const left = Math.min(a.position.x, b.position.x), right = Math.max(a.position.x + a.size.width, b.position.x + b.size.width);
+        return (
+          <div key={`pair-note-${fromId}`} className="agent-pair-note" role="alert" data-agent-pair-note
+            style={{ left, top: Math.max(a.position.y + a.size.height, b.position.y + b.size.height) + 16, width: right - left }}>{m.text}</div>
+        );
+      })}
       {/* After the cards, at the z of the higher of its two cards: never hidden by its own cards (when they sit close
           or overlap), still below any window raised above them. */}
       {orch.canvas.links.map((link) => {
@@ -273,27 +295,22 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
         // several live runs (up to 4): the chip says the most demanding one's state (needs you, then paused, else the shown run)
         const liveViews = liveOf(link).map((id) => orch.runs[id]?.view).filter((v): v is NonNullable<typeof v> => !!v);
         const shown = liveViews.length > 1 ? liveViews.find((v) => v.permission) ?? liveViews.find((v) => v.status === "paused") ?? view : view;
-        const label = shown?.permission ? t(locale, "orchLinkNeedsYou") : shown?.newer ? t(locale, "orchReadOnly") : shown ? viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ?? t(locale, `orchStatus_${runStatusKey(shown)}` as TranslationKey) : t(locale, "orchNoRun");
+        const working = shown && !shown.permission && !shown.newer && shown.stage != null && runStatusKey(shown) === "running" && !viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ? stageOf(shown.runId, shown.stage) : null; // mock 19: «Работает · этап 1»
+        const label = shown?.permission ? (shown.permission.kind === "tool" ? t(locale, isMcpTool(shown.permission.tool) ? "orchLinkNeedsPermissionMcp" : "orchLinkNeedsPermission") : t(locale, "orchLinkNeedsYou")) : shown?.newer ? t(locale, "orchReadOnly") : working ? `${t(locale, "orchAgentWorking")} · ${working}` : shown ? viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ?? t(locale, `orchStatus_${runStatusKey(shown)}` as TranslationKey) : t(locale, "orchNoRun");
         // on the curve, off the cards (and the bend handle when selected) (Н14, linkChip.ts)
         const g = linkGeometry(rightMid(from), leftMid(to), bendDrag?.linkId === link.linkId ? bendDrag.bend : link.bend);
-        const at = chipOnCurve(g, [...agents.map(({ bounds }) => rect(bounds)), ...(props.regionTitles ?? [])], chipSize(label, (busy ? 0 : 2) + (view ? 2 : 0) + (view?.newer ? 1 : 0) + (link.bend ? 1 : 0) + (liveViews.length > 1 ? 1 : 0)) /* new goal, ×, open run, observe, release, reset, runs: every button counts */, selectedLink === link.linkId, [rect(from), rect(to)]);
-        return (
-          <div key={link.linkId} className={`agent-link__chip${view?.permission ? " agent-link__chip--needs-you" : ""}`} data-interactive="true" data-agent-link-id={link.linkId}
-            role="group" aria-label={t(locale, "orchLink")}
-            style={{ left: at.x, top: at.y,
-              zIndex: Math.max(props.zIndexOf(agentLayerId(link.fromAgentId)), props.zIndexOf(agentLayerId(link.toAgentId))) }}>
-            <span className="agent-link__state">
-              {label}
-            </span>
-            {!busy && <button type="button" disabled={entry.disabled} title={entry.hint ? t(locale, entry.hint) : undefined}
-              onClick={() => ui.openGoal(link.linkId)}>{t(locale, "orchNewGoal")}</button>}
+        // R12r (mock 03/19): a busy link's chip is its state alone; the run's actions are a row under it, shown on hover, focus or a selected link.
+        // An idle link keeps «Новая цель» and «×» on the chip: they are its next step.
+        const at = chipOnCurve(g, [...agents.map(({ bounds }) => rect(bounds)), ...(props.regionTitles ?? [])], chipSize(label, busy ? 0 : 2, invZoom(zoom)) /* below 100% the chip is in screen px (R12j) */, selectedLink === link.linkId, [rect(from), rect(to)]);
+        const runActions = (
+          <>
             {liveViews.length > 1 && (() => {
               const live = liveOf(link);
               const i = Math.max(0, live.indexOf(runIdOf(link) ?? ""));
               return (
                 <button type="button" data-agent-runs={live.length} title={tr(locale, "agentRunPick", { n: i + 1, total: live.length })}
                   onClick={() => ui.pickRun(link.linkId, live[(i + 1) % live.length])}>
-                  {`${tr(locale, "agentRuns", { n: live.length })} · ${i + 1}/${live.length} ›`}</button>
+                  {`${tr(locale, `agentRuns_${pluralForm(locale, live.length)}`, { n: live.length })} · ${i + 1}/${live.length} ›`}</button>
               );
             })()}
             {view && <button type="button" onClick={() => openRunOf(link)}>{t(locale, "orchOpenRun")}</button>}
@@ -303,10 +320,26 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
               ui.openPanel(link.linkId, { tab: "work", mode: "feed", role: r === "check" ? "check" : r ?? "executor" });
             }}>{t(locale, "orchObserve")}</button>}
             {link.bend && <button type="button" className="agent-link__reset" onClick={() => { bendRef.current = null; setBendDrag(null); void orch.setLinkBend(link.linkId, null); }}>{t(locale, "orchLinkBendReset")}</button>}
+          </>
+        );
+        const hasRunActions = liveViews.length > 1 || !!view || !!link.bend;
+        return (
+          <div key={link.linkId} className={`agent-link__chip${view?.permission ? " agent-link__chip--needs-you" : ""}`} data-interactive="true" data-agent-link-id={link.linkId} data-tone={view?.permission ? "waiting" : busy ? "working" : "idle"}
+            data-hover-host="" data-link-selected={selectedLink === link.linkId ? "" : undefined}
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: the chip is the keyboard's way to its run actions, which show on its focus
+            role="group" aria-label={t(locale, "orchLink")} tabIndex={hasRunActions ? 0 : undefined}
+            style={{ left: at.x, top: at.y, "--iz": invZoom(zoom),
+              zIndex: Math.max(props.zIndexOf(agentLayerId(link.fromAgentId)), props.zIndexOf(agentLayerId(link.toAgentId))) } as React.CSSProperties}>
+            <span className="agent-link__state" data-hover-anchor="">
+              {label}
+            </span>
+            {!busy && <button type="button" disabled={entry.disabled} title={entry.hint ? t(locale, entry.hint) : undefined}
+              onClick={() => ui.openGoal(link.linkId)}>{t(locale, "orchNewGoal")}</button>}
             {!busy && (
               <button type="button" className="agent-link__delete" onClick={() => void ui.deleteLink(link)}
                 title={t(locale, "orchDeleteLink")} aria-label={t(locale, "orchDeleteLink")}>×</button>
             )}
+            {hasRunActions && <span className="agent-link__actions">{runActions}</span>}
           </div>
         );
       })}

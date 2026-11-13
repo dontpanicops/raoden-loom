@@ -17,6 +17,7 @@ export function ResizeSizeBadge(): React.JSX.Element | null {
       if (!(event.target instanceof Element)) return;
       const handle = event.target.closest(".terminal-card__resize-handle");
       card = handle?.closest<HTMLElement>("[data-canvas-layer-id]") ?? null;
+      card?.setAttribute("data-resizing", ""); // R12t (mock 18): the markers stay for the whole gesture, the pointer off the card included
       pointerId = event.pointerId;
     };
     const move = (event: PointerEvent): void => {
@@ -24,6 +25,7 @@ export function ResizeSizeBadge(): React.JSX.Element | null {
     };
     const end = (event: PointerEvent): void => {
       if (event.pointerId !== pointerId) return;
+      card?.removeAttribute("data-resizing");
       card = null;
       setBadge(null);
     };
@@ -31,11 +33,13 @@ export function ResizeSizeBadge(): React.JSX.Element | null {
     window.addEventListener("pointermove", move, true);
     window.addEventListener("pointerup", end, true);
     window.addEventListener("pointercancel", end, true);
+    window.addEventListener("lostpointercapture", end, true);
     return () => {
       window.removeEventListener("pointerdown", down, true);
       window.removeEventListener("pointermove", move, true);
       window.removeEventListener("pointerup", end, true);
       window.removeEventListener("pointercancel", end, true);
+      window.removeEventListener("lostpointercapture", end, true);
     };
   }, []);
 

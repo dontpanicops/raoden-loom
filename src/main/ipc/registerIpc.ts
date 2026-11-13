@@ -8,6 +8,7 @@ import type {
   BrowserCommand,
   CanvasNavigationPointerBindingInput,
   CreateSessionRequest,
+  LimitsSnapshot,
   PluginBrowserOpenResponse,
   PluginCanvasRequest,
   ProviderId,
@@ -16,6 +17,7 @@ import type {
 import { IPC } from "../../shared/contracts";
 import { isCanvasNavigationMouseButton } from "../../shared/canvasNavigation";
 import { observeWindowState, readWindowState } from "../windowState";
+import { checkForUpdate } from "../services/updateCheck";
 import type { SettingsStore } from "../services/SettingsStore";
 import type { TerminalManager } from "../services/TerminalManager";
 import type { LimitsService } from "../services/LimitsService";
@@ -32,7 +34,7 @@ import { assertMainRenderer } from "./mainRenderer";
 import { importFilePicker, registerOrchestrationIpc } from "./orchestrationIpc";
 import type { RunManager } from "../services/orchestration/manager";
 import type { WorkspaceStore } from "../services/WorkspaceStore";
-import type { CameraState } from "../../shared/contracts";
+import type { CameraState, WorkspaceLabel } from "../../shared/contracts";
 import { PROVIDER_CLI_IDS, type ProviderCliRegistry } from "../services/providerCliRegistry";
 import { effectiveTheme, toLegacyPalette } from "../../shared/appearance";
 
@@ -150,6 +152,10 @@ export function registerIpc({
     assertMainRenderer(event, getMainWindow);
     return app.getVersion();
   });
+  // «Check for updates»: the public releases feed only. An isolated smoke answers from the file named by an absolute
+  // CANVASTTY_SMOKE_RELEASE_JSON (no network in a smoke).
+  const smokeRelease = smokeImport.isolated && process.env.CANVASTTY_SMOKE_RELEASE_JSON?.startsWith("/") ? process.env.CANVASTTY_SMOKE_RELEASE_JSON : null;
+  handleMain(IPC.updatesCheck, () => checkForUpdate(app.getVersion(), smokeRelease ? async () => JSON.parse(await readFile(smokeRelease, "utf8")) : undefined));
   handleMain(IPC.settingsGet, () => settings.get());
   handleMain(IPC.settingsUpdate, async (_event, patch: Partial<AppSettings>) => {
     const next = await settings.update(patch);
@@ -177,7 +183,10 @@ export function registerIpc({
     browser.setRendererCanvasGestureActive(active);
   });
 
+  // the smokes cannot drive the system dialog: an isolated run (CANVASTTY_USER_DATA_DIR) answers from the file named by an absolute CANVASTTY_SMOKE_PICK_DIR_FILE
+  const smokePickFile = smokeImport.isolated && process.env.CANVASTTY_SMOKE_PICK_DIR_FILE?.startsWith("/") ? process.env.CANVASTTY_SMOKE_PICK_DIR_FILE : null;
   handleMain(IPC.dialogPickDirectory, async (event, defaultPath?: string) => {
+    if (smokePickFile) return (await readFile(smokePickFile, "utf8").catch(() => "")).trim() || null;
     const owner = BrowserWindow.fromWebContents(event.sender);
     const options: OpenDialogOptions = {
       title: "Choose a project folder",
@@ -215,7 +224,13 @@ export function registerIpc({
     }
   });
 
-  handleMain(IPC.limitsGet, () => limits.get());
+  // the frames of HOME (mock 05) cannot touch the providers: an isolated run answers from the file named by an absolute
+  // CANVASTTY_SMOKE_LIMITS_JSON while that file exists, and from the providers once it is gone
+  const smokeLimits = smokeImport.isolated && process.env.CANVASTTY_SMOKE_LIMITS_JSON?.startsWith("/") ? process.env.CANVASTTY_SMOKE_LIMITS_JSON : null;
+  handleMain(IPC.limitsGet, async () => {
+    const fixture = smokeLimits ? await readFile(smokeLimits, "utf8").catch(() => null) : null;
+    return fixture ? JSON.parse(fixture) as LimitsSnapshot : limits.get();
+  });
   handleMain(IPC.providersAvailable, () => {
     const clis = newProviderClis();
     return PROVIDER_CLI_IDS.filter((id) => clis.get(id).state === "available");
@@ -297,6 +312,11 @@ export function registerIpc({
       throw new Error("Plugin hook state is invalid.");
     }
     return plugins.setHookEnabled(pluginId, hookId, enabled);
+  });
+  // «Open the plugins folder» (empty state of Settings → Plugins): the one folder main owns, nothing from the window
+  handleMain(IPC.pluginsOpenFolder, async () => {
+    if (smokeImport.isolated) { console.log("[smoke] plugins open-folder"); return ""; }
+    return shell.openPath(plugins.folder());
   });
   handleMain(IPC.pluginsUninstall, async (_event, pluginId: string) => {
     closePluginWindows(pluginId);
@@ -649,9 +669,13 @@ export function registerIpc({
   onMain(IPC.terminalBounds, (_event, id: string, bounds: SessionBounds) => terminals.setBounds(id, bounds));
   handleMain(IPC.terminalRename, (_event, id: string, title: string) => terminals.rename(id, title));
   handleMain(IPC.terminalDispose, (_event, id: string) => terminals.dispose(id));
-  handleMain(IPC.terminalStop, (_event, id: string) => {
+  // the screenshots of «Остановить всё и скрыть» need the «stopping» state to last: an isolated run may delay the answer (CANVASTTY_SMOKE_STOP_DELAY_MS)
+  const smokeStopDelay = smokeImport.isolated ? Math.min(Math.max(Number(process.env.CANVASTTY_SMOKE_STOP_DELAY_MS) || 0, 0), 10_000) : 0;
+  handleMain(IPC.terminalStop, async (_event, id: string) => {
     if (typeof id !== "string") throw new Error("Terminal session ID is required.");
-    return terminals.stop(id);
+    const stopped = terminals.stop(id);
+    if (smokeStopDelay) await new Promise((r) => setTimeout(r, smokeStopDelay));
+    return stopped;
   });
   handleMain(IPC.terminalSetWorkspace, (_event, id: unknown, workspaceId: unknown) => {
     if (typeof id !== "string" || typeof workspaceId !== "string") throw new Error("Invalid terminal workspace request.");
@@ -668,17 +692,22 @@ export function registerIpc({
     if (typeof v !== "string" || !isAbsolute(v) || v.length > 4_096 || v.includes("\0")) throw new Error("Invalid workspace folder.");
     return v;
   };
+  const wsLabel = (v: unknown): WorkspaceLabel | null => {
+    if (v === null) return null;
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > 5) throw new Error("Invalid workspace label.");
+    return v as WorkspaceLabel;
+  };
   handleMain(IPC.workspacesGet, () => workspaces.get());
   handleMain(IPC.workspacesCreate, (_event, input: unknown) => {
-    const o = input as { title?: unknown; root?: unknown; activate?: unknown } | null;
+    const o = input as { title?: unknown; root?: unknown; label?: unknown; activate?: unknown } | null;
     if (!o || typeof o !== "object" || typeof o.title !== "string" || o.title.length > 200) throw new Error("Invalid workspace request.");
     if (o.activate !== undefined && typeof o.activate !== "boolean") throw new Error("Invalid workspace request.");
-    return workspaces.create({ title: o.title, root: wsRoot(o.root ?? null), ...(o.activate === false ? { activate: false } : {}) });
+    return workspaces.create({ title: o.title, root: wsRoot(o.root ?? null), ...(o.label !== undefined ? { label: wsLabel(o.label) } : {}), ...(o.activate === false ? { activate: false } : {}) });
   });
   handleMain(IPC.workspacesUpdate, (_event, id: unknown, patch: unknown) => {
-    const o = patch as { title?: unknown; root?: unknown } | null;
+    const o = patch as { title?: unknown; root?: unknown; label?: unknown } | null;
     if (!o || typeof o !== "object" || (o.title !== undefined && (typeof o.title !== "string" || o.title.length > 200))) throw new Error("Invalid workspace request.");
-    return workspaces.update(wsId(id), { ...(o.title !== undefined ? { title: o.title as string } : {}), ...(o.root !== undefined ? { root: wsRoot(o.root) } : {}) });
+    return workspaces.update(wsId(id), { ...(o.title !== undefined ? { title: o.title as string } : {}), ...(o.root !== undefined ? { root: wsRoot(o.root) } : {}), ...(o.label !== undefined ? { label: wsLabel(o.label) } : {}) });
   });
   handleMain(IPC.workspacesActivate, (_event, id: unknown) => workspaces.activate(wsId(id)));
   handleMain(IPC.workspacesSetCamera, (_event, id: unknown, camera: unknown) => workspaces.setCamera(wsId(id), camera as CameraState));

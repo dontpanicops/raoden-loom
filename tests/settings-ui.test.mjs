@@ -36,10 +36,11 @@ test("Settings uses the approved icon-sidebar modal instead of the legacy horizo
   // R5g: no brand block; the section title is the header, «About» is pinned to the bottom of the sidebar
   assert.doesNotMatch(settings, /settings-panel__brand/);
   assert.match(settings, /settings-tabs__button--about/);
-  assert.match(settings, /\{ id: "general", icon: "app-window" \}/);
+  assert.match(settings, /\{ id: "general", icon: "general" \}/);
   assert.doesNotMatch(settings, /\{ id: "general", icon: "settings" \}/);
   assert.match(settings, /SETTINGS_SECTIONS\.map\(\(\{ id, icon \}\)/);
-  assert.match(settings, /className=\{`setting-group setting-group--field\$\{layout === "stacked" \? " setting-group--stacked" : ""\}\$\{layout === "switch" \? " setting-group--switch" : ""\}`\}/);
+  assert.match(settings, /className=\{`setting-group setting-group--field\$\{layout === "stacked" \|\| layout === "under" \|\| layout === "caps" \? " setting-group--stacked" : ""\}/); // R12h: «under» and «caps» are stacked too
+  assert.match(settings, /layout === "switch" \? " setting-group--switch" : ""/);
   assert.doesNotMatch(settings, /settings-panel__topbar/);
   assert.match(styles, /\.settings-panel \{[^}]*grid-template-columns: 15\.5em minmax\(0, 1fr\);[^}]*background: var\(--surface-3-solid\);[^}]*font-size: calc\(13px \* var\(--ui-scale, 1\)\)/);
   assert.match(styles, /\.settings-tabs \{[^}]*flex-direction: column/);
@@ -194,12 +195,12 @@ test("the redesigned menus use shared tokens, em geometry, and the configured UI
   assert.match(styles, /\.canvas-menu__row \{[^}]*font-weight: 400;/);
   assert.match(styles, /\.canvas-menu__icon \{[^}]*width: 1\.5em;[^}]*height: 1\.5em;[^}]*color: var\(--text-secondary\)/);
   assert.match(styles, /\.canvas-menu__kbd \{[^}]*margin-left: auto;[^}]*color: var\(--text-muted\)/);
-  assert.match(styles, /\.canvas-menu__swatches \{[^}]*gap: \.45em/);
+  assert.match(styles, /\.canvas-menu__swatches \{[^}]*gap: \.55em/);
   assert.match(styles, /\.canvas-command-palette__footer \{[^}]*border-top:/);
   assert.match(menuPrimitives, /<span className="canvas-menu__icon">[\s\S]*<UiIcon name=\{icon\} size="1\.23em" \/>/);
   assert.match(contextMenu, /"ctxRegion"/); // R5e: mock 10 labels, no "here" hints
   assert.match(contextMenu, /"ctxConfigureList"/);
-  assert.match(contextMenu, /CANVAS_REGION_COLORS\.map/);
+  assert.match(contextMenu, /CANVAS_REGION_MENU_COLORS/);
   assert.match(contextMenu, /canvas-menu__swatch--selected/);
   assert.match(contextMenu, /canvasMenuRegionContentsStay/);
   assert.match(commandPalette, /CanvasMenuLabel>\{t\(locale, "canvasMenuSessions"\)\}/);
@@ -208,7 +209,7 @@ test("the redesigned menus use shared tokens, em geometry, and the configured UI
   assert.match(commandPalette, /canvas-palette__chip/);
   assert.match(settings, /className="canvas-menu canvas-launcher-settings-menu"/);
   assert.match(settings, /icon=\{enabled \? "minus" : "plus"\}/);
-  assert.match(settings, /layout="stacked"\s+label=\{t\(locale, "canvasLauncherItems"\)\}/);
+  assert.match(settings, /<SettingGroup\s+label=\{t\(locale, "canvasLauncherItems"\)\}/); // R12c: the list sits on the right, as in mock 11
   assert.match(settings, /<AgentProviderTable/);
   assert.match(settings, /setHomeLauncherProviderEnabled\(homeLauncherProviders, provider, enabled\)/);
   assert.match(settings, /setHomeLimitProviderEnabled\(homeLimitProviders, provider, enabled\)/);

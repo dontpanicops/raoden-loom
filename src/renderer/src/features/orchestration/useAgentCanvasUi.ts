@@ -17,7 +17,7 @@ export type { PanelMode, PanelRole, PanelSection, PanelTab };
 // runId: a run opened by id (a workspace's history, a link that is gone); absent: the link's latest run.
 export interface PanelState { linkId: string | null; runId?: string; tab: PanelTab; mode: PanelMode; section?: PanelSection; role: PanelRole; focus: number }
 
-export interface CardMessage { text: string; tone: "error" | "info" }
+export interface CardMessage { text: string; tone: "error" | "info"; pairWith?: string /* mock 19: a repeated pair is refused by a plate under the two cards, not inside the lead's card */ }
 
 // A view request as the panel's tab/mode/section. What it does not name stays as the current view of the same link;
 // with nothing to stay (dflt) a bare open lands on the summary's overview section (part B drops it with the old eight tabs).
@@ -49,8 +49,8 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
 
   // A refusal stays on the card for a while, then goes; the next action on the card replaces it.
   // UX audit PR 3: what only informs (the cards are already linked) is not drawn as an error.
-  const say = useCallback((agentId: string, text: string | null, tone: CardMessage["tone"] = "error"): void => {
-    const said = text ? { text, tone } : null;
+  const say = useCallback((agentId: string, text: string | null, tone: CardMessage["tone"] = "error", pairWith?: string): void => {
+    const said = text ? { text, tone, ...(pairWith ? { pairWith } : {}) } : null;
     setMessages((m) => {
       const { [agentId]: _, ...rest } = m;
       return said ? { ...rest, [agentId]: said } : rest;
@@ -69,7 +69,7 @@ export function useAgentCanvasUi(orch: Orchestration, locale: LocaleId, workspac
     const reason = outcomeText(locale, outcome);
     const text = reason && outcome.kind === "refused" && outcome.code !== "link_duplicate"
       ? t(locale, "orchLinkNotCreated").replace("{reason}", reason.charAt(0).toLowerCase() + reason.slice(1).replace(/\.$/, "")) : reason;
-    say(fromAgentId, text);
+    say(fromAgentId, text, "error", outcome.kind === "refused" && outcome.code === "link_duplicate" ? toAgentId : undefined);
     if (toAgentId !== fromAgentId) say(toAgentId, null);
   }, [ids, locale, orch, say]);
 

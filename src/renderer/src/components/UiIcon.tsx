@@ -11,6 +11,7 @@ import triangleAlertIcon from "../assets/icons/lucide/triangle-alert.svg";
 import closeIcon from "../assets/icons/lucide/x.svg";
 import copyIcon from "../assets/icons/lucide/copy.svg";
 import errorIcon from "../assets/icons/lucide/circle-alert.svg";
+import downloadIcon from "../assets/icons/lucide/download.svg";
 import folderIcon from "../assets/icons/lucide/folder.svg";
 import browserIcon from "../assets/icons/lucide/globe.svg";
 import bringToFrontIcon from "../assets/icons/lucide/bring-to-front.svg";
@@ -20,6 +21,8 @@ import inboxIcon from "../assets/icons/lucide/inbox.svg";
 import kanbanIcon from "../assets/icons/lucide/square-kanban.svg";
 import infoIcon from "../assets/icons/lucide/info.svg";
 import bellIcon from "../assets/icons/lucide/bell.svg";
+import clockIcon from "../assets/icons/lucide/clock.svg";
+import wifiOffIcon from "../assets/icons/lucide/wifi-off.svg";
 import maximizeIcon from "../assets/icons/lucide/square.svg";
 import minusIcon from "../assets/icons/lucide/minus.svg";
 import plusIcon from "../assets/icons/lucide/plus.svg";
@@ -29,6 +32,12 @@ import searchIcon from "../assets/icons/lucide/search.svg";
 import settingsIcon from "../assets/icons/lucide/settings.svg";
 import slidersHorizontalIcon from "../assets/icons/lucide/sliders-horizontal.svg";
 import stickyNoteIcon from "../assets/icons/lucide/sticky-note.svg";
+import settings2Icon from "../assets/icons/lucide/settings-2.svg";
+import botIcon from "../assets/icons/lucide/bot.svg";
+import pointerIcon from "../assets/icons/lucide/mouse-pointer-2.svg";
+import plugIcon from "../assets/icons/lucide/plug.svg";
+import squareDashedIcon from "../assets/icons/lucide/square-dashed.svg";
+import promptIcon from "../assets/icons/lucide/terminal.svg";
 import terminalIcon from "../assets/icons/lucide/square-terminal.svg";
 import trashIcon from "../assets/icons/lucide/trash-2.svg";
 import workingIcon from "../assets/icons/lucide/loader-circle.svg";
@@ -57,6 +66,12 @@ export type UiIconName =
   | "browser"
   | "bring-to-front"
   | "terminal"
+  | "prompt"
+  | "region"
+  | "plug"
+  | "general"
+  | "agents"
+  | "pointer"
   | "reload"
   | "arrow"
   | "chevron"
@@ -75,7 +90,9 @@ export type UiIconName =
   | "status-idle"
   | "status-paused"
   | "status-failed"
-  | "status-done";
+  | "status-done"
+  | "clock"
+  | "wifi-off";
 
 interface UiIconProps {
   name: UiIconName;
@@ -91,6 +108,8 @@ const ICONS: Record<UiIconName, string> = {
   inbox: inboxIcon,
   kanban: kanbanIcon,
   bell: bellIcon,
+  clock: clockIcon,
+  "wifi-off": wifiOffIcon,
   home: homeIcon,
   "zoom-in": zoomInIcon,
   "zoom-out": zoomOutIcon,
@@ -104,10 +123,16 @@ const ICONS: Record<UiIconName, string> = {
   browser: browserIcon,
   "bring-to-front": bringToFrontIcon,
   terminal: terminalIcon,
+  prompt: promptIcon,
+  region: squareDashedIcon,
+  plug: plugIcon,
+  general: settings2Icon,
+  agents: botIcon,
+  pointer: pointerIcon,
   reload: workingIcon,
   arrow: arrowIcon,
   chevron: chevronIcon,
-  download: chevronIcon,
+  download: downloadIcon,
   plus: plusIcon,
   palette: paletteIcon,
   pencil: pencilIcon,

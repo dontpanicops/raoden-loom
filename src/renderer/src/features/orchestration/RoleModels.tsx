@@ -57,21 +57,31 @@ function RoleModel({ locale, role, value, codex, onChange }: {
   );
 }
 
-export function RoleModelsField({ locale, linkId, value, onChange, hint, bare }: {
-  locale: LocaleId; linkId: string; value: OrchestrationRoleModels; onChange(v: OrchestrationRoleModels): void; hint: string; bare?: boolean;
+// more (D-043, the project settings, mock 15): the lead and the executor in the card; the reviewer and «Обновить» under that
+// summary (open while the reviewer has a model of its own). The goal dialog passes none: everything as before
+export function RoleModelsField({ locale, linkId, value, onChange, hint, bare, more }: {
+  locale: LocaleId; linkId: string; value: OrchestrationRoleModels; onChange(v: OrchestrationRoleModels): void; hint: string; bare?: boolean; more?: string;
 }): React.JSX.Element {
   const codex = useCodexModels(linkId);
+  const role = (r: Role) => <RoleModel key={r} locale={locale} role={r} value={value[r]} codex={codex.list} onChange={(m) => onChange({ ...value, [r]: m })} />;
+  const failed = codex.list && !codex.list.ok ? `${t(locale, "orchModelsCodexFailed")}${codex.list.error ? `: ${codex.list.error}` : ""} ` : "";
+  const refresh = <button type="button" disabled={codex.busy} data-orch-models-refresh onClick={codex.refresh}>{t(locale, "orchModelsRefresh")}</button>;
+  const state = codex.list ? (codex.list.ok ? "ok" : "failed") : "loading";
   return (
     <fieldset className="orch-field orch-models" data-orch-models>
       {!bare && <legend>{t(locale, "orchModels")}</legend>}
+      {(more ? ROLES.filter((r) => r !== "reviewer") : ROLES).map(role)}
       <p className="orch-hint">{hint}</p>
-      {ROLES.map((role) => (
-        <RoleModel key={role} locale={locale} role={role} value={value[role]} codex={codex.list} onChange={(m) => onChange({ ...value, [role]: m })} />
-      ))}
-      <p className="orch-hint" data-orch-codex-models={codex.list ? (codex.list.ok ? "ok" : "failed") : "loading"}>
-        {codex.list && !codex.list.ok ? `${t(locale, "orchModelsCodexFailed")}${codex.list.error ? `: ${codex.list.error}` : ""} ` : ""}
-        <button type="button" disabled={codex.busy} data-orch-models-refresh onClick={codex.refresh}>{t(locale, "orchModelsRefresh")}</button>
-      </p>
+      {more ? <>
+        {failed && <p className="orch-hint" data-orch-codex-models={state}>{failed}</p>}
+        <details className="orch-more" data-orch-models-more open={value.reviewer !== null}>
+          <summary>{more}</summary>
+          {role("reviewer")}
+          <p className="orch-hint" {...(failed ? {} : { "data-orch-codex-models": state })}>{refresh}</p>
+        </details>
+      </> : (
+        <p className="orch-hint" data-orch-codex-models={state}>{failed}{refresh}</p>
+      )}
     </fieldset>
   );
 }

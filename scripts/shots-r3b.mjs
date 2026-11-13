@@ -68,6 +68,7 @@ const STATES = [
   ["10-person-decision", "awaiting_person_decision"],
   ["11-coverage-lost", "coverage_lost"],
   ["12-finish-confirmation", "awaiting_finish_confirmation"],
+  ["12-push-confirmation", "push_confirmation"], // D-043: askPush on, the checks passed, the run waits for the push consent (confirm.ask); no mock-up frame of its own
   ["13-finish-unconfirmed", "finish_unconfirmed"],
   ["14-check-needs-permissions", "check_needs_permissions"],
   ["15-lead-modified-tree", "lead_modified_tree"],
@@ -143,7 +144,7 @@ async function renderer() { // the built RunPanel to static markup (as tests/orc
 }
 // R5h-A: the states whose frame needs what the panel loads by itself (the result to take, the changed files): drawn by the real
 // RunPanel in the page, with the application's API answered by the fixture, and waited for until nothing says «Загрузка…»
-const LIVE_FIXTURES = ["08-outcome-unknown", "15-lead-modified-tree", "17-completed", "18-failed"];
+const LIVE_FIXTURES = ["01-working", "08-outcome-unknown", "15-lead-modified-tree", "17-completed", "18-failed", "19-newer-readonly", "20-newer-fallback"];
 const TAKE = { mode: "worktree", from: "checkpoint", stage: 2, files: 3, allowed: true, suggested: "raoden/notes-api-25931336", runBranch: "feat/notes", branch: null, applied: null };
 const CHANGES = { base: "baseline", at: "live_snapshot", atTs: "2026-11-11T10:31:00.000Z", truncated: false, checkpoints: [], baselineRef: "base", transferred: false,
   files: [{ path: "src/api/notes.ts", status: "added" }, { path: "src/api/notes.test.ts", status: "added" }, { path: "src/index.ts", status: "modified" }] };
@@ -159,9 +160,11 @@ async function browserBundle() {
 }
 const cssFile = () => { const dir = path.join(ROOT, "out/renderer/assets"); return path.join(dir, fs.readdirSync(dir).find((f) => /^index-.*\.css$/.test(f))); };
 // the mock-up opens a run that works (and most pauses) on "Work" and the checks / finish / refused ones on "Summary"
-const SUMMARY_STATES = ["04-plan-review", "10-person-decision", "05-checks-decision", "06-checks-none", "12-finish-confirmation", "13-finish-unconfirmed", "14-check-needs-permissions", "17-completed", "11-coverage-lost"];
-const TURN = (id, kind, text) => ({ id, ts: "2026-11-11T07:31:0" + id + ".000Z", turnId: "t1", role: "executor", provider: "claude", kind, text });
-const WORKING_ENTRIES = [TURN(1, "thinking", ""), TURN(2, "tool_started", "Edit src/api/notes.ts"), TURN(3, "tool_started", "Bash npm test")];
+const SUMMARY_STATES = ["12-push-confirmation", "04-plan-review", "10-person-decision", "05-checks-decision", "06-checks-none", "12-finish-confirmation", "13-finish-unconfirmed", "14-check-needs-permissions", "17-completed", "11-coverage-lost"];
+// recent times, so the live silence line reads minutes as in the mock-up, not the age of a fixed date
+const TURN = (id, kind, text) => ({ id, ts: new Date(Date.now() - (4 * 60 - id) * 1000).toISOString(), turnId: "t1", role: "executor", provider: "claude", kind, text });
+// F-c (D-041 p. 7): the Edit line carries its counters, as the activity mapper gives them from the Edit text
+const WORKING_ENTRIES = [TURN(0, "process_started", ""), TURN(1, "thinking", ""), { ...TURN(2, "tool_started", "Edit src/api/notes.ts"), detail: { tool: "Edit", added: 31, removed: 2 } }, TURN(3, "tool_started", "Bash npm test")];
 const CHANGES_STATES = ["08-outcome-unknown", "15-lead-modified-tree"]; // D-017: the pauses about the tree open on "Changes"
 // R5h-A (D-026): the pauses show where the run stands under the zone — their journals carry the plan (and the accepted stages, the round, the refused check)
 const rec = (seq, type, data) => ({ seq, ts: at(seq), type, data });
@@ -172,8 +175,9 @@ const PAUSE_EXTRA = {
   "03-permission": { records: REC_PLAN_PR, texts: { pq: { status: "ready", text: JSON.stringify({ stages: [{ title: "модель заметки", task: "t" }, { title: "PR и описание", task: "t" }] }) } } },
   "05-checks-decision": { records: REC_PLAN },
   "09-loop-suspected": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "orch.turn", { turnId: "t9", purpose: "execute", stage: 2, round: 4 })] },
-  "18-failed": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 })] },
+  "18-failed": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "checkpoint.created", { stage: 1, commit: "a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4", tree: "b".repeat(40), parent: "c".repeat(40) })] },
   "07-limit-reached": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "orch.turn", { turnId: "t7", purpose: "execute", stage: 2, round: 3 })] },
+  "12-push-confirmation": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "stage.accepted", { stage: 2 })], progress: { checks: [check("c1", "npm test"), check("c2", "npm run lint")] } },
   "12-finish-confirmation": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "stage.accepted", { stage: 2 })] },
   "14-check-needs-permissions": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "check.started", { checkRunId: "x1", checkId: "c1" }), rec(5, "check.finished", { checkRunId: "x1", checkId: "c1", status: "failed" })],
     progress: { checks: [{ id: "c1", title: "npm run test:e2e", status: "failed", class: "sandbox" }] }, refusedCommand: "npm run test:e2e" }
@@ -194,7 +198,8 @@ const fixtureOf0 = ([, set, o]) => {
   if (set === "coverage_lost") return { view: view("paused", set, { stage: 1, decisions: { runKey: "k".repeat(64), tree: "t".repeat(40), disputed: [], conditions: [], findings: false,
     proposal: { proposalTurnId: "t1", stages: [{ stage: 1, title: "Заметка", conditions: ["C1"] }], dropped: [{ id: "C2", text: "Работает без сети", covers: ["R2"], why: "лид счёл условие избыточным" }],
       dropRequirements: [], uncovered: ["R2"], findings: [{ id: "F2", condition: "C2", problem: "Нет теста на удаление заметки" }] } } }), entries: [], onMac: true };
-  if (set === "awaiting_finish_confirmation") return { ...fixture(set), view: { ...fixture(set).view, confirm: { tree: "t".repeat(40), commit: "c0ffee1234567890".repeat(2).slice(0, 40), push: true, qa: true } } };
+  if (set === "push_confirmation") { const f = fixture("awaiting_finish_confirmation"); return { ...f, view: { ...f.view, confirm: { tree: "t".repeat(40), commit: "c0ffee1234567890".repeat(2).slice(0, 40), push: true, qa: false, ask: true, pushTo: "origin/feat/notes" } } }; }
+  if (set === "awaiting_finish_confirmation") return { ...fixture(set), view: { ...fixture(set).view, confirm: { tree: "t".repeat(40), commit: "c0ffee1234567890".repeat(2).slice(0, 40), push: true, qa: true, pushTo: "origin/feat/notes" } } };
   if (set === "check_needs_permissions") return { ...fixture(set), view: { ...fixture(set).view, refused: { checkId: "c1", command: "npm test -- --runInBand && curl http://localhost:3000/health" } } };
   if (set === "limit_reached") { const f = fixture(set); return { ...f, view: { ...f.view, stage: 2, progress: { mode: "autopilot", checks: [], finish: [], budget: budget({ reached: "turns" }) } } }; }
   if (set === "loop_suspected") return { view: view("paused", set, { stage: 2 }), entries: [], onMac: true };
@@ -202,9 +207,9 @@ const fixtureOf0 = ([, set, o]) => {
     { step: "commit", asked: true, status: "done", established: true, commit: "a1b2c3d4e5f60718", evidence: null },
     { step: "push", asked: true, status: "unconfirmed", established: false, commit: "a1b2c3d4e5f60718", evidence: null }] } }), entries: [], onMac: true };
   if (set) return fixture(set === "finish_unconfirmed" ? "awaiting_finish_confirmation" : set);
-  if (o.newerV) return { view: view("paused", "user_request", { stage: 2, newer: o.newerV }), entries: [], onMac: true };
+  if (o.newerV) return { view: view("paused", "user_request", { stage: 2, newer: o.newerV }), entries: [], records: RECORDS_17, onMac: true };
   if (o.running) return { view: view("running", null, o.running), entries: [], onMac: true };
-  if (o.completed) return { view: view("completed", null, { stage: 2, turns: 22, workMode: "worktree", workDir: "~/dev/project-b", completion: { kind: "confirmed" }, progress: { ...PROGRESS_17, budget: budget({ used: { turns: 22, replans: 0 } }) } }),
+  if (o.completed) return { view: view("completed", null, { stage: 2, turns: 22, workMode: "worktree", workDir: "~/dev/project-b", exportable: true, completion: { kind: "confirmed" }, progress: { ...PROGRESS_17, budget: budget({ used: { turns: 22, replans: 0 } }) } }),
     entries: [{ id: 1, ts: at(1), runId: "r", role: "lead", provider: "codex", turnId: null, kind: "session", text: "", detail: { reported: true, sandbox: "read-only", model: "gpt-5" } },
       { id: 2, ts: at(2), runId: "r", role: "executor", provider: "claude", turnId: null, kind: "session", text: "", detail: { reported: true, permissionMode: "acceptEdits", model: "sonnet" } }], records: RECORDS_17, onMac: true };
   // the failure: the executor's turn ended with an error the zone quotes
@@ -215,7 +220,7 @@ const fixtureOf0 = ([, set, o]) => {
 
 const combos = BEFORE ? [{ name: "before", patch: { palette: "sand", canvasColor: "theme" } }]
   : ["sand", "bay"].map((t) => ({ name: t, patch: { palette: t, canvasColor: "theme" } }));
-const laptop = (app) => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: Number(arg("height") ?? 900), deviceScaleFactor: 1, mobile: false });
+const laptop = (app) => app.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: Number(arg("height") ?? 900), deviceScaleFactor: 2, mobile: false });
 let app;
 try {
   app = await launch({ userData: D("user-data"), providers, port: PORT, shots: OUT });
@@ -228,7 +233,10 @@ try {
     await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas after reload", 30_000);
     await app.key("Home", "Home", 36); await sleep(1200);
   };
-  const shot = async (name, screen) => { await sleep(1800); await app.shot(`${name}-${screen}`); };
+  // R12k: --measure <jsonl> appends the geometry of the zone's text and buttons (CSS px) of every frame, to compare with the mock-up's reference CSS
+  const MEASURE = arg("measure");
+  const probe = `(() => { const P = document.querySelector(".orch-panel"); if (!P) return null; const pr = P.getBoundingClientRect(); const f = (e) => { const r = e.getBoundingClientRect(), c = getComputedStyle(e); return { t: (e.textContent || "").trim().slice(0, 28), tag: e.tagName.toLowerCase() + (e.className && typeof e.className === "string" ? "." + e.className.split(" ")[0] : ""), y: Math.round((r.top - pr.top) * 10) / 10, h: Math.round(r.height * 10) / 10, w: Math.round(r.width * 10) / 10, fs: c.fontSize, fw: c.fontWeight, mono: /mono/i.test(c.fontFamily) }; }; const Z = document.querySelector(".orch-zone"); return { panelW: pr.width, items: Z ? [...Z.querySelectorAll("button, strong, p, pre, small, label, span.orch-zone__label, .orch-zone__label, input, textarea, li")].map(f) : [], below: [...P.querySelectorAll(".orch-kv__row, .orch-kv__row dt, .orch-kv__row dd, .orch-history li, .orch-history li > *, .orch-seg2 button, [role=tab], .orch-changes__status")].slice(0, 40).map(f) }; })()`;
+  const shot = async (name, screen) => { await sleep(1800); if (MEASURE) fs.appendFileSync(MEASURE, JSON.stringify({ name: `${name}-${screen}`, m: await app.ev(probe) }) + "\n"); await app.shot(`${name}-${screen}`); };
 
   if (ONLY !== "fixtures") {
     await createAgent(app, "Агент Codex (лид)", node);
@@ -274,12 +282,14 @@ try {
     const drawLive = async (name, f, theme, scale) => {
       const file = D(`page-live-${name}.html`);
       const api = `const ok = (value) => Promise.resolve({ ok: true, value }); const none = () => Promise.resolve({ ok: false, error: { code: "fixture" } });
-        window.__fxApi = new Proxy({}, { get: () => new Proxy({ take: () => ok(${JSON.stringify(TAKE)}), changes: () => ok(${JSON.stringify(CHANGES)}) }, { get: (t, k) => t[k] ?? none }) });`;
+        window.__fxApi = new Proxy({}, { get: () => new Proxy({ take: () => ok(${JSON.stringify(TAKE)}), changes: () => ok(${JSON.stringify(CHANGES)}), history: () => ok({ records: ${JSON.stringify(f.records ?? [])}, more: false }) }, { get: (t, k) => t[k] ?? none }) });`;
       fs.writeFileSync(file, `<!doctype html><html lang="ru"><head><meta charset="utf-8"><link rel="stylesheet" href="${css}"></head>
 <body style="margin:0"><div class="app app--${theme} app--macos" style="--ui-scale:${scale};position:fixed;inset:0"><div class="workspace" style="position:absolute;inset:0"><div id="root"></div></div></div>
 <script>${api}</script><script src="${pathToFileURL(D("panel.js")).href}"></script><script>window.__mount(${JSON.stringify(render.props(f))});</script></body></html>`);
       await app.call("Page.navigate", { url: pathToFileURL(file).href });
       await app.waitFor(`document.querySelector(".orch-panel") && !document.body.innerText.includes("Загрузка")`, `${name}: the panel without «Загрузка…»`, 15_000);
+      // D-043 n=22: the «молчит N мин» line shows once the clock has ticked; the frame waits for it (the timeout only logs)
+      if (name === "01-working") await app.waitFor(`document.querySelector("[data-orch-silence]") !== null`, `${name}: the silence line`, 10_000).catch(() => console.log(`[shots-r3b] ${name}: silence line still absent`));
       await sleep(600);
       await shot(`${theme}${scale === 1 ? "" : "-scale125"}`, `fx-${name}`);
     };

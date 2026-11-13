@@ -6,6 +6,7 @@ const PROJECT_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const IGNORED_ENTRY_NAMES = new Set([
   ".git",
   ".agents",
+  ".claude",
   ".codex",
   ".planning",
   "graphify-out",

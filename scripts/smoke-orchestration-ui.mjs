@@ -115,6 +115,8 @@ try {
   expect(zoom < 1, "the canvas is zoomed out during the gestures", zoom);
 
   // keyboard: the port toggles linking; Escape cancels; Enter on "Link here" of the other project's card is refused
+  // the pointer leaves the header it dragged: resting on the role word it opens that word's tooltip, which takes the first Escape (Term)
+  { const spot = await app.freeRect(120, 120); await app.mouse("mouseMoved", spot.x + 60, spot.y + 60); await sleep(200); }
   await app.ev(`${card(lead.agentId, ".agent-card__port")}.focus({ preventScroll: true })`);
   await app.key("Enter", "Enter", 13, "\r");
   expect(await app.ev(`!!${q(".orch-linking-hint")} && document.querySelectorAll(".agent-card__connect").length === 2`), "Enter on the port starts linking; executors offer Link here", null);
@@ -146,8 +148,8 @@ try {
   expect(!(await cardText(app, lead.agentId, ".agent-card__message")), "a successful link clears the refusal", null);
   await app.shot("04-linked");
   await app.drag(await app.center(card(lead.agentId, ".agent-card__port")), await app.center(card(exec.agentId, ".agent-card__body")), 20);
-  await app.waitFor(`${card(lead.agentId, ".agent-card__message")}?.textContent`, "duplicate refusal");
-  expect((await canvasState(app)).links.length === 1, "a repeated pair is refused", await cardText(app, lead.agentId, ".agent-card__message"));
+  await app.waitFor(`${q("[data-agent-pair-note]")}?.textContent`, "duplicate refusal"); // R12n (mock 19): the refusal of a repeated pair is a plate under the pair
+  expect((await canvasState(app)).links.length === 1, "a repeated pair is refused", await app.ev(`document.querySelector("[data-agent-pair-note]")?.textContent ?? null`));
 
   // run 1: to completed; the executor is held mid-turn and shown working until the turn ends
   fs.writeFileSync(HOLD, "");
@@ -223,17 +225,19 @@ try {
   await app.clickEl(q("[data-run-doc-note]"));
   await app.waitFor(`document.querySelectorAll("[data-sticky-note-id]").length === ${notesBefore} + 1`, "a note added");
   const note = `[...document.querySelectorAll("[data-sticky-note-id]")].at(-1)`;
-  const snapText = await app.ev(`${note}.querySelector("textarea").value`);
+  const snapText = await app.ev(`${note}.querySelector(".sticky-note-card__header").textContent.trim() + "\\n\\n" + ${note}.querySelector("textarea").value`); // R12j: the first line is the header's title, the body does not repeat it
   expect(snapText.startsWith("> Копия документа на ") && snapText.includes("— план"), "«To the canvas»: a note marked as a copy of when", snapText.slice(0, 120));
   expect(await app.ev(`${note}.querySelector('[data-note-source="plan"]') !== null`), "the note shows it is a snapshot of the plan", null);
   const label = await app.ev(`(() => { const s = ${note}.querySelector("[data-note-source] > span"); return { text: s.textContent, fits: s.scrollWidth <= s.clientWidth }; })()`);
   expect(label.fits && /^Копия на .*\d{2}:\d{2}/.test(label.text), "the snapshot label shows its time in full", JSON.stringify(label));
   expect((await app.ev(`${q("[data-run-doc-note]")}.textContent`)) === "На холсте ✓", "«To the canvas» answers on the button", null);
   const noteBtn = `${note}.querySelector("[data-note-open-source]")`;
-  const hit = await app.ev(`(() => { const b = ${noteBtn}.getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return e !== null && ${noteBtn}.contains(e); })()`);
+  const noteChip = `${note}.querySelector("[data-note-source]")`; // R12a: the button sits in the note's footer; the note's label is what shows it is in view
+  const hit = await app.ev(`(() => { const b = ${noteChip}.getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return e !== null && ${noteChip}.contains(e); })()`);
   expect(hit, "the new note is in view, not under the run panel", hit);
   await openTab(app, "result"); // away from the plan, the panel stays open
-  await app.clickEl(`${note}.querySelector("[data-note-open-source]")`);
+  // the button is in the note's footer (R12a), under the open panel once the tab changes: the click is the button's own (visibility was checked above)
+  await app.ev(`${noteBtn}.click(); true`);
   await app.waitFor(`${q('[data-run-doc="plan"]')} && true`, "«Open current» opens the run's plan tab");
   expect(true, "«Open current» on the note opens the current plan", null);
   await openTab(app, "history");

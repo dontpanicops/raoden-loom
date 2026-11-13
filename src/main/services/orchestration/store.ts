@@ -39,7 +39,6 @@ import type { Stage13Event } from "./journal.ts";
 import type { CompletionBasis, V2Texts } from "./journal.ts";
 import type { PlanText } from "./conditions.ts";
 import type { Applied, PlanChoices } from "./findings.ts";
-import type { FinishParams } from "./finish.ts";
 import type {
   CheckAssessedData, CheckStatus, ClarificationAddedData, CommandResult, EventType, JournalIntegrity, LimitsChangedData, NotVerifiedReason,
   OrchTurnData, PausedReason, PlanRecordedData, QuestionAnsweredData, QuestionAskedData, RecoveryDecidedData, ReportStoreError,
@@ -844,11 +843,12 @@ async function withTexts(dir: string, parsed: ReturnType<typeof parseJournal>): 
   const read = async <T>(ref: TextRef): Promise<T> => JSON.parse((await readTextFile(join(dir, TEXTS, ref.sha256), ref)).toString("utf8")) as T;
   let why: string | null;
   try {
+    const goal = await read<V2Texts["goal"]>(st.goal);
     why = textsConflict(st, {
-      goal: await read(st.goal),
+      goal,
       proposal: st.orch.checksProposal ? await read(st.orch.checksProposal.ref) : null,
       decision: st.orch.checksDecision ? await read(st.orch.checksDecision.ref) : null,
-      ...await conditionTexts(st, read)
+      ...await conditionTexts(st, read, goal.askPush === true)
     });
   } catch {
     return parsed.integrity;
@@ -858,7 +858,7 @@ async function withTexts(dir: string, parsed: ReturnType<typeof parseJournal>): 
 
 // A2 (journal-v2-format.md §2.7): the plans, the lead's review answers and the completed status' basis. Shared with the
 // service and the run view, which show the conditions from the same texts.
-export async function conditionTexts(st: RunState, read: <T>(ref: TextRef) => Promise<T>): Promise<Pick<V2Texts, "plans" | "reports" | "basis" | "applied" | "choices" | "finishParams">> {
+export async function conditionTexts(st: RunState, read: <T>(ref: TextRef) => Promise<T>, askPush = false): Promise<Pick<V2Texts, "plans" | "reports" | "basis" | "applied" | "choices" | "finishParams">> {
   const plans: PlanText[] = [];
   for (const p of st.orch.plans) plans.push(await read<PlanText>(p.ref));
   const reports: Record<string, unknown> = {};
@@ -874,12 +874,16 @@ export async function conditionTexts(st: RunState, read: <T>(ref: TextRef) => Pr
   for (const p of st.orch.proposals) if (p.decision?.decision === "accept") choices[p.turnId] = await read<PlanChoices>(p.decision.choices);
   // A4 (§2.3): push and QA of a run without checks, by what they delivered (tree and commit) against the confirmation
   const finishParams: NonNullable<V2Texts["finishParams"]> = {};
-  if (st.orch.checksDecision?.count === 0) {
+  // D-043: and the pushes of a goal that asks before each push
+  const without = st.version === 2 && st.orch.checksDecision?.count === 0;
+  if (without || askPush) {
     for (const f of st.orch.finish) {
-      if (f.step === "commit") continue;
-      const p = await read<FinishParams>(f.params);
-      const x = p.step === "push" ? p.push : p.step === "qa" ? p.qa : null;
-      if (x) finishParams[f.intentId] = { tree: x.tree, commit: x.commit };
+      if (f.step === "commit" || (!without && f.step !== "push")) continue;
+      // the params: the step's own object, as the service writes them (PushParams, QaParams), or wrapped by the step
+      // (FinishParams, the format's fixtures)
+      const p = await read<Record<string, unknown>>(f.params);
+      const x = (p.step === f.step && typeof p[f.step] === "object" && p[f.step] !== null ? p[f.step] : p) as { tree?: unknown; commit?: unknown };
+      finishParams[f.intentId] = { tree: x.tree, commit: x.commit };
     }
   }
   return { plans, reports, basis: st.completion ? await read<CompletionBasis>(st.completion.basis) : null, applied, choices, finishParams };

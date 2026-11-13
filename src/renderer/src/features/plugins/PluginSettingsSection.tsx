@@ -17,7 +17,9 @@ import { t, type TranslationKey } from "../../lib/i18n";
 import { copyKey, useCopy } from "../../lib/useCopy";
 import { INSTALLED_PAGE_SIZE, SHOWCASE_PAGE_SIZE, clampPage, pageCount, paginate } from "./pluginPagination";
 import { compareSemver } from "../../../../shared/hostVersion";
+import { Switch } from "../../components/Switch";
 import { UiIcon } from "../../components/UiIcon";
+import { pluginLoadReason } from "./pluginLoadReason";
 
 /** Plugin description limit when displayed (longer text is truncated). */
 const MAX_DESCRIPTION_LENGTH = 400;
@@ -462,6 +464,13 @@ export function PluginSettingsSection({
     }
   };
 
+  // «Open the plugins folder» (mock 26): Finder on the one folder main keeps the packages in
+  const openFolderButton = (
+    <button type="button" className="set-btn" data-plugins-open-folder onClick={() => void window.canvasTTY.plugins.openFolder().then((failure) => { if (failure) setError(failure); }, () => setError(t(locale, "pluginActionFailed")))}>
+      <UiIcon name="folder" size={14} />{t(locale, "pluginsOpenFolder")}
+    </button>
+  );
+
   const renderHostTag = (minHostVersion: string | undefined): React.JSX.Element | null => {
     if (!minHostVersion) return null;
     const hostMatch = compareSemver(minHostVersion, hostVersion);
@@ -646,15 +655,15 @@ export function PluginSettingsSection({
 
       <section className="setting-group plugin-installed-section">
         <h3>
-          {t(locale, "installedPlugins")}
-          <button
-            className="plugin-updates-check"
-            type="button"
-            disabled={checkingUpdates}
-            onClick={() => void runCheckUpdates()}
-          >{checkingUpdates ? t(locale, "checkingUpdates") : t(locale, "checkUpdates")}</button>
+          <span>{t(locale, "installedPlugins")}{plugins.length > 0 ? ` · ${plugins.length}` : ""}</span>
+          {plugins.length > 0 && <button
+              className="plugin-updates-check"
+              type="button"
+              disabled={checkingUpdates}
+              onClick={() => void runCheckUpdates()}
+            >{checkingUpdates ? t(locale, "checkingUpdates") : t(locale, "checkUpdates")}</button>}
         </h3>
-        {plugins.length === 0 ? <p className="plugin-settings__empty">{t(locale, "noPlugins")}</p> : (
+        {plugins.length === 0 ? <div className="plugin-settings__empty plugin-settings__empty--box"><UiIcon name="plug" size={26} /><strong>{t(locale, "noPlugins")}</strong><span>{t(locale, "pluginsEmptyHint")}</span>{openFolderButton}</div> : (
           <>
           <div className="installed-plugin-list">
             {paginate(plugins, installedPage, INSTALLED_PAGE_SIZE).map((plugin) => {
@@ -662,21 +671,27 @@ export function PluginSettingsSection({
               const expanded = Boolean(expandedInstalled[plugin.manifest.id]);
               const remoteIcon = installedIcons[plugin.manifest.id];
               return (
-              <article className={`installed-plugin ${plugin.enabled ? "" : "installed-plugin--disabled"} ${expanded ? "installed-plugin--expanded" : ""}`} key={plugin.manifest.id}>
+              <article className={`installed-plugin ${plugin.enabled ? "" : "installed-plugin--disabled"} ${plugin.loadError ? "installed-plugin--error" : ""} ${expanded ? "installed-plugin--expanded" : ""}`} key={plugin.manifest.id}>
                 <header className="installed-plugin__header" onClick={() => setExpandedInstalled((current) => ({ ...current, [plugin.manifest.id]: !current[plugin.manifest.id] }))}>
                   <span className="installed-plugin__title">
                     <PluginIcon pluginId={plugin.manifest.id} icon={plugin.manifest.icon} name={plugin.manifest.name} remoteIcon={remoteIcon} />
                     <span className="installed-plugin__version">
                       <strong>{plugin.manifest.name}</strong>
-                      <small>
-                        v{plugin.manifest.version}
+                      {(!plugin.loadError || plugin.manifest.version) && <small>
+                        v{plugin.manifest.version}{plugin.manifest.contributions.length > 0 && ` · ${[...new Set(plugin.manifest.contributions.map((c) => t(locale, contributionKindKey(c.kind))))].join(", ")}`}
                         {update && (
                           <>
                             <span className="installed-plugin__version-arrow" aria-hidden="true">→</span>
                             <span className="installed-plugin__version-new">v{update.latestVersion}</span>
                           </>
                         )}
-                      </small>
+                      </small>}
+                      {plugin.loadError && (
+                        <span className="installed-plugin__error" role="alert" data-plugin-load-error title={plugin.loadError}>
+                          <UiIcon name="status-failed" size={14} />
+                          <span>{t(locale, "pluginLoadFailed").replace("{reason}", () => pluginLoadReason(locale, plugin.loadError!))}</span>
+                        </span>
+                      )}
                       {renderInstalledHostTag(plugin.manifest.minHostVersion)}
                     </span>
                   </span>
@@ -700,12 +715,12 @@ export function PluginSettingsSection({
                         ))}
                       >{t(locale, "settings")}</button>
                     )}
-                    <button
-                      type="button"
-                      className={plugin.enabled ? "" : "installed-plugin__enable"}
+                    <Switch
+                      checked={plugin.enabled}
                       disabled={busy}
-                      onClick={() => void runPluginAction(() => onSetPluginEnabled(plugin.manifest.id, !plugin.enabled))}
-                    >{plugin.enabled ? t(locale, "disable") : t(locale, "enable")}</button>
+                      label={plugin.manifest.name}
+                      onChange={(next) => void runPluginAction(() => onSetPluginEnabled(plugin.manifest.id, next))}
+                    />
                     <button
                       className="installed-plugin__remove"
                       type="button"
@@ -788,6 +803,7 @@ export function PluginSettingsSection({
               );
             })}
           </div>
+          <p className="plugin-folder-row">{openFolderButton}</p>
           {installedPageCount > 1 && (
             <div className="plugin-pagination" role="navigation" aria-label={t(locale, "paginationPage")} ref={installedPaginationRef}>
               <button type="button" disabled={installedPage <= 0} onClick={() => startInstalledPageChange(installedPage - 1)} aria-label="‹">‹</button>
@@ -799,9 +815,11 @@ export function PluginSettingsSection({
         )}
       </section>
 
-      <section className="setting-group plugin-github-group">
+      <h3 className="plugin-group-title">{t(locale, "pluginsGithubAndShowcase")}</h3>
+      <section className="setting-group plugin-github-group plugin-card">
         <h3>
-          {t(locale, "githubAuthTitle")}
+          <span className="plugin-card__icon"><UiIcon name="browser" size={18} /></span>
+          <span className="plugin-card__title">{t(locale, "githubAuthTitle")}</span>
           {githubConfigured && !githubStatus?.authorized && !githubCode && (
             <span className="plugin-github-signin-actions">
               <button type="button" className="plugin-updates-check plugin-github-signin" disabled={githubBusy} onClick={() => void runGithubSignIn("embedded")}>
@@ -876,9 +894,10 @@ export function PluginSettingsSection({
       </section>
 
       <div className="plugin-showcase-wrap">
-        <section className={`setting-group plugin-showcase-group${githubAuthorized ? "" : " plugin-showcase-group--off"}`}>
+        <section className={`setting-group plugin-showcase-group plugin-card${githubAuthorized ? "" : " plugin-showcase-group--off"}`}>
           <h3>
-            {t(locale, "pluginShowcase")}
+            <span className="plugin-card__icon"><UiIcon name="search" size={18} /></span>
+            <span className="plugin-card__title">{t(locale, "pluginShowcase")}{!githubAuthorized && <small>{t(locale, "showcaseRequiresGithub")}</small>}</span>
             <button
               className="plugin-showcase-refresh"
               type="button"
@@ -886,7 +905,7 @@ export function PluginSettingsSection({
               onClick={() => void runShowcase()}
             >{loadingShowcase ? t(locale, "searching") : t(locale, "openShowcase")}</button>
           </h3>
-          <div className="plugin-install-row plugin-showcase-search">
+          {githubAuthorized && <div className="plugin-install-row plugin-showcase-search">
           <input
             value={searchQuery}
             type="text"
@@ -905,7 +924,7 @@ export function PluginSettingsSection({
           <button type="button" disabled={searching || searchQuery.trim().length === 0} onClick={() => void runSearch()}>
             {searching ? t(locale, "searching") : t(locale, "search")}
           </button>
-        </div>
+        </div>}
         {(showcase !== null || searchResults !== null) && (
           <div className="plugin-showcase-layout">
             {(searchResults ?? showcase)!.length === 0 ? (
@@ -930,11 +949,6 @@ export function PluginSettingsSection({
           </div>
         )}
         </section>
-        {!githubAuthorized && (
-          <div className="plugin-showcase-lock">
-            <span>{t(locale, "showcaseRequiresGithub")}</span>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -943,7 +957,7 @@ export function PluginSettingsSection({
 function PluginIcon({ pluginId, icon, name, remoteIcon }: { pluginId: string; icon?: string; name: string; remoteIcon?: string | null }): React.JSX.Element {
   const [failed, setFailed] = useState(false);
   const path = icon || "icon.png";
-  const placeholder = <span className="plugin-icon plugin-icon--fallback" aria-label={name}>{name.slice(0, 2).toUpperCase()}</span>;
+  const placeholder = <span className="plugin-icon plugin-icon--fallback" role="img" aria-label={name}><UiIcon name="plug" size={18} /></span>;
   // Repository icon (identical to the showcase) has priority; reset the local
   // failure state once it arrives so the icon can swap in after load.
   if (remoteIcon) {

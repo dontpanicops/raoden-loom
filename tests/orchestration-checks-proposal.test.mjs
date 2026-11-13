@@ -717,13 +717,13 @@ test("A1.1: the profile's self-test fails — the check does not run, the run pa
   const paths = { work: path.join(d, "work"), tmp: path.join(d, "tmp"), root: path.join(d, "root") };
   fs.writeFileSync(path.join(d, "p.sb"), buildCheckProfile(paths).text);
   fs.writeFileSync(path.join(d, "open.sb"), "(version 1)\n(allow default)\n");
-  assert.deepEqual(await checkSelftest({ profilePath: path.join(d, "p.sb"), ...paths, launch: LAUNCH }), { passed: true, checks: 8, failed: [] });
+  assert.deepEqual(await checkSelftest({ profilePath: path.join(d, "p.sb"), ...paths, launch: LAUNCH }), { passed: true, checks: 11, failed: [] });
   const open = await checkSelftest({ profilePath: path.join(d, "open.sb"), ...paths, launch: LAUNCH });
-  assert.deepEqual(open.failed.map((f) => f.name).sort(), ["deny.read-root", "deny.read-secrets", "deny.tcp-external", "deny.write-git", "deny.write-home"]);
+  assert.deepEqual(open.failed.map((f) => f.name).sort(), ["deny.read-root", "deny.read-secrets", "deny.tcp-external", "deny.write-git", "deny.write-home", "deny.write-home-cache", "deny.write-shared-tmp", "deny.write-user-tmpdir"]);
   assert.equal(fs.existsSync(path.join(paths.work, ".git")), false, "the open profile's self-test left nothing behind");
   // a worktree's work folder: .git is a file (review S2-1) — refused all the same, the self-test passes
   fs.writeFileSync(path.join(paths.work, ".git"), "gitdir: /nowhere\n");
-  assert.deepEqual(await checkSelftest({ profilePath: path.join(d, "p.sb"), ...paths, launch: LAUNCH }), { passed: true, checks: 8, failed: [] });
+  assert.deepEqual(await checkSelftest({ profilePath: path.join(d, "p.sb"), ...paths, launch: LAUNCH }), { passed: true, checks: 11, failed: [] });
   assert.deepEqual((await checkSelftest({ profilePath: path.join(d, "open.sb"), ...paths, launch: LAUNCH })).failed.map((f) => f.name).includes("deny.write-git"), true);
   assert.equal(fs.readFileSync(path.join(paths.work, ".git"), "utf8"), "gitdir: /nowhere\n");
   // a work folder that covers the home or a credential store is refused before any profile (review S1-6)
@@ -784,4 +784,89 @@ test("A1.1 replay: a lead's check of a denied run without the profile and withou
     r.splice(r.indexOf(fin) + 1, 0, { ts: fin.ts, type: "check.classified", data: { checkRunId: fin.data.checkRunId, class: "sandbox" } });
     return r;
   }), runId), ["replay_conflict", "check.classified"]);
+});
+
+// ---------------- D-043: «Спрашивать перед каждым push» ----------------
+
+// A run with the goal's own check (it passes) and a push: the profile asks by default (no askPush) — the push waits for
+// the person's finish.confirm of this tree and commit, even in the autopilot; askPush: false — pushed after the checks, as before
+async function askPushRun(askPush) {
+  const src = project({ "a.txt": "1\n" });
+  const remote = path.join(TMP, `remote-${++n}.git`);
+  g(TMP, "init", "-q", "--bare", remote);
+  g(src, "remote", "add", "qa", remote);
+  const m = manager({ MOCK_SCRIPT: script([PLAN, EXEC, REVIEW, FINAL]) });
+  const runId = await start(m, src, { commands: ["grep -qx 2 a.txt"], finish: { commit: true, push: true, qa: false } }, {
+    workMode: "worktree", finish: { commit: true, push: { remote: "qa", branch: "ask-branch", remoteUrl: remote }, qa: null }, ...(askPush === false ? { askPush: false } : {})
+  });
+  return { m, runId, remote };
+}
+const pushed = (remote) => { try { g(remote, "rev-parse", "--verify", "-q", "refs/heads/ask-branch"); return true; } catch { return false; } };
+
+test("D-043: «ask before each push» on by default — a run whose checks passed waits for the person before the push; the decision pushes", OPTS, async () => {
+  const { m, runId, remote } = await askPushRun(undefined);
+  let v = await settled(m, runId, "the push confirmation");
+  assert.deepEqual([v.status, v.reason], ["paused", "awaiting_finish_confirmation"], JSON.stringify(v));
+  assert.equal(v.progress.checks[0].status, "passed", "the checks passed: asked by the setting, not for a run without checks");
+  assert.deepEqual([v.confirm.push, v.confirm.qa, v.confirm.ask], [true, false, true]);
+  assert.equal(pushed(remote), false, "nothing pushed without the person");
+  assert.equal((await send(m, v, { kind: "finish.confirm", tree: v.confirm.tree, commit: v.confirm.commit, push: "confirm", qa: "confirm" })).code, "invalid_command", "QA was not asked");
+  assert.equal((await send(m, v, { kind: "finish.confirm", tree: v.confirm.tree, commit: v.confirm.commit, push: "confirm", qa: null })).status, "accepted");
+  v = await settled(m, runId);
+  assert.deepEqual([v.status, v.progress.completion], ["completed", "confirmed"], JSON.stringify(v));
+  assert.equal(pushed(remote), true, "pushed once confirmed");
+  await m.shutdown();
+  // the journal reads back (its push has the person's confirmation of the tree and commit it delivered)
+  const back = await readRun(m.root, runId);
+  assert.equal(back.integrity.status, "ok", JSON.stringify(back.integrity));
+});
+
+test("D-043: «ask before each push» declined — the run completes without the push", OPTS, async () => {
+  const { m, runId, remote } = await askPushRun(undefined);
+  const v = await settled(m, runId, "the push confirmation");
+  assert.equal((await send(m, v, { kind: "finish.confirm", tree: v.confirm.tree, commit: v.confirm.commit, push: "decline", qa: null })).status, "accepted");
+  const done = await settled(m, runId);
+  assert.equal(done.status, "completed", JSON.stringify(done));
+  assert.equal(done.progress.finish.find((f) => f.step === "push").declined, true);
+  assert.equal(pushed(remote), false);
+  await m.shutdown();
+});
+
+test("D-043: «ask before each push» off (askPush: false) — the checks passed, the push goes without a pause, as before", OPTS, async () => {
+  const { m, runId, remote } = await askPushRun(false);
+  const v = await settled(m, runId);
+  assert.deepEqual([v.status, v.progress.completion], ["completed", "confirmed"], JSON.stringify(v));
+  assert.equal(pushed(remote), true);
+  assert.equal((await records(m, runId)).some((r) => r.type === "run.status" && r.data.reason === "awaiting_finish_confirmation"), false, "never asked");
+  await m.shutdown();
+});
+
+// A run made while the setting was off (or by an older build): no goal.askPush. The profile switched on before the push:
+// the push still waits for the person (the profile only adds the question); the journal reads back
+test("D-043: a run made with «ask before each push» off, the profile then switched on — the push waits for the person", OPTS, async () => {
+  const src = project({ "a.txt": "1\n" });
+  const remote = path.join(TMP, `remote-${++n}.git`);
+  g(TMP, "init", "-q", "--bare", remote);
+  g(src, "remote", "add", "qa", remote);
+  const m = manager({ MOCK_SCRIPT: script([PLAN, EXEC, REVIEW, FINAL]), MOCK_CHECKS: "proposed", MOCK_CHECK_COMMAND: "grep -qx 2 a.txt" }, { leadSandbox: false });
+  const runId = await start(m, src, { commands: [], finish: { commit: true, push: true, qa: false } }, {
+    workMode: "worktree", finish: { commit: true, push: { remote: "qa", branch: "ask-branch", remoteUrl: remote }, qa: null }, askPush: false
+  });
+  let v = await settled(m, runId, "the proposal");
+  assert.equal(v.reason, "awaiting_checks_decision");
+  const store = createProfileStore(m.root);
+  const { askPush: _off, ...on } = await store.get(src);
+  await store.save(src, on); // switched on
+  assert.equal((await send(m, v, { kind: "checks.decide", decision: "accept" })).status, "accepted");
+  v = await settled(m, runId, "the push confirmation");
+  assert.deepEqual([v.status, v.reason], ["paused", "awaiting_finish_confirmation"], JSON.stringify(v));
+  assert.deepEqual([v.confirm.push, v.confirm.ask], [true, true]);
+  assert.equal(pushed(remote), false);
+  assert.equal((await send(m, v, { kind: "finish.confirm", tree: v.confirm.tree, commit: v.confirm.commit, push: "confirm", qa: null })).status, "accepted");
+  v = await settled(m, runId);
+  assert.equal(v.status, "completed", JSON.stringify(v));
+  assert.equal(pushed(remote), true);
+  await m.shutdown();
+  const back = await readRun(m.root, runId);
+  assert.equal(back.integrity.status, "ok", JSON.stringify(back.integrity));
 });

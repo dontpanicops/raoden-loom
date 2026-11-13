@@ -52,12 +52,12 @@ export function OnboardingCard({ locale, dismissed, pinned = false, hasTerminal,
       <aside className="canvas-guide surface-3" style={{ left: place.guide.left, top: place.guide.top }} data-interactive="true" aria-label={t(locale, "guideTitle")}>
         <span className="canvas-guide__title">{t(locale, "guideTitle")}</span>
         <div><kbd>{t(locale, "guideDrag")}</kbd><span>{t(locale, "guideDragText")}</span></div>
-        <div><kbd>{wheelKey ? `${wheelKey} + ${t(locale, "guideWheel")}` : t(locale, "guideWheel")}</kbd><span>{t(locale, "guideZoomText")}</span></div>
+        <div><kbd>{wheelKey ? `${wheelKey.replace("Command", "⌘").replace("Option", "⌥")} + ${t(locale, "guideWheel")}` : t(locale, "guideWheel")}</kbd><span>{t(locale, "guideZoomText")}</span></div>
         <div><kbd>{t(locale, "guideRmb")}</kbd><span>{t(locale, "guideRmbText")}</span></div>
         <div><kbd>Home</kbd><span>{t(locale, "guideHomeText")}</span></div>
       </aside>
     )}
-    <section className="onboarding surface-3" style={{ left: place.left, top: place.top, width: place.width, maxHeight: place.maxHeight, "--ob-k": place.width < 520 ? 0.88 : 1 } as React.CSSProperties} data-interactive="true" aria-label={t(locale, "onboardingTitle")} data-onboarding>
+    <section className="onboarding surface-3" style={{ left: place.left, top: place.top, width: place.width, maxHeight: place.maxHeight, "--ob-k": place.width < 520 ? 0.8 : 1 } as React.CSSProperties} data-interactive="true" aria-label={t(locale, "onboardingTitle")} data-onboarding>
       <span className="onboarding__eyebrow">{t(locale, "onboardingTitle")}</span>
       <h2>{t(locale, "onboardingHeading")}</h2>
       <p>{t(locale, "onboardingIntro")}</p>

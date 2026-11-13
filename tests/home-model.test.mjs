@@ -103,7 +103,7 @@ test("shows only the independently selected HOME limit providers", () => {
   assert.deepEqual(
     selectHomeModel([], currentSnapshot, "ready", 1_786_100_000_000, ["grok", "qwen", "kimi", "opencode", "codex"])
       .limitRows.map((row) => row.provider),
-    ["codex", "qwen", "kimi", "opencode", "grok"]
+    ["codex", "kimi", "qwen", "opencode", "grok"]
   );
   assert.deepEqual(
     selectHomeModel([], currentSnapshot, "ready", 1_786_100_000_000, []).limitRows,

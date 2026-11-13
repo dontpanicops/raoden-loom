@@ -63,9 +63,7 @@ export function isRenameInputTarget(target: EventTarget | null): boolean {
 
 export function displayCanvasNavigationBinding(binding: string, isMacOS: boolean): string {
   if (!isMacOS) return binding;
-  return binding.split("+").map((part) => {
-    if (part === "Alt") return "Option";
-    if (part === "Meta") return "Command";
-    return part;
-  }).join("+");
+  // ⌘/⌥/⌃/⇧ as on the keys (mock 16): symbols stick to what follows, words keep the "+"
+  const glyph: Record<string, string> = { Alt: "⌥", Meta: "⌘", Ctrl: "⌃", Shift: "⇧" };
+  return binding.split("+").map((part) => glyph[part] ?? part).reduce((out, part, i, all) => (i === 0 ? part : out + (all[i - 1] in { "⌥": 1, "⌘": 1, "⌃": 1, "⇧": 1 } ? "" : "+") + part), "");
 }

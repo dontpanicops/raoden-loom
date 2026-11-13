@@ -36,7 +36,6 @@ import type {
   ZoomSensitivity
 } from "../../../../shared/contracts";
 import {
-  BROWSER_PROVIDER_COLORS,
   CANVAS_LAUNCHER_ITEMS,
   DEFAULT_CANVAS_LAUNCHER_ITEMS,
   DEFAULT_RADIAL_LAUNCHER_ITEMS,
@@ -66,6 +65,8 @@ import {
   setHomeLimitProviderEnabled,
   setHomeLauncherProviderEnabled
 } from "../../lib/providers";
+import { isTooBroadDownloadFolder } from "../../../../shared/downloadFolder";
+import { UpdateStatusLine } from "./UpdateStatus";
 import { shortcutFromKeyboardEvent, shortcutFromPointerEvent } from "../../lib/shortcuts";
 import { t, type TranslationKey } from "../../lib/i18n";
 import { installUrl } from "../onboarding/OnboardingCard";
@@ -90,11 +91,11 @@ const SETTINGS_SECTIONS: ReadonlyArray<{
   id: SettingsSection;
   icon: UiIconName;
 }> = [
-  { id: "general", icon: "app-window" },
+  { id: "general", icon: "general" },
   { id: "notifications", icon: "bell" },
   { id: "appearance", icon: "palette" },
-  { id: "agents", icon: "terminal" },
-  { id: "controls", icon: "sliders-horizontal" },
+  { id: "agents", icon: "agents" },
+  { id: "controls", icon: "pointer" },
   { id: "browser", icon: "browser" },
   { id: "plugins", icon: "blocks" },
   { id: "about", icon: "info" }
@@ -238,8 +239,10 @@ export function SettingsPanel({
     }
   };
 
+  const [downloadFolderError, setDownloadFolderError] = useState(false);
   const saveShortcut = async (action: ShortcutAction, shortcut: string): Promise<void> => {
-    const conflict = Object.entries(settings.shortcuts).find(
+    const chords: [string, string][] = [...Object.entries(settings.shortcuts), ...(settings.commandPaletteShortcut ? [["commandPalette", settings.commandPaletteShortcut] as [string, string]] : [])];
+    const conflict = chords.find(
       ([candidateAction, value]) => candidateAction !== action && value.toLowerCase() === shortcut.toLowerCase()
     );
     const conflictsWithNavigation = settings.canvasNavigationOverride !== null
@@ -253,7 +256,7 @@ export function SettingsPanel({
     }
 
     setShortcutError(null);
-    await onChange({ shortcuts: { ...settings.shortcuts, [action]: shortcut } });
+    await onChange(action === "commandPalette" ? { commandPaletteShortcut: shortcut } : { shortcuts: { ...settings.shortcuts, [action]: shortcut } });
     setCapturing(null);
   };
 
@@ -369,6 +372,9 @@ export function SettingsPanel({
                 (next) => void onChange({ persistCanvasRegions: next }))}
               {sw(t(locale, "persistStickyNotes"), undefined, settings.persistStickyNotes,
                 (next) => void onChange({ persistStickyNotes: next }))}
+              {sw(t(locale, "checkUpdatesSwitch"), t(locale, "checkUpdatesSwitchDescription"), settings.checkUpdates,
+                (next) => void onChange({ checkUpdates: next }))}
+              <UpdateStatusLine locale={locale} quiet />
             </>
           )}
 
@@ -528,6 +534,7 @@ export function SettingsPanel({
                 plugins={plugins}
                 onChange={onChange}
                 onSetPluginHookEnabled={onSetPluginHookEnabled}
+                part="core"
               />
               <AgentProviderTable
                 locale={locale}
@@ -540,7 +547,9 @@ export function SettingsPanel({
                   homeLimitProviders: setHomeLimitProviderEnabled(homeLimitProviders, provider, enabled)
                 })}
               />
-              <SettingGroup label={t(locale, "canvasMenuStyle")} description={t(locale, "canvasMenuStyleDescription")}>
+              {sw(t(locale, "quickLauncher"), t(locale, "quickLauncherDescription"), settings.radialLauncherEnabled,
+                (next) => void onChange({ radialLauncherEnabled: next }))}
+              <SettingGroup label={t(locale, "canvasMenuStyle")} description={t(locale, "canvasMenuStyleDescription")} layout="under">
                 <Segmented
                   value={settings.canvasMenuStyle}
                   options={([
@@ -550,20 +559,19 @@ export function SettingsPanel({
                   onChange={(value) => void onChange({ canvasMenuStyle: value as CanvasMenuStyle })}
                 />
               </SettingGroup>
-              {sw(t(locale, "quickLauncher"), t(locale, "quickLauncherDescription"), settings.radialLauncherEnabled,
-                (next) => void onChange({ radialLauncherEnabled: next }))}
               <SettingGroup
-                layout="stacked"
                 label={t(locale, "canvasLauncherItems")}
                 description={t(locale, "canvasLauncherItemsDescription")}
+                layout="top"
               >
                 <div className="canvas-menu canvas-launcher-settings-menu">
-                  <CanvasMenuLabel>{t(locale, "canvasLauncherSettingsLabel")}</CanvasMenuLabel>
-                  {CANVAS_LAUNCHER_ITEMS.map((item: CanvasLauncherItemId) => {
+                  {/* Terminal first, as in the menu itself and in mock 11 */}
+                  {(["terminal", ...CANVAS_LAUNCHER_ITEMS.filter((i) => i !== "terminal")] as CanvasLauncherItemId[]).map((item: CanvasLauncherItemId) => {
                     const enabled = settings.canvasLauncherItems.includes(item);
                     return (
                       <CanvasMenuRow
-                        icon={enabled ? "minus" : "plus"}
+                        {...(item === "terminal" ? { icon: "prompt" as const } : { iconNode: <ProviderIcon provider={item} size="small" /> })}
+                        right={<span className="canvas-menu__toggle"><UiIcon name={enabled ? "minus" : "plus"} size="1em" /></span>}
                         muted={!enabled}
                         aria-pressed={enabled}
                         aria-label={`${t(locale, enabled ? "disable" : "enable")}: ${PROVIDERS[item].label}`}
@@ -620,6 +628,13 @@ export function SettingsPanel({
                 </div>
               </section>
               )}
+              <AgentHooksSettings
+                settings={settings}
+                plugins={plugins}
+                onChange={onChange}
+                onSetPluginHookEnabled={onSetPluginHookEnabled}
+                part="optional"
+              />
             </>
           )}
 
@@ -657,7 +672,7 @@ export function SettingsPanel({
                     locale={locale}
                     label={t(locale, "canvasWheelOverride")}
                     binding={settings.canvasWheelOverride}
-                    actionShortcuts={Object.values(settings.shortcuts)}
+                    actionShortcuts={[...Object.values(settings.shortcuts), ...(settings.commandPaletteShortcut ? [settings.commandPaletteShortcut] : [])]}
                     allowDisable={false}
                     onCaptureStart={() => {
                       setCapturing(null);
@@ -717,7 +732,7 @@ export function SettingsPanel({
                   locale={locale}
                   label={t(locale, "canvasNavigationOverrideHint")}
                   binding={settings.canvasNavigationOverride}
-                  actionShortcuts={Object.values(settings.shortcuts)}
+                  actionShortcuts={[...Object.values(settings.shortcuts), ...(settings.commandPaletteShortcut ? [settings.commandPaletteShortcut] : [])]}
                   allowDisable
                   onCaptureStart={() => {
                     setCapturing(null);
@@ -725,6 +740,26 @@ export function SettingsPanel({
                   }}
                   onChange={(canvasNavigationOverride) => onChange({ canvasNavigationOverride })}
                 />
+                <ShortcutRow
+                  locale={locale}
+                  label={t(locale, "commandPalette")}
+                  value={settings.commandPaletteShortcut ?? (window.canvasTTY.window.isMacOS ? "⌘K" : "Ctrl+K")}
+                  capturing={capturing === "commandPalette"}
+                  onStart={() => {
+                    setShortcutError(null);
+                    setCapturing("commandPalette");
+                  }}
+                  onCancel={() => {
+                    setShortcutError(null);
+                    setCapturing(null);
+                  }}
+                  onKeyDown={(event) => captureShortcut("commandPalette", event)}
+                  onPointerDown={() => undefined}
+                />
+                {shortcutError && capturing === "commandPalette" && (
+                  <p className="shortcut-editor__error" role="alert">{shortcutError}</p>
+                )}
+                <p className="shortcut-editor__hint">{t(locale, "shortcutsAccepted")}</p>
               </section>
               {sw(t(locale, "hoverFocus"), t(locale, "hoverFocusDescription"), settings.hoverFocus,
                 (next) => void onChange({ hoverFocus: next }))}
@@ -800,10 +835,23 @@ export function SettingsPanel({
                 (next) => void onChange({ browserShowAgentPresence: next }))}
               {sw(t(locale, "browserRestoreTabs"), t(locale, "browserRestoreTabsDescription"), settings.browserRestoreTabs,
                 (next) => void onChange({ browserRestoreTabs: next }))}
-              <SettingGroup layout="stacked" label={t(locale, "browserDownloads")}>
+              <section className="setting-group setting-group--field setting-group--download-folder" data-browser-download-folder>
+                <div className="setting-group__copy">
+                  <h3>{t(locale, "browserDownloads")}</h3>
+                  <p className="setting-group__description setting-path" title={settings.browserDownloadDir ?? undefined}>{settings.browserDownloadDir ?? t(locale, "browserDownloadsDefaultPath")}</p>
+                </div>
+                <div className="setting-group__control">
+                  {settings.browserDownloadDir !== null && (
+                    <button type="button" className="set-btn set-btn--quiet" onClick={() => void onChange({ browserDownloadDir: null })}>{t(locale, "browserDownloadsReset")}</button>
+                  )}
+                  <button type="button" className="set-btn" data-browser-download-change onClick={() => void window.canvasTTY.dialog.pickDirectory(settings.browserDownloadDir ?? undefined).then((picked) => { if (!picked) return; if (isTooBroadDownloadFolder(picked)) { setDownloadFolderError(true); return; } setDownloadFolderError(false); void onChange({ browserDownloadDir: picked }); })}>{t(locale, "browserDownloadsChange")}</button>
+                </div>
+              </section>
+              {downloadFolderError && <p className="update-status update-status--failed" role="alert" data-download-folder-error>{t(locale, "browserDownloadsTooBroad")}</p>}
+              <SettingGroup layout="stacked" label={t(locale, "browserDownloadsRecent")}>
                 <BrowserDownloadList downloads={browser.downloads} locale={locale} />
               </SettingGroup>
-              <SettingGroup layout="stacked" label={t(locale, "browserActivity")}>
+              <SettingGroup layout="caps" label={t(locale, "browserActivity")}>
                 <BrowserActivityList activity={activity} state={activityState} locale={locale} />
               </SettingGroup>
               <SettingGroup
@@ -921,15 +969,11 @@ function BrowserActivityList({
         const provider = event.provider ?? "unknown";
         return (
           <div className={`browser-settings__activity ${event.ok ? "" : "browser-settings__activity--failed"}`} key={event.sequence}>
-            <span
-              className="browser-settings__agent-mark"
-              style={{ "--agent-color": BROWSER_PROVIDER_COLORS[provider] } as React.CSSProperties}
-              aria-hidden="true"
-            />
-            <span className="browser-settings__row-copy">
-              <strong title={event.agentId ?? t(locale, "browserYou")}>{event.agentId ?? t(locale, "browserYou")}</strong>
-              <small>{activityOperationLabel(locale, event.operation)}</small>
+            <span className="browser-settings__badge" title={event.agentId ?? t(locale, "browserYou")}>
+              {provider !== "unknown" && <ProviderIcon provider={provider} size="small" />}
+              {event.agentId ?? t(locale, "browserYou")}
             </span>
+            <span className="browser-settings__op">{activityOperationLabel(locale, event.operation)}</span>
             <time dateTime={new Date(event.timestamp).toISOString()}>
               {new Date(event.timestamp).toLocaleTimeString(locale === "ru" ? "ru-RU" : "en-GB", {
                 hour: "2-digit",
@@ -1093,6 +1137,7 @@ function NotificationSettingsGroup({ settings, onChange }: { settings: AppSettin
   useEffect(() => { try { setUnavailable(localStorage.getItem(NOTIFY_UNAVAILABLE_KEY) === "1"); } catch { /* no storage: nothing to say */ } }, []);
   const set = (key: keyof NotificationSettings, value: boolean): void => void onChange({ notifications: { ...settings.notifications, [key]: value } });
   const switches: [keyof NotificationSettings, TranslationKey, TranslationKey][] = [
+    ["banner", "notifyBannerChannel", "notifyBannerChannelDescription"], ["system", "notifySystemChannel", "notifySystemChannelDescription"],
     ["dockBadge", "notifyDockBadge", "notifyDockBadgeDescription"], ["bounce", "notifyBounce", "notifyBounceDescription"],
     ["board", "notifyBoard", "notifyBoardDescription"],
     // C4: under «board», shown while it is on
@@ -1117,9 +1162,8 @@ function NotificationSettingsGroup({ settings, onChange }: { settings: AppSettin
           ))}
         </div>
       </section>
-      <p className="setting-group__description setting-group__footnote" data-notify-intro>{t(locale, "notifyIntro")}</p>
-      <p className="setting-group__description setting-group__footnote" data-notify-system-hint>{t(locale, "notifySystemHint")}</p>
-      <p className="setting-group__description setting-group__footnote" data-notify-badge-hint>{t(locale, "notifyBadgeHint")}</p>
+      {/* D-043: the help in one line (what the switches say is in their own descriptions) */}
+      <p className="setting-group__description setting-group__footnote" data-notify-help>{t(locale, "notifyHelp")}</p>
     </>
   );
 }
@@ -1162,10 +1206,9 @@ function ThemeChoices({
           type="button"
           key={id}
           aria-pressed={value === id}
-          style={{ background: THEME_TILE_PREVIEW[id].tile, color: THEME_TILE_PREVIEW[id].text }}
           onClick={() => onChange(id)}
         >
-          <span className="theme-choice__preview" aria-hidden="true" >
+          <span className="theme-choice__preview" aria-hidden="true" style={{ background: THEME_TILE_PREVIEW[id].tile }}>
             <i style={{ background: THEME_TILE_PREVIEW[id].card }} />
             <b style={{ background: THEME_TILE_PREVIEW[id].dot }} />
           </span>
@@ -1270,11 +1313,11 @@ function SettingGroup({
 }: {
   label: string;
   description?: string;
-  layout?: "field" | "stacked" | "switch";
+  layout?: "field" | "stacked" | "switch" | "under" | "top" | "caps";
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <section className={`setting-group setting-group--field${layout === "stacked" ? " setting-group--stacked" : ""}${layout === "switch" ? " setting-group--switch" : ""}`}>
+    <section className={`setting-group setting-group--field${layout === "stacked" || layout === "under" || layout === "caps" ? " setting-group--stacked" : ""}${layout === "caps" ? " setting-group--caps" : ""}${layout === "switch" ? " setting-group--switch" : ""}${layout === "under" ? " setting-group--under" : ""}${layout === "top" ? " setting-group--top" : ""}`}>
       <div className="setting-group__copy">
         <h3>{label}</h3>
         {description && <p className="setting-group__description">{description}</p>}

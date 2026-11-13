@@ -5,8 +5,8 @@
 // there already is never written again. Nothing here follows a symbolic link or writes into a project.
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { lstat, mkdir, open, readdir, rename, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { lstat, mkdir, open, readdir, realpath, rename, rm, stat } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 import { closedByPerson } from "../../../shared/orchestration.ts";
 import { isUuid } from "./journal.ts";
 
@@ -90,42 +90,80 @@ export function reviewMarkdown(r: BoardReview): string {
   ].join("\n");
 }
 
-export const exportPaths = (root: string, runId: string) => {
-  const dir = join(root, "runs", runId, "export");
-  return { dir, json: join(dir, "review.json"), md: join(dir, "review.md") };
+// F-c (D-041 p. 1): where and in what the review is written. dir null: the application's own folder, as before; a folder of
+// the person's (absolute, outside the project: manager) gets <dir>/<runId>/. format absent: both files, as before the setting
+export type ExportFormat = "markdown" | "json" | "both";
+// project: the run's source project — a chosen folder is checked against it again where it really is, right before writing
+export interface ExportTarget { dir: string | null; format: ExportFormat; project?: string }
+export const DEFAULT_TARGET: ExportTarget = { dir: null, format: "both" };
+export const exportPaths = (root: string, runId: string, target: ExportTarget = DEFAULT_TARGET) => {
+  const dir = target.dir ? join(target.dir, runId) : join(root, "runs", runId, "export");
+  return { dir, json: target.format === "markdown" ? null : join(dir, "review.json"), md: target.format === "json" ? null : join(dir, "review.md") };
 };
 const TMP_PREFIX = "export.tmp-";
+
+// F-c: a folder of the person's is inside the project when its real place is (the nearest folder that exists, then the rest
+// of the path as written), so a link or a not yet made folder cannot hide it
+export async function insideProject(dir: string, project: string): Promise<boolean> {
+  const real = await realpath(project).catch(() => project);
+  let existing = dir;
+  const rest: string[] = [];
+  while (!(await lstat(existing).catch(() => null)) && dirname(existing) !== existing) { rest.unshift(basename(existing)); existing = dirname(existing); }
+  const here = join(await realpath(existing).catch(() => existing), ...rest);
+  return here === real || here.startsWith(real.endsWith("/") ? real : `${real}/`);
+}
 
 export interface ReviewExporterDeps {
   root: string; // <userData>/orchestration
   // the export's data, or null: no export is due (not completed, no goal.export, nothing committed…)
-  source(runId: string): Promise<ReviewInput | null>;
+  source(runId: string, manual: boolean): Promise<ReviewInput | null>;
+  // F-c: the target of the run's project settings now (absent: the application's folder, both files)
+  target?(runId: string): Promise<ExportTarget>;
   // tests only: a crash after the temporary folder is written, before the rename
   afterTmp?(runId: string): Promise<void> | void;
 }
 
 export function createReviewExporter(deps: ReviewExporterDeps) {
   const flying = new Map<string, Promise<boolean>>();
-  // true: written now; false: nothing to write (no export due, or written before)
-  async function write(runId: string): Promise<boolean> {
+  // true: written now; false: nothing to write (no export due, or written before). manual: the person's «Export the review»
+  // — written to the folder of the settings even when the automatic export was made elsewhere (never over an existing one)
+  async function write(runId: string, manual: boolean): Promise<boolean> {
     const runDir = join(deps.root, "runs", runId);
     const real = await lstat(runDir).catch(() => null);
     if (!real?.isDirectory()) return false; // a symbolic link is never followed
-    const { dir } = exportPaths(deps.root, runId);
+    const target = (await deps.target?.(runId)) ?? DEFAULT_TARGET;
+    const { dir } = exportPaths(deps.root, runId, target);
     if (await lstat(dir).catch(() => null)) return false; // there already: never written again
-    const input = await deps.source(runId);
+    // made before in the application's own folder: not made again in a folder chosen later (the start's catch-up)
+    if (!manual && target.dir && await lstat(exportPaths(deps.root, runId).dir).catch(() => null)) return false;
+    const input = await deps.source(runId, manual);
     if (!input) return false;
     const review = buildReview(input);
-    const tmp = join(runDir, `${TMP_PREFIX}${randomUUID()}`);
+    // next to its place, so the rename stays on one volume. A chosen folder is made (0700) and then taken where it really
+    // is (security review L3): a link or a folder put there since the target was read is followed once, here, checked
+    // against the project again, and the files go to that real place — never into the project's tree
+    let parent = target.dir ?? runDir;
+    let final = dir;
+    if (target.dir) {
+      await mkdir(parent, { recursive: true, mode: 0o700 });
+      if (!(await stat(parent).catch(() => null))?.isDirectory()) return false;
+      parent = await realpath(parent);
+      if (target.project && await insideProject(parent, target.project)) return false;
+      final = join(parent, runId);
+      if (await lstat(final).catch(() => null)) return false;
+    }
+    const tmp = join(parent, `${TMP_PREFIX}${randomUUID()}`);
     await mkdir(tmp, { mode: 0o700 });
     try {
-      for (const [name, text] of [["review.json", `${JSON.stringify(review, null, 2)}\n`], ["review.md", reviewMarkdown(review)]] as const) {
+      const files = ([["review.json", `${JSON.stringify(review, null, 2)}\n`], ["review.md", reviewMarkdown(review)]] as const)
+        .filter(([name]) => (name === "review.json" ? target.format !== "markdown" : target.format !== "json"));
+      for (const [name, text] of files) {
         const fh = await open(join(tmp, name), constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
         try { await fh.writeFile(text, "utf8"); await fh.sync(); } finally { await fh.close(); }
       }
       await deps.afterTmp?.(runId);
-      if (await lstat(dir).catch(() => null)) return false;
-      await rename(tmp, dir);
+      if (await lstat(final).catch(() => null)) return false;
+      await rename(tmp, final);
       return true;
     } finally {
       await rm(tmp, { recursive: true, force: true }).catch(() => {});
@@ -133,10 +171,10 @@ export function createReviewExporter(deps: ReviewExporterDeps) {
   }
   return {
     // single-flight by runId: two calls at once write once
-    write(runId: string): Promise<boolean> {
+    write(runId: string, manual = false): Promise<boolean> {
       let p = flying.get(runId);
       if (!p) {
-        p = write(runId).finally(() => flying.delete(runId));
+        p = write(runId, manual).finally(() => flying.delete(runId));
         flying.set(runId, p);
       }
       return p;

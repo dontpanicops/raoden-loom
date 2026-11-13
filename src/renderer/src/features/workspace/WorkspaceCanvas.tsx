@@ -21,19 +21,19 @@ import type {
 } from "../../../../shared/contracts";
 import { HOME_GRID_GAP } from "../../../../shared/contracts";
 import { UiIcon } from "../../components/UiIcon";
-import { t } from "../../lib/i18n";
+import { pluralForm, t } from "../../lib/i18n";
 import { displayCanvasNavigationBinding, matchesPhysicalOrLayoutKey, matchesShortcut } from "../../lib/shortcuts";
 import { BrowserCard } from "../browser/BrowserCard";
 import type { LimitsLoadState } from "../home/homeModel";
-import { HOME_GRID_COLUMN_STEP, HOME_GRID_ROW_STEP, homeGridPixelSize, homeLayoutFitsGrid } from "../home/homeLayout";
-import { HomeZone } from "../home/HomeZone";
+import { HOME_GRID_COLUMN_STEP, HOME_GRID_ROW_STEP, homeGridPixelSize, homeLayoutFitsGrid, isInsideHome } from "../home/homeLayout";
+import { HomeZone, homeWidgetTitle } from "../home/HomeZone";
 import { RadialLauncher } from "../launcher/QuickRadialMenu";
 import { StickyNoteCard } from "../notes/StickyNoteCard";
 import { stickyNoteAtPoint } from "../notes/stickyNoteBounds";
 import { noteText, snapshotText } from "../orchestration/runDocs";
 import { AgentScene } from "../orchestration/AgentScene";
 import { ResizeSizeBadge } from "./ResizeSizeBadge";
-import { BOARD_SIZE, BoardCard } from "../orchestration/BoardCard";
+import { boardSize, BoardCard } from "../orchestration/BoardCard";
 import { useBoard } from "../orchestration/useBoard";
 import { OrchestrationOverlays } from "../orchestration/OrchestrationDialogs";
 import { activityRuns } from "../orchestration/runStatus";
@@ -58,9 +58,9 @@ import {
   type CanvasContextMenuKind
 } from "./canvasContextRouting";
 import {
-  CANVAS_REGION_COLORS,
   boundsInsideRegion,
   canvasRegionAtPoint,
+  REGION_THEME_COLOR,
   translateBounds
 } from "./canvasRegions";
 import {
@@ -180,6 +180,7 @@ interface WorkspaceCanvasProps {
   onHomeLayoutChange(layout: HomeWidgetPlacement[]): void;
   onHomeGridSizeChange(gridSize: HomeGridSize): void;
   onFinishHomeEdit(): void;
+  onCancelHomeEdit(): void;
   onResetHomeLayout(): void;
   onPluginError(message: string): void;
   onPluginCanvasBoundsChange(id: string, bounds: SessionBounds): void;
@@ -211,7 +212,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     activeSessionId, browserSelected, renamingSessionId, onSelectSession,
     onSelectBrowser, onClearCanvasSelection, onRenameSession, onRenameEnd,
     onRequestMedia, onRemoveMedia, onHomeLayoutChange, onHomeGridSizeChange,
-    onFinishHomeEdit, onResetHomeLayout, onPluginError, onPluginCanvasBoundsChange,
+    onFinishHomeEdit, onCancelHomeEdit, onResetHomeLayout, onPluginError, onPluginCanvasBoundsChange,
     onDisposePluginCanvas, onFocusPluginCanvas, onSessionBoundsChange,
     onRestartSession, onDisposeSession, onBrowserBoundsChange, onFocusBrowser,
     onCloseBrowser, onCreateCanvasRegion, onChangeCanvasRegion,
@@ -310,9 +311,10 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     }
     // the first free place in view, around its centre; over the other windows only when none is free
     const c = viewportCenterWorldPoint();
+    const size0 = boardSize();
     const taken = [homeBounds, ...allWindowBounds];
-    const at = (dx: number, dy: number): SessionBounds => ({ position: { x: Math.round(c.x - BOARD_SIZE.width / 2 + dx), y: Math.round(c.y - BOARD_SIZE.height / 2 + dy) }, size: { ...BOARD_SIZE } });
-    const steps = [0, 1, -1, 2, -2].flatMap((i) => [0, 1, -1, 2, -2].map((j) => at(i * (BOARD_SIZE.width / 2 + 40), j * (BOARD_SIZE.height / 2 + 40))));
+    const at = (dx: number, dy: number): SessionBounds => ({ position: { x: Math.round(c.x - size0.width / 2 + dx), y: Math.round(c.y - size0.height / 2 + dy) }, size: { ...size0 } });
+    const steps = [0, 1, -1, 2, -2].flatMap((i) => [0, 1, -1, 2, -2].map((j) => at(i * (size0.width / 2 + 40), j * (size0.height / 2 + 40))));
     void board.place(target, steps.find((b) => !taken.some((w) => boundsIntersect(b, w))) ?? at(0, 0));
   };
   // The run holding the folder and its workspace are main's answer, not rebuilt here from snapshots.
@@ -423,7 +425,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
       : region
   )), [regionMovePreview, settings.canvasRegions]);
   // ponytail: the title's width is estimated (8.5px a character + 26px of padding), not measured; measure the DOM if a long title ever clips the chip
-  const regionTitles = useMemo(() => renderedCanvasRegions.map((r) => ({ x: r.position.x + 14, y: r.position.y + 14, width: Math.min(r.size.width - 28, r.title.length * 8.5 + 26), height: 34 })), [renderedCanvasRegions]);
+  const regionTitles = useMemo(() => renderedCanvasRegions.map((r) => ({ x: r.position.x + 14, y: r.position.y + 12, width: Math.min(r.size.width - 28, r.title.length * 7.5 + 12), height: 28 })), [renderedCanvasRegions]);
   const renderedSessions = useMemo(() => sessions.map((session) => {
     const start = regionMovePreview?.sessionBounds.get(session.id);
     return start && previewDelta ? { ...session, ...translateBounds(start, previewDelta) } : session;
@@ -441,6 +443,8 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     const start = regionMovePreview?.noteBounds.get(note.id);
     return start && previewDelta ? { ...note, ...translateBounds(start, previewDelta) } : note;
   }), [previewDelta, regionMovePreview, settings.stickyNotes]);
+  // what a link chip keeps off: the regions' titles and the notes (a chip never lies on a note, R12a)
+  const chipObstacles = useMemo(() => [...regionTitles, ...renderedStickyNotes.map((note) => ({ x: note.position.x, y: note.position.y, width: note.size.width, height: note.size.height }))], [regionTitles, renderedStickyNotes]);
 
   const renderablePluginIds = useMemo(() => new Set(settings.pluginCanvas.filter((instance) => {
     const plugin = plugins.find((candidate) => candidate.manifest.id === instance.pluginId && candidate.enabled);
@@ -681,6 +685,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
   const routeWidgetWheelToCanvas = wheelNavigation.routeWidgetWheelToCanvas;
   const canvasOverrideActive = wheelNavigation.canvasOverrideActive;
   const homeLayoutValid = homeLayoutFitsGrid(settings.homeLayout, settings.homeGridSize);
+  const homeOutside = settings.homeLayout.filter((p) => !isInsideHome(p, settings.homeGridSize));
   const editedRegion = regionEditor?.mode === "edit"
     ? settings.canvasRegions.find((region) => region.id === regionEditor.regionId) ?? null
     : null;
@@ -801,7 +806,16 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
       setRadialLauncher(null);
       return;
     }
+    const paletteChord = settings.commandPaletteShortcut;
     const handleShortcut = (event: KeyboardEvent): void => {
+      // a chord the person chose for the palette (Settings → Controls) replaces ⌘K / Ctrl+K
+      if (paletteChord !== null && matchesShortcut(event, paletteChord)) {
+        event.preventDefault();
+        setContextMenu(null);
+        setRegionEditor(null);
+        setCommandPaletteOpen((current) => !current);
+        return;
+      }
       if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
       // ⌘1…⌘9 switch workspaces on macOS only: xterm sends no ⌘ chord to the terminal there, while Ctrl+digit is a
       // control code of the terminal and Ctrl+Alt is AltGr on other systems (workspaces-spec.md §5).
@@ -817,7 +831,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
       }
       // Matched on the physical key: these chords must work on a non-Latin layout, where
       // the K key reports `key: "л"` and `event.key` alone would never match.
-      if (matchesPhysicalOrLayoutKey(event, "KeyK", "k")) {
+      if (paletteChord === null && matchesPhysicalOrLayoutKey(event, "KeyK", "k")) {
         event.preventDefault();
         setContextMenu(null);
         setRegionEditor(null);
@@ -836,7 +850,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
     };
     window.addEventListener("keydown", handleShortcut, true);
     return () => window.removeEventListener("keydown", handleShortcut, true);
-  }, [browserViewVisible, homeEditing, launchAt, onOpenSettings, viewportCenterWorldPoint, settings.shortcuts.home, settings.shortcuts.renameWindow, workspace]);
+  }, [browserViewVisible, homeEditing, launchAt, onOpenSettings, viewportCenterWorldPoint, settings.shortcuts.home, settings.shortcuts.renameWindow, settings.commandPaletteShortcut, workspace]);
 
   return (
     <div
@@ -880,10 +894,14 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           return;
         }
         const element = event.target as HTMLElement;
-        const regionId = element.closest<HTMLElement>("[data-canvas-region-id]")?.dataset.canvasRegionId;
+        // HOME's box is larger than its tiles and lies over the regions: its bare background lets a region under it take the click
+        const regionId = (element.closest<HTMLElement>("[data-canvas-region-id]")
+          ?? (element.classList.contains("home-zone") && !homeEditing
+            ? document.elementsFromPoint(event.clientX, event.clientY).map((e) => e.closest<HTMLElement>("[data-canvas-region-id]")).find(Boolean)
+            : null))?.dataset.canvasRegionId;
         const noteId = element.closest<HTMLElement>("[data-sticky-note-id]")?.dataset.stickyNoteId;
         // A card's header offers "Move to workspace…"; its body and fields keep their own menu.
-        const cardLayerId = !element.closest("textarea, input, [contenteditable='true'], button")
+        const cardLayerId = !element.closest("textarea, input, [contenteditable='true'], button:not(.orch-term)")
           && element.closest(".terminal-card__header, .agent-card__header, .browser-card__header, .plugin-canvas-card__header")
           ? element.closest<HTMLElement>("[data-canvas-layer-id]")?.dataset.canvasLayerId
           : undefined;
@@ -1137,7 +1155,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           ))}
           <AgentScene
             taskOfRun={board.taskOfRun}
-            regionTitles={regionTitles}
+            regionTitles={chipObstacles}
             orch={sceneOrch}
             ui={agentUi}
             locale={settings.locale}
@@ -1194,8 +1212,14 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
 
       {homeEditing && (
         <div className="home-editor-toolbar" data-interactive="true">
-          <strong>{t(settings.locale, "homeEditor")}</strong>
-          <button type="button" onClick={onResetHomeLayout}>{t(settings.locale, "resetHome")}</button>
+          {/* mock 18: «Черновик · плитка «Медиа» выходит за границу» — the draft names the tiles that keep «Сохранить» off */}
+          <span className="home-editor-toolbar__note" role="status">
+            <strong>{t(settings.locale, "homeDraft")}</strong>
+            {homeOutside.length > 0 && ` · ${t(settings.locale, `homeTileOutside_${pluralForm(settings.locale, homeOutside.length)}`)
+              .replace("{names}", homeOutside.map((p) => `«${homeWidgetTitle(settings.locale, p.widgetId, plugins)}»`).join(", "))}`}
+          </span>
+          <button type="button" className="home-editor-toolbar__reset" onClick={onResetHomeLayout}>{t(settings.locale, "resetHome")}</button>
+          <button type="button" className="home-editor-toolbar__cancel" onClick={onCancelHomeEdit}>{t(settings.locale, "homeEditCancel")}</button>
           <button className="home-editor-toolbar__done" type="button" disabled={!homeLayoutValid}
             title={homeLayoutValid ? undefined : t(settings.locale, "homeLayoutOutside")}
             onClick={onFinishHomeEdit}>{t(settings.locale, "doneEditing")}</button>
@@ -1209,7 +1233,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           locale={settings.locale}
           launcherItems={settings.canvasLauncherItems}
           menuStyle={settings.canvasMenuStyle}
-          currentRegionColor={contextRegion?.color ?? null}
+          currentRegionColor={contextRegion && contextRegion.color !== REGION_THEME_COLOR ? contextRegion.color : null}
           onCreateRegion={() => {
             setRegionEditor({ mode: "create", focus: "title", position: contextMenu.position, worldPoint: contextMenu.worldPoint });
             setContextMenu(null);
@@ -1299,7 +1323,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           focus={regionEditor.focus}
           position={regionEditor.position}
           initialTitle={regionEditor.mode === "create" ? t(settings.locale, "canvasRegionDefaultName") : editedRegion!.title}
-          initialColor={regionEditor.mode === "create" ? CANVAS_REGION_COLORS[0] : editedRegion!.color}
+          initialColor={regionEditor.mode === "create" ? REGION_THEME_COLOR : editedRegion!.color}
           locale={settings.locale}
           onSubmit={(title, color) => {
             if (regionEditor.mode === "create") {
@@ -1340,6 +1364,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           onShowGettingStarted={() => { setCommandPaletteOpen(false); setOnboardingPinned(true); onShowOnboarding(); onGoHome(); }}
           workspaces={workspace.state.workspaces.filter((w) => !w.closed).map((w) => ({ id: w.id, title: workspaceTitle(settings.locale, w) }))}
           onSwitchWorkspace={(id) => { setCommandPaletteOpen(false); workspace.switchTo(id); }}
+          onOpenInNewWorkspace={(session) => { void workspace.openInNewWorkspace(session.id).then((text) => { if (text) workspace.notify(text); }); }}
           onClose={() => setCommandPaletteOpen(false)}
         />
       )}
@@ -1372,9 +1397,9 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
             {settings.canvasControlsPlacement === placement && (
               <div className="canvas-controls surface-3" data-interactive="true">
                 <button type="button" onClick={onGoHome} title={t(settings.locale, "home")}><UiIcon name="home" size={17} /></button>
-                <button type="button" onClick={() => wheelNavigation.zoomBy(0.82)} title={t(settings.locale, "zoomOut")}><UiIcon name="zoom-out" size={17} /></button>
+                <button type="button" onClick={() => wheelNavigation.zoomBy(0.82)} title={t(settings.locale, "zoomOut")}><UiIcon name="minus" size={17} /></button>
                 <span className="canvas-controls__zoom" aria-live="off">{Math.round(camera.zoom * 100)}%</span>
-                <button type="button" onClick={() => wheelNavigation.zoomBy(1.22)} title={t(settings.locale, "zoomIn")}><UiIcon name="zoom-in" size={17} /></button>
+                <button type="button" onClick={() => wheelNavigation.zoomBy(1.22)} title={t(settings.locale, "zoomIn")}><UiIcon name="plus" size={17} /></button>
               </div>
             )}
             {settings.showShortcutHints && settings.shortcutHintsPlacement === placement && (

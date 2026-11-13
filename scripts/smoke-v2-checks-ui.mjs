@@ -271,7 +271,8 @@ try {
     await startGoal(app, ids.link, { onDialog: async () => {
       await app.fillRows(q("[data-orch-commands]"), []);
       await app.ev(`${q(".orch-dialog .orch-advanced")}.open = true`);
-      await app.type(`document.querySelectorAll(".orch-dialog .orch-limits input[type=number]")[1]`, "1");
+      await app.ev(`${q(".orch-dialog .orch-limits__more")}.open = true`);
+      await app.type(`document.querySelectorAll(".orch-dialog .orch-limits input[type=number]")[2]`, "1"); // rounds per stage: turns, minutes, then the rare two
     } });
     const runId = (await runs(app))[0].runId;
     // until the review has opened F1; the pauses on the way are not this scenario's: answered through main
@@ -393,8 +394,8 @@ try {
       submit: ${q("[data-orch-finish-submit]")}.disabled })`);
     expect(shown.steps.join() === "push,qa" && shown.submit === true, "finish (A4): push and QA decided apart; nothing sent before both are chosen", shown);
     const groups = await app.ev(`[...document.querySelectorAll("[data-orch-finish-step]")].map((e) => e.querySelector("legend")?.textContent + ":" + e.querySelectorAll("[data-orch-finish-choice]").length)`);
-    expect(/^Push · [0-9a-f]{7}:2\|Выложить на QA:2$/.test(groups.join("|")),
-      "finish (UX PR 2, D-018): two groups, «Push · commit» and «Выложить на QA», each a «Выполнить | Пропустить» segment", groups);
+    expect(/^Push в qa\/qa-branch · [0-9a-f]{7}:2\|Выложить на QA:2$/.test(groups.join("|")),
+      "finish (UX PR 2, D-018): two groups, «Push в remote/branch · commit» and «Выложить на QA», each a «Выполнить | Пропустить» segment", groups);
     await app.ev(`${q("[data-orch-finish-confirm]")}.scrollIntoView({ block: "start" })`);
     await app.shot("v2-14-finish-confirm");
     await app.clickEl(q('[data-orch-finish-choice="push:confirm"]'));

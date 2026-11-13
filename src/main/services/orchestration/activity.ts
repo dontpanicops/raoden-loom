@@ -70,6 +70,37 @@ const rec = (v: unknown): Record<string, unknown> | null => (v && typeof v === "
 const CLAUDE_FILE_TOOLS_WRITE = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 const CLAUDE_FILE_TOOLS_READ = new Set(["Read", "NotebookRead"]);
 
+// F-c (D-041 p. 7, mock-up 07): «+31 −2» beside a file change in the feed — counted only from what the CLI itself sent: the
+// lines of an Edit's old and new text, a Write's content (added only: what it replaced is not known), a unified diff
+// when the CLI gives one. Nothing else is counted, nothing is guessed: no numbers, no counter.
+export interface LineDelta { added?: number; removed?: number }
+const lineCount = (s: unknown): number | null => (typeof s === "string" ? (s === "" ? 0 : s.replace(/\n$/, "").split("\n").length) : null);
+function claudeDelta(name: string, input: Record<string, unknown> | null): LineDelta | undefined {
+  if (!input) return undefined;
+  if (name === "Write") { const added = lineCount(input.content); return added === null ? undefined : { added }; }
+  const edits = name === "MultiEdit" && Array.isArray(input.edits) ? input.edits.map(rec) : name === "Edit" ? [input] : [];
+  let added = 0;
+  let removed = 0;
+  for (const e of edits) {
+    const a = lineCount(e?.new_string);
+    const r = lineCount(e?.old_string);
+    if (a === null || r === null) return undefined;
+    added += a;
+    removed += r;
+  }
+  return edits.length ? { added, removed } : undefined;
+}
+export function diffDelta(diff: string): LineDelta | undefined {
+  let added = 0;
+  let removed = 0;
+  for (const l of diff.split("\n")) {
+    if (l.startsWith("+++") || l.startsWith("---")) continue;
+    if (l.startsWith("+")) added++;
+    else if (l.startsWith("-")) removed++;
+  }
+  return added || removed ? { added, removed } : undefined;
+}
+
 // One per turn: tool ids seen so far (a result names only the id).
 // Stage 13: a frame CanvasTTY itself adds to a turn (providers.ts), never read from a CLI's output: the rights mode that
 // was asked for and what the CLI says it runs with, when they differ.
@@ -77,7 +108,7 @@ export const ACCESS_MISMATCH = Symbol("canvastty.accessMismatch");
 export interface AccessMismatch { field: string; asked: string; reported: string }
 
 export function createFrameMapper(provider: "codex" | "claude", role: "lead" | "executor" | "reviewer", cwd: string | null) {
-  const tools = new Map<string, { name: string; target: string | null }>();
+  const tools = new Map<string, { name: string; target: string | null; delta?: LineDelta }>();
   const base = { role, provider } as const;
   const d = (kind: OrchestrationActivityKind, text: string, detail?: Draft["detail"], max?: number): Draft => {
     const s = sanitize(text, cwd, max);
@@ -121,7 +152,7 @@ export function createFrameMapper(provider: "codex" | "claude", role: "lead" | "
         else if (b.type === "thinking" || b.type === "redacted_thinking") out.push(d("thinking", ""));
         else if (b.type === "tool_use" && typeof b.name === "string") {
           const target = claudeTarget(b.name, rec(b.input));
-          if (typeof b.id === "string") tools.set(b.id, { name: b.name, target });
+          if (typeof b.id === "string") tools.set(b.id, { name: b.name, target, delta: claudeDelta(b.name, rec(b.input)) });
           const agentType = str(rec(b.input)?.subagent_type);
           if (b.name === "Task" || b.name === "Agent") out.push(d("subagent", target ?? b.name, { tool: b.name, phase: "started", ...(agentType ? { agent: agentType } : {}) }));
           else if (b.name === "StructuredOutput") out.push(d("tool_started", "structured report", { tool: b.name }));
@@ -142,7 +173,7 @@ export function createFrameMapper(provider: "codex" | "claude", role: "lead" | "
         } else if (name === "Task" || name === "Agent") {
           out.push(d("subagent", label, { tool: name, phase: "finished" }));
         } else {
-          out.push(d("tool_finished", label, { tool: name, target: t?.target ?? null, ok: true, ...(inSub ?? {}) }));
+          out.push(d("tool_finished", label, { tool: name, target: t?.target ?? null, ok: true, ...(t?.delta ?? {}), ...(inSub ?? {}) }));
           if (t?.target && CLAUDE_FILE_TOOLS_WRITE.has(name)) out.push(d("file_changed", t.target, { tool: name }));
           else if (t?.target && CLAUDE_FILE_TOOLS_READ.has(name)) out.push(d("file_read", t.target, { tool: name }));
         }
@@ -181,7 +212,7 @@ export function createFrameMapper(provider: "codex" | "claude", role: "lead" | "
       case "file_change": {
         if (started) return [];
         const changes = Array.isArray(item.changes) ? item.changes.map(rec).filter(Boolean) as Record<string, unknown>[] : [];
-        return changes.length ? changes.map((c) => d("file_changed", shownPath(c.path, cwd) ?? "?", { change: str(c.kind) }))
+        return changes.length ? changes.map((c) => d("file_changed", shownPath(c.path, cwd) ?? "?", { change: str(c.kind), ...(typeof c.diff === "string" ? diffDelta(c.diff) : {}) }))
           : [d("file_changed", "files changed", {})];
       }
       case "mcp_tool_call": {

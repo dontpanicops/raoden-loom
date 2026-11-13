@@ -13,6 +13,7 @@ import type {
   StickyNote
 } from "../../../../shared/contracts";
 import { t } from "../../lib/i18n";
+import { regionCssColor } from "./canvasRegions";
 import {
   cameraWorldViewport,
   minimapCameraForPointerDrag,
@@ -42,6 +43,7 @@ interface MinimapEntity {
   id: string;
   kind: "terminal" | "plugin" | "browser" | "note";
   bounds: SessionBounds;
+  tone?: string; // a terminal's status, the colour of its rectangle (mock 03)
 }
 
 interface MinimapDragState {
@@ -109,7 +111,7 @@ export function CanvasMinimap({
     [homeBounds, worldBounds]
   );
   const entities = useMemo<MinimapEntity[]>(() => [
-    ...sessions.map((session) => ({ id: session.id, kind: "terminal" as const, bounds: session })),
+    ...sessions.map((session) => ({ id: session.id, kind: "terminal" as const, bounds: session, tone: session.status })),
     ...stickyNotes.map((note) => ({ id: note.id, kind: "note" as const, bounds: note })),
     ...pluginCanvas.map((instance) => ({ id: instance.id, kind: "plugin" as const, bounds: instance })),
     ...(browserCanvas ? [{ id: "browser", kind: "browser" as const, bounds: browserCanvas }] : [])
@@ -227,18 +229,22 @@ export function CanvasMinimap({
             <i
               className="canvas-minimap__region"
               key={region.id}
-              style={{ ...areaStyle(area), "--minimap-region-color": region.color } as CSSProperties}
+              style={{ ...areaStyle(area), "--minimap-region-color": regionCssColor(region.color) } as CSSProperties}
             />
           ) : null;
         })}
         {homeArea && <i className="canvas-minimap__home" style={areaStyle(homeArea)} />}
-        {entities.map((entity) => (
-          <i
-            className={`canvas-minimap__entity canvas-minimap__entity--${entity.kind}`}
-            key={`${entity.kind}:${entity.id}`}
-            style={pointStyle(minimapPointForBounds(entity.bounds, worldBounds))}
-          />
-        ))}
+        {entities.map((entity) => {
+          const area = minimapAreaForBounds(entity.bounds, worldBounds);
+          return area ? (
+            <i
+              className={`canvas-minimap__entity canvas-minimap__entity--${entity.kind}`}
+              data-tone={entity.tone}
+              key={`${entity.kind}:${entity.id}`}
+              style={areaStyle(area)}
+            />
+          ) : null;
+        })}
         <i className="canvas-minimap__viewport" style={pointStyle(viewportPoint)} />
         {homeEdge && (
           <i className="canvas-minimap__home-edge" style={pointStyle(homeEdge)} />

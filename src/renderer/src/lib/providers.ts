@@ -23,7 +23,7 @@ export const PROVIDERS: Record<ProviderId, ProviderDefinition> = {
 };
 
 export const AGENT_PROVIDERS: AgentProviderId[] = ["codex", "claude", "qwen", "kimi", "opencode", "hermes", "grok", "omp", "pi"];
-export const LIMIT_PROVIDERS: LimitProviderId[] = ["codex", "claude", "qwen", "kimi", "opencode", "grok"];
+export const LIMIT_PROVIDERS: LimitProviderId[] = ["codex", "claude", "kimi", "qwen", "opencode", "grok"];
 
 export function resolveHomeLauncherProviders(
   settings: Pick<Partial<AppSettings>, "homeLauncherProviders">

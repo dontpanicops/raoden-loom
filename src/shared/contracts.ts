@@ -25,7 +25,10 @@ export type CanvasOverlayPlacement = "top-left" | "top-right" | "bottom-left" | 
 export type MinimapInteractionMode = "click" | "drag";
 export type BrowserViewportSurface = "native" | "placeholder" | "hidden";
 export type FocusActivation = "off" | "single" | "double";
-export type ShortcutAction = "home" | "renameWindow";
+export type ShortcutAction = "home" | "renameWindow" | "commandPalette";
+
+/** The answer of «Check for updates»: no download, no install, only a version and the page. */
+export type UpdateCheckResult = { status: "latest" } | { status: "available"; version: string; url: string } | { status: "failed" };
 export type CanvasLauncherItemId = ProviderId;
 export type RadialLauncherActionId = "note" | "browser" | "settings";
 export type RadialLauncherItemId = ProviderId | RadialLauncherActionId;
@@ -46,11 +49,11 @@ export const CANVAS_LAUNCHER_ITEMS: readonly CanvasLauncherItemId[] = [
 // Keeps the safe provider subset proposed by @TroopJostle in PR #23 while
 // region, note, Browser, and Settings remain fixed top-level menu actions.
 export const DEFAULT_CANVAS_LAUNCHER_ITEMS: readonly CanvasLauncherItemId[] = [
+  "terminal", // first, as in mock 10 and 11: the plain shell is the first thing a launch menu offers (⌘T)
   "codex",
   "claude",
   "qwen",
-  "opencode",
-  "terminal"
+  "opencode"
 ];
 
 export const RADIAL_LAUNCHER_ITEMS: readonly RadialLauncherItemId[] = [
@@ -104,8 +107,8 @@ export const DEFAULT_HOME_ACCENT_COLORS: HomeAccentColors = {
   media: "#D5A2C9"
 };
 
-export const HOME_GRID_MIN_COLUMNS = 12;
-export const HOME_GRID_MIN_ROWS = 8;
+export const HOME_GRID_MIN_COLUMNS = 11;
+export const HOME_GRID_MIN_ROWS = 6;
 export const HOME_GRID_MAX_COLUMNS = 48;
 export const HOME_GRID_MAX_ROWS = 36;
 export const HOME_GRID_CELL_WIDTH = 82;
@@ -141,12 +144,12 @@ export interface HomeWidgetPlacement {
 // mocks 03 and 05 inside the 12×8 grid: limits | clock with the media under it | sessions as one top band,
 // the dock of 11 buttons in one row and the settings tile beside it (two columns: its label fits, as in mock 05)
 export const DEFAULT_HOME_LAYOUT: HomeWidgetPlacement[] = [
-  { widgetId: "core.limits", column: 0, row: 0, columnSpan: 5, rowSpan: 5 },
-  { widgetId: "core.clock", column: 5, row: 0, columnSpan: 3, rowSpan: 3 },
-  { widgetId: "core.media", column: 5, row: 3, columnSpan: 3, rowSpan: 2 },
-  { widgetId: "core.sessions", column: 8, row: 0, columnSpan: 4, rowSpan: 5 },
-  { widgetId: "core.launcher", column: 0, row: 5, columnSpan: 10, rowSpan: 2 },
-  { widgetId: "core.settings", column: 10, row: 5, columnSpan: 2, rowSpan: 2 }
+  { widgetId: "core.limits", column: 0, row: 0, columnSpan: 4, rowSpan: 4 },
+  { widgetId: "core.clock", column: 4, row: 0, columnSpan: 3, rowSpan: 3 },
+  { widgetId: "core.media", column: 4, row: 3, columnSpan: 3, rowSpan: 1 },
+  { widgetId: "core.sessions", column: 7, row: 0, columnSpan: 4, rowSpan: 4 },
+  { widgetId: "core.launcher", column: 0, row: 4, columnSpan: 9, rowSpan: 2 },
+  { widgetId: "core.settings", column: 9, row: 4, columnSpan: 2, rowSpan: 2 }
 ];
 
 export interface ShortcutBindings {
@@ -198,6 +201,7 @@ export interface CameraState extends Point {
 // Project workspaces (docs/agent-orchestration/implementation/workspaces-spec.md). A card belongs to the workspace its
 // optional `workspaceId` names; a missing or unknown id means the common canvas, where every older card lives.
 export const COMMON_WORKSPACE_ID = "common";
+export type WorkspaceLabel = 1 | 2 | 3 | 4 | 5; // the five label colours of SPEC 11.7 (--wsl-1..5)
 export interface WorkspaceRecord {
   id: string;
   title: string; // "" for the common canvas until renamed: the renderer shows its localized name
@@ -205,6 +209,7 @@ export interface WorkspaceRecord {
   createdAt: string;
   closed: boolean; // hidden from the switcher; nothing in it is stopped
   camera: CameraState | null; // null: the HOME camera on the first visit
+  label?: WorkspaceLabel; // absent: no label (older files, the common canvas)
 }
 export interface WorkspacesState {
   available: boolean; // false: the migration could not make its backup; only the common canvas, in memory
@@ -216,8 +221,8 @@ export type WorkspacesResult<T> = { ok: true; value: T } | { ok: false; code: st
 export interface WorkspacesApi {
   get(): Promise<WorkspacesState>;
   // activate: false keeps the active workspace (arranging older cards into new workspaces).
-  create(input: { title: string; root: string | null; activate?: boolean }): Promise<WorkspacesResult<WorkspacesState>>;
-  update(id: string, patch: { title?: string; root?: string | null }): Promise<WorkspacesResult<WorkspacesState>>;
+  create(input: { title: string; root: string | null; label?: WorkspaceLabel | null; activate?: boolean }): Promise<WorkspacesResult<WorkspacesState>>;
+  update(id: string, patch: { title?: string; root?: string | null; label?: WorkspaceLabel | null }): Promise<WorkspacesResult<WorkspacesState>>;
   activate(id: string): Promise<WorkspacesResult<WorkspacesState>>;
   // Always names the workspace the camera belongs to: a late write lands there and nowhere else.
   setCamera(id: string, camera: CameraState): Promise<WorkspacesResult<null>>;
@@ -228,7 +233,7 @@ export interface WorkspacesApi {
 
 // Notifications of orchestration runs (UX audit PR 3): which events tell the person, and the Dock.
 // boardHead (C4): «the board's result updated» — off by default, under «board»
-export interface NotificationSettings { waiting: boolean; completed: boolean; failed: boolean; dockBadge: boolean; bounce: boolean; board: boolean; boardHead: boolean }
+export interface NotificationSettings { waiting: boolean; completed: boolean; failed: boolean; dockBadge: boolean; bounce: boolean; board: boolean; boardHead: boolean; banner: boolean; system: boolean }
 
 export interface AppSettings {
   locale: LocaleId;
@@ -286,6 +291,12 @@ export interface AppSettings {
   browserShowAgentPresence: boolean;
   browserRestoreTabs: boolean;
   notifications: NotificationSettings;
+  /** The chord that opens the command palette; null: the built-in ⌘K / Ctrl+K. */
+  commandPaletteShortcut: string | null;
+  /** Where the browser card saves downloads; null: the app's own folder inside the system Downloads. */
+  browserDownloadDir: string | null;
+  /** Ask GitHub Releases once a day whether a newer version exists (off by default; nothing is installed). */
+  checkUpdates: boolean;
 }
 
 export interface CreateSessionRequest {
@@ -521,6 +532,8 @@ export interface InstalledPlugin {
   selectedModules: string[];
   /** Hook ids explicitly trusted by the user. Never populated during install or update. */
   enabledHooks: string[];
+  /** Why the installed package could not be read (main's first line of the error); absent when it loaded. */
+  loadError?: string;
 }
 
 export interface PluginInstallPreview {
@@ -543,7 +556,7 @@ export interface PluginCanvasInstance {
 export interface CanvasRegion extends SessionBounds {
   id: string;
   title: string;
-  color: string;
+  color: string; // "#RRGGBB", or "theme" when the person did not pick one: the theme's --region-tint (R12x, D-043)
   workspaceId?: string;
 }
 
@@ -980,6 +993,7 @@ export interface CanvasTTYApi {
   orchestration: import('./orchestration.ts').OrchestrationApi;
   workspaces: WorkspacesApi;
   appVersion(): Promise<string>;
+  updates: { check(): Promise<UpdateCheckResult> };
   notify: {
     // shown: false where the system has no notifications; a later refusal comes by onFailed
     show(note: { runId: string; title: string; body: string }): Promise<{ shown: boolean }>;
@@ -1029,6 +1043,8 @@ export interface CanvasTTYApi {
     setEnabled(pluginId: string, enabled: boolean): Promise<InstalledPlugin>;
     setHookEnabled(pluginId: string, hookId: string, enabled: boolean): Promise<InstalledPlugin>;
     uninstall(pluginId: string): Promise<void>;
+    /** Opens the folder the plugins live in (Finder); resolves to an error text, "" when it opened. */
+    openFolder(): Promise<string>;
     openCanvas(pluginId: string, contributionId: string, sourceCanvasInstanceId?: string): Promise<void>;
     openWindow(pluginId: string, contributionId: string): Promise<void>;
     openExternal(pluginId: string, url: string): Promise<void>;
@@ -1147,6 +1163,7 @@ export const IPC = {
   pluginsSetEnabled: "plugins:set-enabled",
   pluginsSetHookEnabled: "plugins:set-hook-enabled",
   pluginsUninstall: "plugins:uninstall",
+  pluginsOpenFolder: "plugins:open-folder",
   pluginsOpenCanvas: "plugins:open-canvas",
   pluginsOpenWindow: "plugins:open-window",
   pluginsOpenExternal: "plugins:open-external",
@@ -1221,6 +1238,10 @@ export const IPC = {
   orchestrationBoardImportFile: "orchestration:board-import-file",
   orchestrationBoardInboxImport: "orchestration:board-inbox-import",
   orchestrationBoardInboxReject: "orchestration:board-inbox-reject",
+  // F-c (D-041 p. 4): «Open file» under an import report — the file by its name and hash, never a path
+  orchestrationBoardImportOpen: "orchestration:board-import-open",
+  // F-c (D-041 p. 1): «Export the review» of a completed run by hand
+  orchestrationReviewExport: "orchestration:review-export",
   orchestrationBoardEvent: "orchestration:board-event",
   orchestrationBoardExternalMark: "orchestration:board-external-mark", // F2
   orchestrationReadiness: "orchestration:readiness",
@@ -1263,6 +1284,7 @@ export const IPC = {
   canvasNavigationPointerGesture: "canvas-navigation:pointer-gesture",
   canvasNavigationOverrideState: "canvas-navigation:override-state",
   appVersion: "app:version",
+  updatesCheck: "updates:check",
   githubAuthStatus: "github-auth:status",
   githubAuthStart: "github-auth:start",
   githubAuthSignOut: "github-auth:sign-out",

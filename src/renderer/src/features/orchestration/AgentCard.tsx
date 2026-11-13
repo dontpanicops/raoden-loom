@@ -1,3 +1,4 @@
+import { invZoom, zoomedAttr } from "../../lib/cardChrome";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { LocaleId, SessionBounds } from "../../../../shared/contracts";
 import type { OrchestrationActivityEntry, OrchestrationAgentCard } from "../../../../shared/orchestration";
@@ -31,7 +32,7 @@ interface AgentCardProps {
   message: CardMessage | null;
   linking: "source" | "target" | null; // keyboard/click linking mode
   linked: boolean;
-  offer?: "source" | "ok" | "drop" | "dim" | "dim-over" | null; // while a link is dragged from a port (mock 18): fits / under the pointer / other role or folder / the latter under the pointer
+  offer?: "source" | "ok" | "drop" | "dim" | "dim-over" | "dim-far" | null; // while a link is dragged from a port (mock 18): fits / under the pointer / other role or folder / the latter under the pointer
   hasRun: boolean;
   selected: boolean;
   snapEnabled: boolean;
@@ -48,6 +49,8 @@ interface AgentCardProps {
   onObserve(agentId: string): void;
   onSummary(agentId: string): void;
   stageOf?: string | null; // «stage 1 of 2», after the state of a working card (mock 06)
+  failure?: { stage: string | null; line: string | null } | null; // a failed run (mock 06): «Упал на этапе N» and, when the activity knows the exit, the CLI line
+  awaitsPermission?: boolean; // the run waits for a permission request: «Ждёт разрешения»
   pause?: string | null; // a paused run's short form ("Waiting for you: …"), the link chip's words (runModel viewPauseLabel)
 }
 
@@ -86,30 +89,46 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
   toggleRef.current = toggle;
   useEffect(() => {
     const el = header.current;
-    const onDouble = (event: MouseEvent): void => { if (!(event.target as HTMLElement).closest("button")) toggleRef.current(); };
+    const onDouble = (event: MouseEvent): void => { if (!(event.target as HTMLElement).closest("button:not(.orch-term)")) toggleRef.current(); };
     el?.addEventListener("dblclick", onDouble);
     return () => el?.removeEventListener("dblclick", onDouble);
   }, []);
   const doing = status && MOVING.includes(status.state) ? status.doing : null;
-  const stateText = props.pause && (state === "paused" || state === "needs_you") ? props.pause : `${t(locale, STATE_KEY[state])}${state === "working" && props.stageOf ? ` · ${props.stageOf}` : ""}`;
+  const held = props.pause && (state === "paused" || state === "needs_you");
+  const stateLabel = held && props.pause ? props.pause : state === "failed" && props.failure?.stage ? props.failure.stage : state === "needs_you" && props.awaitsPermission ? t(locale, "orchAgentAwaitsPermission") : t(locale, STATE_KEY[state]);
+  const stage = !held && state === "working" && props.stageOf ? props.stageOf : "";
+  const stateText = stage ? `${stateLabel} · ${stage}` : stateLabel;
+  // SPEC 11.2 / mock 21: below 100% the status leaves the body for the footer (the terminal's format); below 40% the card is a summary: name and glyph
+  const zoomed = zoom < 1;
+  const farSummary = zoom < 0.4;
+  const provider = card.provider === "codex" ? "Codex" : "Claude";
+  // mock 06/21: the default size shows the step feed in place of the task line (it stays in the expanded card); the current-action line stays, it carries the waiting and consent facts (D-028)
+  const showFeed = zoom >= 0.4 && props.hasRun;
+  const compactFeed = compact && showFeed;
   const extra = status ? status.wait ?? status.now : null;
 
   return (
     <article
       className={`agent-card agent-card--${card.provider} agent-card--${state} ${props.selected ? "agent-card--selected" : ""} ${linking ? `agent-card--linking-${linking}` : ""} ${props.offer ? `agent-card--offer-${props.offer}` : ""}`}
       data-interactive="true"
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: the card is the keyboard's stop of its own: the focus ring lies on it, not on a header button (mock 18)
+      tabIndex={0}
+      data-zoomed={zoomedAttr(zoom)}
+      data-agent-far={farSummary ? "" : undefined}
+      data-agent-tight={zoom < 0.6 ? "" : undefined}
       data-agent-id={card.agentId}
       data-agent-role={card.role}
+      data-hover-host=""
       data-canvas-layer-id={`agent:${card.agentId}`}
       aria-label={`${card.provider === "codex" ? "Codex" : "Claude"} — ${t(locale, card.role === "lead" ? "orchRoleLead" : "orchRoleExecutor")}`}
-      style={{ zIndex: props.stackIndex, width: size.width, height: size.height, transform: `translate(${position.x}px, ${position.y}px)` }}
+      style={{ zIndex: props.stackIndex, width: size.width, height: size.height, transform: `translate(${position.x}px, ${position.y}px)`, "--iz": invZoom(zoom) } as React.CSSProperties}
     >
       <header className="agent-card__header" {...frame.header} ref={header}>
         <span className="agent-card__identity">
           <ProviderIcon provider={card.provider} size="small" />
           <i className="agent-card__dot" aria-hidden="true" />
-          <strong>{card.provider === "codex" ? "Codex" : "Claude"}</strong>
-          <small><Term locale={locale} id={card.role}>{t(locale, card.role === "lead" ? "orchRoleLead" : "orchRoleExecutor")}</Term></small>
+          <strong data-hover-anchor="">{card.provider === "codex" ? "Codex" : "Claude"}</strong>
+          <small><Term locale={locale} id={card.role}><span className="agent-card__role">{t(locale, card.role === "lead" ? "orchRoleLead" : "orchRoleExecutor")}</span></Term></small>
         </span>
         <span className="agent-card__header-actions">
           <button className="agent-card__expand" type="button" data-agent-expand={compact ? "compact" : "expanded"} onClick={toggle}
@@ -124,22 +143,23 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
       </header>
       <div className="agent-card__body">
         {/* every line is one line: a long one ends with "…" and says all of it in its tooltip (1.5.13) */}
-        <div className="agent-card__status" role="status">
-          <span className={`agent-card__state agent-card__state--${state}`} data-agent-pause={props.pause && (state === "paused" || state === "needs_you") ? "yes" : undefined}
+        {!zoomed && <div className="agent-card__status" role="status">
+          <span className={`agent-card__state agent-card__state--${state}`} data-agent-pause={held ? "yes" : undefined}
             title={compact && props.statusTime ? `${stateText} · ${props.statusTime}` : stateText}>
             <UiIcon name={CARD_STATUS_ICON[agentCardStatus(state)]} size="1.1em" />
             <span>{stateText}</span></span>
           {props.statusTime && !compact && <span className="agent-card__time" data-agent-time title={props.statusTime}>{props.statusTime}</span>}
-        </div>
+        </div>}
         <div className="agent-card__project" title={card.project}><small>{withoutHome(card.project)}</small></div>
         {/* the status already names a held state (paused, ended, waiting for you); the sentence adds what moves */}
-        {props.task && <div className="agent-card__line agent-card__task" data-agent-task={props.task.key} title={props.task.title}>{props.task.key} · {props.task.title}</div>}
+        {state === "failed" && props.failure?.line && <div className="agent-card__line" data-agent-failure title={props.failure.line}>{props.failure.line}</div>}
+        {!compactFeed && props.task && <div className="agent-card__line agent-card__task" data-agent-task={props.task.key} title={props.task.title}>{props.task.key} · {props.task.title}</div>}
         {doing && <div className="agent-card__line agent-card__doing" data-agent-doing title={doing}>{doing}</div>}
         {extra && <div className="agent-card__line" data-agent-now title={extra}>{extra}</div>}
         {card.role === "lead" && !props.linked && !message && state === "idle" && <p className="agent-card__hint" data-agent-port-hint>{t(locale, "orchCardPortHint")}</p>}
-        {message && <div className={`agent-card__message agent-card__message--${message.tone}`} role={message.tone === "error" ? "alert" : "status"}>{message.text}</div>}
+        {message && !message.pairWith && <div className={`agent-card__message agent-card__message--${message.tone}`} role={message.tone === "error" ? "alert" : "status"}>{message.text}</div>}
         {/* semantic zoom: far out the card keeps its lines and gives the wheel back to the canvas */}
-        {!compact && zoom >= 0.5 && props.hasRun && <CardFeed locale={locale} entries={props.activity} role={card.role} height={size.height} />}
+        {showFeed && <CardFeed locale={locale} entries={props.activity} role={card.role} height={size.height} />}
         {confirming && (
           <div className="agent-card__confirm" role="alertdialog" aria-label={t(locale, "orchDeleteCard")}>
             <span>{t(locale, "orchDeleteCardLinked")}</span>
@@ -154,15 +174,33 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
           {props.ended && (
             <button className="agent-card__summary" type="button" onClick={() => props.onSummary(card.agentId)}>{t(locale, "orchSummaryButton")}</button>
           )}
+          {/* R12r/R12t (mock 03/06/21): the run's two ways in show only on hover, focus or a selected card; «Открыть запуск» stays when the run failed or waits for the person */}
           {props.hasRun && (
-            <button className="agent-card__open" type="button" onClick={() => props.onOpenRun(card.agentId)}>{t(locale, "orchOpenRun")}</button>
+            <button className="agent-card__open agent-card__run-action" type="button" onClick={() => props.onOpenRun(card.agentId)}>{t(locale, "orchOpenRun")}</button>
           )}
           {props.hasRun && (
-            <button className="agent-card__observe" type="button" onClick={() => props.onObserve(card.agentId)}>{t(locale, "orchObserve")}</button>
+            <button className="agent-card__observe agent-card__run-action" type="button" onClick={() => props.onObserve(card.agentId)}>{t(locale, "orchObserve")}</button>
           )}
         </div>
       </div>
-      {(props.offer === "drop" || props.offer === "dim-over") && (
+      {zoomed && !farSummary && (
+        <footer className="agent-card__footer" role="status" title={compact && props.statusTime ? `${stateText} · ${props.statusTime}` : stateText}>
+          <span className={`agent-card__state agent-card__state--${state}`} data-agent-pause={held ? "yes" : undefined}>
+            <UiIcon name={CARD_STATUS_ICON[agentCardStatus(state)]} size="1.1em" />
+            <span className="agent-card__state-text">
+              <span className="agent-card__state-label">{stateLabel}</span>
+              {stage && <span className="agent-card__state-stage"> · {stage}</span>}
+            </span>
+          </span>
+        </footer>
+      )}
+      {farSummary && (
+        <div className="agent-card__far" role="status" title={`${provider} · ${stateText}`}>
+          <strong>{provider}</strong>
+          <span className={`agent-card__state agent-card__state--${state}`}><UiIcon name={CARD_STATUS_ICON[agentCardStatus(state)]} size="1.4em" /></span>
+        </div>
+      )}
+      {(props.offer === "drop" || props.offer === "dim-over" || props.offer === "dim-far") && (
         <span className="agent-card__offer" aria-hidden="true">{t(locale, props.offer === "drop" ? "orchReleaseToLink" : "orchOtherFolder")}</span>
       )}
       {RESIZE_DIRECTIONS.map((direction) => (
@@ -219,7 +257,7 @@ function CardFeed({ locale, entries, role, height }: { locale: LocaleId; entries
         const text = withoutHome(structured(e) ? `${t(locale, "orchAct_message")}: ${t(locale, "orchFeedReport")}` : entryLabel(locale, e, entries));
         return (
           <div key={e.id} className="agent-card__feed-item" data-activity-id={e.id} title={text}>
-            <time>{e.ts ? new Date(e.ts).toLocaleTimeString(locale) : "—"}</time> <span>{text}</span>
+            <time>{e.ts ? new Date(e.ts).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "—"}</time> · <span>{text}</span>
           </div>
         );
       })}

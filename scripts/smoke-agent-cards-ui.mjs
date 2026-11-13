@@ -77,7 +77,8 @@ const layout = (agentId) => app.ev(`(() => {
   const c = document.querySelector('[data-agent-id="${agentId}"]');
   const body = c.querySelector(".agent-card__body").getBoundingClientRect();
   const blocks = [...c.querySelectorAll(".agent-card__body > *")].filter((e) => !e.matches(".agent-card__feed") && e.getClientRects().length);
-  const lines = [...c.querySelectorAll(".agent-card__project strong, .agent-card__project small, .agent-card__state, .agent-card__time, .agent-card__line")];
+  // R12f (SPEC 11.2): below 100% zoom the status is in the footer, outside the body: it is checked as its own block below
+  const lines = [...c.querySelectorAll(".agent-card__body :is(.agent-card__project strong, .agent-card__project small, .agent-card__state, .agent-card__time, .agent-card__line)")];
   const bad = [];
   for (const e of [...blocks, ...lines]) {
     const r = e.getBoundingClientRect();
@@ -89,7 +90,15 @@ const layout = (agentId) => app.ev(`(() => {
     if (a.bottom > b.top + 0.5) bad.push({ overlap: [blocks[i - 1].className, blocks[i].className] });
   }
   for (const e of lines) if (e.scrollWidth > e.clientWidth + 1 && !(e.title || e.closest("[title]"))) bad.push({ noTooltip: e.className, text: e.textContent.slice(0, 60) });
-  return { bad, lines: lines.map((e) => e.className.split(" ")[0] + ": " + e.textContent.slice(0, 80)) };
+  const foot = c.querySelector(".agent-card__footer");
+  if (foot) {
+    const f = foot.getBoundingClientRect(), cr = c.getBoundingClientRect(), z = c.dataset.zoomed !== undefined ? cr.width / c.offsetWidth : 1;
+    if (body.bottom > f.top + 0.5) bad.push({ footerOverBody: [body.bottom, f.top] });
+    if (f.bottom > cr.bottom + 0.5 || Math.abs(f.height - 24) > 1.5) bad.push({ footerSize: [f.height, f.bottom, cr.bottom], z });
+    if (!foot.querySelector(".agent-card__state-label")?.textContent || !foot.title) bad.push({ footerEmpty: foot.textContent });
+    if (c.querySelector(".agent-card__body .agent-card__status")) bad.push({ statusInBodyAndFooter: true });
+  }
+  return { bad, footer: foot ? foot.textContent : null, lines: lines.map((e) => e.className.split(" ")[0] + ": " + e.textContent.slice(0, 80)) };
 })()`);
 const feedState = (agentId) => app.ev(`(() => {
   const f = document.querySelector('[data-agent-id="${agentId}"] [data-agent-feed]');
@@ -191,8 +200,8 @@ try {
   notes.waiting = { leadLines, execLines };
   expect(waiting.filter((t) => t.startsWith("Ждёт: ")).length === 1, "the waiting card: one line «Ждёт: <who works and what it does>»", notes.waiting);
   expect(!waiting.some((t) => t === working[0]), "the waiting card does not repeat the working card's line word for word", notes.waiting);
-  expect(await app.ev(`${card(exec.agentId, "[data-agent-expand]")}.dataset.agentExpand`) === "compact" && !(await app.ev(`!!${card(exec.agentId, "[data-agent-feed]")}`)),
-    "a compact card: «Развернуть», no feed", null);
+  expect(await app.ev(`${card(exec.agentId, "[data-agent-expand]")}.dataset.agentExpand`) === "compact" && await app.ev(`!!${card(exec.agentId, "[data-agent-feed]")}`),
+    "a compact card: «Развернуть», the step feed (mock 06)", null);
   await clip([lead.agentId, exec.agentId], "01-compact");
 
   // 2. the lead's card expanded: the feed follows, pauses scrolled up, follows again at the bottom

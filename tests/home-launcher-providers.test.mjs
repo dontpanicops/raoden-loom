@@ -65,7 +65,7 @@ test("HOME limit visibility is canonical and independent from launcher visibilit
       homeLauncherProviders: ["grok"],
       homeLimitProviders: ["grok", "qwen", "kimi", "opencode", "codex"]
     }),
-    ["codex", "qwen", "kimi", "opencode", "grok"]
+    ["codex", "kimi", "qwen", "opencode", "grok"]
   );
   assert.deepEqual(resolveHomeLimitProviders({ homeLimitProviders: [] }), []);
 });

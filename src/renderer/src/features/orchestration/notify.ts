@@ -10,7 +10,12 @@ import { boardStatuses, type AutopilotState, type Board, type BoardHead, type Bo
 
 export type NotifySignal = "waiting" | "completed" | "completed_no_checks" | "failed";
 export type NotifyPrefs = NotificationSettings;
-export const DEFAULT_NOTIFY_PREFS: NotifyPrefs = { waiting: true, completed: true, failed: true, dockBadge: true, bounce: false, board: true, boardHead: false };
+export const DEFAULT_NOTIFY_PREFS: NotifyPrefs = { waiting: true, completed: true, failed: true, dockBadge: true, bounce: false, board: true, boardHead: false, banner: true, system: true };
+
+// Where a note goes (Settings → Notifications): the system notification when it is on and macOS allows it, else the
+// banner in the window when that is on; a refused system notification falls back to the banner the same way.
+export const noteChannel = (prefs: NotifyPrefs, systemUnavailable: boolean): "system" | "banner" | null =>
+  prefs.system && !systemUnavailable ? "system" : prefs.banner ? "banner" : null;
 
 // The state a notification is about, with what tells one state from another ("" — nothing to tell).
 export function runSignal(view: OrchestrationRunView, onMac = true): { signal: NotifySignal; key: string } | null {
