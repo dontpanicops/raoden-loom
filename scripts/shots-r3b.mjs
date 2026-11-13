@@ -161,7 +161,8 @@ async function browserBundle() {
 const cssFile = () => { const dir = path.join(ROOT, "out/renderer/assets"); return path.join(dir, fs.readdirSync(dir).find((f) => /^index-.*\.css$/.test(f))); };
 // the mock-up opens a run that works (and most pauses) on "Work" and the checks / finish / refused ones on "Summary"
 const SUMMARY_STATES = ["12-push-confirmation", "04-plan-review", "10-person-decision", "05-checks-decision", "06-checks-none", "12-finish-confirmation", "13-finish-unconfirmed", "14-check-needs-permissions", "17-completed", "11-coverage-lost"];
-const TURN = (id, kind, text) => ({ id, ts: "2026-11-11T07:31:0" + id + ".000Z", turnId: "t1", role: "executor", provider: "claude", kind, text });
+// recent times, so the live silence line reads minutes as in the mock-up, not the age of a fixed date
+const TURN = (id, kind, text) => ({ id, ts: new Date(Date.now() - (4 * 60 - id) * 1000).toISOString(), turnId: "t1", role: "executor", provider: "claude", kind, text });
 // F-c (D-041 p. 7): the Edit line carries its counters, as the activity mapper gives them from the Edit text
 const WORKING_ENTRIES = [TURN(0, "process_started", ""), TURN(1, "thinking", ""), { ...TURN(2, "tool_started", "Edit src/api/notes.ts"), detail: { tool: "Edit", added: 31, removed: 2 } }, TURN(3, "tool_started", "Bash npm test")];
 const CHANGES_STATES = ["08-outcome-unknown", "15-lead-modified-tree"]; // D-017: the pauses about the tree open on "Changes"
@@ -176,7 +177,7 @@ const PAUSE_EXTRA = {
   "09-loop-suspected": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "orch.turn", { turnId: "t9", purpose: "execute", stage: 2, round: 4 })] },
   "18-failed": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "checkpoint.created", { stage: 1, commit: "a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4", tree: "b".repeat(40), parent: "c".repeat(40) })] },
   "07-limit-reached": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "orch.turn", { turnId: "t7", purpose: "execute", stage: 2, round: 3 })] },
-  "12-push-confirmation": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "stage.accepted", { stage: 2 })] },
+  "12-push-confirmation": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "stage.accepted", { stage: 2 })], progress: { checks: [check("c1", "npm test"), check("c2", "npm run lint")] } },
   "12-finish-confirmation": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "stage.accepted", { stage: 2 })] },
   "14-check-needs-permissions": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "check.started", { checkRunId: "x1", checkId: "c1" }), rec(5, "check.finished", { checkRunId: "x1", checkId: "c1", status: "failed" })],
     progress: { checks: [{ id: "c1", title: "npm run test:e2e", status: "failed", class: "sandbox" }] }, refusedCommand: "npm run test:e2e" }
