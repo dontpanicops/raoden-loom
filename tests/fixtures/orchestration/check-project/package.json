@@ -2,5 +2,9 @@
   "name": "check-project",
   "private": true,
   "version": "1.0.0",
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "lint": "node --check src/sum.mjs",
+    "build": "node --check src/sum.mjs"
+  }
 }

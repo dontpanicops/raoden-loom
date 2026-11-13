@@ -1288,6 +1288,10 @@ button { border: 0; }
 .orch-dialog .orch-form button.orch-primary { background: var(--accent-bg); color: var(--accent-text); }
 .orch-dialog .orch-form button.orch-primary:disabled { opacity: .45; }
 .orch-form__why { margin-right: auto; align-self: center; }
+/* D-028: the warnings count in the foot: quiet secondary text, a link to the readiness block */
+.orch-dialog .orch-form button.orch-form__warns { all: unset; box-sizing: border-box; font-size: 12px; color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; border-radius: 3px; }
+.orch-dialog .orch-form button.orch-form__warns:hover { color: var(--text-primary); }
+.orch-dialog .orch-form button.orch-form__warns:focus-visible { outline: 2px solid var(--accent-bg); outline-offset: 2px; }
 .orch-term, .orch-panel .orch-term, .orch-form .orch-term, .agent-card__body .orch-term, .agent-link__chip .orch-term, .board-card .orch-term { all: unset; position: relative; text-decoration: underline dotted var(--text-muted) 1.5px; text-underline-offset: 3px; border-radius: 3px; cursor: help; }
 .orch-term:hover { text-decoration-color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 8%, transparent); }
 .orch-form .orch-term:active:not(:disabled) { transform: none; filter: none; }
