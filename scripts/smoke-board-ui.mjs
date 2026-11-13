@@ -200,7 +200,10 @@ try {
   const asksFact = await app.ev(`${q(task("T-2"))}.querySelector('[data-board-kv="asks"]')?.textContent ?? ""`);
   expect(asksFact.startsWith("1"), "the task counts the permission prompts of its run under «Details»", asksFact);
   await app.clickEl(`${q(task("T-2"))}.querySelector("[data-board-more]")`);
+  // the compact card shows the step feed; the task line lives in the expanded card
+  await app.clickEl(q(`[data-agent-id="${exec.agentId}"] [data-agent-expand]`));
   const cardTask = await app.ev(`${q(`[data-agent-id="${exec.agentId}"] [data-agent-task]`)}?.textContent ?? null`);
+  await app.clickEl(q(`[data-agent-id="${exec.agentId}"] [data-agent-expand]`));
   expect(cardTask === "T-2 · Модуль two", "the agent card at work shows «T-2 · Модуль two»", cardTask);
   await app.shot("board-05a-waits-permission");
   await boardShot("board-05a-waits-permission-board");
@@ -282,7 +285,10 @@ try {
   // the run started in main reaches the window: the line names the request, the agent card the task, the badge counts it
   const t4Risk = await app.ev(`${q(task("T-4"))}.querySelector('[data-board-risk="permission"]')?.textContent ?? ""`);
   expect(t4Wait.line.startsWith("Ждёт вас") && t4Risk.includes("ls src"), "T-4 names the request of the autopilot's run on the card", [t4Wait.line, t4Risk]);
+  // the compact card shows the step feed; the task line lives in the expanded card
+  await app.clickEl(q(`[data-agent-id="${exec.agentId}"] [data-agent-expand]`));
   const cardT4 = await app.ev(`${q(`[data-agent-id="${exec.agentId}"] [data-agent-task]`)}?.textContent ?? null`);
+  await app.clickEl(q(`[data-agent-id="${exec.agentId}"] [data-agent-expand]`));
   expect(cardT4 === "T-4 · Модуль four", "the agent card shows the autopilot's task", cardT4);
   expect(lastBadge() >= 1, "the Dock badge counts the autopilot's run waiting for you", lastBadge());
   await app.shot("board-10-autopilot-waits-permission");
