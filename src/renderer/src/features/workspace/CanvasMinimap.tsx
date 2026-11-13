@@ -229,7 +229,7 @@ export function CanvasMinimap({
             <i
               className="canvas-minimap__region"
               key={region.id}
-              style={{ ...areaStyle(area), "--minimap-region-color": regionCssColor(region.color) } as CSSProperties}
+              style={{ ...areaStyle(area), "--minimap-region-color": regionCssColor(region) } as CSSProperties}
             />
           ) : null;
         })}

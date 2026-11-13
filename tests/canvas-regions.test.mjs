@@ -4,7 +4,10 @@ import {
   boundsInsideRegion,
   canvasRegionAtPoint,
   constrainCanvasRegionBounds,
-  translateBounds
+  REGION_THEME_COLOR,
+  regionCssColor,
+  translateBounds,
+  withRegionColor
 } from "../src/renderer/src/features/workspace/canvasRegions.ts";
 
 const region = {
@@ -53,4 +56,15 @@ test("region resize keeps the opposite edge while enforcing a usable minimum", (
     position: { x: 460, y: 360 },
     size: { width: 360, height: 240 }
   });
+});
+
+test("a theme region keeps a hex colour for 1.5.20 and an explicit colour clears the flag", () => {
+  const region = canvasRegionAtPoint("T", REGION_THEME_COLOR, { x: 0, y: 0 }, "r1");
+  assert.match(JSON.parse(JSON.stringify(region)).color, /^#[0-9A-F]{6}$/i);
+  assert.equal(region.themeColor, true);
+  assert.equal(regionCssColor(region), "rgb(var(--region-tint))");
+  const picked = withRegionColor(region, "#9CC7DC");
+  assert.equal(picked.color, "#9CC7DC");
+  assert.equal("themeColor" in picked, false);
+  assert.equal(regionCssColor(picked), "#9CC7DC");
 });
