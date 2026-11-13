@@ -21,6 +21,8 @@ import inboxIcon from "../assets/icons/lucide/inbox.svg";
 import kanbanIcon from "../assets/icons/lucide/square-kanban.svg";
 import infoIcon from "../assets/icons/lucide/info.svg";
 import bellIcon from "../assets/icons/lucide/bell.svg";
+import clockIcon from "../assets/icons/lucide/clock.svg";
+import wifiOffIcon from "../assets/icons/lucide/wifi-off.svg";
 import maximizeIcon from "../assets/icons/lucide/square.svg";
 import minusIcon from "../assets/icons/lucide/minus.svg";
 import plusIcon from "../assets/icons/lucide/plus.svg";
@@ -88,7 +90,9 @@ export type UiIconName =
   | "status-idle"
   | "status-paused"
   | "status-failed"
-  | "status-done";
+  | "status-done"
+  | "clock"
+  | "wifi-off";
 
 interface UiIconProps {
   name: UiIconName;
@@ -104,6 +108,8 @@ const ICONS: Record<UiIconName, string> = {
   inbox: inboxIcon,
   kanban: kanbanIcon,
   bell: bellIcon,
+  clock: clockIcon,
+  "wifi-off": wifiOffIcon,
   home: homeIcon,
   "zoom-in": zoomInIcon,
   "zoom-out": zoomOutIcon,

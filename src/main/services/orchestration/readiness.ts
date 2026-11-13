@@ -42,7 +42,7 @@ export async function countTestFiles(root: string, pattern: RegExp = NODE_TEST_F
 }
 
 // Commands a project's own files suggest; never chosen silently, only offered to the user.
-export async function suggestCommands(root: string): Promise<{ stack: string; commands: string[]; laravel: boolean }> {
+export async function suggestCommands(root: string): Promise<{ stack: string; commands: string[]; laravel: boolean; extra?: string[] }> {
   const json = async (f: string) => JSON.parse(await readFile(join(root, f), "utf8").catch(() => "null")) as Record<string, unknown> | null;
   const laravel = await exists(join(root, "artisan")) && await exists(join(root, "composer.json"));
   if (laravel) return { stack: "laravel", commands: ["php artisan test"], laravel };
@@ -55,7 +55,9 @@ export async function suggestCommands(root: string): Promise<{ stack: string; co
   if (pkg) {
     const scripts = (pkg.scripts ?? {}) as Record<string, unknown>;
     const pm = await exists(join(root, "pnpm-lock.yaml")) ? "pnpm" : await exists(join(root, "yarn.lock")) ? "yarn" : "npm";
-    return { stack: "node", commands: typeof scripts.test === "string" && !/no test specified/.test(scripts.test) ? [`${pm} test`] : ["node --test"], laravel };
+    // D-043 n=20: other check scripts of package.json, offered one by one («Добавить её»), never added silently
+    const extra = ["lint", "typecheck", "build"].filter((n) => typeof scripts[n] === "string").map((n) => `${pm} run ${n}`);
+    return { stack: "node", commands: typeof scripts.test === "string" && !/no test specified/.test(scripts.test) ? [`${pm} test`] : ["node --test"], laravel, extra };
   }
   if (await exists(join(root, "pyproject.toml")) || await exists(join(root, "pytest.ini"))) return { stack: "python", commands: ["pytest"], laravel };
   if (await exists(join(root, "go.mod"))) return { stack: "go", commands: ["go test ./..."], laravel };
@@ -160,7 +162,7 @@ export async function assessReadiness(input: ReadinessInput): Promise<Orchestrat
   if (input.busy) add({ id: "busy", level: "blocker", detail: "another run works in this folder now" });
 
   const s = await suggestCommands(root);
-  add({ id: "stack", level: s.stack === "unknown" ? "info" : "ok", detail: s.stack, facts: { stack: s.stack, suggest: s.commands.join("\n"), laravel: s.laravel } });
+  add({ id: "stack", level: s.stack === "unknown" ? "info" : "ok", detail: s.stack, facts: { stack: s.stack, suggest: s.commands.join("\n"), extra: (s.extra ?? []).join("\n"), laravel: s.laravel } });
   // Preparation: what the profile's steps would do now. In a copy or a worktree everything ignored is missing at the
   // start (the dependency folders cloned from the project then need no step; that is known only once they are).
   const fresh = input.workMode !== "project";
