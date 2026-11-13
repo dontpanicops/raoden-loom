@@ -389,10 +389,11 @@ function finishOrComplete(input: CycleInput): Action {
   const pausedAfter = (seq: number) => (orch.lastPausedSeq.finish_unconfirmed ?? -1) >= seq;
   // v2 without checks: push and QA only as the person decided for this tree and commit, even in the autopilot
   // and the push of a goal that asks before each push (D-043)
-  const person = confirmationFor(state, snapshot.tree, commit?.commit ?? null);
+  let person: ReturnType<typeof confirmationFor> | undefined;
   for (const step of FINISH_ORDER) {
     if (!goal.finish?.[step]) continue;
     if (personDecides(state, goal, step)) {
+      person ??= confirmationFor(state, snapshot.tree, commit?.commit ?? null);
       if (!person?.[step]) return { kind: "pause", reason: "awaiting_finish_confirmation", detail: step };
       if (person[step] === "decline") continue;
     }
