@@ -1039,3 +1039,18 @@ CanvasTTY отдельно фиксирует три факта: проверк�
 Исправление: исполнители R гоняют typecheck, biome, тесты файлов своей зоны и свои smoke; полный набор — один раз
 при сведении у оркестратора (в фоне) и в CI.
 Как не повторить: в бриф исполнителя — запрет полного `npm test`.
+
+## T144 — Подмена скачанного файла проходит проверку на Linux (2026-11-13)
+Статус: исправлено
+Симптом: CI (Linux) падает на `security review L5 ... not a link or another file put in its place` — `Missing expected rejection.`; на macOS тест зелёный.
+Причина: «тот же файл» сверялся по `dev`+`ino`; Linux отдаёт номер удалённого файла следующему созданному, и файл, переименованный на место скачанного, получал тот же `ino`.
+Исправление: в `BrowserPolicyService` к `dev`+`ino` добавлено время создания (`birthtimeMs`) и при отметке загрузки, и при постановке в очередь отправки (888e837).
+Как проверить: `node --test tests/browser-download-folder.test.mjs`; CI `verify` на Linux.
+Как не повторить: идентичность файла — не только `ino`; проверки безопасности файловой системы прогонять и на Linux (CI), не только на macOS.
+
+## T145 — lint и проверка секретов падают из-за worktree агентов (2026-11-13)
+Статус: исправлено
+Симптом: `biome ci` — `Found a nested root configuration`; `audit:secrets` — `RangeError: Maximum call stack size exceeded`.
+Причина: в `.claude/worktrees/` лежали десятки рабочих копий агентов со своими `biome.jsonc` и `node_modules`.
+Исправление: `!**/.claude` в `biome.jsonc`, `.claude` в списке пропуска `scripts/audit-secrets.mjs` (61daed7); завершённые worktree удалены.
+Как не повторить: после сведения ветки агента удалять его worktree (`git worktree remove`).
