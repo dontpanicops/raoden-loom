@@ -556,7 +556,8 @@ export interface PluginCanvasInstance {
 export interface CanvasRegion extends SessionBounds {
   id: string;
   title: string;
-  color: string; // "#RRGGBB", or "theme" when the person did not pick one: the theme's --region-tint (R12x, D-043)
+  color: string; // always "#RRGGBB" (1.5.20 drops regions with anything else)
+  themeColor?: true; // the person did not pick a colour: render the theme's --region-tint (R12x, D-043); color is the fallback
   workspaceId?: string;
 }
 

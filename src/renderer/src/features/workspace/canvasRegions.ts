@@ -14,9 +14,21 @@ export const CANVAS_REGION_COLORS = [
 // mock 18: the menu offers green, blue, amber, pink, gray (in this order)
 export const CANVAS_REGION_MENU_COLORS = [CANVAS_REGION_COLORS[0], CANVAS_REGION_COLORS[1], CANVAS_REGION_COLORS[3], CANVAS_REGION_COLORS[2], CANVAS_REGION_COLORS[6]] as const;
 
+// editor sentinel only, never stored: a stored region always has a #RRGGBB colour (1.5.20 drops regions with any other value)
 export const REGION_THEME_COLOR = "theme";
-// the region's own colour, or the theme's tint while none was picked (D-043); regions saved with a hex keep it
-export const regionCssColor = (color: string): string => (color === REGION_THEME_COLOR ? "rgb(var(--region-tint))" : color);
+// stored colour of a theme-following region (the sand --region-tint); 1.5.20 shows it as is
+export const REGION_THEME_FALLBACK_COLOR = "#93C98B";
+// the region's own colour, or the theme's tint while none was picked (D-043)
+export const regionCssColor = (region: Pick<CanvasRegion, "color" | "themeColor">): string =>
+  region.themeColor ? "rgb(var(--region-tint))" : region.color;
+// the colour fields for a picked colour (or the REGION_THEME_COLOR sentinel); an explicit colour clears the flag
+export function regionColorFields(color: string): Pick<CanvasRegion, "color" | "themeColor"> {
+  return color === REGION_THEME_COLOR ? { color: REGION_THEME_FALLBACK_COLOR, themeColor: true } : { color };
+}
+export function withRegionColor(region: CanvasRegion, color: string): CanvasRegion {
+  const { themeColor: _drop, ...rest } = region;
+  return { ...rest, ...regionColorFields(color) };
+}
 
 const MIN_REGION_SIZE = { width: 360, height: 240 };
 const MAX_REGION_SIZE = { width: 4_000, height: 3_000 };
@@ -30,7 +42,7 @@ export function canvasRegionAtPoint(
   return {
     id,
     title: title.trim().slice(0, 80),
-    color,
+    ...regionColorFields(color),
     position: {
       x: point.x - DEFAULT_CANVAS_REGION_SIZE.width / 2,
       y: point.y - DEFAULT_CANVAS_REGION_SIZE.height / 2
