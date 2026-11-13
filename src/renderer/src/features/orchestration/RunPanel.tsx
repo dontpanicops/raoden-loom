@@ -149,16 +149,18 @@ function dependenciesText(locale: LocaleId, entries: readonly OrchestrationActiv
 }
 
 // A status line's reason: a pause by pauseCause with the turn it followed, anything else as main said it.
-function statusReason(locale: LocaleId, status: unknown, reason: unknown, turnId: string | null, entries: readonly OrchestrationActivityEntry[]): string {
+function statusReason(locale: LocaleId, status: unknown, reason: unknown, turnId: string | null, entries: readonly OrchestrationActivityEntry[], ask = false): string {
   if (typeof reason !== "string" || !reason) return "";
+  // D-043: a pause of the project's «ask before each push» says so, not «no checks ran»
+  if (ask && reason === "awaiting_finish_confirmation") return ` — ${causeText(locale, { kind: "reason", reason: "awaiting_push_confirmation" })}`;
   return ` — ${causeText(locale, status === "paused" ? pauseCause(reason, turnId, entries) : { kind: "reason", reason })}`;
 }
 
 // A status in words: a pause by its one short form (runModel pauseLabel, as on the link chip and the cards); anything
 // else as the status with main's reason.
-function statusWords(locale: LocaleId, status: unknown, reason: unknown, turnId: string | null, entries: readonly OrchestrationActivityEntry[]): string {
-  if (status === "paused" && typeof reason === "string" && PAUSES[reason]) return pauseLabel(locale, pauseCause(reason, turnId, entries));
-  return `${tr(locale, `orchStatus_${status}`)}${statusReason(locale, status, reason, turnId, entries)}`;
+function statusWords(locale: LocaleId, status: unknown, reason: unknown, turnId: string | null, entries: readonly OrchestrationActivityEntry[], ask = false): string {
+  if (status === "paused" && typeof reason === "string" && PAUSES[reason]) return pauseLabel(locale, pauseCause(reason, turnId, entries), undefined, ask);
+  return `${tr(locale, `orchStatus_${status}`)}${statusReason(locale, status, reason, turnId, entries, ask)}`;
 }
 
 // A text with the glossary's words explained on hover (runModel GLOSSARY).
@@ -172,11 +174,11 @@ function IdLabel({ locale, id, plain }: { locale: LocaleId; id: string; plain?: 
   return plain ? <span title={id} data-id={id}>{idLabel(locale, id)}</span> : <b title={id} data-id={id}>{idLabel(locale, id)}</b>;
 }
 
-function lineText(locale: LocaleId, line: HistoryLine, entries: readonly OrchestrationActivityEntry[]): string {
+function lineText(locale: LocaleId, line: HistoryLine, entries: readonly OrchestrationActivityEntry[], ask = false): string {
   const p = line.parts;
   const head = tr(locale, `orchLine_${line.kind}`);
   switch (line.kind) {
-    case "status": return `${head}: ${statusWords(locale, p.status, p.reason, typeof p.turnId === "string" ? p.turnId : null, entries)}`;
+    case "status": return `${head}: ${statusWords(locale, p.status, p.reason, typeof p.turnId === "string" ? p.turnId : null, entries, ask)}`;
     case "turn": return `${head}: ${tr(locale, `orchPurpose_${p.purpose}`)}${p.stage !== null ? ` · ${t(locale, "orchStage")} ${p.stage}` : ""}`;
     case "turn_failed": return `${head}: ${p.purpose ? `${tr(locale, `orchPurpose_${p.purpose}`)} — ` : ""}${p.outcome}`;
     case "report": return head;
@@ -301,7 +303,7 @@ export function cliWhy(locale: LocaleId, d: Readonly<Record<string, unknown>>): 
   return ` — ${t(locale, "orchCliWhy")}: ${text ?? type}${text && type ? ` (${type})` : ""}`;
 }
 
-export function entryLabel(locale: LocaleId, e: OrchestrationActivityEntry, entries: readonly OrchestrationActivityEntry[]): string {
+export function entryLabel(locale: LocaleId, e: OrchestrationActivityEntry, entries: readonly OrchestrationActivityEntry[], ask = false): string {
   const d = e.detail ?? {};
   switch (e.kind) {
     case "thinking": return tr(locale, "orchAct_thinking");
@@ -309,7 +311,7 @@ export function entryLabel(locale: LocaleId, e: OrchestrationActivityEntry, entr
     case "status": {
       const at = entries.findIndex((x) => x.id === e.id);
       const turn = typeof d.reason === "string" && at >= 0 ? pausedTurn(entries, at, d.reason) : null;
-      return `${tr(locale, "orchAct_status")}: ${statusWords(locale, d.status, d.reason, turn, entries)}`;
+      return `${tr(locale, "orchAct_status")}: ${statusWords(locale, d.status, d.reason, turn, entries, ask)}`;
     }
     case "task_sent": return `${tr(locale, "orchAct_task_sent")}: ${tr(locale, `orchPurpose_${d.purpose}`)}${d.stage !== null && d.stage !== undefined ? ` · ${t(locale, "orchStage")} ${d.stage}` : ""}`;
     case "process_exited": return `${tr(locale, "orchAct_process_exited")}${d.code !== null && d.code !== undefined ? ` (${t(locale, "orchExitCode")} ${d.code})` : d.signal ? ` (${d.signal})` : ""}`;
@@ -365,7 +367,7 @@ export function entryLabel(locale: LocaleId, e: OrchestrationActivityEntry, entr
 // R6-A (mock-up 07): a feed line as the mock-up draws it - no "Tool:" / "Message:" prefix, commands and paths in mono, the end of a
 // tool folded into its start line ("· ok")
 const MONO_KINDS: ReadonlySet<string> = new Set(["tool_started", "tool_finished", "file_read", "file_changed"]);
-function feedLine(locale: LocaleId, e: OrchestrationActivityEntry, entries: readonly OrchestrationActivityEntry[]): string {
+function feedLine(locale: LocaleId, e: OrchestrationActivityEntry, entries: readonly OrchestrationActivityEntry[], ask = false): string {
   const d = e.detail ?? {};
   switch (e.kind) {
     case "thinking": return tr(locale, "orchFeed_thought");
@@ -375,8 +377,8 @@ function feedLine(locale: LocaleId, e: OrchestrationActivityEntry, entries: read
       const good = d.ok === true || d.exitCode === 0;
       return bad || good ? `${e.text} · ${tr(locale, bad ? "orchFeed_toolFailed" : "orchFeed_toolOk")}` : e.text;
     }
-    case "message": return d.plan === true ? entryLabel(locale, e, entries) : e.text;
-    default: return entryLabel(locale, e, entries);
+    case "message": return d.plan === true ? entryLabel(locale, e, entries, ask) : e.text;
+    default: return entryLabel(locale, e, entries, ask);
   }
 }
 // the start lines a finish line of the same turn and text replaces
@@ -426,8 +428,8 @@ function groupTurns(list: readonly OrchestrationActivityEntry[]): { turn: string
   return out;
 }
 
-function ActivityList({ locale, entries, gaps, filter, emptyText, silence }: {
-  locale: LocaleId; entries: readonly OrchestrationActivityEntry[]; gaps: RunActivityState["gaps"];
+function ActivityList({ locale, entries, gaps, filter, emptyText, silence, ask = false }: {
+  ask?: boolean; locale: LocaleId; entries: readonly OrchestrationActivityEntry[]; gaps: RunActivityState["gaps"];
   filter: (e: OrchestrationActivityEntry) => boolean; emptyText: string; silence: string | null;
 }): React.JSX.Element {
   // Service events (hooks) are folded by default; the full feed stays one click away.
@@ -473,7 +475,7 @@ function ActivityList({ locale, entries, gaps, filter, emptyText, silence }: {
           <div key={e.id} className={`orch-feed__item orch-feed__item--${e.detail?.accessMismatch === true ? "warning" : e.kind}${isServiceEntry(e) ? " orch-feed__item--service" : ""}`} data-activity-kind={e.kind} data-activity-id={e.id}>
             <time>{time(locale, e.ts)}</time>
             {/* a structured answer is its own summary line below: the same words are not said twice */}
-            {!report && <span className={`orch-feed__text${MONO_KINDS.has(e.kind) ? " orch-feed__text--mono" : ""}`}>{feedLine(locale, e, entries)}{typeof e.detail?.added === "number" && (
+            {!report && <span className={`orch-feed__text${MONO_KINDS.has(e.kind) ? " orch-feed__text--mono" : ""}`}>{feedLine(locale, e, entries, ask)}{typeof e.detail?.added === "number" && (
               <span className="orch-feed__delta" data-orch-delta>{" "}<b className="orch-feed__plus">+{e.detail.added}</b>{typeof e.detail.removed === "number" && <>{" "}<b className="orch-feed__minus">−{e.detail.removed}</b></>}</span>)}</span>}
             {report &&<details open data-orch-structured><summary>{t(locale, "orchFeedReport")}</summary><ReportView locale={locale} parts={report} /></details>}
             {typeof e.detail?.output === "string" && e.detail.output && (
@@ -491,7 +493,7 @@ function ActivityList({ locale, entries, gaps, filter, emptyText, silence }: {
             </section>
             : rows;
         })}
-        {silence && <div className="orch-feed__silence" role="status" data-orch-silence>{silence}</div>}
+        {silence && <div className="orch-feed__silence" role="status" data-orch-silence><UiIcon name="clock" size={16} />{silence}</div>}
       </div>
       {unseen > 0 && (
         <button type="button" className="orch-feed__new" onClick={() => { const el = box.current; if (el) el.scrollTop = el.scrollHeight; atBottom.current = true; setUnseen(0); }}>
@@ -1712,6 +1714,8 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
       const text = t(locale, planTotal ? "orchZone_workingTitle" : "orchZone_workingTitleN").replace("{who}", roleName(locale, "executor").split(" · ")[0]).replace("{n}", String(view.stage)).replace("{m}", String(planTotal));
       z.title = text;
     } else if (z.variant === "working" && active) z.title = active.kind === "turn" ? who.split(" · ").slice(0, 2).join(" · ") : who;
+    // D-043 n=28 (mock-up 07-18): what a rollback goes to — the newest stage with a checkpoint (journal's checkpoint.created)
+    if (view.status === "failed" && z.variant === "failed" && facts.checkpoint !== null) z.why = t(locale, "orchZone_failedCheckpoint").replace("{n}", String(facts.checkpoint));
     if (view.status === "completed" && finalVerdict === "complete" && z.variant === "completed") z.title = t(locale, "orchZone_goalAccepted");
     const can = (b: ZoneButton) => !(b.action === "project_settings" && !onProjectSettings) && !(b.action === "new_goal" && (!onNewGoal || busy));
     const takeFirst = !!take?.allowed && view.status === "completed" && z.primary !== null && can(z.primary);
@@ -1719,7 +1723,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
     // R6-A (mock-up 17): "Take the result" is the zone's main button, in the one row with "New goal"; only a finished run has it here
     const takeBtn: ZoneButton | null = takeFirst && takeOpen !== runId ? { action: "take", label: t(locale, "orchTakeOpen"), danger: false, commands: [] } : null;
     return { ...z, primary: takeFirst ? takeBtn : first, secondary: [...(takeFirst && first ? [first] : []), ...z.secondary.filter((b) => can(b) && b.action !== "release_newer")], dangerous: z.dangerous.filter(can), footer: z.footer.filter(can) };
-  }, [view, locale, activity.entries, onProjectSettings, onNewGoal, busy, take?.allowed, takeOpen, runId, active, who, planTotal, finalVerdict]);
+  }, [view, locale, activity.entries, onProjectSettings, onNewGoal, busy, take?.allowed, takeOpen, runId, active, who, planTotal, finalVerdict, facts.checkpoint]);
   const zoneWho = view && ["preparing", "running", "pausing", "stopping"].includes(view.status) ? who : null;
   const zoneDisabled = (b: ZoneButton): boolean => b.action === "stop" ? false : b.action === "new_goal" ? entry.disabled
     : ["resume", "step", "pause", "keep_running"].includes(b.action) ? off(b.action as RunAction) : b.action.startsWith("recover_") ? off("recover") : false;
@@ -1756,11 +1760,14 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
   const openFindings = view?.decisions?.findings ? (view.progress?.findings?.items ?? []).filter((x) => x.status === "open") : [];
   const accessMismatch = activity.entries.some((e) => e.kind === "error" && e.detail?.accessMismatch === true);
   const progress = view?.progress ?? null;
-  const silenceFor = (p: ParticipantState): string | null => {
+  // D-043 n=22 (mock-ups 07-01, 13-clarify): «<CLI> молчит N мин — ход идёт», one line with a clock, no avatar
+  const silenceFor = (p: ParticipantState, role: "lead" | "executor" | "reviewer"): string | null => {
     if (p.phase !== "running") return null;
     const last = p.lastEventAt ? Date.parse(p.lastEventAt) : null;
     if (last !== null && now - last < SILENCE_MS) return null;
-    return `${t(locale, "orchSilence")}${p.lastEventAt ? ` ${t(locale, "orchSilenceLast")} ${time(locale, p.lastEventAt)} (${duration(locale, now - Date.parse(p.lastEventAt))})` : ""}`;
+    if (last === null) return t(locale, "orchSilence");
+    const card = role === "executor" ? execCard : leadCard;
+    return t(locale, "orchSilenceFor").replace("{who}", card ? providerName(card.provider) : roleName(locale, role)).replace("{d}", now - last >= 60_000 && now - last < 3_600_000 ? `${Math.floor((now - last) / 60_000)} ${t(locale, "orchUnitMin")}` : duration(locale, now - last));
   };
 
   // a newer version's run: its changes are not read here (main refuses them), so there is no tab for them
@@ -2010,12 +2017,12 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
               <RunSummary list orch={orch} runId={runId} view={view} records={records} locale={locale} facts={facts} onOpen={openSection} incomplete={journal?.status !== "ready"} />
             )}
             {curTab === "work" && panel.mode === "feed" && runId && !(stagesAbove && feedEmpty) && (
-              <ActivityList key={`a:${panel.role}`} locale={locale} entries={activity.entries} gaps={activity.gaps} filter={roleFilter}
+              <ActivityList key={`a:${panel.role}`} ask={view?.confirm?.ask === true} locale={locale} entries={activity.entries} gaps={activity.gaps} filter={roleFilter}
                 emptyText={activity.status === "loading" ? t(locale, "orchLoading") : t(locale, "orchFeedEmpty")}
-                silence={selected ? silenceFor(selected) : [lead, executor, reviewer].map((x) => (x ? silenceFor(x) : null)).find(Boolean) ?? null} />
+                silence={selected ? silenceFor(selected, panel.role as "lead" | "executor" | "reviewer") : ([["lead", lead], ["executor", executor], ["reviewer", reviewer]] as const).map(([r, x]) => (x ? silenceFor(x, r) : null)).find(Boolean) ?? null} />
             )}
             {curTab === "work" && panel.mode === "journal" && runId && (
-              <ActivityList key={`l:${panel.role}`} locale={locale} entries={activity.entries} gaps={activity.gaps} filter={logFilter}
+              <ActivityList key={`l:${panel.role}`} ask={view?.confirm?.ask === true} locale={locale} entries={activity.entries} gaps={activity.gaps} filter={logFilter}
                 emptyText={t(locale, "orchLogEmpty")} silence={null} />
             )}
             {curTab === "changes" && view.reason === "lead_modified_tree" && <p className="orch-hint" data-orch-lead-modified-why>{t(locale, "orchLeadModifiedWhy")}</p>}
@@ -2025,7 +2032,7 @@ function CurrentRunPanel({ orch, runId, locale, panel, onClose, onNewGoal, onPro
                 <ol className="orch-history">
                   {lines.filter((l) => panel.role === "all" || lineRole(l) === "run" || lineRole(l) === panel.role).map((l) => (
                     <li key={l.seq} data-history-kind={l.kind} data-history-role={lineRole(l)}>
-                      <time>{new Date(l.ts).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</time> <code className="orch-history__kind">{l.kind}</code> {lineText(locale, l, activity.entries)}
+                      <time>{new Date(l.ts).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</time> <code className="orch-history__kind">{l.kind}</code> {lineText(locale, l, activity.entries, view?.confirm?.ask === true)}
                       {l.text && runId && <LineDetails runId={runId} text={l.text} dropped={Number(l.parts.outputDropped ?? 0)} locale={locale} />}
                     </li>
                   ))}

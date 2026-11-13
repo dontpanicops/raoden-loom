@@ -374,6 +374,9 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                         <div className="board-task__actions">
                           {archived ? (
                             <button type="button" data-board-unarchive onClick={() => void board.archive(task.id, false)}>{t(locale, "boardUnarchive")}</button>
+                          ) : st.reason === "push_option_field" ? (
+                            // D-043 n=19 (mock 08): one button — the push actions live inside the task
+                            <button type="button" data-board-open-task onClick={() => setForm({ task })}>{t(locale, "boardOpenTask")}</button>
                           ) : (
                             <>
                               {/* §4.2: by its dependencies, whatever its own column — ready: «Start»; not: «Start anyway», confirmed first */}
@@ -402,7 +405,6 @@ export function BoardCard(props: BoardCardProps): React.JSX.Element {
                                 onClick={() => (head && fact?.board === head.ref ? void mergeTask(task) : setMerging(task.id))}>{t(locale, "boardMerge")}</button>}
                               {mark?.kind === "not_merged" && !mark.waits && mark.reason !== "skipped" && <button type="button" data-board-merge-skip-failed
                                 onClick={async () => { const f = failure(await board.skip(mark.runId)); if (f) say(task.id, f); }}>{t(locale, "boardMergeSkip")}</button>}
-                              {st.reason === "push_option_field" && <button type="button" data-board-open-task onClick={() => setForm({ task })}>{t(locale, "boardOpenTask")}</button>}
                               {(st.column === "queue" || st.column === "done") && <button type="button" data-board-edit onClick={() => setForm({ task })}>{t(locale, "boardEdit")}</button>}
                               {(st.column === "queue" || st.column === "done") && <button type="button" data-board-archive onClick={() => void board.archive(task.id, true)}>{t(locale, "boardArchive")}</button>}
                             </>
@@ -654,6 +656,8 @@ function ApForm({ locale, linkId, state, onCancel, onBudget, onStart }: {
           <input type="checkbox" checked={push} disabled={!eligible} data-board-autopilot-push onChange={(e) => { setPush(e.target.checked); setPushOk(false); setPushError(null); }} />
           <span>{t(locale, "boardApPush")}</span>
         </label>
+        {/* D-028: consent state stays visible — «ask before each push» is off in the project's settings */}
+        {prof?.askPush === false && <small className="orch-hint orch-hint--warn" data-board-autopilot-push-noask>{t(locale, "orchPushNoAsk")}</small>}
         {!eligible && info && <small className="orch-hint" data-board-autopilot-push-needs>{t(locale, "boardApPushNeeds")}</small>}
         {turnsOn && (
           <label className="orch-check" data-board-autopilot-push-confirm>

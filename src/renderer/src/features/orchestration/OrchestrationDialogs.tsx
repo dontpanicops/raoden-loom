@@ -132,7 +132,7 @@ const rightsText = (locale: LocaleId, access: { claude: string; codex: string })
 const NO_OVERRIDE: Partial<Record<"claude" | "codex", "terminal">> = {};
 function Readiness({ linkId, commands, workMode, models, access, locale, onChange, onSuggest, onBusy, accessOverride = NO_OVERRIDE, onAccessOverride, onBlocker, onFix, onWorkMode, onFailing, auto = true, checkSlot = null }: {
   linkId: string; commands: string[]; workMode: OrchestrationWorkMode; models?: OrchestrationRoleModels; access: { claude: string; codex: string } | null; locale: LocaleId;
-  onChange(ok: boolean): void; onSuggest(commands: string[]): void;
+  onChange(ok: boolean): void; onSuggest(commands: string[], extra?: string[]): void;
   onBusy(facts: unknown): void; // the "busy" item's facts: the run main says holds the folder (none: undefined)
   // «Как в моём терминале» for one CLI of this run only: offered on its access blocker, confirmed first
   accessOverride?: Partial<Record<"claude" | "codex", "terminal">>; onAccessOverride?(next: Partial<Record<"claude" | "codex", "terminal">>): void;
@@ -169,7 +169,7 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
         setCheckedAt(Date.now());
         onBusy(r.value.items.find((i) => i.id === "busy")?.facts);
         const suggest = String(r.value.items.find((i) => i.id === "stack")?.facts?.suggest ?? "");
-        if (suggest) onSuggest(suggest.split("\n").filter(Boolean));
+        if (suggest) onSuggest(suggest.split("\n").filter(Boolean), String(r.value.items.find((i) => i.id === "stack")?.facts?.extra ?? "").split("\n").filter(Boolean));
       } else setState({ kind: "error", message: r.code === "transport" ? t(locale, "orchTransportError") : tr(locale, `orchError_${r.code}`) });
     }, 350);
     return () => { live = false; window.clearTimeout(id); };
@@ -371,7 +371,8 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
   const [workMode, setWorkMode] = useState<OrchestrationWorkMode>("copy");
   const [fromBranch, setFromBranch] = useState(true); // B4: a task's copy from its dependency's branch, or the working folder
   const [finish, setFinish] = useState<{ commit: boolean; push: boolean; qa: boolean }>({ commit: false, push: false, qa: false });
-  const suggest = useCallback((lines: string[]) => { if (!edited.current) setCommandsText((cur) => cur || lines.join("\n")); }, []);
+  const [pkgExtra, setPkgExtra] = useState<string[]>([]); // D-043 n=20: package.json scripts beyond the suggested test command
+  const suggest = useCallback((lines: string[], extra: string[] = []) => { setPkgExtra(extra); if (!edited.current) setCommandsText((cur) => cur || lines.join("\n")); }, []);
   const [limits, setLimits] = useState<Record<string, string>>({});
   const [moreLimits, setMoreLimits] = useState(false);
   const [reviewPlan, setReviewPlan] = useState(false);
@@ -532,6 +533,15 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
           <span>{t(locale, "orchGoalCommands")} <small className="orch-field__aside">· {t(locale, "orchGoalCommandsHint")}</small></span>
           <GoalRows text={commandsText} onText={(v) => { edited.current = true; setCommandsText(v); }} locale={locale} attr="data-orch-commands" mono label={t(locale, "orchGoalCommands")}
             placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
+          {(() => {
+            const have = commandsText.split("\n").map((l) => l.trim());
+            const next = pkgExtra.find((c) => !have.includes(c));
+            return next ? (
+              <small className="orch-hint" data-orch-pkg-hint>{t(locale, "orchGoalPkgHint").replace("{cmd}", () => next)}{" "}
+                <button type="button" className="orch-linkish" data-orch-pkg-add onClick={() => { edited.current = true; setCommandsText((c) => [...c.split("\n").filter((l) => l.trim()), next].join("\n")); }}>{t(locale, "orchGoalPkgAdd")}</button>
+              </small>
+            ) : null;
+          })()}
           {/* D-025: the shell runs the commands — a risk fact, so it stays visible beside the heading (not only a tooltip) */}
           <small className="orch-hint orch-hint--sr">{optionalChecks && <span data-orch-commands-optional> · {t(locale, "orchCommandsOptional")}</span>}{commandsText.trim() && !edited.current ? ` ${t(locale, "orchGoalCommandsFilled")}` : ""}</small>
           <p className="orch-profile" data-orch-profile={profile.state.kind === "ready" ? (profile.state.info.saved ? "saved" : "suggested") : profile.state.kind}>
@@ -604,6 +614,8 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
                   <input type="checkbox" disabled={!configured || implied} checked={configured && (finish[step] || implied)}
                     onChange={(e) => setFinish((f) => ({ ...f, [step]: e.target.checked }))} />
                   <span>{t(locale, `orchFinish_${step}`)}{target}{!configured ? ` — ${t(locale, "orchFinishNotConfigured")}` : ""}{implied ? ` — ${t(locale, "orchFinishCommitImplied")}` : ""}</span>
+                  {/* D-028: consent state stays visible — the project setting «ask before each push» is off */}
+                  {step === "push" && configured && info?.profile.askPush === false && <small className="orch-hint orch-hint--warn" data-orch-push-noask>{t(locale, "orchPushNoAsk")}</small>}
                 </label>
               );
             })}

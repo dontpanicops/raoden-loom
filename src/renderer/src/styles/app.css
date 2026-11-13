@@ -1512,7 +1512,7 @@ button { border: 0; }
 .orch-feed__item--warning .orch-feed__text { color: var(--status-waiting); font-weight: 700; }
 .orch-feed__item--thinking .orch-feed__text { opacity: .6; font-style: italic; }
 .orch-feed__item--truncated .orch-feed__text, .orch-feed__gap { padding: 4px 8px; border-radius: 8px; color: var(--status-waiting); background: var(--status-waiting-bg); }
-.orch-feed__silence { padding: 6px 8px; border-radius: 8px; background: var(--surface-sunken); font-style: italic; }
+.orch-feed__silence { display: flex; align-items: center; gap: 8px; padding: 6px 8px; color: var(--text-secondary); }
 .orch-panel .orch-feed__new { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); color: var(--accent-text); background: var(--accent); box-shadow: var(--elev-2); }
 .orch-panel .orch-feed__earlier { align-self: flex-start; }
 .orch-panel__body[data-orch-body="work"][data-orch-mode="feed"], .orch-panel__body[data-orch-body="work"][data-orch-mode="journal"] { overflow: hidden; }
