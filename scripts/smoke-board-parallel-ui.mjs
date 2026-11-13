@@ -125,11 +125,14 @@ try {
   expect(both.length === 2 && new Set(both.map((f) => f.board)).size === 1 && both[0].board?.startsWith("refs/raoden/board/"), "two runs at once, both from the board's result", both.map((f) => [f.taskKey, f.board]));
   const chip = await waitForValue(() => app.ev(`${q("[data-agent-runs]")}?.dataset.agentRuns ?? null`), "the link's «2 runs»", 20_000).catch(() => null);
   expect(chip === "2" && (await app.ev("document.querySelectorAll('[data-agent-id]').length")) === 2, "the cards do not multiply; the link says «2 runs»", chip);
+  // the compact card shows the step feed; the task line lives in the expanded card
+  await app.clickEl(q(`[data-agent-id="${exec.agentId}"] [data-agent-expand]`));
   const taskOnCard = () => app.ev(`${q(`[data-agent-id="${exec.agentId}"] [data-agent-task]`)}?.textContent ?? null`);
   const first = await waitForValue(taskOnCard, "the card names its task", 20_000).catch(() => null);
   await app.clickEl(q("[data-agent-runs]"));
   const second = await waitForValue(async () => { const x = await taskOnCard(); return x && x !== first ? x : null; }, "the card switched to the other run", 10_000).catch(() => null);
   expect(!!first && !!second && first !== second, "the switch shows the other run on the same cards", [first, second]);
+  await app.clickEl(q(`[data-agent-id="${exec.agentId}"] [data-agent-expand]`));
   await app.shot("par-02-two-runs");
   await boardShot("par-02-two-runs-board");
 

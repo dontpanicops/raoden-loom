@@ -207,9 +207,15 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
           await app.mouse("mouseMoved", a.x, a.y); await sleep(60);
         }
         // a hosted button is hit only while the pointer rests on its host: reveal() would pan the canvas by a drag (the pointer leaves, the row hides again)
-        if (!hosted) await app.reveal(selector);
-        const c = await app.center(selector);
-        const hit = await app.ev(`(() => { const el = ${selector}; const h = document.elementFromPoint(${c.x}, ${c.y}); return !!el && !!h && (el === h || el.contains(h)); })()`);
+        // a control above may have just changed the layout (a line appears under a ticked option): the target is revealed again once if it moved under the pinned foot
+        let c; let hit = false;
+        for (let attempt = 0; attempt < 3 && !hit; attempt++) {
+          if (!hosted) await app.reveal(selector);
+          if (attempt) await sleep(150);
+          c = await app.center(selector);
+          hit = await app.ev(`(() => { const el = ${selector}; const h = document.elementFromPoint(${c.x}, ${c.y}); return !!el && !!h && (el === h || el.contains(h)); })()`);
+          if (hosted) break;
+        }
         if (!hit) throw new Error(`not clickable (covered or outside the window): ${selector}`);
         await app.click(c.x, c.y);
       },

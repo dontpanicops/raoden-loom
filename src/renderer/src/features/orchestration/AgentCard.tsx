@@ -102,7 +102,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
   const zoomed = zoom < 1;
   const farSummary = zoom < 0.4;
   const provider = card.provider === "codex" ? "Codex" : "Claude";
-  // mock 06/21: the default size shows the step feed in place of the task and doing lines (they stay in the expanded card)
+  // mock 06/21: the default size shows the step feed in place of the task line (it stays in the expanded card); the current-action line stays, it carries the waiting and consent facts (D-028)
   const showFeed = zoom >= 0.4 && props.hasRun;
   const compactFeed = compact && showFeed;
   const extra = status ? status.wait ?? status.now : null;
@@ -154,7 +154,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
         {/* the status already names a held state (paused, ended, waiting for you); the sentence adds what moves */}
         {state === "failed" && props.failure?.line && <div className="agent-card__line" data-agent-failure title={props.failure.line}>{props.failure.line}</div>}
         {!compactFeed && props.task && <div className="agent-card__line agent-card__task" data-agent-task={props.task.key} title={props.task.title}>{props.task.key} · {props.task.title}</div>}
-        {!compactFeed && doing && <div className="agent-card__line agent-card__doing" data-agent-doing title={doing}>{doing}</div>}
+        {doing && <div className="agent-card__line agent-card__doing" data-agent-doing title={doing}>{doing}</div>}
         {extra && <div className="agent-card__line" data-agent-now title={extra}>{extra}</div>}
         {card.role === "lead" && !props.linked && !message && state === "idle" && <p className="agent-card__hint" data-agent-port-hint>{t(locale, "orchCardPortHint")}</p>}
         {message && !message.pairWith && <div className={`agent-card__message agent-card__message--${message.tone}`} role={message.tone === "error" ? "alert" : "status"}>{message.text}</div>}
