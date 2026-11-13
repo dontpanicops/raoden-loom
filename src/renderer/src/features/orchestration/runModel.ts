@@ -603,11 +603,14 @@ export const PAUSES: Readonly<Record<string, { primary: PausePrimary; you: boole
 
 // The key set of a pause: the reason's, but where orchestration runs (macOS) a sandbox that is unavailable failed its
 // self-test — "run on macOS" is said only where the platform has no sandbox; a lead that found no checks has its own.
-function pauseSet(reason: string, onMac: boolean, noChecks = false): string {
+// own (variantOf): the lead proposed no checks; on the push confirmation, the project's «ask before each push» asked it (D-043)
+function pauseSet(reason: string, onMac: boolean, own = false): string {
   if (reason === "sandbox_unavailable" && !onMac) return "sandbox_unsupported";
-  if (reason === "awaiting_checks_decision" && noChecks) return "awaiting_checks_none";
+  if (reason === "awaiting_checks_decision" && own) return "awaiting_checks_none";
+  if (reason === "awaiting_finish_confirmation" && own) return "awaiting_push_confirmation";
   return reason;
 }
+const variantOf = (view: OrchestrationRunView): boolean => view.proposal?.checks.length === 0 || view.confirm?.ask === true;
 const pauseKey = (set: string, field: "what" | "why" | "do" | "button") => `orchPause_${set}_${field}` as TranslationKey;
 
 // What happened, in a few words: the panel's headline; lowercased after "Waiting for you:" / "Paused:".
@@ -638,7 +641,7 @@ export function pauseLabel(locale: LocaleId, cause: PauseCause, onMac = orchestr
 // A paused run's short form (null: not paused): the link chip, the cards and the widget.
 export function viewPauseLabel(locale: LocaleId, view: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[], onMac = orchestrationAvailableHere()): string | null {
   if (view.status !== "paused" || view.halted || view.newer || !view.reason) return null;
-  return pauseLabel(locale, viewCause(view, entries) ?? { kind: "reason", reason: view.reason }, onMac, view.proposal?.checks.length === 0);
+  return pauseLabel(locale, viewCause(view, entries) ?? { kind: "reason", reason: view.reason }, onMac, variantOf(view));
 }
 
 // The panel's header of a paused run: what happened, why, what to do and the main action with its words. A turn's end
@@ -648,7 +651,7 @@ export interface PauseText { what: string; why: string; todo: string; button: st
 export function pauseText(locale: LocaleId, view: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[], onMac = orchestrationAvailableHere()): PauseText | null {
   if (view.status !== "paused" || view.halted || !view.reason || !PAUSES[view.reason]) return null;
   const cause = viewCause(view, entries) ?? { kind: "reason", reason: view.reason };
-  const set = pauseSet(view.reason, onMac, view.proposal?.checks.length === 0);
+  const set = pauseSet(view.reason, onMac, variantOf(view));
   const own = cause.kind !== "reason" || nextStepKey(view, entries) === "app_failure" || view.reason === "finish_unconfirmed";
   const pending = view.reason === "finish_unconfirmed" ? finishPending(view) : null;
   // a protected branch: only Stop helps; a failed preparation is repeated, MCP servers are checked again — by "Continue"
@@ -657,8 +660,8 @@ export function pauseText(locale: LocaleId, view: OrchestrationRunView, entries:
     : cause.kind === "prepare" ? t(locale, "orchPause_prepare_failed_button")
     : cause.kind === "mcp" ? t(locale, cause.code === "mcp_present" ? "orchPause_needs_user_action_button" : "orchResume") : t(locale, pauseKey(set, "button"));
   return {
-    what: pauseWhat(locale, cause, onMac, view.proposal?.checks.length === 0),
-    why: pauseWhy(locale, cause, onMac, view.proposal?.checks.length === 0),
+    what: pauseWhat(locale, cause, onMac, variantOf(view)),
+    why: pauseWhy(locale, cause, onMac, variantOf(view)),
     todo: own ? nextStepText(locale, view, entries) : t(locale, pauseKey(set, "do")),
     button,
     ...PAUSES[view.reason],
@@ -1173,14 +1176,14 @@ export function tokensText(locale: LocaleId, n: number): string {
 // level: ok — checked and fine; warning — not checked or not complete; fail — the CLI did not answer. unchecked: the Codex servers
 // whose connection the CLI did not report (a thread would tell) — the row's «Check» asks for the first of them
 export interface EnvRow { id: string; level: "ok" | "warning" | "fail"; key: string; params: Record<string, string | number>; unchecked?: string[] }
+// D-043 (shorter): the shell's path is in «Подробно»; a CLI that answered is said by its MCP row (its own row only without one)
 export function envRows(report: OrchestrationEnvironmentReport): EnvRow[] {
   const rows: EnvRow[] = [{ id: "shell", level: report.shell.shell ? "ok" : "warning", key: report.shell.shell ? "orchEnvRow_shell" : "orchEnvRow_noShell", params: { shell: report.shell.shell ?? "" } }];
   for (const p of report.providers) {
     const who = p.provider === "codex" ? "Codex" : "Claude";
     if (!p.ok) { rows.push({ id: `${p.provider}:cli`, level: "fail", key: "orchEnvRow_cliFailed", params: { who, error: p.error ?? "" } }); continue; }
-    rows.push({ id: `${p.provider}:cli`, level: "ok", key: "orchEnvRow_cli", params: { who } });
     const mcp = p.items.find((i) => i.id === "mcp");
-    if (!mcp) continue;
+    if (!mcp) { rows.push({ id: `${p.provider}:cli`, level: "ok", key: "orchEnvRow_cli", params: { who } }); continue; }
     if (!mcp.confirmed || mcp.complete === false) { rows.push({ id: `${p.provider}:mcp`, level: "warning", key: "orchEnvRow_mcpNoList", params: { who } }); continue; }
     const servers = mcp.servers;
     if (servers) {

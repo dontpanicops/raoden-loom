@@ -785,3 +785,58 @@ test("A1.1 replay: a lead's check of a denied run without the profile and withou
     return r;
   }), runId), ["replay_conflict", "check.classified"]);
 });
+
+// ---------------- D-043: «Спрашивать перед каждым push» ----------------
+
+// A run with the goal's own check (it passes) and a push: the profile asks by default (no askPush) — the push waits for
+// the person's finish.confirm of this tree and commit, even in the autopilot; askPush: false — pushed after the checks, as before
+async function askPushRun(askPush) {
+  const src = project({ "a.txt": "1\n" });
+  const remote = path.join(TMP, `remote-${++n}.git`);
+  g(TMP, "init", "-q", "--bare", remote);
+  g(src, "remote", "add", "qa", remote);
+  const m = manager({ MOCK_SCRIPT: script([PLAN, EXEC, REVIEW, FINAL]) });
+  const runId = await start(m, src, { commands: ["grep -qx 2 a.txt"], finish: { commit: true, push: true, qa: false } }, {
+    workMode: "worktree", finish: { commit: true, push: { remote: "qa", branch: "ask-branch", remoteUrl: remote }, qa: null }, ...(askPush === false ? { askPush: false } : {})
+  });
+  return { m, runId, remote };
+}
+const pushed = (remote) => { try { g(remote, "rev-parse", "--verify", "-q", "refs/heads/ask-branch"); return true; } catch { return false; } };
+
+test("D-043: «ask before each push» on by default — a run whose checks passed waits for the person before the push; the decision pushes", OPTS, async () => {
+  const { m, runId, remote } = await askPushRun(undefined);
+  let v = await settled(m, runId, "the push confirmation");
+  assert.deepEqual([v.status, v.reason], ["paused", "awaiting_finish_confirmation"], JSON.stringify(v));
+  assert.equal(v.progress.checks[0].status, "passed", "the checks passed: asked by the setting, not for a run without checks");
+  assert.deepEqual([v.confirm.push, v.confirm.qa, v.confirm.ask], [true, false, true]);
+  assert.equal(pushed(remote), false, "nothing pushed without the person");
+  assert.equal((await send(m, v, { kind: "finish.confirm", tree: v.confirm.tree, commit: v.confirm.commit, push: "confirm", qa: "confirm" })).code, "invalid_command", "QA was not asked");
+  assert.equal((await send(m, v, { kind: "finish.confirm", tree: v.confirm.tree, commit: v.confirm.commit, push: "confirm", qa: null })).status, "accepted");
+  v = await settled(m, runId);
+  assert.deepEqual([v.status, v.progress.completion], ["completed", "confirmed"], JSON.stringify(v));
+  assert.equal(pushed(remote), true, "pushed once confirmed");
+  await m.shutdown();
+  // the journal reads back (its push has the person's confirmation of the tree and commit it delivered)
+  const back = await readRun(m.root, runId);
+  assert.equal(back.integrity.status, "ok", JSON.stringify(back.integrity));
+});
+
+test("D-043: «ask before each push» declined — the run completes without the push", OPTS, async () => {
+  const { m, runId, remote } = await askPushRun(undefined);
+  const v = await settled(m, runId, "the push confirmation");
+  assert.equal((await send(m, v, { kind: "finish.confirm", tree: v.confirm.tree, commit: v.confirm.commit, push: "decline", qa: null })).status, "accepted");
+  const done = await settled(m, runId);
+  assert.equal(done.status, "completed", JSON.stringify(done));
+  assert.equal(done.progress.finish.find((f) => f.step === "push").declined, true);
+  assert.equal(pushed(remote), false);
+  await m.shutdown();
+});
+
+test("D-043: «ask before each push» off (askPush: false) — the checks passed, the push goes without a pause, as before", OPTS, async () => {
+  const { m, runId, remote } = await askPushRun(false);
+  const v = await settled(m, runId);
+  assert.deepEqual([v.status, v.progress.completion], ["completed", "confirmed"], JSON.stringify(v));
+  assert.equal(pushed(remote), true);
+  assert.equal((await records(m, runId)).some((r) => r.type === "run.status" && r.data.reason === "awaiting_finish_confirmation"), false, "never asked");
+  await m.shutdown();
+});

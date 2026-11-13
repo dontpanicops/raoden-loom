@@ -19,6 +19,7 @@ import { INSTALLED_PAGE_SIZE, SHOWCASE_PAGE_SIZE, clampPage, pageCount, paginate
 import { compareSemver } from "../../../../shared/hostVersion";
 import { Switch } from "../../components/Switch";
 import { UiIcon } from "../../components/UiIcon";
+import { pluginLoadReason } from "./pluginLoadReason";
 
 /** Plugin description limit when displayed (longer text is truncated). */
 const MAX_DESCRIPTION_LENGTH = 400;
@@ -686,9 +687,9 @@ export function PluginSettingsSection({
                         )}
                       </small>}
                       {plugin.loadError && (
-                        <span className="installed-plugin__error" role="alert" data-plugin-load-error>
+                        <span className="installed-plugin__error" role="alert" data-plugin-load-error title={plugin.loadError}>
                           <UiIcon name="status-failed" size={14} />
-                          <span>{t(locale, "pluginLoadFailed").replace("{reason}", plugin.loadError)}</span>
+                          <span>{t(locale, "pluginLoadFailed").replace("{reason}", () => pluginLoadReason(locale, plugin.loadError!))}</span>
                         </span>
                       )}
                       {renderInstalledHostTag(plugin.manifest.minHostVersion)}

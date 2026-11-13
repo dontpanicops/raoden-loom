@@ -821,7 +821,7 @@ export function createRunManager(deps: RunManagerDeps) {
   async function resolveGoal(source: string, runId: string, g: OrchestrationGoalInput & { branch?: string }, rt: NativeRuntime | null, t?: BoardTask,
     push: NonNullable<GoalInput["finish"]>["push"] | null = null): Promise<GoalInput & { prepareAuto?: boolean }> {
     // export and noMcp (F4, T-9, T-14) are main's alone: whatever a caller passed is dropped, the profile decides
-    const { mode, finish, models: over, accessOverride: _override, export: _export, noMcp: _noMcp, checksOutside: _outside, exportTo: _exportTo, ...given } = g as typeof g & { export?: unknown; noMcp?: unknown; checksOutside?: unknown; exportTo?: unknown };
+    const { mode, finish, models: over, accessOverride: _override, export: _export, noMcp: _noMcp, checksOutside: _outside, exportTo: _exportTo, askPush: _ask, ...given } = g as typeof g & { export?: unknown; noMcp?: unknown; checksOutside?: unknown; exportTo?: unknown; askPush?: unknown };
     const saved = await profiles.get(source);
     const chosen = roleModels(saved, over);
     const models = Object.fromEntries(Object.entries(chosen).filter(([, m]) => m !== null)) as Partial<Record<keyof OrchestrationRoleModels, string>>;
@@ -876,7 +876,9 @@ export function createRunManager(deps: RunManagerDeps) {
           commit: finish!.commit || finish!.push || push ? { message: commitMessage(g.text, runId, t?.commitTitle) } : null,
           push: push ?? (finish!.push ? profile.finish.push : null),
           qa: finish!.qa ? profile.finish.qa : null
-        }
+        },
+        // D-043: «Спрашивать перед каждым push» (on unless the profile says false) — the push waits for the person
+        ...((push || finish!.push) && profile.askPush !== false && deps.journalV2 ? { askPush: true as const } : {})
       } : {})
     };
   }
@@ -2087,6 +2089,10 @@ export function createRunManager(deps: RunManagerDeps) {
       // with its risk confirmed; already on stays as it is
       if (p.checksOutside && !saved?.checksOutside && (input as { confirmChecksOutside?: unknown }).confirmChecksOutside !== true) {
         refuse("checks_outside_not_confirmed", "the network for the lead's checks needs its risk confirmed");
+      }
+      // D-043: pushes without asking — turned off only with its consequence confirmed; already off stays as it is
+      if (p.askPush === false && saved?.askPush !== false && (input as { confirmAskPushOff?: unknown }).confirmAskPushOff !== true) {
+        refuse("ask_push_off_not_confirmed", "pushing without asking needs its consequence confirmed");
       }
       const before = saved?.grants ?? [];
       const keep = new Set(p.grants.map((g) => g.id));

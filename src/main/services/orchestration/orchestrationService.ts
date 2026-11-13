@@ -15,7 +15,7 @@ import type { SandboxApi } from "./checkRunner.ts";
 import { sandboxSupport } from "./sandbox.ts";
 import { currentExecutableSha256, inspectPreparedDeps, startProjectCheck } from "./checkService.ts";
 import type { ProjectCheckResult } from "./checkService.ts";
-import { DEFAULT_LIMITS, completion, confirmationFor, currentCommit, effectiveLimits, nextAction, proposesChecks, withoutChecks } from "./cycle.ts";
+import { DEFAULT_LIMITS, completion, confirmationFor, currentCommit, effectiveLimits, nextAction, personDecides, proposesChecks, withoutChecks } from "./cycle.ts";
 import type { Action, Goal, LimitKind, RunLimits, Snapshot } from "./cycle.ts";
 import { canonical, personStatus, planProposalWaits } from "./journal.ts";
 import type { CommandResult, CompletionBasis, CompletionKind, PausedReason, ReviewRequest, RunState, RunStatus, SandboxNetwork, TextRef } from "./journal.ts";
@@ -96,6 +96,9 @@ export interface GoalInput {
   noMcp?: true;
   // F-c (D-041 p. 3): main's alone, from the profile's checksOutside (never from the window: parseGoal)
   checksOutside?: true;
+  // D-043: main's alone, from the profile («Спрашивать перед каждым push», on unless askPush: false), journal v2 with a push:
+  // the push waits for the person's finish.confirm (cycle.ts personDecides)
+  askPush?: true;
   exportTo?: { dir?: string; format?: "markdown" | "json" | "both" }; // F-c (D-041 p. 1): main's alone, with export
   // C3, journal v2 rules in a resolution run's journal: the merge run it resolves for (stage-c3-conflicts.md §3)
   resolution?: { mergeRunId: string; taskId: string; key: string; base: string };
@@ -185,7 +188,8 @@ export interface RunView {
   proposal?: ChecksProposalText | null;
   // journal v2, on the pause awaiting_finish_confirmation: what the person confirms push/QA for (the payload of
   // finish.confirm) and which steps the goal asked for
-  confirm?: { tree: string | null; commit: string | null; push: boolean; qa: boolean } | null;
+  // ask (D-043): asked by the project's «Спрашивать перед каждым push», not for a run without checks
+  confirm?: { tree: string | null; commit: string | null; push: boolean; qa: boolean; ask?: true } | null;
   // A1.1, on the pause check_needs_permissions: the lead's check the sandbox refused (journal-v2-format.md §2.6)
   refused?: { checkId: string; command: string } | null;
   // A4: what the person decides on this pause, about the state shown (journal-v2-format.md §2.9)
@@ -568,6 +572,7 @@ function checkGoal(input: GoalInput, registryOf: (commands: string[] | null) => 
   if (input.export !== undefined && (input.export !== true || !v2 || input.workMode !== "worktree" || !task)) bad("export: true, journal v2, a worktree and a board task only");
   if (input.noMcp !== undefined && input.noMcp !== true) bad("noMcp: true or absent");
   if (input.checksOutside !== undefined && (input.checksOutside !== true || !v2)) bad("checksOutside: true and journal v2 only");
+  if (input.askPush !== undefined && (input.askPush !== true || !v2 || !finish?.push)) bad("askPush: true, journal v2 and a push only");
   const exportTo = input.exportTo === undefined ? undefined : checkExportTo(input.exportTo, input.export === true, bad);
   const resolution = input.resolution === undefined ? undefined : checkResolution(input, v2, bad);
   const decomposition = input.decomposition === undefined ? undefined : checkDecomposition(input, v2, bad);
@@ -595,7 +600,8 @@ function checkGoal(input: GoalInput, registryOf: (commands: string[] | null) => 
     ...(models ? { models } : {}), ...(input.language ? { language: input.language } : {}), ...(task ? { task } : {}),
     ...(base ? { base } : {}), ...(input.branch !== undefined ? { branch: input.branch } : {}), ...(resolution ? { resolution } : {}), ...(decomposition ? { decomposition } : {}),
     ...(input.export ? { export: true as const } : {}), ...(input.noMcp ? { noMcp: true as const } : {}),
-    ...(input.checksOutside ? { checksOutside: true as const } : {}), ...(exportTo ? { exportTo } : {})
+    ...(input.checksOutside ? { checksOutside: true as const } : {}), ...(exportTo ? { exportTo } : {}),
+    ...(input.askPush ? { askPush: true as const } : {})
   };
 }
 
@@ -981,7 +987,9 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
       // a plan proposal waits for the person on another pause (after a crash): only Continue leads to it
       ...(st.version === 2 && planProposalWaits(st) ? { proposalWaits: true } : {}),
       ...(st.pausedReason === "awaiting_finish_confirmation" ? {
-        confirm: { tree: latest?.tree ?? null, commit: latest ? currentCommit(st, latest.tree)?.commit ?? null : null, push: !!goal.finish?.push, qa: !!goal.finish?.qa }
+        confirm: { tree: latest?.tree ?? null, commit: latest ? currentCommit(st, latest.tree)?.commit ?? null : null,
+          push: !!goal.finish?.push && personDecides(st, goal, "push"), qa: !!goal.finish?.qa && personDecides(st, goal, "qa"),
+          ...(withoutChecks(st) ? {} : { ask: true as const }) }
       } : {})
     };
   };
@@ -2757,8 +2765,8 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
       }
       case "finish.confirm": {
         denied = gate("finish.confirm", st);
-        if (denied || !withoutChecks(st)) return denied ?? reject("invalid_state");
-        const asked = (step: "push" | "qa") => !!goal.finish?.[step];
+        if (denied || !(withoutChecks(st) || personDecides(st, goal, "push"))) return denied ?? reject("invalid_state");
+        const asked = (step: "push" | "qa") => !!goal.finish?.[step] && personDecides(st, goal, step);
         const valid = (step: "push" | "qa", v: unknown) => asked(step) ? v === "confirm" || v === "decline" : v === null;
         if (!valid("push", cmd.push) || !valid("qa", cmd.qa) || typeof cmd.tree !== "string" || (cmd.commit !== null && typeof cmd.commit !== "string")) return reject("invalid_command");
         // what the person saw must be what is here now: the tree of the work and its commit

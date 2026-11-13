@@ -56,3 +56,13 @@ test("a manifest that parses but fails validation keeps its own name and version
     await rm(userData, { recursive: true, force: true });
   }
 });
+
+test("D-043: the reason a plugin did not load is said in the interface's language; the raw line is not shown as is", async () => {
+  const { pluginLoadReason } = await import("../src/renderer/src/features/plugins/pluginLoadReason.ts");
+  assert.equal(pluginLoadReason("ru", "Unknown plugin contribution kind: panel."), "canvastty.plugin.json — тип вклада «panel» эта версия не знает");
+  assert.match(pluginLoadReason("en", "Unknown plugin contribution kind: panel."), /does not know the contribution kind «panel»/);
+  assert.equal(pluginLoadReason("ru", "Expected property name or '}' in JSON at position 2 (line 1 column 3)"), "canvastty.plugin.json — не JSON");
+  assert.equal(pluginLoadReason("ru", "canvastty.plugin.json is missing or too large."), "нет canvastty.plugin.json или он слишком большой");
+  assert.equal(pluginLoadReason("ru", "Contribution entry must be an HTML file."), "манифест плагина не прошёл проверку");
+  for (const locale of ["ru", "en"]) assert.doesNotMatch(pluginLoadReason(locale, "Unknown plugin contribution kind: panel."), /Unknown/);
+});
