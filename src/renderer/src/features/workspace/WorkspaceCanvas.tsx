@@ -58,9 +58,9 @@ import {
   type CanvasContextMenuKind
 } from "./canvasContextRouting";
 import {
-  CANVAS_REGION_COLORS,
   boundsInsideRegion,
   canvasRegionAtPoint,
+  REGION_THEME_COLOR,
   translateBounds
 } from "./canvasRegions";
 import {
@@ -1233,7 +1233,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           locale={settings.locale}
           launcherItems={settings.canvasLauncherItems}
           menuStyle={settings.canvasMenuStyle}
-          currentRegionColor={contextRegion?.color ?? null}
+          currentRegionColor={contextRegion && contextRegion.color !== REGION_THEME_COLOR ? contextRegion.color : null}
           onCreateRegion={() => {
             setRegionEditor({ mode: "create", focus: "title", position: contextMenu.position, worldPoint: contextMenu.worldPoint });
             setContextMenu(null);
@@ -1323,7 +1323,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           focus={regionEditor.focus}
           position={regionEditor.position}
           initialTitle={regionEditor.mode === "create" ? t(settings.locale, "canvasRegionDefaultName") : editedRegion!.title}
-          initialColor={regionEditor.mode === "create" ? CANVAS_REGION_COLORS[0] : editedRegion!.color}
+          initialColor={regionEditor.mode === "create" ? REGION_THEME_COLOR : editedRegion!.color}
           locale={settings.locale}
           onSubmit={(title, color) => {
             if (regionEditor.mode === "create") {

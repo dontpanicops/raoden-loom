@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CanvasRegion, Point, SessionBounds } from "../../../../shared/contracts";
-import { constrainCanvasRegionBounds } from "./canvasRegions";
+import { constrainCanvasRegionBounds, regionCssColor } from "./canvasRegions";
 import { snapMove, snapResize, type ResizeDirection } from "./snap";
 
 interface CanvasRegionCardProps {
@@ -159,7 +159,7 @@ export function CanvasRegionCard({
         width: bounds.size.width,
         height: bounds.size.height,
         transform: `translate(${bounds.position.x}px, ${bounds.position.y}px)`,
-        "--canvas-region-color": region.color
+        "--canvas-region-color": regionCssColor(region.color)
       } as React.CSSProperties}
     >
       <button

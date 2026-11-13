@@ -325,7 +325,7 @@ try {
   await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({
     stickyNotes: [{ id: "r5-note", text: "Перед релизом: прогнать e2e оркестрации и обновить UI_CONTRACT.", ...B(335, 655, 220, 150) }],
     browserCanvas: { ...B(785, 113, 415, 320), workspaceId: "common" }, // R12t (gate S10): mock 03's places, at the app's sizes: right of HOME (740 wide at 67%), above the region
-    persistCanvasRegions: true, canvasRegions: [{ id: "r6-region", title: "Оркестрация · project-b", color: "#B8CF99", workspaceId: "common", ...B(680, 465, 520, 410) }] })}).then(() => true)`);
+    persistCanvasRegions: true, canvasRegions: [{ id: "r6-region", title: "Оркестрация · project-b", color: "theme", workspaceId: "common", ...B(680, 465, 520, 410) }] })}).then(() => true)`);
   await app.call("Page.reload", {}); await sleep(2500); await laptop();
   await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
   const R = (c, r) => ({ position: { x: -2100 + c * 670, y: 520 + r * 420 }, size: { width: 640, height: 380 } }); // the card states, left of HOME
@@ -957,10 +957,10 @@ try {
       await app.key("Home", "Home", 36); await sleep(600);
     });
     await scene("home-edit", async () => {
-      // R12t (gate S8, mock 18): the border close round the tiles: HOME at its smallest, 12 x 8 (HOME_GRID_MIN_*; the tiles take 11 x 6), as a person
+      // R12t (gate S8, mock 18): the border close round the tiles: HOME at its smallest, 11 x 6 (HOME_GRID_MIN_*, D-043: as the tiles), as a person
       // who made it smaller has it; the default 16 x 12 is wider than the window at 100%. Given back after the scene
       const grid0 = (await app.ev(`window.canvasTTY.settings.get()`)).homeGridSize;
-      await app.ev(`window.canvasTTY.settings.update({ homeGridSize: { columns: 12, rows: 8 } }).then(() => true)`); await sleep(600);
+      await app.ev(`window.canvasTTY.settings.update({ homeGridSize: { columns: 11, rows: 6 } }).then(() => true)`); await sleep(600);
       // R12t: HOME whole in the window at 100%, its corner at 24,120, the bar under it (inventory appCrop). At 100% HOME and its grid cover the
       // window (no empty canvas to drag): the camera is written to the space and the window reads it again
       const zw = await app.ev(`(() => { const sc = document.querySelector(".workspace__scene"), o = sc.parentElement.getBoundingClientRect(), z = document.querySelector(".home-zone").getBoundingClientRect();

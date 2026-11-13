@@ -107,8 +107,8 @@ export const DEFAULT_HOME_ACCENT_COLORS: HomeAccentColors = {
   media: "#D5A2C9"
 };
 
-export const HOME_GRID_MIN_COLUMNS = 12;
-export const HOME_GRID_MIN_ROWS = 8;
+export const HOME_GRID_MIN_COLUMNS = 11;
+export const HOME_GRID_MIN_ROWS = 6;
 export const HOME_GRID_MAX_COLUMNS = 48;
 export const HOME_GRID_MAX_ROWS = 36;
 export const HOME_GRID_CELL_WIDTH = 82;
@@ -556,7 +556,7 @@ export interface PluginCanvasInstance {
 export interface CanvasRegion extends SessionBounds {
   id: string;
   title: string;
-  color: string;
+  color: string; // "#RRGGBB", or "theme" when the person did not pick one: the theme's --region-tint (R12x, D-043)
   workspaceId?: string;
 }
 

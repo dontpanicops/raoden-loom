@@ -13,6 +13,7 @@ import type {
   StickyNote
 } from "../../../../shared/contracts";
 import { t } from "../../lib/i18n";
+import { regionCssColor } from "./canvasRegions";
 import {
   cameraWorldViewport,
   minimapCameraForPointerDrag,
@@ -228,7 +229,7 @@ export function CanvasMinimap({
             <i
               className="canvas-minimap__region"
               key={region.id}
-              style={{ ...areaStyle(area), "--minimap-region-color": region.color } as CSSProperties}
+              style={{ ...areaStyle(area), "--minimap-region-color": regionCssColor(region.color) } as CSSProperties}
             />
           ) : null;
         })}

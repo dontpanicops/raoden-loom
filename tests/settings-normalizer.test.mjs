@@ -177,6 +177,12 @@ test("terminal restore remains opt-in and canvas regions are bounded and normali
   assert.equal(normalizeSettings({ restoreTerminalSessions: "yes" }, fallback).restoreTerminalSessions, false);
 });
 
+test("a region without a picked colour keeps \"theme\"; a hex keeps its own colour (D-043)", () => {
+  const base = { title: "T", position: { x: 0, y: 0 }, size: { width: 500, height: 400 } };
+  const normalized = normalizeSettings({ canvasRegions: [{ ...base, id: "a", color: "theme" }, { ...base, id: "b", color: "#b8cf99" }, { ...base, id: "c", color: "red" }] }, fallback);
+  assert.deepEqual(normalized.canvasRegions.map((r) => r.color), ["theme", "#B8CF99"]);
+});
+
 test("colored regions and notes use independent exit persistence gates", async () => {
   const dir = await mkdtemp(join(tmpdir(), "canvastty-settings-canvas-persistence-"));
   const region = {
@@ -808,7 +814,8 @@ test("preserves plugin canvas bounds down to the manifest minimum floor", () => 
 
 test("normalizes resizable Home boundaries within generous safety limits", () => {
   assert.deepEqual(normalizeHomeGridSize({ columns: 24, rows: 20 }), { columns: 24, rows: 20 });
-  assert.deepEqual(normalizeHomeGridSize({ columns: 2, rows: 80 }), { columns: 12, rows: 36 });
+  assert.deepEqual(normalizeHomeGridSize({ columns: 2, rows: 80 }), { columns: 11, rows: 36 });
+  assert.deepEqual(normalizeHomeGridSize({ columns: 12, rows: 8 }), { columns: 12, rows: 8 }); // a saved 12 x 8 stays
   assert.deepEqual(normalizeHomeGridSize({ columns: "wide", rows: 20 }), { columns: 16, rows: 12 });
 });
 

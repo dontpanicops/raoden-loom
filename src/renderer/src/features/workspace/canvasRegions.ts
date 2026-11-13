@@ -14,6 +14,10 @@ export const CANVAS_REGION_COLORS = [
 // mock 18: the menu offers green, blue, amber, pink, gray (in this order)
 export const CANVAS_REGION_MENU_COLORS = [CANVAS_REGION_COLORS[0], CANVAS_REGION_COLORS[1], CANVAS_REGION_COLORS[3], CANVAS_REGION_COLORS[2], CANVAS_REGION_COLORS[6]] as const;
 
+export const REGION_THEME_COLOR = "theme";
+// the region's own colour, or the theme's tint while none was picked (D-043); regions saved with a hex keep it
+export const regionCssColor = (color: string): string => (color === REGION_THEME_COLOR ? "rgb(var(--region-tint))" : color);
+
 const MIN_REGION_SIZE = { width: 360, height: 240 };
 const MAX_REGION_SIZE = { width: 4_000, height: 3_000 };
 

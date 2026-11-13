@@ -548,6 +548,13 @@ export function BrowserCard({
         </div>
       )}
 
+      {panel !== null && activeTab && !pageUnavailable && (
+        <div className="browser-card__page-state browser-card__page-state--hidden" data-browser-page-hidden="true">
+          <strong>{activeTab.title || t(locale, "browser")}</strong>
+          <small>{t(locale, "browserPageHidden")}</small>
+        </div>
+      )}
+
       {pageUnavailable && activeTab && (
         <div className="browser-card__page-state browser-card__page-state--error">
           <UiIcon name="error" size={34} />
