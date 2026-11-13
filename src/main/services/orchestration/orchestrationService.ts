@@ -143,6 +143,9 @@ export interface OrchestrationDeps {
   // project's own grants; absent: nothing is saved beyond the run.
   grants?: { list(): Promise<readonly OrchestrationGrant[]>; add(grant: Omit<OrchestrationGrant, "id" | "grantedAt">): Promise<void> };
   cloneDir?: CloneDir; // tests only: the clone of a dependency folder (cloneDependencies)
+  // D-043: the project's profile asks before each push NOW (on unless askPush: false). A run made before the setting was on
+  // (or by an older build) has no goal.askPush: it asks anyway; the profile only adds the question, never removes the goal's
+  askPush?: () => Promise<boolean>;
 }
 
 export type RunCommand =
@@ -836,6 +839,10 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
     registry = registryFor(deps, goal.commands ?? [], goal.sandboxed);
     commands = goal.checks.map((id) => resolveCheck(registry, id));
   };
+  // D-043: the push decision reads the profile's current setting (in memory only: the journal's goal is not rewritten)
+  const refreshAsk = async () => {
+    if (!goal.askPush && goal.finish?.push && deps.askPush && await deps.askPush().catch(() => false)) goal = { ...goal, askPush: true };
+  };
   // A1.1: where Seatbelt is, the lead's commands run in the check profile (journal-v2-format.md §2.6)
   const leadSandbox = deps.checks.leadSandbox ?? (sandboxSupport().supported ? {} : false);
   // Check definitions as they are now: the executable's content is hashed again at every decision (§10), so a
@@ -1149,6 +1156,7 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
 
   // Integrity (§11), then the snapshot the decision and its keys are about.
   async function decide(): Promise<{ action: Action; snapshot: Snapshot | null }> {
+    await refreshAsk();
     const st = state();
     const pause = (reason: PausedReason, detail: string) => ({ action: { kind: "pause", reason, detail } as Action, snapshot: null });
     if (!st.workspace) return pause("environment_error", "no workspace in the journal");
@@ -2764,6 +2772,7 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
         return ok;
       }
       case "finish.confirm": {
+        await refreshAsk();
         denied = gate("finish.confirm", st);
         if (denied || !(withoutChecks(st) || personDecides(st, goal, "push"))) return denied ?? reject("invalid_state");
         const asked = (step: "push" | "qa") => !!goal.finish?.[step] && personDecides(st, goal, step);

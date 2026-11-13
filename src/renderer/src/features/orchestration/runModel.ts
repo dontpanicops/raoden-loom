@@ -529,7 +529,9 @@ export function causeText(locale: LocaleId, cause: PauseCause): string {
 // The headline key (orchHeadline_<key>): a provider's limit is not "the environment needs preparing".
 export function headlineKey(view: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[]): string {
   const kind = viewCause(view, entries)?.kind;
-  return kind === "provider_limit" || kind === "model_unsupported" ? kind : runHeadline(view).headline;
+  if (kind === "provider_limit" || kind === "model_unsupported") return kind;
+  const head = runHeadline(view).headline;
+  return head === "awaiting_finish_confirmation" && view.confirm?.ask === true ? "awaiting_push_confirmation" : head; // D-043
 }
 
 // The key of the next step to offer (orchNext_<key>): the headline's, unless the pause is an application failure.

@@ -393,7 +393,7 @@ function finishOrComplete(input: CycleInput): Action {
   for (const step of FINISH_ORDER) {
     if (!goal.finish?.[step]) continue;
     if (personDecides(state, goal, step)) {
-      if (!person) return { kind: "pause", reason: "awaiting_finish_confirmation", detail: step };
+      if (!person?.[step]) return { kind: "pause", reason: "awaiting_finish_confirmation", detail: step };
       if (person[step] === "decline") continue;
     }
     const last = orch.finish.filter((f) => f.step === step).at(-1);
