@@ -233,7 +233,8 @@ try {
   const split = await ipc(`boardDecompose(${J(t1.id)}, "ru")`);
   const splitMark = await ipc(`boardUpdate(${J(t1.id)}, { decompose: true })`);
   ok("f3.s3 «Разбить» (main: the mark and the split) → remote_base_mode", split.code === "remote_base_mode" && splitMark.code === "remote_base_mode", [split, splitMark]);
-  await click(sel(t1.key, ".board-task__title"));
+  // R12: the queue card's «Изменить» lies over the corner and, wrapped to two rows, over the title: the form opens by that button (the title does the same)
+  await click(sel(t1.key, "[data-board-edit]"));
   await app.waitFor(`${q("[data-board-form]")} && true`, "the form of T1");
   const box = await app.ev(`({ disabled: ${q('[data-board-field="decompose"]')}?.disabled ?? null, title: ${q('[data-board-field="decompose"]')}?.closest("label")?.title ?? null })`);
   ok("f3.s3 the form: «Разбить на подзадачи» unavailable, with the reason", box.disabled === true && /базе от remote/.test(box.title ?? ""), box);
