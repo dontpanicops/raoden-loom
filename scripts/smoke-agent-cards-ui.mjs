@@ -200,8 +200,8 @@ try {
   notes.waiting = { leadLines, execLines };
   expect(waiting.filter((t) => t.startsWith("Ждёт: ")).length === 1, "the waiting card: one line «Ждёт: <who works and what it does>»", notes.waiting);
   expect(!waiting.some((t) => t === working[0]), "the waiting card does not repeat the working card's line word for word", notes.waiting);
-  expect(await app.ev(`${card(exec.agentId, "[data-agent-expand]")}.dataset.agentExpand`) === "compact" && !(await app.ev(`!!${card(exec.agentId, "[data-agent-feed]")}`)),
-    "a compact card: «Развернуть», no feed", null);
+  expect(await app.ev(`${card(exec.agentId, "[data-agent-expand]")}.dataset.agentExpand`) === "compact" && await app.ev(`!!${card(exec.agentId, "[data-agent-feed]")}`),
+    "a compact card: «Развернуть», the step feed (mock 06)", null);
   await clip([lead.agentId, exec.agentId], "01-compact");
 
   // 2. the lead's card expanded: the feed follows, pauses scrolled up, follows again at the bottom
