@@ -1054,3 +1054,14 @@ CanvasTTY отдельно фиксирует три факта: проверк�
 Причина: в `.claude/worktrees/` лежали десятки рабочих копий агентов со своими `biome.jsonc` и `node_modules`.
 Исправление: `!**/.claude` в `biome.jsonc`, `.claude` в списке пропуска `scripts/audit-secrets.mjs` (61daed7); завершённые worktree удалены.
 Как не повторить: после сведения ветки агента удалять его worktree (`git worktree remove`).
+
+## T146 — Проверки упакованной 1.6.0 падают из-за самих скриптов (2026-11-14)
+Статус: исправлено
+Симптом: в `release-chain.sh 1.6.0 all` упали `packaged-notify` (`notificationRequested: false`, после сворачивания `focus: true`), `packaged-readiness` (`Cannot read properties of undefined (reading 'focus')`), `rollback-c3` (`resolutionStop: journal_corrupt`, `p1Recovered: false`).
+Причина:
+- notify — набор smoke включает эмуляцию фокуса CDP (`scripts/orchestration-app-kit.mjs:153`, тихие окна #101): страница всегда «в фокусе», уведомление не нужно. 1.5.20 под тем же набором ведёт себя так же — не регрессия приложения.
+- readiness — критерии в диалоге цели теперь строками (`[data-orch-requirements]`), второго textarea нет.
+- c3 — фикстура писала журнал разрешения без `workspace.created` и `completion`; 1.5.16–1.5.19 его не воспроизводили, 1.5.20 (уже с C3) воспроизводит и видит порчу. Объединение, ждущее запуска разрешения, в 1.5.20 остаётся `running` (stage-c3 §2.3).
+Исправление: `CANVASTTY_QUIET_WINDOW=0` в `release/1.6.0/verification/packaged-notify.mjs`; `fillRows` в `packaged-readiness.mjs`; фикстура и ожидания — 7485e38d.
+Как проверить: перезапуск трёх проверок на `release/1.6.0/.build.noindex/mac-arm64/Raoden Loom.app` — `ok: true`.
+Как не повторить: скрипты выпуска копировать из прошлого выпуска и прогонять на новом пакете до цепочки; проверке уведомлений нужен настоящий фокус.
