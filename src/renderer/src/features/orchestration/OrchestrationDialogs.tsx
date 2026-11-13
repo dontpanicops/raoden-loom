@@ -9,7 +9,7 @@ import type {
 import { Dialog } from "../../components/Dialog";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { UiIcon } from "../../components/UiIcon";
-import { t, type TranslationKey } from "../../lib/i18n";
+import { pluralForm, t, type TranslationKey } from "../../lib/i18n";
 import { ProjectSettings } from "./ProjectSettings";
 import { NO_MODELS, RoleModelsField } from "./RoleModels";
 import { profileGoal } from "../../../../shared/taskBoard";
@@ -130,13 +130,14 @@ const rightsText = (locale: LocaleId, access: { claude: string; codex: string })
   `Claude — ${tr(locale, `orchAccess_${access.claude}`)} · Codex — ${tr(locale, `orchAccess_${access.codex}`)}`;
 
 const NO_OVERRIDE: Partial<Record<"claude" | "codex", "terminal">> = {};
-function Readiness({ linkId, commands, workMode, models, access, locale, onChange, onSuggest, onBusy, accessOverride = NO_OVERRIDE, onAccessOverride, onBlocker, onFix, onWorkMode, onFailing, auto = true, checkSlot = null }: {
+function Readiness({ linkId, commands, workMode, models, access, locale, onChange, onSuggest, onBusy, accessOverride = NO_OVERRIDE, onAccessOverride, onBlocker, onWarnings, onFix, onWorkMode, onFailing, auto = true, checkSlot = null }: {
   linkId: string; commands: string[]; workMode: OrchestrationWorkMode; models?: OrchestrationRoleModels; access: { claude: string; codex: string } | null; locale: LocaleId;
   onChange(ok: boolean): void; onSuggest(commands: string[], extra?: string[]): void;
   onBusy(facts: unknown): void; // the "busy" item's facts: the run main says holds the folder (none: undefined)
   // «Как в моём терминале» for one CLI of this run only: offered on its access blocker, confirmed first
   accessOverride?: Partial<Record<"claude" | "codex", "terminal">>; onAccessOverride?(next: Partial<Record<"claude" | "codex", "terminal">>): void;
   onBlocker?(text: string | null): void; // the first blocker in words: said beside the inactive Start
+  onWarnings?(n: number): void; // D-028: the count of warnings, said in the dialog's foot without scrolling
   onFix?(target: ReadyFix): void; // «Исправить» on a problem item: open where it is fixed
   onWorkMode?(mode: OrchestrationWorkMode): void; // «Переключить на отдельную копию» (this goal only)
   onFailing?(commands: string[]): void; // the commands «Проверить сейчас» found failing before any change (of this goal as written)
@@ -260,6 +261,7 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
   );
   const blockers = loud.filter((i) => i.level === "blocker").length;
   const warnings = loud.filter((i) => i.level === "warning").length + (dirty !== null ? 1 : 0);
+  useEffect(() => { onWarnings?.(blockers ? 0 : warnings); }, [blockers, warnings, onWarnings]);
   return (
     <div className="orch-field orch-ready" data-orch-readiness={state.kind === "ready" ? (state.value.ready ? (ok ? "ready" : "confirm") : "blocked") : state.kind} data-orch-checked={checked && checked.key === key ? "full" : undefined}>
       <div className="orch-ready__head">
@@ -399,6 +401,7 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
   const [blockedBy, setBlockedBy] = useState<string | null>(null);
+  const [warnCount, setWarnCount] = useState(0);
   const [held, setHeld] = useState<unknown>(undefined);
   // «Проверить сейчас» found commands failing before any change: at «Старт» the person chooses (this run only)
   const [failing, setFailing] = useState<string[]>([]);
@@ -602,7 +605,7 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
           </>
         )}
         <Readiness linkId={link.linkId} commands={commands} workMode={workMode} {...(optionalChecks ? { models } : {})} access={info?.profile.access ?? null} locale={locale} onChange={setReady} onSuggest={suggest} onBusy={setHeld}
-          accessOverride={accessOverride} onAccessOverride={setAccessOverride} onBlocker={setBlockedBy} onWorkMode={setWorkMode} onFailing={setFailing} checkSlot={footSlot}
+          accessOverride={accessOverride} onAccessOverride={setAccessOverride} onBlocker={setBlockedBy} onWarnings={setWarnCount} onWorkMode={setWorkMode} onFailing={setFailing} checkSlot={footSlot}
           onFix={(target) => {
             if (target === "settings") { setSettingsOpen(true); return; }
             const field = document.querySelector<HTMLInputElement>(".orch-dialog [data-orch-commands] input");
@@ -682,6 +685,13 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
           {/* why Start is off, beside it in the pinned bottom (UX audit PR 2) */}
           {!complete && <span className="orch-hint orch-form__why" data-orch-incomplete>{t(locale, optionalChecks ? "orchGoalIncompleteNoChecks" : "orchGoalIncomplete")}</span>}
           {complete && !ready && <span className="orch-hint orch-form__why" data-orch-not-ready>{blockedBy ? `${t(locale, "orchStartBlockedBy")} ${blockedBy}` : t(locale, "orchReadyNotYet")}</span>}
+          {complete && ready && warnCount > 0 && (
+            <button type="button" className="orch-form__warns" data-orch-warnings-jump onClick={() => {
+              const row = document.querySelector<HTMLElement>(".orch-dialog .orch-ready__item--warning") ?? document.querySelector<HTMLElement>(".orch-dialog [data-orch-dirty]") ?? document.querySelector<HTMLElement>(".orch-dialog .orch-ready");
+              row?.querySelector<HTMLDetailsElement>("details")?.setAttribute("open", "");
+              row?.scrollIntoView({ block: "center" });
+            }}>{tr(locale, `orchWarningsFoot_${pluralForm(locale, warnCount)}`).replace("{n}", String(warnCount))}</button>
+          )}
           <button type="button" className="orch-cancel orch-form__cancel" onClick={ui.closeGoal}>{t(locale, "orchCancel")}</button>
           <span className="orch-form__check" ref={setFootSlot} />
           <button type="submit" className="orch-primary" disabled={busy || choosing || !complete || !ready}>{busy ? t(locale, "orchSending") : tr(locale, "orchStartPlan").replace("{lead}", providerLabel(lead.provider))}</button>
