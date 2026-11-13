@@ -102,6 +102,9 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
   const zoomed = zoom < 1;
   const farSummary = zoom < 0.4;
   const provider = card.provider === "codex" ? "Codex" : "Claude";
+  // mock 06/21: the default size shows the step feed in place of the task and doing lines (they stay in the expanded card)
+  const showFeed = zoom >= 0.4 && props.hasRun;
+  const compactFeed = compact && showFeed;
   const extra = status ? status.wait ?? status.now : null;
 
   return (
@@ -150,13 +153,13 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
         <div className="agent-card__project" title={card.project}><small>{withoutHome(card.project)}</small></div>
         {/* the status already names a held state (paused, ended, waiting for you); the sentence adds what moves */}
         {state === "failed" && props.failure?.line && <div className="agent-card__line" data-agent-failure title={props.failure.line}>{props.failure.line}</div>}
-        {props.task && <div className="agent-card__line agent-card__task" data-agent-task={props.task.key} title={props.task.title}>{props.task.key} · {props.task.title}</div>}
-        {doing && <div className="agent-card__line agent-card__doing" data-agent-doing title={doing}>{doing}</div>}
+        {!compactFeed && props.task && <div className="agent-card__line agent-card__task" data-agent-task={props.task.key} title={props.task.title}>{props.task.key} · {props.task.title}</div>}
+        {!compactFeed && doing && <div className="agent-card__line agent-card__doing" data-agent-doing title={doing}>{doing}</div>}
         {extra && <div className="agent-card__line" data-agent-now title={extra}>{extra}</div>}
         {card.role === "lead" && !props.linked && !message && state === "idle" && <p className="agent-card__hint" data-agent-port-hint>{t(locale, "orchCardPortHint")}</p>}
         {message && !message.pairWith && <div className={`agent-card__message agent-card__message--${message.tone}`} role={message.tone === "error" ? "alert" : "status"}>{message.text}</div>}
         {/* semantic zoom: far out the card keeps its lines and gives the wheel back to the canvas */}
-        {!compact && zoom >= 0.4 && props.hasRun && <CardFeed locale={locale} entries={props.activity} role={card.role} height={size.height} />}
+        {showFeed && <CardFeed locale={locale} entries={props.activity} role={card.role} height={size.height} />}
         {confirming && (
           <div className="agent-card__confirm" role="alertdialog" aria-label={t(locale, "orchDeleteCard")}>
             <span>{t(locale, "orchDeleteCardLinked")}</span>
