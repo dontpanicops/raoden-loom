@@ -89,7 +89,7 @@ import {
   type RunDigest,
   type ResultFacts
 } from "./runModel";
-import { duration, spanText, findingsLine, finishText, isServiceEntry, outcomeKey, personDecisionsLine, readJournal, reportParts, saidKey, summaryModel, type ReportParts, type RunJournalState, type TextRef } from "./runStatus";
+import { duration, humanTool, spanText, findingsLine, finishText, isServiceEntry, outcomeKey, personDecisionsLine, readJournal, reportParts, saidKey, summaryModel, type ReportParts, type RunJournalState, type TextRef } from "./runStatus";
 import { pickDocs, planDoc, readCreatedFile, resultDoc, toMarkdown, type CreatedDocs, type CreatedFile, type DocInput, type Loaded, type PlanEntry, type PlanJson, type RunDoc } from "./runDocs";
 import type { PanelRole, PanelState } from "./useAgentCanvasUi";
 import type { PanelMode, PanelSection, PanelTab, PanelView } from "./panelTabs";
@@ -342,7 +342,7 @@ export function entryLabel(locale: LocaleId, e: OrchestrationActivityEntry, entr
           .replace("{id}", d.ignoredMark).replace("{paths}", String(d.paths ?? ""))
         : e.text;
     // B3 (§5.3 п. 4–5): why the CLI asked, as it said it; the host's own answer apart from the person's
-    case "permission_requested": return `${tr(locale, "orchAct_permission_requested")}: ${e.text}${cliWhy(locale, d)}`;
+    case "permission_requested": return `${tr(locale, "orchAct_permission_requested")}: ${humanTool(e.text)}${cliWhy(locale, d)}`;
     case "permission_applied": return d.scope === "sandbox_static"
       ? `${tr(locale, "orchAct_permission_host")}: ${e.text}${cliWhy(locale, d)}`
       : `${tr(locale, "orchAct_permission_applied")}: ${e.text}`;
