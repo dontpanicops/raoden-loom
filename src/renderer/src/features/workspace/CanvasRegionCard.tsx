@@ -159,7 +159,7 @@ export function CanvasRegionCard({
         width: bounds.size.width,
         height: bounds.size.height,
         transform: `translate(${bounds.position.x}px, ${bounds.position.y}px)`,
-        "--canvas-region-color": regionCssColor(region.color)
+        "--canvas-region-color": regionCssColor(region)
       } as React.CSSProperties}
     >
       <button

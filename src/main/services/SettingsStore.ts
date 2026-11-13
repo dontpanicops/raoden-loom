@@ -772,10 +772,13 @@ export function normalizeCanvasRegions(
     if (typeof source.title !== "string" || source.title.trim().length === 0) continue;
     if (!isFinitePoint(source.position) || !isFiniteSize(source.size)) continue;
     if (typeof source.color !== "string" || (source.color !== "theme" && !/^#[0-9A-F]{6}$/i.test(source.color))) continue;
+    // a stored "theme" (dev builds) becomes the hex fallback plus the flag
+    const themeColor = source.color === "theme" || (source as { themeColor?: unknown }).themeColor === true;
     regions.push({
       id: source.id,
       title: source.title.trim().slice(0, 80),
-      color: source.color === "theme" ? "theme" : source.color.toUpperCase(),
+      color: source.color === "theme" ? "#93C98B" : source.color.toUpperCase(),
+      ...(themeColor ? { themeColor: true as const } : {}),
       position: { x: source.position.x, y: source.position.y },
       size: {
         width: clamp(source.size.width, 360, 4_000),

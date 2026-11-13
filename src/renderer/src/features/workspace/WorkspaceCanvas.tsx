@@ -61,6 +61,7 @@ import {
   boundsInsideRegion,
   canvasRegionAtPoint,
   REGION_THEME_COLOR,
+  withRegionColor,
   translateBounds
 } from "./canvasRegions";
 import {
@@ -1233,7 +1234,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           locale={settings.locale}
           launcherItems={settings.canvasLauncherItems}
           menuStyle={settings.canvasMenuStyle}
-          currentRegionColor={contextRegion && contextRegion.color !== REGION_THEME_COLOR ? contextRegion.color : null}
+          currentRegionColor={contextRegion && !contextRegion.themeColor ? contextRegion.color : null}
           onCreateRegion={() => {
             setRegionEditor({ mode: "create", focus: "title", position: contextMenu.position, worldPoint: contextMenu.worldPoint });
             setContextMenu(null);
@@ -1259,7 +1260,7 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           }}
           onChangeRegionColor={(color) => {
             if (!contextRegion) return;
-            onChangeCanvasRegion({ ...contextRegion, color });
+            onChangeCanvasRegion(withRegionColor(contextRegion, color));
             setContextMenu(null);
           }}
           onDeleteRegion={() => {
@@ -1323,13 +1324,13 @@ export function WorkspaceCanvas(props: WorkspaceCanvasProps): React.JSX.Element 
           focus={regionEditor.focus}
           position={regionEditor.position}
           initialTitle={regionEditor.mode === "create" ? t(settings.locale, "canvasRegionDefaultName") : editedRegion!.title}
-          initialColor={regionEditor.mode === "create" ? REGION_THEME_COLOR : editedRegion!.color}
+          initialColor={regionEditor.mode === "create" ? REGION_THEME_COLOR : editedRegion!.themeColor ? REGION_THEME_COLOR : editedRegion!.color}
           locale={settings.locale}
           onSubmit={(title, color) => {
             if (regionEditor.mode === "create") {
               onCreateCanvasRegion(canvasRegionAtPoint(title, color, regionEditor.worldPoint, crypto.randomUUID()));
             } else if (editedRegion) {
-              onChangeCanvasRegion({ ...editedRegion, title, color });
+              onChangeCanvasRegion({ ...withRegionColor(editedRegion, color), title });
             }
             setRegionEditor(null);
           }}

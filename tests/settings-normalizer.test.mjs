@@ -177,10 +177,20 @@ test("terminal restore remains opt-in and canvas regions are bounded and normali
   assert.equal(normalizeSettings({ restoreTerminalSessions: "yes" }, fallback).restoreTerminalSessions, false);
 });
 
-test("a region without a picked colour keeps \"theme\"; a hex keeps its own colour (D-043)", () => {
+test("a theme region is stored as a hex plus themeColor, which 1.5.20 reads; a dev-build \"theme\" is migrated (D-043)", () => {
   const base = { title: "T", position: { x: 0, y: 0 }, size: { width: 500, height: 400 } };
-  const normalized = normalizeSettings({ canvasRegions: [{ ...base, id: "a", color: "theme" }, { ...base, id: "b", color: "#b8cf99" }, { ...base, id: "c", color: "red" }] }, fallback);
-  assert.deepEqual(normalized.canvasRegions.map((r) => r.color), ["theme", "#B8CF99"]);
+  const normalized = normalizeSettings({ canvasRegions: [
+    { ...base, id: "a", color: "theme" },
+    { ...base, id: "b", color: "#b8cf99" },
+    { ...base, id: "c", color: "red" },
+    { ...base, id: "d", color: "#93c98b", themeColor: true },
+    { ...base, id: "e", color: "#B8CF99", themeColor: "yes" }
+  ] }, fallback);
+  assert.deepEqual(normalized.canvasRegions.map((r) => [r.id, r.color, r.themeColor]), [
+    ["a", "#93C98B", true], ["b", "#B8CF99", undefined], ["d", "#93C98B", true], ["e", "#B8CF99", undefined]
+  ]);
+  const v1520 = /^#[0-9A-F]{6}$/i; // SettingsStore.ts of v1.5.20 drops a region whose colour does not match
+  assert.ok(normalized.canvasRegions.every((r) => v1520.test(JSON.parse(JSON.stringify(r)).color)));
 });
 
 test("colored regions and notes use independent exit persistence gates", async () => {
