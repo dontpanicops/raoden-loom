@@ -305,7 +305,7 @@ export interface OrchestrationRunView {
   // journal v2, on the pause awaiting_finish_confirmation: the tree and commit the decision is about (finish.confirm's
   // payload) and the steps the goal asked for
   // ask (D-043): asked by the project's «Спрашивать перед каждым push» (the run has checks)
-  confirm?: { tree: string | null; commit: string | null; push: boolean; qa: boolean; ask?: true } | null;
+  confirm?: { tree: string | null; commit: string | null; push: boolean; qa: boolean; ask?: true; pushTo?: string } | null; // pushTo: «remote/branch» the push goes to
   // A1.1, on the pause check_needs_permissions: the lead's check the sandbox refused; check.amend is about it
   refused?: { checkId: string; command: string } | null;
   // A4: on a pause where the person decides (awaiting_person_decision, coverage_lost, or one a finding may be decided on)

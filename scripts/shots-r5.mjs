@@ -860,6 +860,7 @@ try {
         await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
         await app.waitFor(`${q("[data-orch-profile]")}?.dataset.orchProfile !== "loading"`, "profile", 20_000);
         await app.ev(`document.querySelector(".orch-dialog .orch-advanced").open = true`); await sleep(400);
+        await app.ev(`document.querySelector("[data-finish-option=push] input")?.click()`); await sleep(300); // the line shows only with push selected
         await app.waitFor(`${q("[data-orch-push-noask]")} && true`, "the push-without-asking line", 10_000);
         await app.ev(`document.querySelector("[data-orch-push-noask]").scrollIntoView({ block: "center" })`); await sleep(500);
         await shot("goal-push-noask");

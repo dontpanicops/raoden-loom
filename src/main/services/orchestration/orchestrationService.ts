@@ -996,6 +996,7 @@ function controller(deps: OrchestrationDeps, clock: () => number, writer: RunWri
       ...(st.pausedReason === "awaiting_finish_confirmation" ? {
         confirm: { tree: latest?.tree ?? null, commit: latest ? currentCommit(st, latest.tree)?.commit ?? null : null,
           push: !!goal.finish?.push && personDecides(st, goal, "push"), qa: !!goal.finish?.qa && personDecides(st, goal, "qa"),
+          ...(goal.finish?.push ? { pushTo: `${goal.finish.push.remote}/${goal.finish.push.branch}` } : {}),
           ...(withoutChecks(st) ? {} : { ask: true as const }) }
       } : {})
     };

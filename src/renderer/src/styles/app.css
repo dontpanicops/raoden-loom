@@ -2095,6 +2095,10 @@ button { border: 0; }
 .orch-rows button.orch-rows__x, .orch-rows button.orch-rows__add { flex: 0 0 auto; border: 0; background: transparent; box-shadow: none; color: var(--text-secondary); font: inherit; cursor: pointer; border-radius: var(--radius-sm); }
 .orch-rows button.orch-rows__x { min-width: var(--control-h-m); min-height: var(--control-h-m); font-size: 16px; line-height: 1; }
 .orch-rows button.orch-rows__add { align-self: flex-start; min-height: var(--control-h-m); padding: 0 8px; }
+/* R12a6 (mock 09): «+ Команда», the package.json hint and a small .btn-sm «Добавить её» share one row */
+.orch-rows .orch-rows__addrow { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; min-width: 0; }
+.orch-rows .orch-rows__pkg { display: inline-flex; align-items: center; gap: 8px; }
+.orch-form .orch-rows__pkg button.orch-pkg-add { height: 24px; min-height: 0; padding: 0 9px; font: 500 12px/1 var(--font-ui); color: var(--text-primary); background: var(--surface-sunken); box-shadow: inset 0 0 0 1px var(--border-strong); border-radius: var(--radius-sm); cursor: pointer; }
 .orch-rows button.orch-rows__x:hover, .orch-rows button.orch-rows__add:hover { background: transparent; color: var(--text-primary); }
 .orch-rows button.orch-rows__x:focus-visible, .orch-rows button.orch-rows__add:focus-visible { outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 30%, transparent); }
 

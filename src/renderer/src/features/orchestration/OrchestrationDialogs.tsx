@@ -296,8 +296,8 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
 // R5f (D-023): requirements and check commands as rows (the text stays the state, one line per row). Requirements keep an
 // always-present empty input at the end; commands add a row with the "+" button. Enter on the last row goes to / adds the
 // next one, Backspace in an empty row removes it and focuses the previous.
-export function GoalRows({ text, onText, locale, attr, placeholder, label, mono = false, addLabel }: {
-  text: string; onText: (text: string) => void; locale: LocaleId; attr: string; placeholder: string; label: string; mono?: boolean; addLabel?: string;
+export function GoalRows({ text, onText, locale, attr, placeholder, label, mono = false, addLabel, aside }: {
+  text: string; onText: (text: string) => void; locale: LocaleId; attr: string; placeholder: string; label: string; mono?: boolean; addLabel?: string; aside?: React.ReactNode;
 }): React.JSX.Element {
   const trailing = !addLabel;
   const stored = goalRows(text, trailing);
@@ -344,7 +344,12 @@ export function GoalRows({ text, onText, locale, attr, placeholder, label, mono 
           )}
         </div>
       ))}
-      {addLabel && <button type="button" className="orch-rows__add" data-orch-add onClick={() => put([...stored, ""], stored.length)}>+ {addLabel}</button>}
+      {addLabel && (
+        <div className="orch-rows__addrow">
+          <button type="button" className="orch-rows__add" data-orch-add onClick={() => put([...stored, ""], stored.length)}>+ {addLabel}</button>
+          {aside}
+        </div>
+      )}
     </div>
   );
 }
@@ -551,16 +556,15 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
         <div className="orch-field">
           <span>{t(locale, "orchGoalCommands")} <small className="orch-field__aside">· {t(locale, "orchGoalCommandsHint")}</small></span>
           <GoalRows text={commandsText} onText={(v) => { edited.current = true; setCommandsText(v); }} locale={locale} attr="data-orch-commands" mono label={t(locale, "orchGoalCommands")}
-            placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} />
-          {(() => {
-            const have = commandsText.split("\n").map((l) => l.trim());
-            const next = pkgExtra.find((c) => !have.includes(c));
-            return next ? (
-              <small className="orch-hint" data-orch-pkg-hint>{t(locale, "orchGoalPkgHint").replace("{cmd}", () => next)}{" "}
-                <button type="button" className="orch-linkish" data-orch-pkg-add onClick={() => { edited.current = true; setCommandsText((c) => [...c.split("\n").filter((l) => l.trim()), next].join("\n")); }}>{t(locale, "orchGoalPkgAdd")}</button>
-              </small>
-            ) : null;
-          })()}
+            placeholder={t(locale, "orchGoalCommandsPlaceholder")} addLabel={t(locale, "orchGoalAddCommand")} aside={(() => {
+              const have = commandsText.split("\n").map((l) => l.trim());
+              const next = pkgExtra.find((c) => !have.includes(c));
+              return next ? (
+                <small className="orch-hint orch-rows__pkg" data-orch-pkg-hint>{t(locale, "orchGoalPkgHint").replace("{cmd}", () => next)}
+                  <button type="button" className="orch-pkg-add" data-orch-pkg-add onClick={() => { edited.current = true; setCommandsText((c) => [...c.split("\n").filter((l) => l.trim()), next].join("\n")); }}>{t(locale, "orchGoalPkgAdd")}</button>
+                </small>
+              ) : null;
+            })()} />
           {/* D-025: the shell runs the commands — a risk fact, so it stays visible beside the heading (not only a tooltip) */}
           <small className="orch-hint orch-hint--sr">{optionalChecks && <span data-orch-commands-optional> · {t(locale, "orchCommandsOptional")}</span>}{commandsText.trim() && !edited.current ? ` ${t(locale, "orchGoalCommandsFilled")}` : ""}</small>
           <p className="orch-profile" data-orch-profile={profile.state.kind === "ready" ? (profile.state.info.saved ? "saved" : "suggested") : profile.state.kind}>
@@ -634,7 +638,7 @@ function GoalDialog({ orch, ui, locale, folderBusy }: { orch: Orchestration; ui:
                     onChange={(e) => setFinish((f) => ({ ...f, [step]: e.target.checked }))} />
                   <span>{t(locale, `orchFinish_${step}`)}{target}{!configured ? ` — ${t(locale, "orchFinishNotConfigured")}` : ""}{implied ? ` — ${t(locale, "orchFinishCommitImplied")}` : ""}</span>
                   {/* D-028: consent state stays visible — the project setting «ask before each push» is off */}
-                  {step === "push" && configured && info?.profile.askPush === false && <small className="orch-hint orch-hint--warn" data-orch-push-noask>{t(locale, "orchPushNoAsk")}</small>}
+                  {step === "push" && configured && finish.push && info?.profile.askPush === false && <small className="orch-hint orch-hint--warn" data-orch-push-noask>{t(locale, "orchPushNoAsk")}</small>}
                 </label>
               );
             })}
