@@ -152,7 +152,7 @@ export class BrowserService {
     this.now = options.now ?? Date.now;
     this.canvasNavigationInput = options.canvasNavigationInput ?? null;
     const userDataPath = options.userDataPath ?? app.getPath("userData");
-    const downloadRoot = join(options.downloadRoot ?? join(app.getPath("downloads"), "CanvasTTY"), randomUUID());
+    const downloadRoot = join(options.downloadRoot ?? join(app.getPath("downloads"), "Raoden Loom"), randomUUID());
     this.defaultDownloadRoot = downloadRoot;
     this.restoreTabsEnabled = options.restoreTabs ?? true;
     this.store = new BrowserStore(userDataPath);

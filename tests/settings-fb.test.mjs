@@ -29,14 +29,14 @@ test("saved values are kept, garbage is ignored, the version stays 16", async ()
   const dir = await mkdtemp(join(tmpdir(), "settings-fb-"));
   try {
     const store = await load(dir, {});
-    await store.update({ commandPaletteShortcut: "Alt+P", browserDownloadDir: "/Users/x/Files", checkUpdates: true });
+    await store.update({ commandPaletteShortcut: "Alt+P", browserDownloadDir: "/Users/runner/Files", checkUpdates: true });
     const again = (await load(dir)).get();
-    assert.deepEqual([again.commandPaletteShortcut, again.browserDownloadDir, again.checkUpdates], ["Alt+P", "/Users/x/Files", true]);
+    assert.deepEqual([again.commandPaletteShortcut, again.browserDownloadDir, again.checkUpdates], ["Alt+P", "/Users/runner/Files", true]);
     assert.equal(JSON.parse(await readFile(join(dir, "settings.json"), "utf8")).settingsVersion, 16);
 
     await store.update({ commandPaletteShortcut: "???", browserDownloadDir: "relative/dir", checkUpdates: "yes" });
     const kept = store.get();
-    assert.deepEqual([kept.commandPaletteShortcut, kept.browserDownloadDir, kept.checkUpdates], ["Alt+P", "/Users/x/Files", true]);
+    assert.deepEqual([kept.commandPaletteShortcut, kept.browserDownloadDir, kept.checkUpdates], ["Alt+P", "/Users/runner/Files", true]);
 
     await store.update({ commandPaletteShortcut: null, browserDownloadDir: null });
     assert.deepEqual([store.get().commandPaletteShortcut, store.get().browserDownloadDir], [null, null]);

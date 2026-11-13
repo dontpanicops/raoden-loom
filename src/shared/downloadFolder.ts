@@ -5,7 +5,7 @@
 // /home/<name> stands in.
 const SYSTEM = ["/System", "/usr", "/bin", "/sbin", "/etc", "/var", "/private", "/Library", "/Applications", "/opt", "/dev", "/proc", "/sys", "/boot", "/lib"];
 
-// "/Users/./x/..", "//Users", "/USERS" all name the same folder on a case-insensitive macOS volume: compare the
+// "/Users/runner/x/..", "/Users/runner/./", "//Users", "/USERS" all name the same folder on a case-insensitive macOS volume: compare the
 // normalized lower-case form. Main also resolves symlinks before it calls this (SettingsStore).
 function normalize(folder: string): string {
   const parts: string[] = [];

@@ -57,8 +57,8 @@ test("the profile: nothing of checksOutside without the flag; with it the networ
 });
 
 test("the environment of a sandboxed check: its own TMPDIR; with outside the caches in it and no secret-looking variable", () => {
-  const env = { PATH: "/usr/bin", HOME: "/Users/x", GITHUB_TOKEN: "t", AWS_SECRET_ACCESS_KEY: "s", OPENAI_API_KEY: "k", PGPASSWORD: "p",
-    GOOGLE_APPLICATION_CREDENTIALS: "c", npm_token: "n", XDG_CACHE_HOME: "/Users/x/.cache" };
+  const env = { PATH: "/usr/bin", HOME: "/Users/runner", GITHUB_TOKEN: "t", AWS_SECRET_ACCESS_KEY: "s", OPENAI_API_KEY: "k", PGPASSWORD: "p",
+    GOOGLE_APPLICATION_CREDENTIALS: "c", npm_token: "n", XDG_CACHE_HOME: "/Users/runner/.cache" };
   assert.deepEqual(checkEnv(env, "/t"), { ...env, TMPDIR: "/t" }, "off: as before");
   const on = checkEnv(env, "/t", true);
   assert.deepEqual(Object.keys(on).filter((k) => !CACHE_ENV.includes(k)).sort(), ["HOME", "PATH", "TMPDIR"]);

@@ -9,6 +9,7 @@
       "integrations/even-g2/src/**",
       "electron.vite.config.ts",
       "!**/node_modules",
+      "!**/.claude",
       "!**/out",
       "!**/release",
       "!**/artifacts",

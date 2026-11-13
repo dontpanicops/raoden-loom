@@ -85,31 +85,31 @@ test("a wide download folder (home) does not open its files to uploads", async (
 
 test("too wide download folders are refused", async () => {
   const { isTooBroadDownloadFolder: broad } = await import("../src/shared/downloadFolder.ts");
-  for (const p of ["/", "/Users", "/Users/dm", "/Users/dm/", "/home/dm", "/System/Library", "/usr/local", "/etc", "/Applications"]) assert.equal(broad(p), true, p);
+  for (const p of ["/", "/Users", "/Users/runner", "/Users/runner/", "/home/runner", "/System/Library", "/usr/local", "/etc", "/Applications"]) assert.equal(broad(p), true, p);
   assert.equal(broad("/srv/me", "/srv/me"), true);
-  for (const p of ["/Users/dm/Files", "/Users/dm/Downloads/CanvasTTY", "/Volumes/Disk/dl", "/private/tmp/x", "/private/var/folders/a/b"]) assert.equal(broad(p, "/Users/dm"), false, p);
+  for (const p of ["/Users/runner/Files", "/Users/runner/Downloads/Raoden Loom", "/Volumes/Disk/dl", "/private/tmp/x", "/private/var/folders/a/b"]) assert.equal(broad(p, "/Users/runner"), false, p);
 }
 );
 
 test("security review L4: ~/Library and hidden folders of the home are refused — a saved file there runs at the next login or shell", async () => {
   const { isTooBroadDownloadFolder: broad } = await import("../src/shared/downloadFolder.ts");
-  const bad = ["/Users/dm/Library", "/Users/dm/Library/LaunchAgents", "/Users/dm/library/Application Support/x", "/Users/dm/.config/fish/conf.d",
-    "/Users/dm/.ssh", "/Users/dm/projects/app/.git/hooks", "/Users/dm/.zshrc.d"];
+  const bad = ["/Users/runner/Library", "/Users/runner/Library/LaunchAgents", "/Users/runner/library/Application Support/x", "/Users/runner/.config/fish/conf.d",
+    "/Users/runner/.ssh", "/Users/runner/projects/app/.git/hooks", "/Users/runner/.zshrc.d"];
   for (const p of bad) {
-    assert.equal(broad(p, "/Users/dm"), true, `main: ${p}`);
+    assert.equal(broad(p, "/Users/runner"), true, `main: ${p}`);
     assert.equal(broad(p), true, `window: ${p}`);
   }
-  for (const p of ["/Users/dm/Downloads", "/Users/dm/Documents/Library of mine", "/Users/dm/Desktop/dl", "/Users/dm/my.files"]) {
-    assert.equal(broad(p, "/Users/dm"), false, p);
+  for (const p of ["/Users/runner/Downloads", "/Users/runner/Documents/Library of mine", "/Users/runner/Desktop/dl", "/Users/runner/my.files"]) {
+    assert.equal(broad(p, "/Users/runner"), false, p);
     assert.equal(broad(p), false, p);
   }
 });
 
 test("the too-wide check sees through dots, doubled slashes and letter case", async () => {
   const { isTooBroadDownloadFolder } = await import("../src/shared/downloadFolder.ts");
-  for (const folder of ["//Users", "/USERS/", "/Users/me/x/..", "/./System/Library", "/users/me/./", "/ETC"]) {
+  for (const folder of ["//Users", "/USERS/", "/Users/runner/x/..", "/./System/Library", "/users/runner/./", "/ETC"]) {
     assert.equal(isTooBroadDownloadFolder(folder), true, folder);
   }
-  assert.equal(isTooBroadDownloadFolder("/Users/me/Downloads/agents"), false);
-  assert.equal(isTooBroadDownloadFolder("/Users/ME/", "/Users/me"), true);
+  assert.equal(isTooBroadDownloadFolder("/Users/runner/Downloads/agents"), false);
+  assert.equal(isTooBroadDownloadFolder("/Users/" + "RUNNER/", "/Users/runner"), true);
 });

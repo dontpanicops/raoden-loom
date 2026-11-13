@@ -96,7 +96,7 @@ test("the profile: the folder and the format — a relative folder is refused, ~
     runBase: { remote: "origin", branch: "main", remoteUrl: null }, reviewExport: true };
   const flagOnly = validateProfile(base);
   assert.equal("reviewExportDir" in flagOnly || "reviewExportFormat" in flagOnly, false, "an old profile reads and writes as it was");
-  assert.equal(validateProfile({ ...base, reviewExportDir: "/Users/x/reviews/", reviewExportFormat: "json" }).reviewExportDir, "/Users/x/reviews");
+  assert.equal(validateProfile({ ...base, reviewExportDir: "/Users/runner/reviews/", reviewExportFormat: "json" }).reviewExportDir, "/Users/runner/reviews");
   assert.equal(validateProfile({ ...base, reviewExportDir: "~/reviews" }).reviewExportDir, path.join(os.homedir(), "reviews"));
   assert.equal("reviewExportFormat" in validateProfile({ ...base, reviewExportFormat: "both" }), false);
   assert.throws(() => validateProfile({ ...base, reviewExportDir: ".loom/reviews" }), (e) => e.code === "review_export_dir_relative");
