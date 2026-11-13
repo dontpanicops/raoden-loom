@@ -181,8 +181,10 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
         <footer className="agent-card__footer" role="status" title={compact && props.statusTime ? `${stateText} · ${props.statusTime}` : stateText}>
           <span className={`agent-card__state agent-card__state--${state}`} data-agent-pause={held ? "yes" : undefined}>
             <UiIcon name={CARD_STATUS_ICON[agentCardStatus(state)]} size="1.1em" />
-            <span className="agent-card__state-label">{stateLabel}</span>
-            {stage && <span className="agent-card__state-stage"> · {stage}</span>}
+            <span className="agent-card__state-text">
+              <span className="agent-card__state-label">{stateLabel}</span>
+              {stage && <span className="agent-card__state-stage"> · {stage}</span>}
+            </span>
           </span>
         </footer>
       )}
@@ -249,7 +251,7 @@ function CardFeed({ locale, entries, role, height }: { locale: LocaleId; entries
         const text = withoutHome(structured(e) ? `${t(locale, "orchAct_message")}: ${t(locale, "orchFeedReport")}` : entryLabel(locale, e, entries));
         return (
           <div key={e.id} className="agent-card__feed-item" data-activity-id={e.id} title={text}>
-            <time>{e.ts ? new Date(e.ts).toLocaleTimeString(locale) : "—"}</time> <span>{text}</span>
+            <time>{e.ts ? new Date(e.ts).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "—"}</time> · <span>{text}</span>
           </div>
         );
       })}

@@ -228,7 +228,7 @@ button { border: 0; }
 .usage-row .ui-icon--working { animation: spin 1.7s linear infinite; }
 /* R10 (mock 05): the dock is rows of equal, fixed-size tiles (icon above the label); more tiles than a row holds wrap onto a new row and the
    panel grows, none shrinks or scrolls. The panel is as high as its rows, not as its slot; the settings tile beside it is one row high. */
-.launcher-dock { --dock-tile-h: 6.9em; padding: .7em; display: grid; grid-template-columns: repeat(auto-fill, 7.6em); grid-auto-rows: var(--dock-tile-h); justify-content: start; gap: .7em; border: 0; border-radius: 1.4em; background: var(--home-dock); font-size: calc(13px * var(--ui-scale, 1)); overflow: visible; }
+.launcher-dock { --dock-tile-h: 6.9em; padding: .7em; display: grid; grid-template-columns: repeat(auto-fit, minmax(7.6em, 1fr)); grid-auto-rows: var(--dock-tile-h); gap: .7em; border: 0; border-radius: 1.4em; background: var(--home-dock); font-size: calc(13px * var(--ui-scale, 1)); overflow: visible; }
 .home-widget-slot > .launcher-dock { height: auto; min-height: 8.3em; }
 .home-widget-slot > .launcher-dock, .home-widget-slot > .settings-button { align-self: start; box-sizing: border-box; }
 .home-widget-slot > .settings-button { width: 9.8em; height: 8.3em; font-size: calc(13px * var(--ui-scale, 1)); } /* a dock tile wide (mock 05) */
@@ -249,6 +249,7 @@ button { border: 0; }
 .launcher-add-menu__item:hover, .launcher-add-menu__item:focus-visible { background: var(--surface-sunken); }
 .launcher-button, .settings-button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35em; min-width: 0; color: var(--home-dock-tile-text); background: var(--home-dock-tile); cursor: pointer; transition: background .15s ease, filter .15s ease; }
 .launcher-button span:last-child, .settings-button span:last-child { max-width: 100%; overflow: hidden; font-size: 1.3em; text-overflow: ellipsis; white-space: nowrap; }
+.launcher-button[data-first-run] { background: color-mix(in srgb, var(--focus) 14%, var(--home-dock-tile)); box-shadow: 0 0 0 .15em var(--focus); } /* mock 04: the first run points at Terminal until the card is dismissed or a session exists */
 .launcher-button { padding: 0 .3em; border-radius: .92em; }
 .settings-button { color: var(--home-settings-text); background: var(--home-settings); font-size: calc(13px * var(--ui-scale, 1)); }
 .launcher-dock .provider-icon--small { --provider-icon-art-size: 2.1em; width: 2.5em; height: 2.5em; }
@@ -2193,6 +2194,7 @@ button { border: 0; }
 .agent-card--needs_you .agent-card__footer { background: var(--status-waiting-bg); }
 .agent-card--failed .agent-card__footer { background: var(--status-failed-bg); }
 .agent-card__footer .agent-card__state { min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; font-size: 1em; }
+.agent-card__state-text { display: inline-flex; min-width: 0; overflow: hidden; } /* the label and its stage are one phrase: no flex gap between them */
 .agent-card__state-label, .agent-card__state-stage { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
 @container (max-width: 13em) { .agent-card__state-stage { display: none; } }
 [data-agent-far] .agent-card__body { display: none; }
