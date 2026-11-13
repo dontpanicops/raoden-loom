@@ -1,5 +1,5 @@
 // The new-agent dialog and the goal dialog (stage-8-contract.md §1). Both only collect input; main checks it.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LocaleId } from "../../../../shared/contracts";
 import type {
@@ -197,9 +197,25 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
   const hasEach = failingOnSource(items).length > 0;
   const shown = items.filter((i) => !(hasEach && i.id === "source_failing"));
   const loud = shown.filter((i) => i.level === "blocker" || i.level === "confirm" || i.level === "warning");
+  // mock 09: what the start waits for (blockers, confirmations) leads, then the passes, then the warnings: all of them stay in the list
+  const gating = loud.filter((i) => i.level !== "warning");
+  const warned = loud.filter((i) => i.level === "warning");
   const quiet = shown.filter((i) => i.level === "ok" || i.level === "info");
   const renderItem = (item: OrchestrationReadinessItem): React.JSX.Element => {
     const id = readyKey(item.id);
+    // mock 09: the CLIs found are one row each («Codex CLI найден»), with the version the check read
+    if (id === "clis" && item.level === "ok") {
+      return (
+        <Fragment key={item.id}>
+          {(["codex", "claude"] as const).map((cli) => (
+            <li key={cli} className="orch-ready__item orch-ready__item--ok" data-ready-id={cli === "codex" ? item.id : `${item.id}_claude`} data-ready-level="ok" data-ready-cli={cli}>
+              <span className="orch-ready__mark" aria-hidden="true"><UiIcon name="status-done" size="1.2em" /></span>
+              <span>{t(locale, cli === "codex" ? "orchReadyCliFoundCodex" : "orchReadyCliFoundClaude")}{item.facts?.[cli] ? ` · ${String(item.facts[cli])}` : ""}</span>
+            </li>
+          ))}
+        </Fragment>
+      );
+    }
     const fix = item.level === "blocker" || item.level === "confirm" || item.level === "warning" ? t(locale, `orchReadyFix_${id}_${item.level}` as TranslationKey) : undefined;
     const target = onFix ? fixTarget(item) : null;
     const output = typeof item.facts?.output === "string" && item.facts.output ? item.facts.output : null;
@@ -265,7 +281,7 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
       )}
       {state.kind === "loading" && <p className="orch-hint">{t(locale, "orchReadyChecking")}</p>}
       {state.kind === "error" && <p className="dialog-error" role="alert">{t(locale, "orchReadyFailed")}: {state.message} <button type="button" onClick={() => setAttempt((n) => n + 1)}>{t(locale, "orchRepeat")}</button></p>}
-      {(loud.length > 0 || quiet.length > 0) && <ul className="orch-ready__list" data-orch-ready-details>{loud.map(renderItem)}{quiet.map(renderItem)}</ul>}
+      {(loud.length > 0 || quiet.length > 0) && <ul className="orch-ready__list" data-orch-ready-details>{gating.map(renderItem)}{quiet.map(renderItem)}{warned.map(renderItem)}</ul>}
       {checking ? <small className="orch-hint" data-orch-check-running>{t(locale, workMode === "project" ? "orchCheckNowRunningProject" : "orchCheckNowRunning")}</small>
         : checked && checked.key === key ? <small className="orch-hint" data-orch-check-done>{t(locale, "orchCheckNowDone").replace("{time}", `${Math.max(1, Math.round(checked.ms / 1000))} ${t(locale, "orchUnitSec")}`)}</small>
           : <small className="orch-hint">{t(locale, "orchCheckNowHint")}</small>}
