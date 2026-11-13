@@ -163,7 +163,7 @@ const cssFile = () => { const dir = path.join(ROOT, "out/renderer/assets"); retu
 const SUMMARY_STATES = ["12-push-confirmation", "04-plan-review", "10-person-decision", "05-checks-decision", "06-checks-none", "12-finish-confirmation", "13-finish-unconfirmed", "14-check-needs-permissions", "17-completed", "11-coverage-lost"];
 const TURN = (id, kind, text) => ({ id, ts: "2026-11-11T07:31:0" + id + ".000Z", turnId: "t1", role: "executor", provider: "claude", kind, text });
 // F-c (D-041 p. 7): the Edit line carries its counters, as the activity mapper gives them from the Edit text
-const WORKING_ENTRIES = [TURN(1, "thinking", ""), { ...TURN(2, "tool_started", "Edit src/api/notes.ts"), detail: { tool: "Edit", added: 31, removed: 2 } }, TURN(3, "tool_started", "Bash npm test")];
+const WORKING_ENTRIES = [TURN(0, "process_started", ""), TURN(1, "thinking", ""), { ...TURN(2, "tool_started", "Edit src/api/notes.ts"), detail: { tool: "Edit", added: 31, removed: 2 } }, TURN(3, "tool_started", "Bash npm test")];
 const CHANGES_STATES = ["08-outcome-unknown", "15-lead-modified-tree"]; // D-017: the pauses about the tree open on "Changes"
 // R5h-A (D-026): the pauses show where the run stands under the zone — their journals carry the plan (and the accepted stages, the round, the refused check)
 const rec = (seq, type, data) => ({ seq, ts: at(seq), type, data });

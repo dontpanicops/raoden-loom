@@ -847,17 +847,15 @@ try {
       await app.ev(SCROLL_DIALOG); await sleep(400);
       await shot("project-settings-scrolled");
       await esc(); await sleep(300); await esc();
-    });
-
-    // D-043/push (D-028): «Спрашивать перед каждым push» is off in the saved profile and a push is configured: the goal dialog says «push без подтверждения»
-    await scene("goal-push-noask", async () => {
+      // D-043/push (D-028): «Спрашивать перед каждым push» is off in the saved profile and a push is configured
+      await sleep(500);
       const J = JSON.stringify;
       const ipc = (call) => app.ev(`window.canvasTTY.orchestration.${call}`);
       const p0 = await ipc(`profile(${J(linkId)}).then((r) => r.value.profile)`);
       try {
         const r = await ipc(`saveProfile(${J(linkId)}, ${J({ ...p0, workMode: "worktree", finish: { ...p0.finish, commit: true, push: { remote: "upstream", branch: "stable", remoteUrl: null } }, askPush: false, confirmAskPushOff: true })}).then((r) => r.ok ? "ok" : r.code + " " + (r.message ?? ""))`);
         if (r !== "ok") throw new Error(`the no-ask profile: ${r}`);
-        await app.reveal(card(lead.agentId)); await fit();
+        await app.reveal(card(lead.agentId)); await fit(); await sleep(500);
         await app.clickEl(byText(`[data-agent-link-id="${linkId}"] button`, "Новая цель"));
         await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
         await app.waitFor(`${q("[data-orch-profile]")}?.dataset.orchProfile !== "loading"`, "profile", 20_000);
