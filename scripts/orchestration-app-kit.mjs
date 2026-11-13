@@ -200,12 +200,14 @@ export async function launch({ userData, providers, port, shots, env = {}, execu
         // a button that shows on its host's hover (the link chip's run row, R12r): the host is brought into view and the pointer rests on it
         // first, as a person's would; then the button itself
         const anchor = `(() => { const el = ${selector}; const h = el?.closest("[data-hover-host]"); return h && h !== el ? h.querySelector("[data-hover-anchor]") ?? h : null; })()`;
-        if (await app.ev(`!!${anchor}`)) {
+        const hosted = await app.ev(`!!${anchor}`);
+        if (hosted) {
           await app.reveal(anchor);
           const a = await app.center(anchor);
           await app.mouse("mouseMoved", a.x, a.y); await sleep(60);
         }
-        await app.reveal(selector);
+        // a hosted button is hit only while the pointer rests on its host: reveal() would pan the canvas by a drag (the pointer leaves, the row hides again)
+        if (!hosted) await app.reveal(selector);
         const c = await app.center(selector);
         const hit = await app.ev(`(() => { const el = ${selector}; const h = document.elementFromPoint(${c.x}, ${c.y}); return !!el && !!h && (el === h || el.contains(h)); })()`);
         if (!hit) throw new Error(`not clickable (covered or outside the window): ${selector}`);
