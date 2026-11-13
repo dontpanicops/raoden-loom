@@ -126,7 +126,7 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
     const exit = [...entries].reverse().find((e) => e.kind === "process_exited" && typeof e.detail?.code === "number" && e.detail.code !== 0 && e.provider === card.provider);
     return {
       stage: v.stage != null ? tr(locale, "orchAgentFailedAtStage", { n: v.stage }) : null,
-      line: exit ? tr(locale, `orchAgentFailedExit_${pluralForm(locale, v.turns)}` as TranslationKey, { code: String(exit.detail?.code), turns: v.turns }) : null
+      line: exit ? tr(locale, "orchAgentFailedExit", { code: String(exit.detail?.code) }) : null
     };
   };
 
