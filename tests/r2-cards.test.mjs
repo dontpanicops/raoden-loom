@@ -40,7 +40,7 @@ test("R2 cards: level 2 and opaque, one 44px header, waiting ring, no backdrop-f
     assert.doesNotMatch(rule, /backdrop-filter/, card);
   }
   assert.doesNotMatch(css, /3\.15em/);
-  assert.match(css, /\.terminal-card--waiting, \.agent-card--needs_you \{[^}]*var\(--status-waiting\)[^}]*22px/);
+  assert.match(css, /\.terminal-card--waiting, (?:\.agent-card)?\.agent-card--needs_you \{[^}]*var\(--status-waiting\)[^}]*22px/);
 });
 
 test("the first-run card is placed clear of HOME: right of it, else below it, else not shown", () => {
