@@ -103,8 +103,10 @@ async function check(APP) {
       resolution: { mergeRunId: P1.runId, taskId: randomUUID(), key: "T-2" } }));
     const RJ = path.join(RD, "journal.jsonl");
     append(RJ, resolution, "run.created", { goal, kind: "resolution" }, { minReaderVersion: 3 });
+    // the application's plan comes after the copy (a build that replays resolution journals refuses it otherwise)
+    append(RJ, resolution, "workspace.created", { sourcePathSha256: sha256Hex(P1.src), baseline: { commit: base, tree: execFileSync(GIT, ["-C", P1.src, "rev-parse", `${base}^{tree}`], { encoding: "utf8" }).trim() }, head: null });
     append(RJ, resolution, "plan.recorded", { by: "app", version: 1, plan: putText(RD, "{}"), firstStage: 1, stageCount: 1, conditionsAssigned: 1 });
-    append(RJ, resolution, "run.status", { status: "running", reason: null });
+    append(RJ, resolution, "run.status", { status: "running", reason: null, completion: null });
     // the person fixed P3's copy (for «Готово, проверить» in the older build)
     const copy3 = await merges.copyOf(P3.runId);
     fs.writeFileSync(path.join(copy3, "auth.txt"), "one and two\n");
@@ -113,6 +115,9 @@ async function check(APP) {
     const refOf = (p) => execFileSync(GIT, ["-C", p.src, "rev-parse", p.ref], { encoding: "utf8" }).trim();
     const before = { board: sha(BOARD), rj: sha(RJ), p2: sha(P2.journal), p1: sha(P1.journal), heads: places.map(refOf) };
     const older = version === "1.5.16";
+    // 1.5.20+ ships C3: it replays the resolution journal itself (not a newer version's), and a merge whose resolution
+    // run is pending stays running on recovery (stage-c3 §2.3)
+    const knowsC3 = !older && version.split(".").map(Number).reduce((a, n) => a * 1000 + n) >= 1005020;
     // 3. the older build
     app = await launch({ userData: D("profile"), port: 9700 + Math.floor(Math.random() * 100), shots: D("shots"), executable: path.join(APP, "Contents/MacOS/Raoden Loom"), hermetic: false,
       env: { HOME: D(), SHELL: "/bin/bash", PATH: `${BIN}:${path.dirname(NODE)}:/usr/bin:/bin:/usr/sbin:/sbin:${path.dirname(GIT)}` } });
@@ -120,9 +125,11 @@ async function check(APP) {
     const listed = await app.ev("window.canvasTTY.orchestration.list().then((r) => r.value.map((s) => [s.view.runId, s.view.status, s.view.reason]))");
     out.listed = listed;
     const res = listed.find((x) => x[0] === resolution);
+    if (!knowsC3) {
     out.checks.resolutionReadOnly = res?.[2] === "newer_version";
     out.resolutionStop = await app.ev(`window.canvasTTY.orchestration.command({ runId: ${JSON.stringify(resolution)}, commandId: crypto.randomUUID(), expectedRevision: 0, command: { kind: "stop" } }).then((r) => r.ok ? "ok" : r.code)`);
     out.checks.resolutionStopRefused = out.resolutionStop === "run_newer_version";
+    }
     if (older) {
       out.checks.mergesReadOnly = places.every((p) => listed.find((x) => x[0] === p.runId)?.[2] === "newer_version");
     } else {
@@ -130,7 +137,7 @@ async function check(APP) {
       const mergeOf = (i, runId) => (JSON.parse(heads).find((h) => h[0] === places[i].src)?.[1] ?? []).find((x) => x.runId === runId) ?? null;
       const mm = places.map((p, i) => mergeOf(i, p.runId));
       out.merges = mm.map((x) => x && [x.status, x.reason, x.detail]);
-      out.checks.p1Recovered = mm[0]?.status === "paused" && mm[0]?.reason === "recovered";
+      out.checks.p1Recovered = knowsC3 ? mm[0]?.status === "running" : mm[0]?.status === "paused" && mm[0]?.reason === "recovered";
       out.checks.p2AsWritten = mm[1]?.status === "paused" && mm[1]?.reason === "merge_waits_slot";
       out.checks.p3AsWritten = mm[2]?.status === "paused" && mm[2]?.reason === "merge_agent_failed" && mm[2]?.detail === "limit:turns";
       out.p3resolve = await app.ev(`window.canvasTTY.orchestration.boardMergeResolve(${JSON.stringify(P3.runId)}, true).then((r) => JSON.stringify(r).slice(0, 300))`);
