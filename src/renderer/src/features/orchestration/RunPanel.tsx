@@ -2144,7 +2144,7 @@ function FinishConfirm({ locale, confirm, sending, onConfirm }: {
   const ready = !!confirm.tree && (!confirm.push || push !== null) && (!confirm.qa || qa !== null);
   const choice = (step: "push" | "qa", value: "confirm" | "decline" | null, set: (v: "confirm" | "decline") => void) => (
     <fieldset className="orch-field orch-finish-group" data-orch-finish-step={step}>
-      <legend>{step === "push" ? `Push${confirm.commit ? ` · ${confirm.commit.slice(0, 7)}` : ""}` : t(locale, "orchFinishLegend_qa")}</legend>
+      <legend>{step === "push" ? `${confirm.pushTo ? t(locale, "orchFinishPushTo").replace("{target}", () => confirm.pushTo!) : "Push"}${confirm.commit ? ` · ${confirm.commit.slice(0, 7)}` : ""}` : t(locale, "orchFinishLegend_qa")}</legend>
       <div className="orch-seg orch-seg--field">
         {(["confirm", "decline"] as const).map((v) => (
           <button key={v} type="button" aria-pressed={value === v} className={value === v ? "orch-tabs__on" : undefined} disabled={sending} data-orch-finish-choice={`${step}:${v}`} onClick={() => set(v)}>
