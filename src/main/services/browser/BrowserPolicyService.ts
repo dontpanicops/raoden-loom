@@ -32,7 +32,7 @@ export class BrowserPolicyService {
   // security review L5: the paths the browser was told to save to (no upload right yet), and the files it did save —
   // by their real path and identity, so a file put in their place since (a link, another file) is not sent
   private readonly pending = new Set<string>();
-  private readonly downloaded = new Map<string, { dev: number; ino: number }>();
+  private readonly downloaded = new Map<string, { dev: number; ino: number; born: number }>();
 
   constructor(options: BrowserPolicyOptions) {
     this.downloadRoot = resolve(options.downloadRoot);
@@ -114,7 +114,7 @@ export class BrowserPolicyService {
     if (!this.pending.delete(path)) return;
     const st = await lstat(path).catch(() => null);
     if (!st?.isFile()) return;
-    this.downloaded.set(await realpath(path), { dev: st.dev, ino: st.ino });
+    this.downloaded.set(await realpath(path), { dev: st.dev, ino: st.ino, born: st.birthtimeMs });
   }
 
   async validateUploadPaths(
@@ -155,7 +155,7 @@ export class BrowserPolicyService {
       const saved = viaRoot ? undefined : this.downloaded.get(canonical);
       if (!viaRoot) {
         const own = await lstat(candidate).catch(() => null);
-        if (!saved || !own?.isFile() || own.dev !== saved.dev || own.ino !== saved.ino) {
+        if (!saved || !own?.isFile() || own.dev !== saved.dev || own.ino !== saved.ino || own.birthtimeMs !== saved.born) {
           throw new BrowserKernelError("PATH_DENIED", "Upload file is outside authorized directories.");
         }
       }
@@ -172,7 +172,7 @@ export class BrowserPolicyService {
     await rm(this.uploadStagingRoot, { recursive: true, force: true });
   }
 
-  private async stageUploadFile(canonical: string, expected?: { dev: number; ino: number }): Promise<string> {
+  private async stageUploadFile(canonical: string, expected?: { dev: number; ino: number; born: number }): Promise<string> {
     const targetDirectory = resolve(this.uploadStagingRoot, randomUUID());
     const target = resolve(targetDirectory, sanitizeFilename(basename(canonical)));
     if (!isInside(this.uploadStagingRoot, target)) {
@@ -185,7 +185,7 @@ export class BrowserPolicyService {
       await mkdir(targetDirectory, { recursive: false, mode: 0o700 });
       source = await open(canonical, constants.O_RDONLY | constants.O_NOFOLLOW);
       const before = await source.stat();
-      if (expected && (before.dev !== expected.dev || before.ino !== expected.ino)) {
+      if (expected && (before.dev !== expected.dev || before.ino !== expected.ino || before.birthtimeMs !== expected.born)) {
         throw new BrowserKernelError("PATH_DENIED", "Upload file changed while it was staged.");
       }
       if (!before.isFile() || before.size > MAX_UPLOAD_FILE_BYTES) {
