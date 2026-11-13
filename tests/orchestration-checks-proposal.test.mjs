@@ -840,3 +840,33 @@ test("D-043: «ask before each push» off (askPush: false) — the checks passed
   assert.equal((await records(m, runId)).some((r) => r.type === "run.status" && r.data.reason === "awaiting_finish_confirmation"), false, "never asked");
   await m.shutdown();
 });
+
+// A run made while the setting was off (or by an older build): no goal.askPush. The profile switched on before the push:
+// the push still waits for the person (the profile only adds the question); the journal reads back
+test("D-043: a run made with «ask before each push» off, the profile then switched on — the push waits for the person", OPTS, async () => {
+  const src = project({ "a.txt": "1\n" });
+  const remote = path.join(TMP, `remote-${++n}.git`);
+  g(TMP, "init", "-q", "--bare", remote);
+  g(src, "remote", "add", "qa", remote);
+  const m = manager({ MOCK_SCRIPT: script([PLAN, EXEC, REVIEW, FINAL]), MOCK_CHECKS: "proposed", MOCK_CHECK_COMMAND: "grep -qx 2 a.txt" }, { leadSandbox: false });
+  const runId = await start(m, src, { commands: [], finish: { commit: true, push: true, qa: false } }, {
+    workMode: "worktree", finish: { commit: true, push: { remote: "qa", branch: "ask-branch", remoteUrl: remote }, qa: null }, askPush: false
+  });
+  let v = await settled(m, runId, "the proposal");
+  assert.equal(v.reason, "awaiting_checks_decision");
+  const store = createProfileStore(m.root);
+  const { askPush: _off, ...on } = await store.get(src);
+  await store.save(src, on); // switched on
+  assert.equal((await send(m, v, { kind: "checks.decide", decision: "accept" })).status, "accepted");
+  v = await settled(m, runId, "the push confirmation");
+  assert.deepEqual([v.status, v.reason], ["paused", "awaiting_finish_confirmation"], JSON.stringify(v));
+  assert.deepEqual([v.confirm.push, v.confirm.ask], [true, true]);
+  assert.equal(pushed(remote), false);
+  assert.equal((await send(m, v, { kind: "finish.confirm", tree: v.confirm.tree, commit: v.confirm.commit, push: "confirm", qa: null })).status, "accepted");
+  v = await settled(m, runId);
+  assert.equal(v.status, "completed", JSON.stringify(v));
+  assert.equal(pushed(remote), true);
+  await m.shutdown();
+  const back = await readRun(m.root, runId);
+  assert.equal(back.integrity.status, "ok", JSON.stringify(back.integrity));
+});

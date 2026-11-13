@@ -113,6 +113,8 @@ export function permissionReason(locale: LocaleId, p: OrchestrationPermissionReq
 // Why a paused, stopped or failed run is where it is: the one classification of runModel (viewCause), in words.
 const reasonText = (locale: LocaleId, view: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[]): string | null => {
   const cause = viewCause(view, entries);
+  // D-043: the push waits because the project asks before each push (checks may have passed), not for lack of checks
+  if (cause?.kind === "reason" && cause.reason === "awaiting_finish_confirmation" && view.confirm?.ask === true) return t(locale, "orchReason_awaiting_push_confirmation");
   return cause ? causeText(locale, cause) : null;
 };
 

@@ -406,6 +406,7 @@ export function createRunManager(deps: RunManagerDeps) {
       return { rt, svc: createOrchestrationService({
         root, gitPath: deps.gitPath(), agents: rt.agents, stopGraceMs: deps.stopGraceMs, journalV2: deps.journalV2 === true,
         activity: (runId) => createRunActivity(activityLog, runId),
+        askPush: async () => (await profiles.get(source))?.askPush !== false,
         // Saved "for this project" decisions: this project's profile only.
         grants: {
           list: async () => (await profiles.get(source))?.grants ?? [],

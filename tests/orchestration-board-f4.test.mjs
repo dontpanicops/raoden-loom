@@ -590,3 +590,27 @@ test("saveProfile (D-043): «ask before each push» is on unless false; turned o
   assert.equal((await m.saveProfile(linkId, PROFILE({ askPush: false }))).code, "ask_push_off_not_confirmed", "off again after on: asked again");
   await m.shutdown();
 });
+
+test("D-043: the autopilot's run with runPush and the default profile (askPush absent) gets goal.askPush and waits at awaiting_finish_confirmation, nothing pushed", OPTS, async () => {
+  const { dir, bare } = project();
+  const t1 = task({ project: dir, ref: "T1", issue: "ISSUE-1", commitTitle: TITLE, text: "write x", criteria: ["x.txt says done"] });
+  const root = path.join(TMP, `root-${++n}`);
+  boardFile(root, [t1]);
+  const m = manager(scripts(turns("x.txt")), { root, shell: ledgerShell().path });
+  const linkId = await linkOn(m, dir);
+  assert.ok((await m.saveProfile(linkId, { ...PUSH_PROFILE(), confirmPush: true })).ok); // askPush absent: on
+  assert.equal((await m.boardBudget(linkId, { ...AUTOPILOT_BUDGET, parallel: 1 })).ok, true);
+  assert.ok((await m.boardAutopilot(linkId, true, "ru")).ok);
+  const view = await until(async () => {
+    const id = (await m.board()).value.facts[0]?.runId;
+    const v = id && (await m.get(id)).value.view;
+    return v && v.status === "paused" ? v : null;
+  }, "the push confirmation", 240_000);
+  const runId = view.runId;
+  assert.equal(goalOf(root, runId).askPush, true, "main put goal.askPush in");
+  assert.deepEqual([view.status, view.reason], ["paused", "awaiting_finish_confirmation"], JSON.stringify(view));
+  assert.equal(view.confirm.ask, true);
+  assert.equal(remoteHead(bare, "ISSUE-1-T1"), null, "nothing pushed without the person");
+  assert.ok((await m.boardAutopilot(linkId, false, "ru")).ok);
+  await m.shutdown();
+});
