@@ -106,8 +106,12 @@ export function currentAction(locale: LocaleId, entries: readonly OrchestrationA
   return null;
 }
 
+// an MCP tool's raw name `mcp__github__create_pr` the way a person says it: `github.create_pr`
+export const humanTool = (tool: string): string => tool.replace(/^mcp__(.+?)__(.+)$/, "$1.$2");
+export const isMcpTool = (tool: string): boolean => /^mcp__.+?__.+/.test(tool);
+
 export function permissionReason(locale: LocaleId, p: OrchestrationPermissionRequest): string {
-  return p.kind === "tool" ? tr(locale, "orchWait_perm_tool", { tool: short(p.tool, 40) }) : tr(locale, `orchWait_perm_${p.kind}`);
+  return p.kind === "tool" ? tr(locale, "orchWait_perm_tool", { tool: short(humanTool(p.tool), 40) }) : tr(locale, `orchWait_perm_${p.kind}`);
 }
 
 // Why a paused, stopped or failed run is where it is: the one classification of runModel (viewCause), in words.

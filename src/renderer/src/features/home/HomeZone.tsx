@@ -499,11 +499,14 @@ export function HomeZone({
 
   const widgetContent = (widgetId: string): React.ReactNode => {
     if (widgetId === "core.limits") {
+      // «· Неделя» only when every shown window is really a week (10080 min); a mixed set gets no word
+      const windows = home.limitRows.flatMap((row) => (row.window ? [row.window.windowMinutes] : []));
+      const weekly = windows.length > 0 && windows.every((minutes) => minutes === 10_080);
       const noneFound = home.limitRows.length > 0 && home.limitRows.every((row) => row.reason === "cli-not-found");
       return (
         <section className="tile agent-overview limits-list" aria-label={t(locale, "modelLimits")}>
           <header className="home-tile__head">
-            <span>{t(locale, "homeLimitsHead")}</span>
+            <span>{t(locale, "homeLimitsHead")}{weekly ? ` · ${t(locale, "homeLimitsWeek")}` : ""}</span>
             {!noneFound && <span>{t(locale, "homeLimitsReset")}</span>}
           </header>
           {home.limitRows.length === 0 ? (
@@ -951,7 +954,7 @@ function LimitRow({ row, locale, now }: { row: HomeLimitRow; locale: LocaleId; n
           <span className="limit-row__track" aria-hidden="true">
             <i className="limit-row__fill" style={{ width: `${row.window.usedPercent}%` }} />
           </span>
-          {staleNote && <span className="limit-row__note">{stateLabel}</span>}
+          {staleNote && <span className="limit-row__note">{row.state === "stale" && row.fetchedAt ? `${t(locale, "limitStaleFrom")} ${formatClock(row.fetchedAt, locale)}` : stateLabel}</span>}
         </>
       ) : <span className="limit-row__value">{stateLabel}</span>}
     </article>
@@ -983,6 +986,10 @@ function limitMeta(row: HomeLimitRow, locale: LocaleId): string {
     details.push(limitReasonLabel(row.reason, locale));
   }
   return details.filter(Boolean).join(" · ");
+}
+
+function formatClock(at: number, locale: LocaleId): string {
+  return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }).format(at);
 }
 
 function formatReset(resetsAt: number, locale: LocaleId): string {

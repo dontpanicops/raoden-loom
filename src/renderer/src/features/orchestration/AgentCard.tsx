@@ -49,6 +49,8 @@ interface AgentCardProps {
   onObserve(agentId: string): void;
   onSummary(agentId: string): void;
   stageOf?: string | null; // «stage 1 of 2», after the state of a working card (mock 06)
+  failure?: { stage: string | null; line: string | null } | null; // a failed run (mock 06): «Упал на этапе N» and, when the activity knows the exit, the CLI line
+  awaitsPermission?: boolean; // the run waits for a permission request: «Ждёт разрешения»
   pause?: string | null; // a paused run's short form ("Waiting for you: …"), the link chip's words (runModel viewPauseLabel)
 }
 
@@ -93,7 +95,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
   }, []);
   const doing = status && MOVING.includes(status.state) ? status.doing : null;
   const held = props.pause && (state === "paused" || state === "needs_you");
-  const stateLabel = held && props.pause ? props.pause : t(locale, STATE_KEY[state]);
+  const stateLabel = held && props.pause ? props.pause : state === "failed" && props.failure?.stage ? props.failure.stage : state === "needs_you" && props.awaitsPermission ? t(locale, "orchAgentAwaitsPermission") : t(locale, STATE_KEY[state]);
   const stage = !held && state === "working" && props.stageOf ? props.stageOf : "";
   const stateText = stage ? `${stateLabel} · ${stage}` : stateLabel;
   // SPEC 11.2 / mock 21: below 100% the status leaves the body for the footer (the terminal's format); below 40% the card is a summary: name and glyph
@@ -147,6 +149,7 @@ export function AgentCard(props: AgentCardProps): React.JSX.Element {
         </div>}
         <div className="agent-card__project" title={card.project}><small>{withoutHome(card.project)}</small></div>
         {/* the status already names a held state (paused, ended, waiting for you); the sentence adds what moves */}
+        {state === "failed" && props.failure?.line && <div className="agent-card__line" data-agent-failure title={props.failure.line}>{props.failure.line}</div>}
         {props.task && <div className="agent-card__line agent-card__task" data-agent-task={props.task.key} title={props.task.title}>{props.task.key} · {props.task.title}</div>}
         {doing && <div className="agent-card__line agent-card__doing" data-agent-doing title={doing}>{doing}</div>}
         {extra && <div className="agent-card__line" data-agent-now title={extra}>{extra}</div>}

@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { LinkBend } from "../../../../shared/linkBend";
 import type { LocaleId, Point, SessionBounds } from "../../../../shared/contracts";
-import type { OrchestrationAgentCard, OrchestrationAgentLink } from "../../../../shared/orchestration";
+import type { OrchestrationActivityEntry, OrchestrationAgentCard, OrchestrationAgentLink, OrchestrationRunView } from "../../../../shared/orchestration";
 import { pluralForm, t, type TranslationKey } from "../../lib/i18n";
 import { tr } from "./boardModel";
 import { agentLayerId, pastCanvasDragThreshold } from "../workspace/canvasSelectionGesture";
@@ -15,7 +15,7 @@ import { arrowPath, bendFromHandle, linkGeometry, linkPath } from "./linkCurve";
 import { linkTrace } from "./linkTrace";
 import { ACTIVE_STATUSES, activeRole, liveRuns, shownRunId, agentState, cardRole, orchestrationAvailableHere, orchestrationEntry, participantState, runStatusKey, viewPauseLabel, PAUSES, TERMINAL_STATUSES, type AgentState } from "./runModel";
 import { ReleaseNewerLink } from "./RunPanel";
-import { conditionsLine, costLine, duration, findingsLine, roleStatus, type StatusLine } from "./runStatus";
+import { conditionsLine, costLine, duration, findingsLine, isMcpTool, roleStatus, type StatusLine } from "./runStatus";
 import type { AgentCanvasUi } from "./useAgentCanvasUi";
 import type { Orchestration } from "./useOrchestration";
 
@@ -121,6 +121,15 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
     return { status, time, conditions: conditionsLine(locale, run.view), findings: findingsLine(locale, run.view), cost: costLine(locale, card.role, run.view, orch.activity[runId]?.entries ?? []) };
   };
 
+  // a failed run on a card (mock 06): the stage it fell on; the CLI's exit code and the run's turn count only when the activity recorded the exit of this card's own CLI
+  const failureOf = (card: OrchestrationAgentCard, v: OrchestrationRunView, entries: readonly OrchestrationActivityEntry[]): { stage: string | null; line: string | null } => {
+    const exit = [...entries].reverse().find((e) => e.kind === "process_exited" && typeof e.detail?.code === "number" && e.detail.code !== 0 && e.provider === card.provider);
+    return {
+      stage: v.stage != null ? tr(locale, "orchAgentFailedAtStage", { n: v.stage }) : null,
+      line: exit ? tr(locale, `orchAgentFailedExit_${pluralForm(locale, v.turns)}` as TranslationKey, { code: String(exit.detail?.code), turns: v.turns }) : null
+    };
+  };
+
   // «stage N of M» (mock 06): M is the plan's stage count, known once the plan is loaded
   const stageOf = (runId: string, n: number): string | null => {
     const total = Object.keys(orch.stageTitles(runId) ?? {}).length;
@@ -201,6 +210,8 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
             pause={view ? viewPauseLabel(locale, view, orch.activity[view.runId]?.entries ?? []) : null}
             statusTime={shown.time}
             stageOf={view?.stage != null ? stageOf(view.runId, view.stage) : null}
+            failure={view?.status === "failed" ? failureOf(card, view, orch.activity[view.runId]?.entries ?? []) : null}
+            awaitsPermission={!!view?.permission}
             conditions={shown.conditions}
             findings={shown.findings}
             cost={shown.cost}
@@ -285,7 +296,7 @@ export function AgentScene(props: AgentSceneProps): React.JSX.Element {
         const liveViews = liveOf(link).map((id) => orch.runs[id]?.view).filter((v): v is NonNullable<typeof v> => !!v);
         const shown = liveViews.length > 1 ? liveViews.find((v) => v.permission) ?? liveViews.find((v) => v.status === "paused") ?? view : view;
         const working = shown && !shown.permission && !shown.newer && shown.stage != null && runStatusKey(shown) === "running" && !viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ? stageOf(shown.runId, shown.stage) : null; // mock 19: «Работает · этап 1»
-        const label = shown?.permission ? t(locale, "orchLinkNeedsYou") : shown?.newer ? t(locale, "orchReadOnly") : working ? `${t(locale, "orchAgentWorking")} · ${working}` : shown ? viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ?? t(locale, `orchStatus_${runStatusKey(shown)}` as TranslationKey) : t(locale, "orchNoRun");
+        const label = shown?.permission ? (shown.permission.kind === "tool" ? t(locale, isMcpTool(shown.permission.tool) ? "orchLinkNeedsPermissionMcp" : "orchLinkNeedsPermission") : t(locale, "orchLinkNeedsYou")) : shown?.newer ? t(locale, "orchReadOnly") : working ? `${t(locale, "orchAgentWorking")} · ${working}` : shown ? viewPauseLabel(locale, shown, orch.activity[shown.runId]?.entries ?? []) ?? t(locale, `orchStatus_${runStatusKey(shown)}` as TranslationKey) : t(locale, "orchNoRun");
         // on the curve, off the cards (and the bend handle when selected) (Н14, linkChip.ts)
         const g = linkGeometry(rightMid(from), leftMid(to), bendDrag?.linkId === link.linkId ? bendDrag.bend : link.bend);
         // R12r (mock 03/19): a busy link's chip is its state alone; the run's actions are a row under it, shown on hover, focus or a selected link.
