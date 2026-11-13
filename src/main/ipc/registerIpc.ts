@@ -8,6 +8,7 @@ import type {
   BrowserCommand,
   CanvasNavigationPointerBindingInput,
   CreateSessionRequest,
+  LimitsSnapshot,
   PluginBrowserOpenResponse,
   PluginCanvasRequest,
   ProviderId,
@@ -223,7 +224,13 @@ export function registerIpc({
     }
   });
 
-  handleMain(IPC.limitsGet, () => limits.get());
+  // the frames of HOME (mock 05) cannot touch the providers: an isolated run answers from the file named by an absolute
+  // CANVASTTY_SMOKE_LIMITS_JSON while that file exists, and from the providers once it is gone
+  const smokeLimits = smokeImport.isolated && process.env.CANVASTTY_SMOKE_LIMITS_JSON?.startsWith("/") ? process.env.CANVASTTY_SMOKE_LIMITS_JSON : null;
+  handleMain(IPC.limitsGet, async () => {
+    const fixture = smokeLimits ? await readFile(smokeLimits, "utf8").catch(() => null) : null;
+    return fixture ? JSON.parse(fixture) as LimitsSnapshot : limits.get();
+  });
   handleMain(IPC.providersAvailable, () => {
     const clis = newProviderClis();
     return PROVIDER_CLI_IDS.filter((id) => clis.get(id).state === "available");

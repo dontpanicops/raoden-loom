@@ -6,6 +6,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { FIXTURES, NODE, launch, q, sleep, waitForValue, workspace, byText, card, canvasState, createAgent } from "./orchestration-app-kit.mjs";
+import { buildRecord } from "../src/main/services/orchestration/journal.ts";
 
 const arg = (name) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : null; };
 if (!arg("out")) { console.error("--out <dir> is required"); process.exit(2); }
@@ -38,8 +39,8 @@ const wrap = (p) => {
   fs.writeFileSync(f, `#!/bin/sh\n${gate}\nexec "${NODE}" "${path.join(FIXTURES, `mock-${p}.mjs`)}" "$@"\n`, { mode: 0o755 });
   return f;
 };
-// scripted turns (R5h-B, D-026): the lead of the run on «project-b» asks a question (the person is needed); the board's
-// first run plans, its executor is held (a task «Работает»)
+// scripted turns (R5h-B, D-026): the board's first run plans, its executor is held (a task «Работает»); the runs on «project-b»
+// (it waits for a permission) and «project-f» (it fails at stage 2) have scripts of their own (MOCK_SCRIPT_BY_CWD), so the shared numbering stays
 const script = (p, turns) => {
   const d = D(`script-${p}`);
   fs.mkdirSync(d, { recursive: true });
@@ -53,15 +54,24 @@ const script = (p, turns) => {
 // board's run has two stages, so its executor is «Работает · этап 1 из 2»; every later plan is the same, for any run that starts
 const cond = (text, covers) => ({ keep: null, text, covers, evidence: { kind: "change", check: null } });
 const plan = (stages) => ({ report: { stages: stages.map(([title, task, covers]) => ({ title, task, conditions: [cond(`${task} сделано`, covers)] })), dropped: [], dropRequirements: [], question: null } });
-// R12d (mock 24): the review of the board's second run (the 4th call of the lead's CLI) finds two blocking problems — «Проверка» shows them
+// R12d (mock 24): the review of the board's second run (the 3rd call of the shared lead script) finds two blocking problems — «Проверка» shows them
 const finding = (problem) => ({ id: null, severity: "blocking", condition: null, problem, evidence: "src/model.mjs", closeWhen: "исправлено", status: "open", paths: ["src/model.mjs"], relation: null });
 const reviewBlocking = { report: { conditions: [{ id: "C1", status: "not_met", paths: [], note: "модель без миграции" }], findings: [finding("гонка при записи"), finding("нет миграции")], request: "none", question: null } };
-const codexScript = script("codex", [
-  plan([["Заметки в Markdown", "Добавить src/notes.mjs", ["R1"]]]), // the run on project-b (its lead asks a question first)
-  ...Array.from({ length: 8 }, (_, i) => i === 2 ? reviewBlocking : plan([["Модель заметки", "Добавить src/model.mjs", ["R1"]], ["Экспорт в Markdown", "Добавить src/export.mjs", []]])) // the board's runs, a failing run
-]);
-fs.writeFileSync(path.join(codexScript, "1.asks.json"), JSON.stringify([{ tool: "question", question: "Какой формат экспорта поддержать первым?", options: ["Markdown", "JSON"] }]));
+const codexScript = script("codex", Array.from({ length: 8 }, (_, i) => i === 2 ? reviewBlocking : plan([["Модель заметки", "Добавить src/model.mjs", ["R1"]], ["Экспорт в Markdown", "Добавить src/export.mjs", []]]))); // the board's runs, a failing run
 const claudeScript = script("claude", Array.from({ length: 6 }, (_, i) => ({ report: { summary: "Готово.", done: true }, writes: [[`src/note${i}.mjs`, "export const x = 1;\n"]] })));
+// R12w (mock 03 / 19, gate S2): the run on «project-b» — two stages, the first done and accepted, the executor of the second asks for an
+// MCP tool (can_use_tool) and waits: the link's chip «Нужно разрешение», the executor «Ждёт разрешения»
+const notesPlan = plan([["Заметки в Markdown", "Добавить src/notes.mjs", ["R1"]], ["Пулреквест", "Открыть PR с заметками", []]]);
+const reviewMet = { report: { conditions: [{ id: "C1", status: "met", paths: ["src/notes.mjs"], note: "src/notes.mjs на месте" }], findings: [], request: "none", question: null } };
+const stageDone = (rel) => ({ report: { summary: "Готово.", done: true }, writes: [[rel, "export const notes = [];\n"]] });
+const codexB = script("codex-b", [notesPlan, reviewMet]);
+const claudeB = script("claude-b", [stageDone("src/notes.mjs"), stageDone("src/pr.mjs")]);
+fs.writeFileSync(path.join(claudeB, "2.asks.json"), JSON.stringify([{ tool: "mcp__github__create_pr", input: { title: "Заметки: список и экспорт", head: "feat/notes", base: "main" } }]));
+// R12w (mock 06 «Упал на этапе 2»): the run on «project-f» — stage 1 done and accepted, the executor's CLI of stage 2 exits with code 1 (no
+// script step: the fake throws); the run then waits for the person, and its journal is closed with run.status «failed» (scene «agent-failed»)
+const codexF = script("codex-f", [notesPlan, reviewMet]);
+const claudeF = script("claude-f", [stageDone("src/notes.mjs")]);
+const BY_CWD = { codex: JSON.stringify({ "project-b": codexB, "project-f": codexF }), claude: JSON.stringify({ "project-b": claudeB, "project-f": claudeF }) };
 // a CLI that is "found" (the launch card of an installed agent); the others stay missing (the "CLI not found" card)
 const cliBin = D("cli-bin");
 fs.mkdirSync(cliBin, { recursive: true });
@@ -74,8 +84,8 @@ fs.writeFileSync(SHELL, `#!/bin/sh\n[ "$1" = "-ilc" ] && shift\nexec /bin/sh -c 
 const env = (extra) => ({ HOME: D("mock-state"), MOCK_STATE: D("mock-state"), MOCK_LEDGER: D("ledger.jsonl"), ...extra });
 const providers = D("providers.json");
 fs.writeFileSync(providers, JSON.stringify({
-  codex: { executable: wrap("codex"), version: "codex-cli 0.155.1", path: PATHS, env: env({ MOCK_SCRIPT: codexScript, CODEX_HOME: D("mock-state", ".codex"), MOCK_CODEX_RATE_LIMITS: "1" }) },
-  claude: { executable: wrap("claude"), version: "2.1.281 (Claude Code)", path: PATHS, env: env({ MOCK_SCRIPT: claudeScript }) },
+  codex: { executable: wrap("codex"), version: "codex-cli 0.155.1", path: PATHS, env: env({ MOCK_SCRIPT: codexScript, MOCK_SCRIPT_BY_CWD: BY_CWD.codex, CODEX_HOME: D("mock-state", ".codex"), MOCK_CODEX_RATE_LIMITS: "1" }) },
+  claude: { executable: wrap("claude"), version: "2.1.281 (Claude Code)", path: PATHS, env: env({ MOCK_SCRIPT: claudeScript, MOCK_SCRIPT_BY_CWD: BY_CWD.claude }) },
   shell: SHELL, checkEnv: { PATH: PATHS, HOME: D("mock-state") }
 }));
 const userData = D("user-data");
@@ -105,7 +115,7 @@ const clipShot = async (clip) => {
   try { return await app.call("Page.captureScreenshot", { format: "png", clip }); } finally { await hints(""); }
 };
 const SCROLL_DIALOG = `(() => { for (const el of document.querySelectorAll(".orch-dialog *")) if (el.scrollHeight > el.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) el.scrollTop = el.scrollHeight; })()`;
-const wanted = (name) => !ONLY || ONLY.split(",").some((x) => name.includes(x) || (x === "overlay" && name === "radial")) || (name === "board" && ONLY.split(",").some((x) => "cards-agents-working".includes(x) || x.includes("agents-working") || x.includes("link-executor-left") || x.includes("zoom-out"))); // R12n: the working agents need the board's run, so «--only cards» takes the board along // R12l: its frame is «overlay-radial», the scene is named «radial» // --only a,b: several scenes
+const wanted = (name) => !ONLY || ONLY.split(",").some((x) => name.includes(x) || (x === "overlay" && name === "radial")) || (name === "board" && ONLY.split(",").some((x) => "cards-agents-working".includes(x) || x.includes("agents-working"))); // R12n: the working agents need the board's run, so «--only cards» takes the board along // R12l: its frame is «overlay-radial», the scene is named «radial» // --only a,b: several scenes
 const shot = async (name) => {
   await sleep(500);
   await measure(name);
@@ -151,6 +161,7 @@ async function scene(name, fn) {
   } finally { if (DSF !== 1) { DSF = 1; await laptop().catch(() => {}); } }
 }
 const settle = async (patch = {}) => {
+  writeLimits();
   await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ palette: theme, followSystem: false, canvasColor: "theme", homeAccentPreset: "theme", uiScale: 1, onboardingDismissed: true, lastDirectory: termDir, homeLauncherProviders: ["codex", "claude", "qwen", "kimi"], homeLimitProviders: ["codex", "claude"], ...patch })}).then(() => true)`);
   await app.call("Page.reload", {}); await sleep(1500); await laptop();
   await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas after reload", 30_000);
@@ -231,7 +242,31 @@ const seedPlugins = () => {
 const RELEASE_FILE = D("release.json");
 fs.writeFileSync(RELEASE_FILE, JSON.stringify({ tag_name: "v1.5.20", html_url: "https://github.com/dontpanicops/raoden-loom/releases/tag/v1.5.20" }));
 const unseedPlugins = () => { fs.rmSync(path.join(userData, "plugins"), { recursive: true, force: true }); fs.rmSync(path.join(userData, "plugins.json"), { force: true }); };
-const launchOpts = { userData, providers, port: PORT, shots: OUT, env: { CANVASTTY_SMOKE_CLI_DIR: cliBin, CANVASTTY_USER_DATA_DIR: userData, CANVASTTY_SMOKE_IMPORT_FILE: BOARD_FILE, CANVASTTY_SMOKE_STOP_DELAY_MS: "4000", CANVASTTY_SMOKE_RELEASE_JSON: RELEASE_FILE } };
+// R12w (mock 05, gate Z1): the limits of HOME as the mock has them — main answers from this file (CANVASTTY_SMOKE_LIMITS_JSON), so no frame
+// asks a provider (Claude's usage API and keychain, Kimi's web usage). Codex and Claude with their weekly bars, Kimi's last snapshot after a
+// failed refresh, Qwen without a quota API, OpenCode not found; the times are counted from the moment of the frame (settle() writes it again).
+// «none» (mock 04, first run): no CLI found anywhere.
+const LIMITS_FILE = D("limits.json");
+let limitsKind = "mock";
+const writeLimits = () => {
+  const now = Date.now(), min = 60_000;
+  if (limitsKind === "none") {
+    fs.writeFileSync(LIMITS_FILE, JSON.stringify({ fetchedAt: now, providers: [["codex", "codex-app-server"], ["claude", "claude-usage-api"], ["qwen", "qwen-cli"], ["kimi", "kimi-usage-api"], ["opencode", "opencode-go-usage-api"], ["grok", "grok-billing-api"]]
+      .map(([provider, source]) => ({ provider, state: "unavailable", source, checkedAt: now, reason: "cli-not-found" })) }));
+    return;
+  }
+  const week = (id, usedPercent, resetsIn) => ({ id, bucketId: id, slot: "primary", isDefaultBucket: true, label: null, usedPercent, used: null, limit: null, windowMinutes: 10080, resetsAt: now + resetsIn * min });
+  fs.writeFileSync(LIMITS_FILE, JSON.stringify({ fetchedAt: now, providers: [
+    { provider: "codex", state: "available", source: "codex-app-server", fetchedAt: now, windows: [week("codex-week", 38, (2 * 24 + 4) * 60 + 30)] },
+    { provider: "claude", state: "available", source: "claude-usage-api", fetchedAt: now, windows: [week("claude-week", 81, 3 * 60 + 11.5)] },
+    { provider: "qwen", state: "unavailable", source: "qwen-cli", checkedAt: now, reason: "unsupported-protocol" },
+    { provider: "kimi", state: "stale", source: "kimi-usage-api", fetchedAt: now - 52 * min, failedAt: now, reason: "timeout", windows: [week("kimi-week", 12, (5 * 24 + 11) * 60 + 30)] },
+    { provider: "opencode", state: "unavailable", source: "opencode-go-usage-api", checkedAt: now, reason: "cli-not-found" },
+    { provider: "grok", state: "unavailable", source: "grok-billing-api", checkedAt: now, reason: "cli-not-found" }
+  ] }));
+};
+const launchOpts = { userData, providers, port: PORT, shots: OUT, env: { CANVASTTY_SMOKE_CLI_DIR: cliBin, CANVASTTY_USER_DATA_DIR: userData, CANVASTTY_SMOKE_IMPORT_FILE: BOARD_FILE, CANVASTTY_SMOKE_STOP_DELAY_MS: "4000", CANVASTTY_SMOKE_RELEASE_JSON: RELEASE_FILE, CANVASTTY_SMOKE_LIMITS_JSON: LIMITS_FILE } };
+writeLimits();
 try {
   app = await launch(launchOpts);
   await laptop();
@@ -241,7 +276,8 @@ try {
   for (theme of THEMES) {
     await scene("firstrun", async () => {
       if (fs.existsSync(path.join(cliBin, "claude"))) fs.renameSync(path.join(cliBin, "claude"), path.join(cliBin, "claude.off")); // mock 04: no CLI found («Как установить»)
-      await settle({ onboardingDismissed: false, homeLimitProviders: ["codex", "qwen", "kimi", "opencode", "grok"] }); // Claude's limit row reads the real keychain: out, so «no CLI» is whole as in mock 04
+      limitsKind = "none";
+      await settle({ onboardingDismissed: false, homeLimitProviders: ["codex", "qwen", "kimi", "opencode", "grok"] });
       await shot("firstrun");
       // R12j (gate S7, mock 04): the card at its own width (560, the mock's 100%) needs a wider window; at 1440 it is narrower than 480 and the steps' buttons go under the text
       await app.call("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false }); await sleep(1500);
@@ -251,17 +287,19 @@ try {
   }
   await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ homeLimitProviders: ["codex", "claude", "qwen", "kimi", "opencode", "grok"] })}).then(() => true)`);
   if (fs.existsSync(path.join(cliBin, "claude.off"))) fs.renameSync(path.join(cliBin, "claude.off"), path.join(cliBin, "claude"));
+  limitsKind = "mock"; writeLimits();
 
-  // ---- R10 «home-mock»: the mock's own HOME (05) with the mock's own data, on a bare canvas: two limits (Codex from the fake
-  // app-server; Claude's limits come from the real usage API and keychain, which a frame must not touch, so its row is as the app shows it),
+  // ---- R10 «home-mock»: the mock's own HOME (05) with the mock's own data, on a bare canvas: five limits (R12w: the frame's limits file,
+  // no provider is asked),
   // four sessions (waiting / working / failed / free), the dock of six (Terminal, Browser, Claude, Codex, Qwen, Kimi), three terminals under HOME
   for (theme of THEMES) {
     await scene("home-mock", async () => {
       const mk = (name) => { const d = path.join(termDir, name); fs.mkdirSync(d, { recursive: true }); return d; };
       // Codex is «found» (a stub that runs the fake app-server), so its limit row reads the fake rate limits; removed after the scene
       fs.writeFileSync(path.join(cliBin, "codex"), `#!/bin/sh\nexec "${wrap("codex")}" "$@"\n`, { mode: 0o755 });
+      writeLimits();
       await app.ev(`window.canvasTTY.settings.update(${JSON.stringify({ palette: theme, followSystem: false, canvasColor: "theme", homeAccentPreset: "theme", uiScale: 1, onboardingDismissed: true, lastDirectory: termDir,
-        homeLauncherProviders: ["codex", "claude", "qwen", "kimi"], homeLimitProviders: ["codex", "claude"] })}).then(() => true)`);
+        homeLauncherProviders: ["codex", "claude", "qwen", "kimi"], homeLimitProviders: ["codex", "claude", "qwen", "kimi", "opencode"] })}).then(() => true)`);
       await app.call("Page.reload", {}); await sleep(1500); await laptop();
       await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
       await hideOnboarding(); await app.key("Home", "Home", 36); await sleep(1200);
@@ -369,10 +407,10 @@ try {
   const leadB = await mkAgent("codex", projB, B(700, 505, 210, 165)), execB = await mkAgent("claude", projB, B(975, 677, 205, 168)); // R12t: mock 03, the executor lower right
   world.groupB = (await app.ev(`window.canvasTTY.orchestration.createLink(${JSON.stringify({ linkId: crypto.randomUUID(), fromAgentId: leadB.agentId, toAgentId: execB.agentId })}).then((r) => { if (!r.ok) throw new Error(r.code); return r.value; })`)).linkId;
   await app.key("Home", "Home", 36); await sleep(800);
-  // the run on project-b: its lead asks a question, so the link needs the person (the bell on the chip, «Ждёт вас»)
+  // the run on project-b (R12w): stage 1 done, the executor of stage 2 asks for an MCP tool, so the link needs the person («Нужно разрешение»)
   const runB = (await app.ev(`window.canvasTTY.orchestration.startOnLink(${JSON.stringify({ linkId: world.groupB, requestId: crypto.randomUUID(),
     goal: { text: "Добавить заметки в проект: список и экспорт", criteria: ["node --test проходит"], checks: [], commands: ["node --test"], workMode: "project", mode: "autopilot" } })}).then((r) => { if (!r.ok) throw new Error(r.code + " " + r.message); return r.value; })`)).runId;
-  await waitForValue(() => app.ev(`window.canvasTTY.orchestration.get(${JSON.stringify(runB)}).then((r) => r.value.view.permission?.kind === "question")`).then((ok) => ok || null), "the lead's question", 60_000);
+  await waitForValue(() => app.ev(`window.canvasTTY.orchestration.get(${JSON.stringify(runB)}).then((r) => r.value.view.permission?.kind === "tool")`).then((ok) => ok || null), "the executor's permission", 120_000);
   await app.key("Home", "Home", 36); await sleep(800);
 
   for (theme of THEMES) {
@@ -1154,38 +1192,42 @@ try {
       const cd = await clipShot({ ...cr, scale: 3 });
       fs.writeFileSync(path.join(OUT, `${theme}-cards-agents-working-zoom.png`), Buffer.from(cd.data, "base64"));
     });
-    // R12r (gate S2, mock 19): the executor left of its lead and the far zoom with a run on the link (the board's pair, as cards-agents-working);
-    // these frames replace the idle ones of the first pass. The executor is moved left and below its lead for the frame and back after it.
+    // R12r (gate S2, mock 19): the executor left of its lead and the far zoom with a run on the link; these frames replace the idle ones of the
+    // first pass. R12w: the pair is the one of «project-b», whose executor waits for a permission (mock 19: «Нужно разрешение»), not the board's
+    // working pair. The executor is moved left and below its lead for the frame and back after it.
     const pairCamera = async (zoomTo) => {
-      const st = await canvasState(app), bs = [lead.agentId, exec.agentId].map((id) => st.agents.find((a) => a.agentId === id).bounds);
+      const st = await canvasState(app), bs = [leadB.agentId, execB.agentId].map((id) => st.agents.find((a) => a.agentId === id).bounds);
       const x0 = Math.min(...bs.map((b) => b.position.x)), x1 = Math.max(...bs.map((b) => b.position.x + b.size.width));
       const y0 = Math.min(...bs.map((b) => b.position.y)), y1 = Math.max(...bs.map((b) => b.position.y + b.size.height));
-      const wsId = st.agents.find((a) => a.agentId === lead.agentId).workspaceId ?? (await app.ev(`window.canvasTTY.workspaces.get()`)).activeId; // the pair's own space
+      const wsId = st.agents.find((a) => a.agentId === leadB.agentId).workspaceId ?? (await app.ev(`window.canvasTTY.workspaces.get()`)).activeId; // the pair's own space
       await app.ev(`window.canvasTTY.workspaces.setCamera(${JSON.stringify(wsId)}, ${JSON.stringify({ x: Math.round(720 - zoomTo * (x0 + x1) / 2), y: Math.round(480 - zoomTo * (y0 + y1) / 2), zoom: zoomTo })}).then(() => true)`);
       await app.ev(`window.canvasTTY.workspaces.activate(${JSON.stringify(wsId)}).then(() => true)`);
       await app.call("Page.reload", {}); await sleep(2500); await laptop();
-      await app.waitFor(`${q(".workspace")} && ${card(lead.agentId)} && ${card(exec.agentId)} && ${q(`[data-agent-link-id]`)} && true`, "the pair", 30_000); await sleep(900);
+      await app.waitFor(`${q(".workspace")} && ${card(leadB.agentId)} && ${card(execB.agentId)} && ${q(`[data-agent-link-id]`)} && true`, "the pair", 30_000); await sleep(900);
     };
-    await scene("link-executor-left-run", async () => {
+    // R12w: mock 19 draws the pair alone on the canvas: the pair of «project-b» is taken out of its region to an empty place for the frame
+    // (the executor left and below its lead, or right of it for the far zoom) and put back after it
+    const pairAside = async (executorLeft, zoomTo, frame) => {
       await app.key("Home", "Home", 36); await sleep(500);
       if (await app.ev(`!!${q("[data-board-menu]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500); }
-      const st = await canvasState(app), lb = st.agents.find((a) => a.agentId === lead.agentId).bounds, eb = st.agents.find((a) => a.agentId === exec.agentId).bounds;
-      const left = { position: { x: lb.position.x - eb.size.width - 80, y: lb.position.y + lb.size.height + 120 }, size: eb.size };
-      await app.ev(`window.canvasTTY.orchestration.moveAgent(${JSON.stringify(exec.agentId)}, ${JSON.stringify(left)}).then(() => true)`);
+      const st = await canvasState(app), lb = st.agents.find((a) => a.agentId === leadB.agentId).bounds, eb = st.agents.find((a) => a.agentId === execB.agentId).bounds;
+      const X = 6000, Y = 6000;
+      const placeL = { position: { x: X, y: Y }, size: lb.size };
+      const placeE = { position: executorLeft ? { x: X - eb.size.width - 80, y: Y + lb.size.height + 120 } : { x: X + lb.size.width + 300, y: Y + 120 }, size: eb.size };
+      const move = (id, b) => app.ev(`window.canvasTTY.orchestration.moveAgent(${JSON.stringify(id)}, ${JSON.stringify(b)}).then(() => true)`);
+      await move(leadB.agentId, placeL); await move(execB.agentId, placeE);
       try {
-        await pairCamera(1);
-        await shot("link-executor-left");
+        await pairCamera(zoomTo);
+        await shot(frame);
       } finally {
-        await app.ev(`window.canvasTTY.orchestration.moveAgent(${JSON.stringify(exec.agentId)}, ${JSON.stringify(eb)}).then(() => true)`);
+        await move(leadB.agentId, lb); await move(execB.agentId, eb);
         await app.call("Page.reload", {}); await sleep(2500); await laptop();
         await app.waitFor(`${q(".workspace")} && ${q(".launcher-button")} && true`, "canvas", 30_000);
+        await app.key("Home", "Home", 36); await sleep(600);
       }
-    });
-    await scene("zoom-out-run", async () => {
-      await pairCamera(0.28);
-      await shot("zoom-out");
-      await app.key("Home", "Home", 36); await sleep(600);
-    });
+    };
+    await scene("link-executor-left-run", () => pairAside(true, 1, "link-executor-left"));
+    await scene("zoom-out-run", () => pairAside(false, 0.28, "zoom-out"));
     if (!world.boardStates) {
       world.boardStates = true;
       // an executor that asks for a permission: the board's task is «Ждёт разрешения» (the person's turn), the lead's card too
@@ -1280,6 +1322,38 @@ try {
       console.log(`[shots-r5] profile restored: ${back}`);
       if (await app.ev(`!!${q("[data-board-menu]")}`)) { await app.clickEl(q("[data-board-menu]")); await app.clickEl(q("[data-board-hide]")); await sleep(500); }
     });
+  }
+  // R12w (mock 06 «Упал на этапе 2», gate Z2): a run on «project-f» goes through stage 1 (done, accepted); the executor's CLI of stage 2
+  // exits with code 1, and the run waits for the person (paused). The app writes «failed» only when a run cannot go on (a workspace that cannot
+  // be made, a merge), so the frame's journal is closed as the app closes such a run: one valid run.status «failed» record at the end of
+  // the chain, written while the app is stopped; the app is started again and reads it. After every other scene: nothing else sees the run.
+  if (wanted("agent-failed")) {
+    hold("claude", false); hold("codex", false);
+    const projF = project("project-f");
+    const leadF = await mkAgent("codex", projF, far(-2300, 2600)), execF = await mkAgent("claude", projF, far(-1900, 2600));
+    const linkF = (await app.ev(`window.canvasTTY.orchestration.createLink(${JSON.stringify({ linkId: crypto.randomUUID(), fromAgentId: leadF.agentId, toAgentId: execF.agentId })}).then((r) => { if (!r.ok) throw new Error(r.code); return r.value; })`)).linkId;
+    const runF = (await app.ev(`window.canvasTTY.orchestration.startOnLink(${JSON.stringify({ linkId: linkF, requestId: crypto.randomUUID(),
+      goal: { text: "Добавить заметки в проект: список и экспорт", criteria: ["node --test проходит"], checks: [], commands: ["node --test"], workMode: "project", mode: "autopilot" } })}).then((r) => { if (!r.ok) throw new Error(r.code + " " + r.message); return r.value; })`)).runId;
+    const paused = await waitForValue(() => app.ev(`window.canvasTTY.orchestration.get(${JSON.stringify(runF)}).then((r) => r.value.view.status === "paused" ? r.value.view : null)`), "the run on project-f paused", 120_000);
+    console.log(`[shots-r5] project-f run ${runF.slice(0, 8)}: ${paused.status} · ${paused.reason} · stage ${paused.stage}`);
+    await app.stop();
+    const journal = path.join(userData, "orchestration", "runs", runF, "journal.jsonl");
+    const last = JSON.parse(fs.readFileSync(journal, "utf8").trimEnd().split("\n").at(-1));
+    const data = last.v >= 2 ? { status: "failed", reason: null, completion: null } : { status: "failed", reason: null };
+    fs.appendFileSync(journal, buildRecord({ seq: last.seq, hash: last.hash }, runF, new Date().toISOString(), "run.status", data, last.v).line);
+    app = await launch(launchOpts); await laptop();
+    await app.waitFor(`${q(".workspace")} && true`, "window", 30_000);
+    for (theme of THEMES) {
+      await settle();
+      await scene("agent-failed", async () => {
+        await app.waitFor(`${card(execF.agentId)} && true`, "the failed executor", 20_000);
+        await zoom100(card(execF.agentId));
+        await app.mouse("mouseMoved", 1400, 880); await sleep(600); // no hover on the card: «Открыть запуск» stays by itself on a failed run
+        const r = await app.ev(`(() => { const b = ${card(execF.agentId)}.getBoundingClientRect(); return [b.left, b.top, b.width, b.height].map(Math.round).join(" "); })()`);
+        console.log(`[shots-r5] ${theme} agent-failed card ${r}`);
+        await shot("agent-failed");
+      });
+    }
   }
   // R12l: the plugin list — the last scene: the app is started again with two plugins installed, so that nothing before it sees them
   if (wanted("plugins-list")) {

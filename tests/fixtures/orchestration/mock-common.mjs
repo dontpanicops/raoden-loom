@@ -107,6 +107,10 @@ export function withProposal(answer, schema) {
 // that made a call; a folder keeps its k (claimed with mkdir, safe across processes).
 export function scriptedTurn(cwd = process.cwd()) {
   let dir = process.env.MOCK_SCRIPT;
+  // MOCK_SCRIPT_BY_CWD: {"<folder name>": "<dir>"} — a turn whose cwd has a path segment of that name takes that dir
+  // (its own counter), so a run of its own does not shift the shared script's numbering
+  const byCwd = Object.entries(JSON.parse(process.env.MOCK_SCRIPT_BY_CWD ?? "{}")).find(([name]) => cwd.split(path.sep).includes(name));
+  if (byCwd) dir = byCwd[1];
   if (!dir) return null;
   // MOCK_TURN_DELAY_MS: each scripted turn takes this long (runs that must overlap on a fast machine)
   const delay = Number(process.env.MOCK_TURN_DELAY_MS ?? 0);
