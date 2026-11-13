@@ -4,6 +4,7 @@
 // Needs `npm run build` first. Usage: node scripts/shots-r5.mjs --out <dir> [--themes sand,paper] [--only <scene substring>]
 import fs from "node:fs";
 import http from "node:http";
+import net from "node:net";
 import path from "node:path";
 import { FIXTURES, NODE, launch, q, sleep, waitForValue, workspace, byText, card, canvasState, createAgent } from "./orchestration-app-kit.mjs";
 import { buildRecord } from "../src/main/services/orchestration/journal.ts";
@@ -16,7 +17,7 @@ const ONLY = arg("only");
 fs.mkdirSync(OUT, { recursive: true });
 
 const { TMP, D, git, project } = workspace("cto-r5shots-");
-const PORT = 9500 + Math.floor(Math.random() * 250);
+const PORT = await new Promise((res) => { const s = net.createServer(); s.listen(0, "127.0.0.1", () => { const { port } = s.address(); s.close(() => res(port)); }); }); // a free port, not a random one that another run may hold
 const node = project("node-app");
 const other = project("infra-app");
 // R7b: a bare remote «upstream» that takes push options, for the board's push state (a task whose option names a field it has not)

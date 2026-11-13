@@ -7,7 +7,7 @@ import type {
   SessionSnapshot
 } from "../../../../shared/contracts";
 
-const DEFAULT_LIMIT_PROVIDERS: LimitProviderId[] = ["codex", "claude", "qwen", "kimi", "opencode", "grok"];
+const DEFAULT_LIMIT_PROVIDERS: LimitProviderId[] = ["codex", "claude", "kimi", "qwen", "opencode", "grok"];
 
 export type LimitsLoadState = "loading" | "ready" | "error";
 export type HomeLimitReason = LimitUnavailableReason | "percentage-unavailable" | "reset-unavailable" | "refresh-error";
@@ -17,6 +17,8 @@ export interface HomeLimitRow {
   state: "loading" | "available" | "stale" | "unavailable" | "error";
   window: HomeLimitWindow | null;
   reason: HomeLimitReason | null;
+  /** When the shown (stale) snapshot was taken; only on a stale row. */
+  fetchedAt?: number;
 }
 
 export interface HomeLimitWindow {
@@ -133,7 +135,8 @@ function selectProviderLimit(
           ? "refresh-error"
           : hasDefaultUsage
             ? "reset-unavailable"
-            : "percentage-unavailable"
+            : "percentage-unavailable",
+      ...(providerSnapshot.state === "stale" ? { fetchedAt: providerSnapshot.fetchedAt } : {})
     };
   }
 
@@ -145,7 +148,8 @@ function selectProviderLimit(
       ? providerSnapshot.reason
       : refreshFailed
         ? "refresh-error"
-        : null
+        : null,
+    ...(providerSnapshot.state === "stale" ? { fetchedAt: providerSnapshot.fetchedAt } : {})
   };
 }
 
