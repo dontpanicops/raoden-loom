@@ -68,6 +68,7 @@ const STATES = [
   ["10-person-decision", "awaiting_person_decision"],
   ["11-coverage-lost", "coverage_lost"],
   ["12-finish-confirmation", "awaiting_finish_confirmation"],
+  ["12-push-confirmation", "push_confirmation"], // D-043: askPush on, the checks passed, the run waits for the push consent (confirm.ask); no mock-up frame of its own
   ["13-finish-unconfirmed", "finish_unconfirmed"],
   ["14-check-needs-permissions", "check_needs_permissions"],
   ["15-lead-modified-tree", "lead_modified_tree"],
@@ -143,7 +144,7 @@ async function renderer() { // the built RunPanel to static markup (as tests/orc
 }
 // R5h-A: the states whose frame needs what the panel loads by itself (the result to take, the changed files): drawn by the real
 // RunPanel in the page, with the application's API answered by the fixture, and waited for until nothing says «Загрузка…»
-const LIVE_FIXTURES = ["08-outcome-unknown", "15-lead-modified-tree", "17-completed", "18-failed", "19-newer-readonly", "20-newer-fallback"];
+const LIVE_FIXTURES = ["01-working", "08-outcome-unknown", "15-lead-modified-tree", "17-completed", "18-failed", "19-newer-readonly", "20-newer-fallback"];
 const TAKE = { mode: "worktree", from: "checkpoint", stage: 2, files: 3, allowed: true, suggested: "raoden/notes-api-25931336", runBranch: "feat/notes", branch: null, applied: null };
 const CHANGES = { base: "baseline", at: "live_snapshot", atTs: "2026-11-11T10:31:00.000Z", truncated: false, checkpoints: [], baselineRef: "base", transferred: false,
   files: [{ path: "src/api/notes.ts", status: "added" }, { path: "src/api/notes.test.ts", status: "added" }, { path: "src/index.ts", status: "modified" }] };
@@ -159,7 +160,7 @@ async function browserBundle() {
 }
 const cssFile = () => { const dir = path.join(ROOT, "out/renderer/assets"); return path.join(dir, fs.readdirSync(dir).find((f) => /^index-.*\.css$/.test(f))); };
 // the mock-up opens a run that works (and most pauses) on "Work" and the checks / finish / refused ones on "Summary"
-const SUMMARY_STATES = ["04-plan-review", "10-person-decision", "05-checks-decision", "06-checks-none", "12-finish-confirmation", "13-finish-unconfirmed", "14-check-needs-permissions", "17-completed", "11-coverage-lost"];
+const SUMMARY_STATES = ["12-push-confirmation", "04-plan-review", "10-person-decision", "05-checks-decision", "06-checks-none", "12-finish-confirmation", "13-finish-unconfirmed", "14-check-needs-permissions", "17-completed", "11-coverage-lost"];
 const TURN = (id, kind, text) => ({ id, ts: "2026-11-11T07:31:0" + id + ".000Z", turnId: "t1", role: "executor", provider: "claude", kind, text });
 // F-c (D-041 p. 7): the Edit line carries its counters, as the activity mapper gives them from the Edit text
 const WORKING_ENTRIES = [TURN(1, "thinking", ""), { ...TURN(2, "tool_started", "Edit src/api/notes.ts"), detail: { tool: "Edit", added: 31, removed: 2 } }, TURN(3, "tool_started", "Bash npm test")];
@@ -173,8 +174,9 @@ const PAUSE_EXTRA = {
   "03-permission": { records: REC_PLAN_PR, texts: { pq: { status: "ready", text: JSON.stringify({ stages: [{ title: "модель заметки", task: "t" }, { title: "PR и описание", task: "t" }] }) } } },
   "05-checks-decision": { records: REC_PLAN },
   "09-loop-suspected": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "orch.turn", { turnId: "t9", purpose: "execute", stage: 2, round: 4 })] },
-  "18-failed": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 })] },
+  "18-failed": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "checkpoint.created", { stage: 1, commit: "a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4", tree: "b".repeat(40), parent: "c".repeat(40) })] },
   "07-limit-reached": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "orch.turn", { turnId: "t7", purpose: "execute", stage: 2, round: 3 })] },
+  "12-push-confirmation": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "stage.accepted", { stage: 2 })] },
   "12-finish-confirmation": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "stage.accepted", { stage: 2 })] },
   "14-check-needs-permissions": { records: [...REC_PLAN, rec(3, "stage.accepted", { stage: 1 }), rec(4, "check.started", { checkRunId: "x1", checkId: "c1" }), rec(5, "check.finished", { checkRunId: "x1", checkId: "c1", status: "failed" })],
     progress: { checks: [{ id: "c1", title: "npm run test:e2e", status: "failed", class: "sandbox" }] }, refusedCommand: "npm run test:e2e" }
@@ -195,6 +197,7 @@ const fixtureOf0 = ([, set, o]) => {
   if (set === "coverage_lost") return { view: view("paused", set, { stage: 1, decisions: { runKey: "k".repeat(64), tree: "t".repeat(40), disputed: [], conditions: [], findings: false,
     proposal: { proposalTurnId: "t1", stages: [{ stage: 1, title: "Заметка", conditions: ["C1"] }], dropped: [{ id: "C2", text: "Работает без сети", covers: ["R2"], why: "лид счёл условие избыточным" }],
       dropRequirements: [], uncovered: ["R2"], findings: [{ id: "F2", condition: "C2", problem: "Нет теста на удаление заметки" }] } } }), entries: [], onMac: true };
+  if (set === "push_confirmation") { const f = fixture("awaiting_finish_confirmation"); return { ...f, view: { ...f.view, confirm: { tree: "t".repeat(40), commit: "c0ffee1234567890".repeat(2).slice(0, 40), push: true, qa: false, ask: true } } }; }
   if (set === "awaiting_finish_confirmation") return { ...fixture(set), view: { ...fixture(set).view, confirm: { tree: "t".repeat(40), commit: "c0ffee1234567890".repeat(2).slice(0, 40), push: true, qa: true } } };
   if (set === "check_needs_permissions") return { ...fixture(set), view: { ...fixture(set).view, refused: { checkId: "c1", command: "npm test -- --runInBand && curl http://localhost:3000/health" } } };
   if (set === "limit_reached") { const f = fixture(set); return { ...f, view: { ...f.view, stage: 2, progress: { mode: "autopilot", checks: [], finish: [], budget: budget({ reached: "turns" }) } } }; }
@@ -284,6 +287,8 @@ try {
 <script>${api}</script><script src="${pathToFileURL(D("panel.js")).href}"></script><script>window.__mount(${JSON.stringify(render.props(f))});</script></body></html>`);
       await app.call("Page.navigate", { url: pathToFileURL(file).href });
       await app.waitFor(`document.querySelector(".orch-panel") && !document.body.innerText.includes("Загрузка")`, `${name}: the panel without «Загрузка…»`, 15_000);
+      // D-043 n=22: the «молчит N мин» line shows once the clock has ticked; the frame waits for it (the timeout only logs)
+      if (name === "01-working") await app.waitFor(`document.querySelector("[data-orch-silence]") !== null`, `${name}: the silence line`, 10_000).catch(() => console.log(`[shots-r3b] ${name}: silence line still absent`));
       await sleep(600);
       await shot(`${theme}${scale === 1 ? "" : "-scale125"}`, `fx-${name}`);
     };

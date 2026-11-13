@@ -831,6 +831,13 @@ try {
       // mock 15's lower half: the card «Push» at the top of the body, with «Выгрузка ревью» and «MCP» beside it
       await app.ev(`document.querySelector("[data-orch-settings-branches]")?.scrollIntoView({ block: "start" })`); await sleep(400);
       await shot("project-settings-push");
+      // D-043 (mock 15): «Спрашивать перед каждым push» turned off (not saved): the consequence line and the «Понимаю…» flag
+      await app.clickEl(q("[data-orch-settings-ask-push-toggle]")); await sleep(500);
+      await app.waitFor(`${q("[data-orch-ask-push-off]")} && true`, "ask-push-off line", 5000);
+      await app.ev(`document.querySelector("[data-orch-settings-ask-push]")?.scrollIntoView({ block: "center" })`); await sleep(400);
+      await shot("project-settings-push-off");
+      await app.clickEl(q("[data-orch-settings-ask-push-toggle]")); await sleep(400);
+      await app.ev(`document.querySelector("[data-orch-settings-branches]")?.scrollIntoView({ block: "start" })`); await sleep(300);
       // F-c (D-041 p. 2, mock 15): the checklist of «MCP and environment» after the environment check (the CLIs' own answers, no model)
       await app.ev(`document.querySelector("[data-orch-env-check]")?.scrollIntoView({ block: "center" })`); await sleep(300);
       await app.clickEl(`document.querySelector("[data-orch-env-check] > button")`);
@@ -840,6 +847,29 @@ try {
       await app.ev(SCROLL_DIALOG); await sleep(400);
       await shot("project-settings-scrolled");
       await esc(); await sleep(300); await esc();
+    });
+
+    // D-043/push (D-028): «Спрашивать перед каждым push» is off in the saved profile and a push is configured: the goal dialog says «push без подтверждения»
+    await scene("goal-push-noask", async () => {
+      const J = JSON.stringify;
+      const ipc = (call) => app.ev(`window.canvasTTY.orchestration.${call}`);
+      const p0 = await ipc(`profile(${J(linkId)}).then((r) => r.value.profile)`);
+      try {
+        const r = await ipc(`saveProfile(${J(linkId)}, ${J({ ...p0, workMode: "worktree", finish: { ...p0.finish, commit: true, push: { remote: "upstream", branch: "stable", remoteUrl: null } }, askPush: false, confirmAskPushOff: true })}).then((r) => r.ok ? "ok" : r.code + " " + (r.message ?? ""))`);
+        if (r !== "ok") throw new Error(`the no-ask profile: ${r}`);
+        await app.reveal(card(lead.agentId)); await fit();
+        await app.clickEl(byText(`[data-agent-link-id="${linkId}"] button`, "Новая цель"));
+        await app.waitFor(`${q("[data-orch-requirements]")} && true`, "goal dialog");
+        await app.waitFor(`${q("[data-orch-profile]")}?.dataset.orchProfile !== "loading"`, "profile", 20_000);
+        await app.ev(`document.querySelector(".orch-dialog .orch-advanced").open = true`); await sleep(400);
+        await app.waitFor(`${q("[data-orch-push-noask]")} && true`, "the push-without-asking line", 10_000);
+        await app.ev(`document.querySelector("[data-orch-push-noask]").scrollIntoView({ block: "center" })`); await sleep(500);
+        await shot("goal-push-noask");
+        await esc(); await sleep(300);
+      } finally {
+        const back = await ipc(`saveProfile(${J(linkId)}, ${J({ ...p0 })}).then((r) => r.ok ? "ok" : r.code)`);
+        console.log(`[shots-r5] profile restored: ${back}`);
+      }
     });
 
     // a lead without a link: the hint under the path and the port as a ring
