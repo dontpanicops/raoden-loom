@@ -394,8 +394,8 @@ try {
       submit: ${q("[data-orch-finish-submit]")}.disabled })`);
     expect(shown.steps.join() === "push,qa" && shown.submit === true, "finish (A4): push and QA decided apart; nothing sent before both are chosen", shown);
     const groups = await app.ev(`[...document.querySelectorAll("[data-orch-finish-step]")].map((e) => e.querySelector("legend")?.textContent + ":" + e.querySelectorAll("[data-orch-finish-choice]").length)`);
-    expect(/^Push · [0-9a-f]{7}:2\|Выложить на QA:2$/.test(groups.join("|")),
-      "finish (UX PR 2, D-018): two groups, «Push · commit» and «Выложить на QA», each a «Выполнить | Пропустить» segment", groups);
+    expect(/^Push в qa\/qa-branch · [0-9a-f]{7}:2\|Выложить на QA:2$/.test(groups.join("|")),
+      "finish (UX PR 2, D-018): two groups, «Push в remote/branch · commit» and «Выложить на QA», each a «Выполнить | Пропустить» segment", groups);
     await app.ev(`${q("[data-orch-finish-confirm]")}.scrollIntoView({ block: "start" })`);
     await app.shot("v2-14-finish-confirm");
     await app.clickEl(q('[data-orch-finish-choice="push:confirm"]'));

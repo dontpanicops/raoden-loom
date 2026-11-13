@@ -206,8 +206,8 @@ try {
   await app.shot("05-permission");
   // review UX-4: with the panel closed, the card and the link still say that the person is needed
   await app.clickEl(q(".orch-panel__close"));
-  expect((await app.ev(`${card(exec.agentId, ".agent-card__state")}?.textContent`)) === "Ждёт вашего решения", "the executor's card says it waits for the person", await app.ev(`${card(exec.agentId, ".agent-card__state")}?.textContent`));
-  expect((await app.ev(`${q(`[data-agent-link-id="${link.linkId}"] .agent-link__state`)}?.textContent`)) === "Ждёт вашего решения", "the link says it waits for the person", null);
+  expect((await app.ev(`${card(exec.agentId, ".agent-card__state")}?.textContent`)) === "Ждёт разрешения", "the executor's card says it waits for the person", await app.ev(`${card(exec.agentId, ".agent-card__state")}?.textContent`));
+  expect((await app.ev(`${q(`[data-agent-link-id="${link.linkId}"] .agent-link__state`)}?.textContent`)) === "Нужно разрешение", "the link says it waits for the person", await app.ev(`${q(`[data-agent-link-id="${link.linkId}"] .agent-link__state`)}?.textContent`));
   await app.clickEl(byText(`[data-agent-link-id="${link.linkId}"] button`, "Наблюдать"));
   await app.waitFor(`${q("[data-orch-permission]")} && true`, "panel again", 10_000);
   expect((await visibleNow(app, q(`[data-orch-permission] [data-decision="allow_project"]`))).ok, "reopened by Observe: the permission's buttons are in view", await visibleNow(app, q(`[data-orch-permission] [data-decision="allow_project"]`)));
