@@ -1577,6 +1577,8 @@ button { border: 0; }
 .orch-ready__fix { opacity: .8; }
 /* «Проверить сейчас» (UX audit №8) */
 .orch-ready__now { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.orch-ready__more > summary { cursor: pointer; font-size: 12px; color: var(--text-secondary); }
+.orch-ready__more > .orch-ready__output { margin-top: 4px; }
 .orch-ready__output { margin: 0; padding: 6px 8px; max-height: 8em; overflow: auto; border-radius: 6px; background: var(--surface-sunken); font: 11px/1.4 var(--font-mono); white-space: pre-wrap; word-break: break-word; }
 .orch-ready__fix-button { align-self: flex-start; }
 .orch-ready__summary { margin: 0 0 6px; font-size: 12px; font-weight: 600; }

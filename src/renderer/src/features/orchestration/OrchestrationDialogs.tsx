@@ -208,7 +208,8 @@ function Readiness({ linkId, commands, workMode, models, access, locale, onChang
         <span className="orch-ready__mark" aria-hidden="true"><UiIcon name={item.level === "ok" ? "status-done" : item.level === "info" ? "info" : item.level === "blocker" ? "error" : "status-failed"} size="1.2em" /></span>
         <span>
           {item.id === "permissions" && access ? `${t(locale, "orchReady_permissions_access")} ${rightsText(locale, access)}.` : readinessLine(locale, item)}
-          {output && <pre className="orch-ready__output" data-ready-output>{output}</pre>}
+          {/* the raw output of the environment (stderr) under «Подробно»: the row says the short text, the output is kept whole */}
+          {output && <details className="orch-ready__more"><summary>{t(locale, "orchEnvDetails")}</summary><pre className="orch-ready__output" data-ready-output>{output}</pre></details>}
           {fix && <small className="orch-ready__fix">{fix}</small>}
           {target && <button type="button" className="orch-ready__fix-button" data-orch-fix={target} onClick={() => onFix?.(target)}>{t(locale, "orchReadyFixButton")}</button>}
           {item.level === "blocker" && /^access_(claude|codex)$/.test(item.id) && onAccessOverride && (() => {
