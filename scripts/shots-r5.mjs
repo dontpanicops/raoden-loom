@@ -1024,7 +1024,7 @@ try {
       // R12j (gate S7, mock 18): the draft with the «Media» tile dragged out beyond the border: the bar says why it cannot be saved
       const mv = await app.ev(`(() => { const s = [...document.querySelectorAll(".home-widget-slot")].find((e) => e.querySelector(".mini-media")); const r = s.querySelector(".home-widget-slot__move").getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
       // R12r (gate S8, mock 18 at 1:1): the tile goes to the free row under the dock, a third of it over the right border (R12t: columns 10-12 of 12, row 6); the frame is at 100%
-      await app.drag(mv, { x: mv.x + 600, y: mv.y + 270 }, 24); await sleep(700);
+      await app.drag(mv, { x: mv.x + 480, y: mv.y + 270 }, 24); await sleep(700); // R12a4: the tile is a third over the right border and whole in the frame (it was cut by the window edge)
       console.log(`[shots-r5] ${theme} home-edit zone ${await app.ev(`(() => { const b = document.querySelector(".home-zone").getBoundingClientRect(); return [b.left, b.top, b.width, b.height].map(Math.round).join(" "); })()`)}`);
       // the HUD at the top right (minimap, hints «Home / F2 / ⌘K») lies over HOME's corner; mock 18 draws none (as the board's clip, R12o L1): hidden for the frame
       const hud = (v) => app.ev(`(() => { for (const e of document.querySelectorAll(".shortcut-hints, .canvas-minimap")) e.style.visibility = ${JSON.stringify(v)}; return true; })()`);

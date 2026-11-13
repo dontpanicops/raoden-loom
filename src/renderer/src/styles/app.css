@@ -1181,8 +1181,8 @@ button { border: 0; }
 }
 
 /* Cards (stage R2): level 2, opaque, no backdrop-filter. A waiting card gets the ring and the glow of --status-waiting (static: no animation to reduce). */
-.terminal-card--waiting, .agent-card--needs_you { box-shadow: var(--edge), 0 0 0 2px var(--status-waiting), 0 0 22px var(--status-waiting-bg), var(--elev-3); }
-.terminal-card--waiting.terminal-card--selected, .agent-card--needs_you.agent-card--selected { box-shadow: var(--edge), 0 0 0 2px var(--focus), 0 0 0 4px var(--status-waiting), 0 0 22px var(--status-waiting-bg), var(--elev-3); }
+.terminal-card--waiting, .agent-card.agent-card--needs_you { box-shadow: var(--edge), 0 0 0 2px var(--status-waiting), 0 0 22px var(--status-waiting-bg), var(--elev-3); }
+.terminal-card--waiting.terminal-card--selected, .agent-card.agent-card--needs_you.agent-card--selected { box-shadow: var(--edge), 0 0 0 2px var(--focus), 0 0 0 4px var(--status-waiting), 0 0 22px var(--status-waiting-bg), var(--elev-3); }
 /* Card status: glyph + colour + label, never the glyph alone (the label is the text; the glyph is decoration) */
 .card-status { min-width: 0; display: inline-flex; align-items: center; gap: .5em; color: var(--status-idle); font-weight: 600; }
 .card-status > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2838,3 +2838,29 @@ html:not([data-kbd]) .workspace-bar__tab:focus-visible, html:not([data-kbd]) .wo
 /* .ws tab radius 10, .ib palette radius 6 */
 .workspace-bar__tab { border-radius: 10px; }
 .titlebar__palette { border-radius: 6px; }
+
+/* R12a4 (mock 18, S16): in «Изменить HOME» the dock stands on the grid: tiles are the grid's own cells (82 x 72, gap 18), no padding, so the row is one cell high
+   and nothing of the grid shows from under it (the live dock has its padding and 90 px tiles, which is not a multiple of the cell) */
+.home-zone--editing .home-widget-slot > .launcher-dock { --dock-tile-h: 72px; padding: 0; gap: 18px; background: none; box-shadow: none; grid-template-columns: repeat(auto-fill, 82px); min-height: 72px; }
+.home-zone--editing .home-widget-slot > .settings-button { width: 100%; height: 72px; min-height: 72px; }
+.home-zone--editing .launcher-dock .launcher-button, .home-zone--editing .settings-button { font-size: calc(11px * var(--ui-scale, 1)); padding-inline: 2px; letter-spacing: -.01em; }
+.home-zone--editing .launcher-dock .launcher-button span { max-width: 100%; overflow: visible; text-overflow: clip; }
+
+/* R12a4 (mock 05/20, S17): six providers and more do not fit at the five-row size: the rows are tightened so they all stand whole; if even that is not enough the list
+   scrolls by whole rows (snap) and the scrollbar has its own gutter, off the names */
+.limits-list--dense { padding: 14px 8px 10px 14px; gap: 3px; scrollbar-gutter: stable; scroll-snap-type: y proximity; scroll-padding-top: 30px; }
+.limits-list--dense .limit-row { scroll-snap-align: start; row-gap: 3px; }
+.limits-list--dense .limit-row__name { font-size: 19px; }
+.limits-list--dense .limit-row__value { font-size: 17px; }
+.limits-list--dense .limit-row__track { height: 4px; }
+.limits-list--dense .limit-row__note { font-size: 14px; line-height: 1.25; }
+.limits-list--dense .limit-row > .provider-icon { width: 26px; height: 26px; --provider-icon-art-size: 22px; }
+.limits-list--dense .limit-row { grid-template-columns: 34px minmax(0, 1fr) auto; }
+.limits-list--dense .home-tile__head { font-size: 14px; }
+
+/* R12a4 (S18): the «page hidden» plate covers the whole viewport; with the 8 px inset the page snapshot (freeze frame, another theme's page) showed round it as a dark frame */
+.browser-card__page-state--hidden { inset: calc(var(--card-header-height) + 86px) 0 0; }
+
+/* R12a4 (mock 06): «Open run» is the one primary button; «Итог» (summary) is secondary */
+.agent-card__body button.agent-card__summary { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 10%, transparent); }
+.agent-card__body button.agent-card__open { color: var(--accent-text); background: var(--accent-bg); }

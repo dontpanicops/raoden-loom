@@ -504,7 +504,7 @@ export function HomeZone({
       const weekly = windows.length > 0 && windows.every((minutes) => minutes === 10_080);
       const noneFound = home.limitRows.length > 0 && home.limitRows.every((row) => row.reason === "cli-not-found");
       return (
-        <section className="tile agent-overview limits-list" aria-label={t(locale, "modelLimits")}>
+        <section className={`tile agent-overview limits-list ${home.limitRows.length > 5 ? "limits-list--dense" : ""}`} aria-label={t(locale, "modelLimits")}>
           <header className="home-tile__head">
             <span>{t(locale, "homeLimitsHead")}{weekly ? ` · ${t(locale, "homeLimitsWeek")}` : ""}</span>
             {!noneFound && <span>{t(locale, "homeLimitsReset")}</span>}
