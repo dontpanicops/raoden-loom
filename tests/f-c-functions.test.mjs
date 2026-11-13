@@ -126,14 +126,16 @@ test("the checklist of the environment: the rows are the report's facts, nothing
       { provider: "claude", ok: false, error: "no answer", items: [] }
     ]
   });
-  assert.deepEqual(rows.map((r) => [r.id, r.level]), [["shell", "ok"], ["codex:cli", "ok"], ["codex:mcp", "warning"], ["claude:cli", "fail"]]);
+  assert.deepEqual(rows.map((r) => [r.id, r.level]), [["shell", "ok"], ["codex:mcp", "warning"], ["claude:cli", "fail"]], "D-043: the MCP row says the CLI answered");
   const mcp = rows.find((r) => r.id === "codex:mcp");
   assert.deepEqual([mcp.params.n, mcp.params.names, mcp.unchecked], [2, "gh, fs", ["gh", "fs"]]);
   const none = envRows({ checkedAt: "", shell: { shell: null, direnv: "none", pathEntries: 0 }, providers: [
     { provider: "claude", ok: true, error: null, items: [{ id: "mcp", value: "0", confirmed: true, complete: true }] },
     { provider: "codex", ok: true, error: null, items: [{ id: "mcp", value: "", confirmed: false, complete: false, incomplete: "timeout" }] }] });
-  assert.deepEqual(none.map((r) => [r.id, r.level, r.key]), [["shell", "warning", "orchEnvRow_noShell"], ["claude:cli", "ok", "orchEnvRow_cli"], ["claude:mcp", "ok", "orchEnvRow_mcpNone"],
-    ["codex:cli", "ok", "orchEnvRow_cli"], ["codex:mcp", "warning", "orchEnvRow_mcpNoList"]]);
+  assert.deepEqual(none.map((r) => [r.id, r.level, r.key]), [["shell", "warning", "orchEnvRow_noShell"], ["claude:mcp", "ok", "orchEnvRow_mcpNone"],
+    ["codex:mcp", "warning", "orchEnvRow_mcpNoList"]]);
+  const bare = envRows({ checkedAt: "", shell: { shell: "/bin/zsh", direnv: "none", pathEntries: 1 }, providers: [{ provider: "claude", ok: true, error: null, items: [] }] });
+  assert.deepEqual(bare.map((r) => [r.id, r.key]), [["shell", "orchEnvRow_shell"], ["claude:cli", "orchEnvRow_cli"]], "no MCP item: the CLI's own row");
   for (const locale of ["ru", "en"]) for (const r of [...rows, ...none]) assert.ok(t(locale, r.key), `${locale}: ${r.key}`);
 });
 

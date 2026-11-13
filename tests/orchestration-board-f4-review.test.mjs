@@ -306,7 +306,7 @@ test("the autopilot's run at a remote base with push and reviewExport: review.js
   // the first manager crashes between «completed» and the files: nothing is written then
   let m = manager(scripts(turns("x.txt")), { root, afterExportTmp: () => { throw new Error("crash after the temporary folder"); } });
   const linkId = await linkOn(m, dir);
-  const saved = await m.saveProfile(linkId, { ...EXPORT_PROFILE({ runPush: { enabled: true, remote: "upstream", options: ["merge_request.create"], protected: [] } }), confirmPush: true });
+  const saved = await m.saveProfile(linkId, { ...EXPORT_PROFILE({ runPush: { enabled: true, remote: "upstream", options: ["merge_request.create"], protected: [] } }), confirmPush: true, askPush: false, confirmAskPushOff: true }); // D-043: pushed without asking
   assert.ok(saved.ok, JSON.stringify(saved));
   assert.equal((await m.boardBudget(linkId, { ...AUTOPILOT_BUDGET, parallel: 1 })).ok, true);
   assert.ok((await m.boardAutopilot(linkId, true, "ru")).ok);
@@ -356,7 +356,7 @@ test("the push's outcome first unknown, then established by ls-remote: push conf
   boardFile(root, [t1]);
   const m = manager(scripts(turns("x.txt")), { root });
   const linkId = await linkOn(m, dir);
-  const saved = await m.saveProfile(linkId, { ...EXPORT_PROFILE({ branchTemplate: undefined, runPush: { enabled: true, remote: "upstream", options: [], protected: [] } }), confirmPush: true });
+  const saved = await m.saveProfile(linkId, { ...EXPORT_PROFILE({ branchTemplate: undefined, runPush: { enabled: true, remote: "upstream", options: [], protected: [] } }), confirmPush: true, askPush: false, confirmAskPushOff: true }); // D-043: pushed without asking
   assert.ok(saved.ok, JSON.stringify(saved));
   const [push0, ls0] = [shellLines(/git push /), shellLines(/git ls-remote /)];
   fs.writeFileSync(path.join(FLAGS, "lsfail"), "");

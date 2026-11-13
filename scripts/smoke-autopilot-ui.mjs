@@ -123,17 +123,19 @@ try {
   const needed = await app.ev(`${q("[data-orch-needed]")}.textContent`);
   expect(needed.includes("composer install") && needed.includes("key:generate"), "settings: what is missing now is listed", needed);
   // more than the suggested mode and "terminal": the modes read from the CLI's --help have arrived
-  await app.waitFor(`document.querySelectorAll('[data-orch-access="claude"] [data-orch-access-mode]').length > 2`, "the CLI's own modes", 20_000);
-  const claudeModes = await app.ev(`[...document.querySelectorAll('[data-orch-access="claude"] [data-orch-access-mode]')].map((o) => o.dataset.orchAccessMode)`);
-  expect(JSON.stringify(claudeModes) === JSON.stringify(["terminal", "workspace", "acceptEdits", "auto", "full"]), "settings: Claude modes from the installed CLI's --help", claudeModes);
+  await app.waitFor(`document.querySelectorAll('[data-orch-access^="claude"] [data-orch-access-mode]').length > 2`, "the CLI's own modes", 20_000);
+  const claudeModes = await app.ev(`[...document.querySelectorAll('[data-orch-access^="claude"] [data-orch-access-mode]')].map((o) => o.dataset.orchAccessMode)`);
+  // D-043: the mock-up's three in the row, the CLI's others under «Дополнительно»
+  expect(JSON.stringify(claudeModes) === JSON.stringify(["terminal", "workspace", "full", "acceptEdits", "auto"]), "settings: Claude modes from the installed CLI's --help", claudeModes);
   // the stage A gate: a new project starts in the work folder for both CLIs
   const suggested = await app.ev(`["claude", "codex"].map((p) => document.querySelector(\`[data-orch-access="\${p}"] [data-orch-access-value]\`).dataset.orchAccessValue)`);
   expect(JSON.stringify(suggested) === JSON.stringify(["workspace", "workspace"]), "settings: a new project suggests «Рабочая папка» for both CLIs", suggested);
   await app.clickEl(q('[data-orch-access="claude"] [data-orch-access-mode="full"]')); // R5f: the rights are a segment
   expect(await app.ev(`!!${q("[data-orch-full-warning]")}`), "full access shows its warning", null);
-  await app.clickEl(q('[data-orch-access="claude"] [data-orch-access-mode="acceptEdits"]'));
+  await app.ev(`${q("[data-orch-access-more]")}.open = true`);
+  await app.clickEl(q('[data-orch-access="claude:extra"] [data-orch-access-mode="acceptEdits"]'));
   // R6-C: what the CLI is given is the button's tooltip, not a «Подробнее» block
-  const mapping = await app.ev(`${q('[data-orch-access="claude"] [data-orch-access-mode="acceptEdits"]')}.title`);
+  const mapping = await app.ev(`${q('[data-orch-access="claude:extra"] [data-orch-access-mode="acceptEdits"]')}.title`);
   expect(mapping.includes("--permission-mode acceptEdits"), "the mapping says what is passed to Claude", mapping);
   await app.shot("02-settings");
   const settingsPinned = await pinned();

@@ -74,6 +74,10 @@ export interface OrchestrationProjectProfile {
   // write to the temporary folders and the tools' caches outside the work folder. Absent: not allowed, as before. When
   // set, the autopilot never accepts the lead's check commands itself: the person decides
   checksOutside?: true;
+  // D-043 (mock-up 15): «Спрашивать перед каждым push». Absent: on — every push of a run (the dialog's and the autopilot's)
+  // waits for the person's confirmation of the tree and commit; false: a run with checks pushes after they pass, as before
+  // (turned off only confirmed, confirmAskPushOff). 1.5.20 drops the field
+  askPush?: false;
 }
 export interface OrchestrationRunPush { enabled: boolean; remote: string; remoteUrl: string | null; options: string[]; protected: string[]; confirmedAt: string | null }
 export interface OrchestrationAccessOption { mode: string; mapping: string }
@@ -300,7 +304,8 @@ export interface OrchestrationRunView {
   proposal?: { checks: { id: string; command: string; why: string; source: string[] }[]; none: string | null } | null;
   // journal v2, on the pause awaiting_finish_confirmation: the tree and commit the decision is about (finish.confirm's
   // payload) and the steps the goal asked for
-  confirm?: { tree: string | null; commit: string | null; push: boolean; qa: boolean } | null;
+  // ask (D-043): asked by the project's «Спрашивать перед каждым push» (the run has checks)
+  confirm?: { tree: string | null; commit: string | null; push: boolean; qa: boolean; ask?: true } | null;
   // A1.1, on the pause check_needs_permissions: the lead's check the sandbox refused; check.amend is about it
   refused?: { checkId: string; command: string } | null;
   // A4: on a pause where the person decides (awaiting_person_decision, coverage_lost, or one a finding may be decided on)
@@ -714,7 +719,8 @@ export interface OrchestrationApi {
   // confirmPush (F4, T-8): the person confirmed the autopilot's push — remote, address and options as shown (needed to
   // turn it on and to change any of them; not saved)
   // confirmChecksOutside (F-c): the person confirmed the risk of the network for the lead's checks (needed to turn it on; not saved)
-  saveProfile(linkId: string, profile: OrchestrationProjectProfile & { confirmTerminal?: boolean; confirmPush?: boolean; confirmChecksOutside?: boolean }): Promise<OrchestrationResult<OrchestrationProjectProfile>>;
+  // confirmAskPushOff (D-043): the person confirmed that pushes go without asking (needed to turn «ask» off; not saved)
+  saveProfile(linkId: string, profile: OrchestrationProjectProfile & { confirmTerminal?: boolean; confirmPush?: boolean; confirmChecksOutside?: boolean; confirmAskPushOff?: boolean }): Promise<OrchestrationResult<OrchestrationProjectProfile>>;
   // mcpReady: also check that Codex connects this project MCP server (an ephemeral thread, no turn; trusted folders only)
   probe(linkId: string, options?: { mcpReady?: string }): Promise<OrchestrationResult<OrchestrationEnvironmentReport>>;
 }

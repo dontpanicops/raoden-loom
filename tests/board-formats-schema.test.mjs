@@ -376,7 +376,7 @@ test("[П] fields on a journal v2 of a pushed run: the export built from the jou
   g(TMP, "init", "-q", "--bare", remote);
   g(src, "remote", "add", "qa", remote);
   const { runId, task } = await startRun(fx, { title: "Second task", goal: { models: { executor: "opus" }, finish: { commit: true, push: true, qa: false } },
-    profile: { finish: { commit: true, push: { remote: "qa", branch: "qa-branch", remoteUrl: remote }, qa: null } } });
+    profile: { finish: { commit: true, push: { remote: "qa", branch: "qa-branch", remoteUrl: remote }, qa: null }, askPush: false } }); // D-043: pushed without asking
   const v = await settled(m, runId);
   assert.equal(v.status, "completed", JSON.stringify([v.reason, (await records(m, runId)).slice(-6).map((r) => [r.type, r.data.status ?? r.data.reason ?? ""])]));
   const r = await buildReview(m, runId);

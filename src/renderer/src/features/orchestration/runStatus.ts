@@ -139,7 +139,7 @@ function heldState(locale: LocaleId, view: OrchestrationRunView, entries: readon
     // the one short form of the pause ("Waiting for you: …" / "Paused: …") and its why (runModel PAUSES)
     const label = viewPauseLabel(locale, view, entries);
     const cause = viewCause(view, entries);
-    if (label && cause) return { state: PAUSES[view.reason ?? ""]?.you === false ? "paused" : "waiting_user", doing: label, wait: pauseWhy(locale, cause, undefined, view.proposal?.checks.length === 0) };
+    if (label && cause) return { state: PAUSES[view.reason ?? ""]?.you === false ? "paused" : "waiting_user", doing: label, wait: pauseWhy(locale, cause, undefined, view.proposal?.checks.length === 0 || view.confirm?.ask === true) };
     const user = runHeadline(view).headline !== "paused";
     return { state: user ? "waiting_user" : "paused", doing: t(locale, `orchHeadline_${headlineKey(view, entries)}` as TranslationKey), wait: reasonText(locale, view, entries) };
   }

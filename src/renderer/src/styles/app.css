@@ -1045,6 +1045,8 @@ button { border: 0; }
 .setting-group__control { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .6em; }
 .setting-group--stacked .setting-group__control { justify-content: stretch; }
 .setting-group__footnote { padding: .7em 0 0; font-size: .85em; }
+/* D-043 (mocks 11, 16): the hooks' and the notifications' help is one line across the panel, as drawn */
+.agent-hooks .setting-group--switch .setting-group__description, [data-notify-help] { max-width: none; }
 .setting-group .setting-subhead { margin: 0 0 .6em; color: var(--text-secondary); font-size: .82em; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
 .shortcut-block { margin: 0; padding: 1.15em 0; border-bottom: .08em solid color-mix(in srgb, var(--text-primary) 9%, transparent); }
 .segmented { width: max-content; max-width: 100%; padding: .2em; display: inline-flex; flex-wrap: nowrap; gap: .1em; border-radius: .8em; }
@@ -2639,7 +2641,9 @@ html:not([data-kbd]) .terminal-link-dialog :is(button, a):focus-visible { outlin
 /* R12p (mock 15): the «check again» button and the row's «check» are small left-aligned .btn-sm (24px, 12px, padding 9px), not a full-width bar */
 .orch-env-check > button, .orch-checklist__row > button { width: auto; height: 24px; min-height: 0; padding: 0 9px; font-size: 12px; }
 .orch-env-check > button { align-self: flex-start; justify-self: start; }
-.orch-env-details > summary { cursor: pointer; font-size: 12px; color: var(--text-secondary); }
+.orch-env-details > summary, .orch-more > summary { cursor: pointer; font-size: 12px; color: var(--text-secondary); }
+/* D-043: the rights, the reviewer's model and the probe's details behind «Дополнительно» / «Подробно» */
+.orch-more[open], .orch-env-details[open] { display: flex; flex-direction: column; gap: 8px; }
 .orch-feed__delta { font-variant-numeric: tabular-nums; }
 .orch-feed__plus { font-weight: 500; color: var(--status-done); }
 .orch-feed__minus { font-weight: 500; color: var(--danger-fg); }

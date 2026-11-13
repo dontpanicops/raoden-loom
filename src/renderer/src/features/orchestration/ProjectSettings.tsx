@@ -17,6 +17,7 @@ import { Termed } from "./RunPanel";
 import { NO_MODELS, RoleModelsField } from "./RoleModels";
 import { outcomeText } from "./useOrchestration";
 
+const MAIN_MODES = ["terminal", "workspace", "full"];
 const tr = (locale: LocaleId, key: string): string => t(locale, key as TranslationKey) ?? key;
 const api = () => window.canvasTTY.orchestration;
 
@@ -37,9 +38,10 @@ export function EnvironmentCheck({ locale, linkId }: { locale: LocaleId; linkId:
     else setState({ kind: "error", text: outcomeText(locale, outcome) ?? t(locale, "orchError_generic") });
   };
   return (
-    <fieldset className="orch-field orch-env-check" data-orch-env-check={state.kind}>
-      <legend>{t(locale, "orchEnvTitle")}</legend>
-      <p className="orch-hint">{t(locale, "orchEnvProbeHint")}</p>
+    // D-043: the list and the button; «Окружение», the paragraphs and «проверено …» under «Подробно» once checked (what the
+    // check starts is said before it runs)
+    <fieldset className="orch-field orch-env-check" data-orch-env-check={state.kind} aria-label={t(locale, "orchEnvTitle")}>
+      {state.kind !== "done" && <p className="orch-hint">{t(locale, "orchEnvProbeHint")}</p>}
       {/* F-c (D-041 p. 2, mock-up 15): what was checked and its result, a row each — the report's facts only */}
       {state.kind === "done" && (
         <ul className="orch-checklist" data-orch-checklist>
@@ -53,11 +55,12 @@ export function EnvironmentCheck({ locale, linkId }: { locale: LocaleId; linkId:
         </ul>
       )}
       <button type="button" disabled={state.kind === "busy"} onClick={() => void run()}>{t(locale, state.kind === "busy" ? "orchEnvProbing" : state.kind === "done" ? "orchEnvProbeAgain" : "orchEnvProbe")}</button>
-      {state.kind === "done" && <small className="orch-hint" data-env-checked-at>{t(locale, "orchReadyCheckedAt").replace("{time}", clockText(locale, Date.parse(state.report.checkedAt) || Date.now()))}</small>}
       {state.kind === "error" && <p className="dialog-error" role="alert">{state.text}</p>}
       {state.kind === "done" && (
         <details className="orch-env-details" data-orch-env-details>
         <summary>{t(locale, "orchEnvDetails")}</summary>
+        <small className="orch-hint" data-env-checked-at>{t(locale, "orchReadyCheckedAt").replace("{time}", clockText(locale, Date.parse(state.report.checkedAt) || Date.now()))}</small>
+        <p className="orch-hint"><b>{t(locale, "orchEnvTitle")}</b> · {t(locale, "orchEnvProbeHint")}</p>
         <div className="orch-env" data-orch-env-report>
           <p>{t(locale, "orchEnvShell")}: <code>{state.report.shell.shell ?? "?"}</code> · PATH {state.report.shell.pathEntries} · {tr(locale, `orchDirenv_${state.report.shell.direnv}`)}</p>
           {state.report.providers.map((p) => (
@@ -126,6 +129,9 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
   // F-c: the network for the lead's checks, newly turned on: saved only with its risk confirmed (main checks it again)
   const [confirmOutside, setConfirmOutside] = useState(false);
   const toOutside = p.checksOutside === true && !(info.saved && info.profile.checksOutside === true);
+  // D-043: «ask before each push» (on unless askPush: false) newly turned off: saved only with its consequence confirmed (main checks it again)
+  const [confirmAskOff, setConfirmAskOff] = useState(false);
+  const askOff = p.askPush === false && !(info.saved && info.profile.askPush === false);
   // F4 (T-8): the autopilot's push — turned on, or its remote or options changed: saved only confirmed (main checks it
   // again, the address included); the options and the protected branches one per line
   const [pushOptions, setPushOptions] = useState((info.profile.runPush?.options ?? []).join("\n"));
@@ -167,6 +173,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
     if ((parts > 0 || p.finish.push) && !p.finish.commit) return t(locale, "orchSettingsErrNeedsCommit");
     if (toTerminal && !confirmTerminal) return t(locale, "orchError_terminal_not_confirmed");
     if (toOutside && !confirmOutside) return t(locale, "orchError_checks_outside_not_confirmed");
+    if (askOff && !confirmAskOff) return t(locale, "orchError_ask_push_off_not_confirmed");
     if (reviewDirBad) return t(locale, "projReviewDirRelative");
     if (pushAsks && pushUrl === null) return t(locale, "projRunPushUrlUnread");
     if (pushAsks && !confirmPush) return t(locale, "orchError_push_not_confirmed");
@@ -184,19 +191,26 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
     };
     setBusy(true);
     setError(null);
-    const { outcome, value } = await outcomeOf(() => api().saveProfile(linkId, { ...profile, ...(toTerminal ? { confirmTerminal } : {}), ...(toOutside ? { confirmChecksOutside: confirmOutside } : {}), ...(pushAsks ? { confirmPush } : {}) }));
+    const { outcome, value } = await outcomeOf(() => api().saveProfile(linkId, { ...profile, ...(toTerminal ? { confirmTerminal } : {}), ...(toOutside ? { confirmChecksOutside: confirmOutside } : {}), ...(askOff ? { confirmAskPushOff: confirmAskOff } : {}), ...(pushAsks ? { confirmPush } : {}) }));
     setBusy(false);
     if (outcome.kind === "accepted" && value) onSaved(value);
     else setError(outcomeText(locale, outcome) ?? t(locale, "orchError_generic"));
   };
 
   // R5f (mock-up 15): the rights of a CLI are a segment of the modes it offers (the same state the select held)
-  const accessSelect = (provider: "claude" | "codex") => {
+  // D-043 (mock 15): the three modes of the mock-up in the row; the others the CLI offers under «Дополнительно»
+  const offered = (provider: "claude" | "codex") => {
     const options = (caps ?? info.capabilities)[provider];
     const current = p.access[provider];
-    const all = options.some((o) => o.mode === current) ? options : [...options, { mode: current, mapping: "" }];
+    return options.some((o) => o.mode === current) ? options : [...options, { mode: current, mapping: "" }];
+  };
+  const extraModes = (provider: "claude" | "codex") => offered(provider).filter((o) => !MAIN_MODES.includes(o.mode));
+  const accessSelect = (provider: "claude" | "codex", extra = false) => {
+    const current = p.access[provider];
+    const all = offered(provider).filter((o) => MAIN_MODES.includes(o.mode) !== extra);
+    if (!all.length) return null;
     return (
-      <div className="orch-access" data-orch-access={provider}>
+      <div className="orch-access" data-orch-access={extra ? `${provider}:extra` : provider}>
         <div className="orch-access__row">
           <span className="orch-access__name">{provider === "claude" ? "Claude" : "Codex"} · {t(locale, provider === "claude" ? "orchRoleExecutorShort" : "orchRoleLeadShort")}</span>
           {/* biome-ignore lint/a11y/useSemanticElements: a labelled group of buttons that keeps its own layout; a fieldset would bring its own box */}
@@ -209,8 +223,8 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
             ))}
           </div>
         </div>
-        {current === "terminal" && <small className="orch-hint orch-hint--warn" data-orch-terminal-warning>{t(locale, "orchAccessTerminalWarn")}</small>}
-        {current === "full" && <small className="dialog-error" data-orch-full-warning>{t(locale, "orchAccessFullWarn")}</small>}
+        {!extra && current === "terminal" && <small className="orch-hint orch-hint--warn" data-orch-terminal-warning>{t(locale, "orchAccessTerminalWarn")}</small>}
+        {!extra && current === "full" && <small className="dialog-error" data-orch-full-warning>{t(locale, "orchAccessFullWarn")}</small>}
       </div>
     );
   };
@@ -225,6 +239,13 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
             {accessSelect("claude")}
             {accessSelect("codex")}
             <p className="orch-hint">{t(locale, "orchSettingsAccessHint")}</p>
+            {(["claude", "codex"] as const).some((k) => extraModes(k).length > 0) && (
+              <details className="orch-more" data-orch-access-more open={(["claude", "codex"] as const).some((k) => extraModes(k).some((o) => o.mode === p.access[k]))}>
+                <summary>{t(locale, "orchAdvanced")}</summary>
+                {accessSelect("claude", true)}
+                {accessSelect("codex", true)}
+              </details>
+            )}
             {toTerminal && (
               <label className="orch-check" data-orch-terminal-confirm>
                 <input type="checkbox" checked={confirmTerminal} onChange={(e) => setConfirmTerminal(e.target.checked)} />
@@ -267,6 +288,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
             <label className="orch-field">
               <span>{t(locale, "projRunPushOptions")}</span>
               <textarea rows={3} value={pushOptions} spellCheck={false} data-orch-settings-run-push-options onChange={(e) => setPushOptions(e.target.value)} />
+              <small className="orch-hint orch-hint--line" title={t(locale, "projRunPushOptionsHint")}>{t(locale, "projRunPushOptionsHint")}</small>
             </label>
             <div className="orch-field" data-orch-settings-run-push-protected>
               <span>{t(locale, "projRunPushProtected")}</span>
@@ -279,6 +301,21 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
                   onChange={(e) => setProtectedDraft(e.target.value)} onBlur={addProtected}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addProtected(); } }} />
               </span>
+            </div>
+            {/* D-043 (mock 15): on by default; turned off only by the person, its consequence said beside it and confirmed */}
+            <div className="orch-field" data-orch-settings-ask-push={p.askPush === false ? "off" : "on"}>
+              <label className="orch-check orch-check--switch">
+                <input type="checkbox" role="switch" aria-checked={p.askPush !== false} checked={p.askPush !== false} data-orch-settings-ask-push-toggle
+                  onChange={(e) => setP((cur) => { const { askPush: _was, ...rest } = cur; return e.target.checked ? rest : { ...rest, askPush: false }; })} />
+                <span>{t(locale, "projAskPush")}</span>
+              </label>
+              {p.askPush === false && <small className="orch-hint orch-hint--warn" data-orch-ask-push-off>{t(locale, "projAskPushOff")}</small>}
+              {askOff && (
+                <label className="orch-check" data-orch-ask-push-off-confirm>
+                  <input type="checkbox" checked={confirmAskOff} onChange={(e) => setConfirmAskOff(e.target.checked)} />
+                  <span>{t(locale, "projAskPushOffConfirm")}</span>
+                </label>
+              )}
             </div>
             {pushAsks && (
               <label className="orch-check" data-orch-push-confirm>
@@ -293,6 +330,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
                 <span>{t(locale, "projRunPush")}</span>
               </label>
               <small className="orch-hint">{t(locale, "projRunPushHint")}</small>
+              {p.askPush !== false && <small className="orch-hint" data-orch-ask-push-on>{t(locale, "projAskPushOn")}</small>}
             </div>
             {/* F3 (§10): the remote base of a board task's run (worktree only; main reads the remote's address) */}
             <label className="orch-field">
@@ -316,7 +354,7 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
           {/* journal v2: a role's model is recorded in the goal only there */}
           {info.optionalChecks && (
             <Card title={t(locale, "projCardModels")}>
-              <RoleModelsField bare locale={locale} linkId={linkId} value={p.models ?? NO_MODELS} hint={t(locale, "orchModelsSettingsHint")} onChange={(models) => set({ models })} />
+              <RoleModelsField bare more={t(locale, "orchAdvanced")} locale={locale} linkId={linkId} value={p.models ?? NO_MODELS} hint={t(locale, "orchModelsSettingsHint")} onChange={(models) => set({ models })} />
             </Card>
           )}
           <Card title={t(locale, "projCardChecks")} hint={t(locale, "projChecksHint")}>
@@ -363,7 +401,6 @@ export function ProjectSettings({ locale, linkId, info, onSaved, onCancel, check
                 ))}
               </div>
             </div>
-            <small className="orch-hint">{t(locale, "projReviewDirHint")}</small>
           </Card>
           <Card title={t(locale, "projCardMcp")}>
             <label className="orch-check orch-check--switch">

@@ -47,6 +47,7 @@ export interface Goal {
   exportTo?: { dir?: string; format?: "markdown" | "json" | "both" }; // F-c (D-041 p. 1), with export, set by main from the profile: the review's folder and format; absent: the application's folder, both files
   export?: true; // F4 (T-9), journal v2 worktree board task only, set by main: the review export when completed. Not used by the cycle
   checksOutside?: true; // F-c (D-041 p. 3), journal v2, set by main from the profile: the lead's checks may use the network and write to temporary folders and caches; the autopilot then never accepts them itself
+  askPush?: true; // D-043, journal v2 with a push, set by main from the profile («Спрашивать перед каждым push», on unless askPush: false): the push waits for the person's confirmation of this tree and commit, as a run without checks does
   noMcp?: true; // F4 (T-14), set by main: the roles run without MCP (the service's turns). Not used by the cycle
   // C3 (stage-c3-conflicts.md §3): a resolution run of a merge into the board's result — its copy starts from `base` (the
   // conflict as a commit), its plan is the application's. Not `task`: the run is never a task's run (metaOf, boardStatuses)
@@ -313,6 +314,10 @@ export function proposesChecks(state: RunState, goal: Pick<Goal, "commands" | "d
 
 // A run of journal v2 whose decided set of check commands is empty: completed without checks (§2.3).
 export const withoutChecks = (state: RunState): boolean => state.version === 2 && state.orch.checksDecision?.count === 0;
+// The steps the person confirms before they run (finish.confirm): push and QA of a run without checks (§2.1); the push of
+// a goal whose project asks before each push (D-043, goal.askPush)
+export const personDecides = (state: RunState, goal: Pick<Goal, "askPush">, step: FinishStep): boolean =>
+  step !== "commit" && (withoutChecks(state) || (step === "push" && goal.askPush === true && state.version === 2));
 
 // The person's push/QA decision of a run without checks for this tree and commit (journal-v2-format.md §2.1): the last
 // one recorded after the commit; another tree or commit is not covered by it.
@@ -347,10 +352,10 @@ export function completion(state: RunState, goal: Goal, snapshot: Pick<Snapshot,
   const final = o.reviews.filter((r) => r.stage === null && o.turns[r.turnId]?.planVersion === o.plan?.version).at(-1);
   if (final?.verdict !== "complete" || final.runKey !== snapshot.runKey || final.clarificationVersion !== o.clarifications) blockers.push("final_report_stale");
   const commit = currentCommit(state, snapshot.tree);
-  const confirmed = withoutChecks(state) ? confirmationFor(state, snapshot.tree, commit?.commit ?? null) : null;
+  const confirmed = confirmationFor(state, snapshot.tree, commit?.commit ?? null);
   for (const step of FINISH_ORDER) {
     if (!goal.finish?.[step]) continue;
-    if (step !== "commit" && withoutChecks(state)) {
+    if (personDecides(state, goal, step)) {
       if (!confirmed?.[step]) { blockers.push("finish_awaiting_person"); continue; }
       if (confirmed[step] === "decline") continue;
     }
@@ -383,10 +388,11 @@ function finishOrComplete(input: CycleInput): Action {
   const current = (f: FinishRecord) => f.step === "commit" ? commit === f : commit !== null && f.commit === commit.commit;
   const pausedAfter = (seq: number) => (orch.lastPausedSeq.finish_unconfirmed ?? -1) >= seq;
   // v2 without checks: push and QA only as the person decided for this tree and commit, even in the autopilot
-  const person = withoutChecks(state) ? confirmationFor(state, snapshot.tree, commit?.commit ?? null) : null;
+  // and the push of a goal that asks before each push (D-043)
+  const person = confirmationFor(state, snapshot.tree, commit?.commit ?? null);
   for (const step of FINISH_ORDER) {
     if (!goal.finish?.[step]) continue;
-    if (step !== "commit" && withoutChecks(state)) {
+    if (personDecides(state, goal, step)) {
       if (!person) return { kind: "pause", reason: "awaiting_finish_confirmation", detail: step };
       if (person[step] === "decline") continue;
     }

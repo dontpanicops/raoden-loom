@@ -1162,9 +1162,8 @@ function NotificationSettingsGroup({ settings, onChange }: { settings: AppSettin
           ))}
         </div>
       </section>
-      <p className="setting-group__description setting-group__footnote" data-notify-intro>{t(locale, "notifyIntro")}</p>
-      <p className="setting-group__description setting-group__footnote" data-notify-system-hint>{t(locale, "notifySystemHint")}</p>
-      <p className="setting-group__description setting-group__footnote" data-notify-badge-hint>{t(locale, "notifyBadgeHint")}</p>
+      {/* D-043: the help in one line (what the switches say is in their own descriptions) */}
+      <p className="setting-group__description setting-group__footnote" data-notify-help>{t(locale, "notifyHelp")}</p>
     </>
   );
 }

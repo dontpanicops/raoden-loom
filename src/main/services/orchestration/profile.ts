@@ -103,6 +103,8 @@ export function validateProfile(input: unknown): OrchestrationProjectProfile {
   const runMcp = raw.runMcp === undefined || raw.runMcp === true ? true : raw.runMcp === false ? false : bad("runMcp: false or absent");
   // F-c (D-041 p. 3): absent or false: the check profile as before; true: network and writes to temporary folders and caches
   const checksOutside = raw.checksOutside === undefined || raw.checksOutside === false ? false : raw.checksOutside === true ? true : bad("checksOutside: true or absent");
+  // D-043: absent or true: ask before each push (the default); false: not asked
+  const askPush = raw.askPush === undefined || raw.askPush === true ? true : raw.askPush === false ? false : bad("askPush: false or absent");
   return {
     v: 1, workMode: p!.workMode!, checks, prepare: { steps, auto: prep!.auto }, env: { direnv: p!.env!.direnv },
     access: { claude: access.claude, codex: access.codex }, ...(models ? { models } : {}), finish: { commit: f!.commit, push, qa }, grants,
@@ -110,7 +112,7 @@ export function validateProfile(input: unknown): OrchestrationProjectProfile {
     ...(branchTemplate ? { branchTemplate } : {}), ...(runBase ? { runBase } : {}), ...(runPush ? { runPush } : {}),
     ...(reviewExport ? { reviewExport: true as const } : {}), ...(reviewExportDir ? { reviewExportDir } : {}),
     ...(format && format !== "both" ? { reviewExportFormat: format } : {}), ...(runMcp ? {} : { runMcp: false as const }),
-    ...(checksOutside ? { checksOutside: true as const } : {})
+    ...(checksOutside ? { checksOutside: true as const } : {}), ...(askPush ? {} : { askPush: false as const })
   };
 }
 
